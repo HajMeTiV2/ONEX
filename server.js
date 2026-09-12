@@ -1,92 +1,126 @@
+const express = require('express');
+const path = require('path');
+const cors = require('cors');
+const db = require('./db');
+const { generateAllConfigs, generateSubList } = require('./utils/configs');
+const { v4: uuidv4 } = require('uuid');
 
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ONEX | ورود به پنل</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
-  <style>
-    body { font-family: 'Vazirmatn', sans-serif; }
-    .glass-box { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
-  </style>
-</head>
-<body class="bg-[#040711] min-h-screen flex items-center justify-center p-4">
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-  <div class="w-full max-w-md">
-    <!-- Header Logo -->
-    <div class="text-center mb-8 flex flex-col items-center">
-      <svg class="w-20 h-20 mb-3 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]" viewBox="0 0 100 100" fill="none">
-        <defs>
-          <linearGradient id="onexG" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#22d3ee"/>
-            <stop offset="50%" stop-color="#3b82f6"/>
-            <stop offset="100%" stop-color="#a855f7"/>
-          </linearGradient>
-        </defs>
-        <rect x="6" y="6" width="88" height="88" rx="26" fill="#0b1120" stroke="url(#onexG)" stroke-width="2.5"/>
-        <circle cx="50" cy="50" r="26" stroke="url(#onexG)" stroke-width="4.5" stroke-dasharray="115 35"/>
-        <path d="M39 39L61 61M61 39L39 61" stroke="url(#onexG)" stroke-width="4.5" stroke-linecap="round"/>
-        <circle cx="50" cy="50" r="3.5" fill="#22d3ee"/>
-      </svg>
-      <h1 class="text-3xl font-black text-white tracking-wider">ON<span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">EX</span></h1>
-      <p class="text-xs text-slate-400 mt-1">پنل مدیریت اشتراک V2Ray</p>
-    </div>
+const PORT = process.env.PORT || 3000;
 
-    <!-- Login Box -->
-    <div class="glass-box rounded-3xl p-7 shadow-2xl">
-      <h2 class="text-base font-bold text-white mb-5">ورود به حساب کاربری</h2>
+// ورود کاربر
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await db.getAsync('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
+    if (!user) return res.status(401).json({ error: 'نام کاربری یا رمز عبور اشتباه است' });
+    
+    await db.runAsync("UPDATE users SET last_login = datetime('now') WHERE id = ?", [user.id]);
+    res.json({ token: user.id, username: user.username });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
-      <form id="loginForm" class="space-y-4">
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">نام کاربری</label>
-          <input type="text" id="username" value="admin" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-cyan-500">
-        </div>
-        <div>
-          <label class="text-xs text-slate-400 block mb-1.5">رمز عبور</label>
-          <input type="password" id="password" value="admin123" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-cyan-500">
-        </div>
+// دریافت اطلاعات داشبورد
+app.get('/api/user/:id', async (req, res) => {
+  try {
+    const user = await db.getAsync('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    if (!user) return res.status(404).json({ error: 'اشتراک یافت نشد' });
+    
+    const servers = await db.allAsync('SELECT * FROM servers');
+    const allConfigs = [];
+    servers.forEach(s => allConfigs.push(...generateAllConfigs(user, s)));
 
-        <div id="errMsg" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3"></div>
-
-        <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white font-bold py-3.5 rounded-xl cursor-pointer">
-          ورود به داشبورد
-        </button>
-      </form>
-
-      <a href="https://t.me/V2rayTun0" target="_blank" class="mt-6 flex items-center justify-center gap-2 w-full bg-slate-900 border border-slate-800 py-3 rounded-2xl text-xs text-slate-300 hover:border-[#0088cc]/50">
-        📢 عضویت در کانال تلگرام <span class="font-bold text-[#0088cc]">@V2rayTun0</span>
-      </a>
-    </div>
-
-    <div class="text-center mt-6 text-[11px] text-slate-500">
-      توسعه‌دهنده: <a href="https://t.me/Mehtif" target="_blank" class="text-cyan-400 font-bold">@Mehtif</a>
-    </div>
-  </div>
-
-  <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const errEl = document.getElementById('errMsg');
-      errEl.classList.add('hidden');
-      try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: document.getElementById('username').value.trim(),
-            password: document.getElementById('password').value
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        window.location.href = `/dashboard/${data.token}`;
-      } catch (err) {
-        errEl.textContent = err.message;
-        errEl.classList.remove('hidden');
-      }
+    res.json({
+      user: {
+        username: user.username,
+        totalTrafficGB: user.total_traffic_gb,
+        usedTrafficGB: user.used_traffic_gb,
+        expireDate: user.expire_date,
+        status: user.status,
+        lastLogin: user.last_login
+      },
+      configs: allConfigs,
+      subUrl: `${req.protocol}://${req.get('host')}/sub/${user.id}`
     });
-  </script>
-</body>
-</html>
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// نمودار ترافیک
+app.get('/api/traffic/:id', async (req, res) => {
+  try {
+    const logs = await db.allAsync(`SELECT timestamp, upload_mb, download_mb FROM traffic_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 24`, [req.params.id]);
+    const reversed = logs.reverse();
+    res.json({
+      labels: reversed.map(l => new Date(l.timestamp).getHours() + ':00'),
+      upload: reversed.map(l => l.upload_mb),
+      download: reversed.map(l => l.download_mb)
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// سابسکریپشن
+app.get('/sub/:id', async (req, res) => {
+  try {
+    const user = await db.getAsync('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    if (!user || user.status !== 'active') return res.status(403).send('ONEX: Subscription Expired');
+    
+    const servers = await db.allAsync('SELECT * FROM servers');
+    const allConfigs = [];
+    servers.forEach(s => allConfigs.push(...generateAllConfigs(user, s)));
+
+    const raw = generateSubList(allConfigs);
+    const base64 = Buffer.from(raw).toString('base64');
+    const totalBytes = user.total_traffic_gb * 1073741824;
+    const usedBytes = user.used_traffic_gb * 1073741824;
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Profile-Update-Interval', '6');
+    res.setHeader('Subscription-Userinfo', `upload=0; download=${Math.round(usedBytes)}; total=${Math.round(totalBytes)}; expire=0`);
+    res.send(base64);
+  } catch (e) {
+    res.status(500).send('Error: ' + e.message);
+  }
+});
+
+// ساخت کاربر (ادمین)
+app.post('/api/admin/create-user', async (req, res) => {
+  try {
+    const { username, password, email, totalTrafficGB, expireDate } = req.body;
+    const id = uuidv4();
+    await db.runAsync(
+      `INSERT INTO users (id, username, password, email, total_traffic_gb, expire_date) VALUES (?,?,?,?,?,?)`,
+      [id, username, password, email || '', totalTrafficGB || 50, expireDate]
+    );
+    res.json({ success: true, id, username });
+  } catch (e) {
+    res.status(400).json({ error: 'نام کاربری قبلاً استفاده شده است' });
+  }
+});
+
+// لیست کاربران
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const users = await db.allAsync('SELECT * FROM users ORDER BY created_at DESC');
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// روت‌های صفحات
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/dashboard/:id', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/', (req, res) => res.redirect('/login'));
+
+app.listen(PORT, () => console.log(`🚀 ONEX Panel running on port ${PORT}`));

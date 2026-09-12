@@ -1,185 +1,533 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ONEX | داشبورد کاربری</title>
+  <title>ONEX | پنل مدیریت</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     body { font-family: 'Vazirmatn', sans-serif; }
-    .glass-card { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.07); }
-    .tag { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 8px; }
+    .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .tab-active { background: linear-gradient(135deg, #22d3ee, #a855f7); color: white; }
+    .tab-inactive { background: transparent; color: #94a3b8; }
+    .tab-inactive:hover { background: rgba(255,255,255,0.05); }
+    .modal-backdrop { background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); }
+    input, select, textarea { color: white; }
+    ::placeholder { color: #475569; }
   </style>
 </head>
-<body class="bg-[#040711] min-h-screen text-slate-100 flex flex-col justify-between">
+<body class="bg-[#040711] min-h-screen text-slate-100">
 
-  <!-- Navbar -->
-  <nav class="glass-card sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between border-b border-slate-800">
+  <!-- ═══ NAVBAR ═══ -->
+  <nav class="glass sticky top-0 z-40 px-4 md:px-6 py-3 flex items-center justify-between border-b border-slate-800">
     <div class="flex items-center gap-3">
-      <svg class="w-8 h-8 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" viewBox="0 0 100 100" fill="none">
+      <svg class="w-9 h-9" viewBox="0 0 100 100" fill="none">
         <rect x="6" y="6" width="88" height="88" rx="26" fill="#0b1120" stroke="#22d3ee" stroke-width="3"/>
         <circle cx="50" cy="50" r="26" stroke="#22d3ee" stroke-width="5" stroke-dasharray="115 35"/>
         <path d="M39 39L61 61M61 39L39 61" stroke="#a855f7" stroke-width="5" stroke-linecap="round"/>
       </svg>
-      <span class="font-black text-base text-white">ON<span class="text-cyan-400">EX</span></span>
+      <div>
+        <div class="font-black text-white">ON<span class="text-cyan-400">EX</span></div>
+        <div class="text-[10px] text-slate-500">Multi-Level Panel</div>
+      </div>
     </div>
-
-    <div class="flex items-center gap-4">
-      <a href="https://t.me/V2rayTun0" target="_blank" class="text-xs text-[#0088cc] bg-[#0088cc]/10 border border-[#0088cc]/30 px-3 py-1 rounded-full">
-        @V2rayTun0
-      </a>
-      <span id="navUsername" class="text-xs text-slate-300 font-bold"></span>
-      <a href="/login" class="text-xs text-rose-400 hover:underline">خروج</a>
+    <div class="flex items-center gap-3">
+      <span id="adminName" class="text-xs text-slate-300 font-bold hidden md:inline"></span>
+      <span id="adminRole" class="text-[10px] px-2 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"></span>
+      <button onclick="logout()" class="text-xs text-rose-400 hover:underline">خروج</button>
     </div>
   </nav>
 
-  <!-- Container -->
-  <main class="max-w-5xl w-full mx-auto p-4 md:p-6 space-y-6">
+  <!-- ═══ TABS ═══ -->
+  <div class="max-w-7xl mx-auto p-4">
+    <div class="glass rounded-2xl p-2 flex gap-2 mb-6 overflow-x-auto">
+      <button onclick="showTab('overview')" data-tab="overview" class="tab-btn tab-active px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap">📊 داشبورد</button>
+      <button onclick="showTab('clients')" data-tab="clients" class="tab-btn tab-inactive px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap">👥 کاربران</button>
+      <button onclick="showTab('servers')" data-tab="servers" class="tab-btn tab-inactive px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap">🖥 سرورها</button>
+      <button onclick="showTab('resellers')" data-tab="resellers" id="resellerTabBtn" class="tab-btn tab-inactive px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap hidden">🎫 فروشندگان</button>
+    </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="glass-card rounded-3xl p-5">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-xs text-slate-400">حجم مصرفی</span>
-          <span id="trafficPct" class="text-xs font-black text-cyan-400"></span>
+    <!-- ═══ TAB: OVERVIEW ═══ -->
+    <div id="tab-overview" class="tab-content">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="glass rounded-2xl p-5">
+          <div class="text-xs text-slate-400 mb-1">کل کاربران</div>
+          <div id="statTotal" class="text-2xl font-black text-white">0</div>
         </div>
-        <div class="text-2xl font-black text-white mb-3">
-          <span id="usedGB">0</span> <span class="text-xs text-slate-500 font-normal">/ <span id="totalGB">0</span> GB</span>
+        <div class="glass rounded-2xl p-5">
+          <div class="text-xs text-slate-400 mb-1">کاربران فعال</div>
+          <div id="statActive" class="text-2xl font-black text-emerald-400">0</div>
         </div>
-        <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
-          <div id="trafficBar" class="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full transition-all duration-700" style="width: 0%"></div>
+        <div class="glass rounded-2xl p-5">
+          <div class="text-xs text-slate-400 mb-1">مجموع ترافیک</div>
+          <div class="text-2xl font-black text-white"><span id="statTotalTraffic">0</span> <span class="text-xs text-slate-500">GB</span></div>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <div class="text-xs text-slate-400 mb-1">ترافیک مصرفی</div>
+          <div class="text-2xl font-black text-cyan-400"><span id="statUsedTraffic">0</span> <span class="text-xs text-slate-500">GB</span></div>
         </div>
       </div>
 
-      <div class="glass-card rounded-3xl p-5">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-xs text-slate-400">اعتبار سرویس</span>
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <div class="glass rounded-2xl p-6">
+        <h3 class="text-sm font-bold text-white mb-3">👋 خوش آمدید به پنل ONEX Pro</h3>
+        <p class="text-xs text-slate-400 leading-6">
+          از منوی بالا برای مدیریت کاربران، سرورها و فروشندگان استفاده کنید. با کلیک روی «کاربران» می‌توانید کاربر جدید بسازید، حجم و تاریخ اختصاص دهید و لینک ساب اختصاصی هر کاربر را دریافت کنید.
+        </p>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: CLIENTS ═══ -->
+    <div id="tab-clients" class="tab-content hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-black text-white">👥 مدیریت کاربران</h2>
+        <button onclick="openClientModal()" class="bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">
+          ➕ ایجاد کاربر جدید
+        </button>
+      </div>
+
+      <div class="glass rounded-2xl p-4 overflow-x-auto">
+        <table class="w-full text-xs text-right min-w-[700px]">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-800">
+              <th class="py-2.5 px-3">نام کاربر</th>
+              <th class="py-2.5 px-3">حجم</th>
+              <th class="py-2.5 px-3">مصرف</th>
+              <th class="py-2.5 px-3">انقضا</th>
+              <th class="py-2.5 px-3">وضعیت</th>
+              <th class="py-2.5 px-3">عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="clientsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: SERVERS ═══ -->
+    <div id="tab-servers" class="tab-content hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-black text-white">🖥 مدیریت سرورها</h2>
+        <button onclick="openServerModal()" id="addServerBtn" class="bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">
+          ➕ افزودن سرور
+        </button>
+      </div>
+
+      <div class="glass rounded-2xl p-4 overflow-x-auto">
+        <table class="w-full text-xs text-right">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-800">
+              <th class="py-2.5 px-3">نام</th>
+              <th class="py-2.5 px-3">آدرس</th>
+              <th class="py-2.5 px-3">پورت</th>
+              <th class="py-2.5 px-3">SNI</th>
+              <th class="py-2.5 px-3">حذف</th>
+            </tr>
+          </thead>
+          <tbody id="serversTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: RESELLERS ═══ -->
+    <div id="tab-resellers" class="tab-content hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-black text-white">🎫 مدیریت فروشندگان</h2>
+        <button onclick="openResellerModal()" class="bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer">
+          ➕ افزودن فروشنده
+        </button>
+      </div>
+
+      <div class="glass rounded-2xl p-4 overflow-x-auto">
+        <table class="w-full text-xs text-right">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-800">
+              <th class="py-2.5 px-3">نام کاربری</th>
+              <th class="py-2.5 px-3">اعتبار (GB)</th>
+              <th class="py-2.5 px-3">حداکثر کاربر</th>
+              <th class="py-2.5 px-3">تاریخ ایجاد</th>
+              <th class="py-2.5 px-3">حذف</th>
+            </tr>
+          </thead>
+          <tbody id="resellersTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: CLIENT (Add/Edit) ═══ -->
+  <div id="clientModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+    <div class="glass rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="clientModalTitle" class="text-lg font-bold text-white">➕ ایجاد کاربر جدید</h3>
+        <button onclick="closeClientModal()" class="text-slate-400 text-2xl">×</button>
+      </div>
+
+      <form id="clientForm" class="space-y-3">
+        <input type="hidden" id="clientId">
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">نام کاربر</label>
+          <input type="text" id="cName" required placeholder="ali_reza" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-cyan-500">
         </div>
-        <div id="expireDate" class="text-2xl font-black text-white mb-1">--/--/----</div>
-        <span id="daysLeft" class="text-xs font-semibold text-emerald-400">در حال محاسبه...</span>
-      </div>
-
-      <div class="glass-card rounded-3xl p-5">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-xs text-slate-400">وضعیت اتصال</span>
-          <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Online</span>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">حجم (گیگابایت)</label>
+            <input type="number" id="cTraffic" required value="30" min="1" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-cyan-500">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400 block mb-1">تاریخ انقضا</label>
+            <input type="text" id="cExpire" required placeholder="1404/06/15" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none focus:border-cyan-500">
+          </div>
         </div>
-        <div class="text-2xl font-black text-emerald-400 mb-1">فعال و پایدار</div>
-        <span class="text-xs text-slate-400">آخرین ورود: <span id="lastLogin">هم‌اکنون</span></span>
+        <div>
+          <label class="text-xs text-slate-400 block mb-2">پروتکل‌ها</label>
+          <div class="grid grid-cols-3 gap-2">
+            <label class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs cursor-pointer">
+              <input type="checkbox" class="cProto" value="vless" checked> VLESS
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs cursor-pointer">
+              <input type="checkbox" class="cProto" value="vmess" checked> VMess
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs cursor-pointer">
+              <input type="checkbox" class="cProto" value="trojan" checked> Trojan
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs cursor-pointer">
+              <input type="checkbox" class="cProto" value="shadowsocks" checked> SS
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs cursor-pointer">
+              <input type="checkbox" class="cProto" value="hysteria2" checked> HY2
+            </label>
+            <label class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs cursor-pointer">
+              <input type="checkbox" class="cProto" value="reality" checked> Reality
+            </label>
+          </div>
+        </div>
+        <div id="cStatusWrap" class="hidden">
+          <label class="text-xs text-slate-400 block mb-1">وضعیت</label>
+          <select id="cStatus" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+            <option value="active">فعال</option>
+            <option value="disabled">غیرفعال</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400 block mb-1">یادداشت (اختیاری)</label>
+          <textarea id="cNote" rows="2" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs outline-none focus:border-cyan-500"></textarea>
+        </div>
+        <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold py-3 rounded-xl text-xs cursor-pointer">ذخیره کاربر</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: CLIENT DETAILS ═══ -->
+  <div id="detailsModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+    <div class="glass rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-white">📱 جزئیات و کانفیگ‌ها</h3>
+        <button onclick="closeDetailsModal()" class="text-slate-400 text-2xl">×</button>
       </div>
+      <div id="detailsContent"></div>
     </div>
+  </div>
 
-    <!-- Chart -->
-    <div class="glass-card rounded-3xl p-5">
-      <h3 class="text-sm font-bold text-white mb-4">📊 نمودار ترافیک ۲۴ ساعت اخیر</h3>
-      <canvas id="trafficChart" height="85"></canvas>
-    </div>
-
-    <!-- Subscription Box -->
-    <div class="glass-card rounded-3xl p-5 border-cyan-500/30">
-      <h3 class="text-sm font-bold text-white mb-3">🔗 لینک سابسکریپشن هوشمند (Auto-Update)</h3>
-      <div class="flex gap-2">
-        <input id="subUrlInput" type="text" readonly dir="ltr" class="flex-1 bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs text-cyan-300 font-mono outline-none select-all">
-        <button onclick="copySub()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs px-5 rounded-2xl cursor-pointer">کپی</button>
-        <button onclick="showSubQR()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 rounded-2xl cursor-pointer border border-slate-700">QR</button>
+  <!-- ═══ MODAL: SERVER ═══ -->
+  <div id="serverModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+    <div class="glass rounded-3xl p-6 w-full max-w-md">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-white">➕ افزودن سرور</h3>
+        <button onclick="closeServerModal()" class="text-slate-400 text-2xl">×</button>
       </div>
+      <form id="serverForm" class="space-y-3">
+        <input type="text" id="sName" placeholder="نام سرور" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+        <input type="text" id="sHost" placeholder="آدرس سرور (host)" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+        <input type="number" id="sPort" placeholder="پورت (443)" value="443" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+        <input type="text" id="sSni" placeholder="SNI" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+        <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold py-3 rounded-xl text-xs cursor-pointer">افزودن</button>
+      </form>
     </div>
+  </div>
 
-    <!-- Configs -->
-    <div class="glass-card rounded-3xl p-5">
-      <h3 class="text-sm font-bold text-white mb-4">📡 کانفیگ‌های اختصاصی</h3>
-      <div id="configsList" class="space-y-2.5"></div>
-    </div>
-
-  </main>
-
-  <footer class="text-center py-6 text-xs text-slate-500 border-t border-slate-900 mt-6">
-    <p>ONEX • توسعه‌دهنده: <a href="https://t.me/Mehtif" target="_blank" class="text-cyan-400">@Mehtif</a> • کانال: <a href="https://t.me/V2rayTun0" target="_blank" class="text-cyan-400">@V2rayTun0</a></p>
-  </footer>
-
-  <!-- Modal -->
-  <div id="qrModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center z-50 p-4" onclick="closeModal()">
-    <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl flex flex-col items-center gap-4" onclick="event.stopPropagation()">
-      <h4 id="qrTitle" class="text-sm font-bold text-white">QR Code</h4>
-      <div id="qrcode" class="p-3 bg-white rounded-2xl"></div>
-      <button onclick="closeModal()" class="text-xs bg-slate-800 px-6 py-2 rounded-xl text-slate-300">بستن</button>
+  <!-- ═══ MODAL: RESELLER ═══ -->
+  <div id="resellerModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4">
+    <div class="glass rounded-3xl p-6 w-full max-w-md">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-white">➕ افزودن فروشنده</h3>
+        <button onclick="closeResellerModal()" class="text-slate-400 text-2xl">×</button>
+      </div>
+      <form id="resellerForm" class="space-y-3">
+        <input type="text" id="rUser" placeholder="نام کاربری" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+        <input type="text" id="rPass" placeholder="رمز عبور" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+        <input type="number" id="rBalance" placeholder="اعتبار (GB)" value="500" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+        <input type="number" id="rMax" placeholder="حداکثر کاربر" value="50" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs outline-none">
+        <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold py-3 rounded-xl text-xs cursor-pointer">افزودن</button>
+      </form>
     </div>
   </div>
 
   <script>
-    const userId = window.location.pathname.split('/').pop();
+    const token = localStorage.getItem('onex_token');
+    const admin = JSON.parse(localStorage.getItem('onex_admin') || '{}');
+    if (!token) window.location.href = '/login';
+    
+    document.getElementById('adminName').textContent = admin.username;
+    document.getElementById('adminRole').textContent = admin.role === 'superadmin' ? 'سوپر ادمین' : 'فروشنده';
+    if (admin.role === 'superadmin') document.getElementById('resellerTabBtn').classList.remove('hidden');
+    if (admin.role !== 'superadmin') document.getElementById('addServerBtn').classList.add('hidden');
 
-    async function loadData() {
-      const [uRes, tRes] = await Promise.all([
-        fetch(`/api/user/${userId}`).then(r => r.json()),
-        fetch(`/api/traffic/${userId}`).then(r => r.json())
-      ]);
+    const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
-      const user = uRes.user;
-      document.getElementById('navUsername').textContent = user.username;
-      document.getElementById('usedGB').textContent = user.usedTrafficGB;
-      document.getElementById('totalGB').textContent = user.totalTrafficGB;
-      document.getElementById('expireDate').textContent = user.expireDate;
-      document.getElementById('subUrlInput').value = uRes.subUrl;
-      if(user.lastLogin) document.getElementById('lastLogin').textContent = user.lastLogin;
-
-      const pct = Math.round((user.usedTrafficGB / user.totalTrafficGB) * 100);
-      document.getElementById('trafficBar').style.width = `${pct}%`;
-      document.getElementById('trafficPct').textContent = `${pct}%`;
-
-      const p = user.expireDate.split('/');
-      const diff = Math.ceil((new Date(1300 + parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])) - new Date()) / 86400000);
-      document.getElementById('daysLeft').textContent = diff > 0 ? `⏳ ${diff} روز باقی‌مانده` : 'منقضی شده';
-
-      const cList = document.getElementById('configsList');
-      cList.innerHTML = '';
-      uRes.configs.forEach(cfg => {
-        const item = document.createElement('div');
-        item.className = 'flex items-center justify-between bg-slate-900/50 border border-slate-800 p-3 rounded-2xl';
-        item.innerHTML = `
-          <div class="flex items-center gap-3 truncate">
-            <span class="tag bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">${cfg.protocol}</span>
-            <span class="text-xs text-slate-300 truncate">${cfg.name}</span>
-          </div>
-          <div class="flex gap-2 shrink-0">
-            <button onclick="showQR('${cfg.link}', '${cfg.name}')" class="text-[11px] bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">QR</button>
-            <button onclick="copyText('${cfg.link}')" class="text-[11px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1.5 rounded-xl">کپی</button>
-          </div>
-        `;
-        cList.appendChild(item);
-      });
-
-      new Chart(document.getElementById('trafficChart').getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: tRes.labels,
-          datasets: [
-            { label: 'دانلود', data: tRes.download, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.08)', fill: true, tension: 0.4 },
-            { label: 'آپلود', data: tRes.upload, borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,0.08)', fill: true, tension: 0.4 }
-          ]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } } }
-      });
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/login';
     }
 
-    function copySub() { copyText(document.getElementById('subUrlInput').value); }
+    function showTab(name) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); });
+      document.getElementById('tab-' + name).classList.remove('hidden');
+      document.querySelector(`[data-tab="${name}"]`).classList.remove('tab-inactive');
+      document.querySelector(`[data-tab="${name}"]`).classList.add('tab-active');
+      if (name === 'clients') loadClients();
+      if (name === 'servers') loadServers();
+      if (name === 'resellers') loadResellers();
+      if (name === 'overview') loadStats();
+    }
+
+    // ══════ STATS ══════
+    async function loadStats() {
+      const r = await fetch('/api/stats', { headers }).then(r => r.json());
+      document.getElementById('statTotal').textContent = r.totalClients;
+      document.getElementById('statActive').textContent = r.activeClients;
+      document.getElementById('statTotalTraffic').textContent = r.totalTraffic;
+      document.getElementById('statUsedTraffic').textContent = r.usedTraffic;
+    }
+
+    // ══════ CLIENTS ══════
+    async function loadClients() {
+      const clients = await fetch('/api/clients', { headers }).then(r => r.json());
+      document.getElementById('clientsTableBody').innerHTML = clients.map(c => {
+        const pct = Math.round((c.used_traffic_gb / c.total_traffic_gb) * 100);
+        return `
+        <tr class="border-b border-slate-800/40 hover:bg-slate-800/20">
+          <td class="py-3 px-3 font-bold text-white">${c.name}${c.admin_name ? `<div class="text-[10px] text-slate-500">فروشنده: ${c.admin_name}</div>` : ''}</td>
+          <td class="py-3 px-3 text-slate-300">${c.total_traffic_gb} GB</td>
+          <td class="py-3 px-3">
+            <div class="text-cyan-400 text-[11px]">${c.used_traffic_gb.toFixed(1)} GB (${pct}%)</div>
+            <div class="w-16 bg-slate-800 h-1 rounded mt-1"><div class="h-full bg-cyan-400 rounded" style="width:${pct}%"></div></div>
+          </td>
+          <td class="py-3 px-3 text-slate-300">${c.expire_date}</td>
+          <td class="py-3 px-3">
+            <span class="text-[10px] px-2 py-0.5 rounded ${c.status==='active'?'bg-emerald-500/10 text-emerald-400':'bg-rose-500/10 text-rose-400'}">
+              ${c.status==='active'?'فعال':'غیرفعال'}
+            </span>
+          </td>
+          <td class="py-3 px-3 flex gap-1">
+            <button onclick="viewClient('${c.id}')" class="text-cyan-400 text-[11px] px-2 py-1 bg-cyan-500/10 rounded">مشاهده</button>
+            <button onclick="editClient('${c.id}')" class="text-amber-400 text-[11px] px-2 py-1 bg-amber-500/10 rounded">ویرایش</button>
+            <button onclick="deleteClient('${c.id}')" class="text-rose-400 text-[11px] px-2 py-1 bg-rose-500/10 rounded">حذف</button>
+          </td>
+        </tr>
+      `;}).join('') || '<tr><td colspan="6" class="text-center py-8 text-slate-500">هیچ کاربری وجود ندارد</td></tr>';
+    }
+
+    function openClientModal() {
+      document.getElementById('clientForm').reset();
+      document.getElementById('clientId').value = '';
+      document.getElementById('clientModalTitle').textContent = '➕ ایجاد کاربر جدید';
+      document.getElementById('cStatusWrap').classList.add('hidden');
+      document.querySelectorAll('.cProto').forEach(cb => cb.checked = true);
+      document.getElementById('clientModal').classList.remove('hidden');
+      document.getElementById('clientModal').classList.add('flex');
+    }
+    function closeClientModal() {
+      document.getElementById('clientModal').classList.add('hidden');
+      document.getElementById('clientModal').classList.remove('flex');
+    }
+
+    async function editClient(id) {
+      const data = await fetch(`/api/clients/${id}`, { headers }).then(r => r.json());
+      const c = data.client;
+      document.getElementById('clientId').value = c.id;
+      document.getElementById('cName').value = c.name;
+      document.getElementById('cTraffic').value = c.total_traffic_gb;
+      document.getElementById('cExpire').value = c.expire_date;
+      document.getElementById('cNote').value = c.note || '';
+      document.getElementById('cStatus').value = c.status;
+      document.getElementById('cStatusWrap').classList.remove('hidden');
+      const protos = JSON.parse(c.protocols);
+      document.querySelectorAll('.cProto').forEach(cb => cb.checked = protos.includes(cb.value));
+      document.getElementById('clientModalTitle').textContent = '✏️ ویرایش کاربر';
+      document.getElementById('clientModal').classList.remove('hidden');
+      document.getElementById('clientModal').classList.add('flex');
+    }
+
+    document.getElementById('clientForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('clientId').value;
+      const body = {
+        name: document.getElementById('cName').value,
+        totalTrafficGB: parseFloat(document.getElementById('cTraffic').value),
+        expireDate: document.getElementById('cExpire').value,
+        status: document.getElementById('cStatus').value,
+        note: document.getElementById('cNote').value,
+        protocols: Array.from(document.querySelectorAll('.cProto:checked')).map(cb => cb.value)
+      };
+      const url = id ? `/api/clients/${id}` : '/api/clients';
+      const method = id ? 'PUT' : 'POST';
+      const res = await fetch(url, { method, headers, body: JSON.stringify(body) });
+      if (res.ok) { closeClientModal(); loadClients(); }
+      else alert('خطا: ' + (await res.json()).error);
+    });
+
+    async function deleteClient(id) {
+      if (!confirm('آیا از حذف این کاربر مطمئن هستید؟')) return;
+      await fetch(`/api/clients/${id}`, { method: 'DELETE', headers });
+      loadClients();
+    }
+
+    async function viewClient(id) {
+      const data = await fetch(`/api/clients/${id}`, { headers }).then(r => r.json());
+      const c = data.client;
+      const pct = Math.round((c.used_traffic_gb / c.total_traffic_gb) * 100);
+      let html = `
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-900 rounded-xl p-3">
+              <div class="text-[10px] text-slate-500">نام</div>
+              <div class="text-sm font-bold text-white">${c.name}</div>
+            </div>
+            <div class="bg-slate-900 rounded-xl p-3">
+              <div class="text-[10px] text-slate-500">وضعیت</div>
+              <div class="text-sm font-bold ${c.status==='active'?'text-emerald-400':'text-rose-400'}">${c.status==='active'?'فعال':'غیرفعال'}</div>
+            </div>
+            <div class="bg-slate-900 rounded-xl p-3">
+              <div class="text-[10px] text-slate-500">مصرف</div>
+              <div class="text-sm font-bold text-cyan-400">${c.used_traffic_gb.toFixed(1)} / ${c.total_traffic_gb} GB (${pct}%)</div>
+            </div>
+            <div class="bg-slate-900 rounded-xl p-3">
+              <div class="text-[10px] text-slate-500">انقضا</div>
+              <div class="text-sm font-bold text-white">${c.expire_date}</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 rounded-xl p-3">
+            <div class="text-[10px] text-slate-500 mb-2">🔗 لینک سابسکریپشن</div>
+            <div class="flex gap-2">
+              <input value="${data.subUrl}" readonly dir="ltr" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-[11px] text-cyan-300 font-mono outline-none">
+              <button onclick="copyText('${data.subUrl}')" class="bg-cyan-500 text-slate-950 text-[11px] font-bold px-3 rounded-lg">کپی</button>
+              <button onclick="showQR('${data.subUrl}')" class="bg-slate-800 text-slate-300 text-[11px] px-3 rounded-lg">QR</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="text-xs font-bold text-white mb-2">📡 کانفیگ‌های اختصاصی</div>
+            <div class="space-y-2">
+              ${data.configs.map(cfg => `
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="text-[10px] font-bold text-cyan-400">${cfg.protocol}</span>
+                    <div class="flex gap-1">
+                      <button onclick="copyText(\`${cfg.link}\`)" class="text-[10px] bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded">کپی</button>
+                      <button onclick="showQR(\`${cfg.link}\`)" class="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded">QR</button>
+                    </div>
+                  </div>
+                  <div class="text-[10px] text-slate-500 font-mono truncate" dir="ltr">${cfg.link.substring(0, 80)}...</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div id="qrArea" class="hidden text-center bg-white p-4 rounded-xl">
+            <div id="qrCode" class="inline-block"></div>
+          </div>
+        </div>
+      `;
+      document.getElementById('detailsContent').innerHTML = html;
+      document.getElementById('detailsModal').classList.remove('hidden');
+      document.getElementById('detailsModal').classList.add('flex');
+    }
+    function closeDetailsModal() {
+      document.getElementById('detailsModal').classList.add('hidden');
+      document.getElementById('detailsModal').classList.remove('flex');
+    }
+
     function copyText(t) { navigator.clipboard.writeText(t); alert('✅ کپی شد'); }
-    function showQR(link, title) {
-      document.getElementById('qrTitle').textContent = title;
-      document.getElementById('qrcode').innerHTML = '';
-      new QRCode(document.getElementById('qrcode'), { text: link, width: 180, height: 180 });
-      document.getElementById('qrModal').classList.remove('hidden');
-      document.getElementById('qrModal').classList.add('flex');
+    function showQR(link) {
+      const area = document.getElementById('qrArea');
+      const box = document.getElementById('qrCode');
+      box.innerHTML = '';
+      new QRCode(box, { text: link, width: 200, height: 200 });
+      area.classList.remove('hidden');
+      area.scrollIntoView({ behavior: 'smooth' });
     }
-    function showSubQR() { showQR(document.getElementById('subUrlInput').value, 'سابسکریپشن ONEX'); }
-    function closeModal() { document.getElementById('qrModal').classList.add('hidden'); document.getElementById('qrModal').classList.remove('flex'); }
 
-    loadData();
+    // ══════ SERVERS ══════
+    async function loadServers() {
+      const servers = await fetch('/api/servers', { headers }).then(r => r.json());
+      document.getElementById('serversTableBody').innerHTML = servers.map(s => `
+        <tr class="border-b border-slate-800/40">
+          <td class="py-3 px-3 font-bold text-white">${s.name}</td>
+          <td class="py-3 px-3 text-slate-300" dir="ltr">${s.host}</td>
+          <td class="py-3 px-3 text-slate-300">${s.port}</td>
+          <td class="py-3 px-3 text-slate-300" dir="ltr">${s.sni || '-'}</td>
+          <td class="py-3 px-3">${admin.role==='superadmin' ? `<button onclick="deleteServer('${s.id}')" class="text-rose-400 text-[11px] px-2 py-1 bg-rose-500/10 rounded">حذف</button>` : ''}</td>
+        </tr>
+      `).join('');
+    }
+    function openServerModal() { document.getElementById('serverModal').classList.remove('hidden'); document.getElementById('serverModal').classList.add('flex'); }
+    function closeServerModal() { document.getElementById('serverModal').classList.add('hidden'); document.getElementById('serverModal').classList.remove('flex'); }
+    document.getElementById('serverForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        name: document.getElementById('sName').value,
+        host: document.getElementById('sHost').value,
+        port: parseInt(document.getElementById('sPort').value),
+        sni: document.getElementById('sSni').value
+      };
+      const res = await fetch('/api/servers', { method: 'POST', headers, body: JSON.stringify(body) });
+      if (res.ok) { closeServerModal(); loadServers(); document.getElementById('serverForm').reset(); }
+    });
+    async function deleteServer(id) {
+      if (!confirm('حذف این سرور؟')) return;
+      await fetch(`/api/servers/${id}`, { method: 'DELETE', headers });
+      loadServers();
+    }
+
+    // ══════ RESELLERS ══════
+    async function loadResellers() {
+      const r = await fetch('/api/resellers', { headers }).then(r => r.json());
+      document.getElementById('resellersTableBody').innerHTML = r.map(x => `
+        <tr class="border-b border-slate-800/40">
+          <td class="py-3 px-3 font-bold text-white">${x.username}</td>
+          <td class="py-3 px-3 text-slate-300">${x.balance_gb} GB</td>
+          <td class="py-3 px-3 text-slate-300">${x.max_users}</td>
+          <td class="py-3 px-3 text-slate-300">${x.created_at?.split(' ')[0] || '-'}</td>
+          <td class="py-3 px-3"><button onclick="deleteReseller('${x.id}')" class="text-rose-400 text-[11px] px-2 py-1 bg-rose-500/10 rounded">حذف</button></td>
+        </tr>
+      `).join('');
+    }
+    function openResellerModal() { document.getElementById('resellerModal').classList.remove('hidden'); document.getElementById('resellerModal').classList.add('flex'); }
+    function closeResellerModal() { document.getElementById('resellerModal').classList.add('hidden'); document.getElementById('resellerModal').classList.remove('flex'); }
+    document.getElementById('resellerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        username: document.getElementById('rUser').value,
+        password: document.getElementById('rPass').value,
+        balanceGB: parseInt(document.getElementById('rBalance').value),
+        maxUsers: parseInt(document.getElementById('rMax').value)
+      };
+      const res = await fetch('/api/resellers', { method: 'POST', headers, body: JSON.stringify(body) });
+      if (res.ok) { closeResellerModal(); loadResellers(); document.getElementById('resellerForm').reset(); }
+      else alert('خطا: نام کاربری تکراری');
+    });
+    async function deleteReseller(id) {
+      if (!confirm('حذف این فروشنده؟')) return;
+      await fetch(`/api/resellers/${id}`, { method: 'DELETE', headers });
+      loadResellers();
+    }
+
+    // Initial Load
+    loadStats();
   </script>
 </body>
 </html>

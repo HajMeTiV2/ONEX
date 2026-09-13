@@ -2,315 +2,194 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>ONEX Zeus Management Panel</title>
+  <title>ONEX Cloud Panel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: #050811; color: #f1f5f9; min-height: 100vh; padding: 14px; }
+    body { background: #070b14; color: #f8fafc; min-height: 100vh; display: flex; }
+    
+    .sidebar {
+      width: 230px; background: #0c1220; border-left: 1px solid rgba(255,255,255,0.06);
+      display: flex; flex-direction: column; justify-content: space-between; padding: 20px 14px;
+      position: fixed; top: 0; bottom: 0; right: 0; z-index: 100;
+    }
+    .brand { font-size: 20px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px; padding-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .nav-list { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 4px; }
+    .nav-btn {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px;
+      color: #94a3b8; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; width: 100%; text-align: inherit;
+    }
+    .nav-btn:hover, .nav-btn.active { background: #0284c7; color: #fff; }
+    .nav-btn i { width: 18px; }
 
-    /* هدر بالا */
-    .top-header {
-      display: flex; justify-content: space-between; align-items: center;
-      background: #0b1120; border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 14px; padding: 12px 18px; margin-bottom: 14px;
-    }
-    .brand-text { font-size: 16px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+    .main-viewport { flex: 1; margin-right: 230px; padding: 20px 24px; min-height: 100vh; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card { border-radius: 14px; padding: 16px; color: #fff; display: flex; flex-direction: column; justify-content: space-between; }
+    .bg-g1 { background: linear-gradient(135deg, #059669, #10b981); }
+    .bg-g2 { background: linear-gradient(135deg, #0284c7, #38bdf8); }
+    .bg-g3 { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+    .bg-g4 { background: linear-gradient(135deg, #0891b2, #06b6d4); }
 
-    /* ۴ باکس آمار افقی بالای پنل (دقیقاً مثل تصویر Zeus) */
-    .stats-container {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;
-    }
-    .stat-box {
-      background: #0a0f1d; border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between;
-      position: relative; overflow: hidden;
-    }
-    .stat-header { display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; font-weight: 600; }
-    .stat-value { font-size: 20px; font-weight: 800; margin-top: 6px; }
-    .progress-track { width: 100%; height: 4px; background: rgba(255,255,255,0.08); border-radius: 6px; margin-top: 8px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; background: #f97316; width: 45%; }
+    .panel-box { background: #0d1424; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 18px; }
+    .ui-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; }
+    .ui-table th { padding: 12px; color: #64748b; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .ui-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
 
-    /* نوار جستجو و دکمه‌های عملیات */
-    .action-bar {
-      display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap;
+    .btn-main {
+      padding: 8px 16px; background: #0284c7; border: none; border-radius: 8px;
+      color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
     }
-    .search-input-wrap {
-      flex: 1; min-width: 200px; position: relative;
-    }
-    .search-input-wrap i { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 12px; }
-    .search-input {
-      width: 100%; padding: 10px 34px 10px 12px; background: #0a0f1d; border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 10px; color: #fff; font-size: 12px; outline: none;
-    }
-    .filter-select {
-      padding: 10px 14px; background: #0a0f1d; border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 10px; color: #94a3b8; font-size: 12px; outline: none;
-    }
-    .btn-add {
-      width: 38px; height: 38px; border-radius: 10px; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; font-size: 15px; color: #fff;
-    }
-    .btn-green-add { background: #10b981; }
-    .btn-purple-fast { background: #6366f1; }
-
-    /* جدول نمایش دقیق کلاینت‌ها */
-    .table-container {
-      background: #090e1b; border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 14px; overflow-x: auto;
-    }
-    .zeus-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 12px; white-space: nowrap; }
-    .zeus-table th { padding: 12px 10px; background: #0c1322; color: #64748b; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .zeus-table td { padding: 12px 10px; border-bottom: 1px solid rgba(255,255,255,0.03); }
-
-    .tag-port { background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 8px; border-radius: 6px; font-weight: 700; }
-    .tag-warning { color: #eab308; background: rgba(234, 179, 8, 0.1); padding: 2px 6px; border-radius: 6px; }
-
-    .btn-mini {
-      padding: 5px 9px; border-radius: 7px; border: none; font-size: 11px; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 4px; font-weight: 600;
-    }
-    .btn-sub-text { background: #6366f1; color: #fff; }
-    .btn-sub-qr { background: #0284c7; color: #fff; }
     .btn-del { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
-    /* مودال ساخت کانفیگ */
-    .modal-backdrop {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
-      z-index: 300; align-items: center; justify-content: center; padding: 14px;
-    }
-    .modal-card {
-      width: 100%; max-width: 440px; background: #0c1220; border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 18px; padding: 22px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-    }
-    .input-field {
-      width: 100%; padding: 11px 14px; background: #050811; border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 10px; color: #fff; font-size: 13px; outline: none; margin-bottom: 12px;
-    }
+    .modal-wrap { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 200; align-items: center; justify-content: center; padding: 14px; }
+    .modal-box { width: 100%; max-width: 480px; background: #0c1220; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 22px; }
+    .input-field { width: 100%; padding: 10px 14px; background: #070b14; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; font-size: 13px; margin-bottom: 12px; outline: none; }
 
     @media (max-width: 850px) {
-      .stats-container { grid-template-columns: repeat(2, 1fr); }
+      body { flex-direction: column; padding-bottom: 70px; }
+      .sidebar { width: 100%; height: 60px; top: auto; bottom: 0; right: 0; left: 0; flex-direction: row; align-items: center; padding: 2px 10px; border-top: 1px solid rgba(255,255,255,0.08); border-left: none; }
+      .brand, .sidebar-footer { display: none; }
+      .nav-list { flex-direction: row; justify-content: space-around; width: 100%; margin: 0; }
+      .nav-btn { flex-direction: column; gap: 2px; padding: 4px; font-size: 9px; }
+      .main-viewport { margin-right: 0 !important; padding: 14px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
 <body>
 
-  <!-- هدر بالا -->
-  <header class="top-header">
-    <div class="brand-text">
-      <i class="fa-solid fa-bolt"></i>
-      <span>ONEX ZEUS CORE</span>
+  <aside class="sidebar">
+    <div>
+      <div class="brand"><i class="fa-solid fa-bolt"></i><span>ONEX</span></div>
+      <ul class="nav-list">
+        <li><button class="nav-btn active"><i class="fa-solid fa-house"></i><span>داشبورد</span></button></li>
+        <li><button class="nav-btn" onclick="openModal()"><i class="fa-solid fa-plus-circle"></i><span>ساخت کانفیگ</span></button></li>
+        <li><button class="nav-btn"><i class="fa-solid fa-server"></i><span>سرورها</span></button></li>
+        <li><button class="nav-btn"><i class="fa-solid fa-chart-line"></i><span>مصرف و ترافیک</span></button></li>
+        <li><button class="nav-btn"><i class="fa-solid fa-gear"></i><span>تنظیمات</span></button></li>
+      </ul>
     </div>
-    <div style="font-size: 11px; color: #64748b;">
-      سازنده: <span style="color: #38bdf8;">@Mehtif</span> | 
-      <a href="https://t.me/V2rayTunp" target="_blank" style="color: #38bdf8; text-decoration: none;">@V2rayTunp</a>
+    <div class="sidebar-footer">
+      <a href="/logout" class="nav-btn" style="color:#ef4444;"><i class="fa-solid fa-power-off"></i><span>خروج</span></a>
     </div>
-  </header>
+  </aside>
 
-  <!-- ۴ باکس آمار افقی دقیقاً مشابه تصویر Zeus Panel -->
-  <div class="stats-container">
-    <div class="stat-box">
-      <div class="stat-header"><span>تعداد کل کاربران</span><i class="fa-solid fa-users" style="color:#38bdf8;"></i></div>
-      <div class="stat-value" id="s-total-users">0</div>
-      <small style="font-size: 10px; color:#64748b; margin-top: 4px;">کل کاربران تعریف شده</small>
-    </div>
+  <main class="main-viewport">
+    <header class="topbar">
+      <div>
+        <h3 style="font-size: 16px; font-weight: 800;">داشبورد مدیریت ONEX</h3>
+        <small style="color: #64748b; font-size: 11px;">توسعه‌دهنده: <span style="color:#38bdf8;">@Mehtif</span> | کانال: <a href="https://t.me/V2rayTunp" target="_blank" style="color:#38bdf8; text-decoration:none;">@V2rayTunp</a></small>
+      </div>
+      <button class="btn-main" onclick="openModal()"><i class="fa-solid fa-plus"></i> ساخت کانفیگ جدید</button>
+    </header>
 
-    <div class="stat-box">
-      <div class="stat-header"><span>کاربران فعال (آنلاین)</span><i class="fa-solid fa-circle-dot" style="color:#10b981;"></i></div>
-      <div class="stat-value" style="color: #10b981;" id="s-active-users">0</div>
-      <small style="font-size: 10px; color:#64748b; margin-top: 4px;">متصل در این لحظه</small>
-    </div>
-
-    <div class="stat-box">
-      <div class="stat-header"><span>ریکوئست‌های روزانه</span><i class="fa-solid fa-cloud" style="color:#f97316;"></i></div>
-      <div class="stat-value" style="color: #f97316;" id="s-requests">41.7K</div>
-      <div class="progress-track"><div class="progress-bar-fill"></div></div>
+    <div class="stats-grid">
+      <div class="stat-card bg-g1"><span>وضعیت سرویس</span><h2 style="font-size: 22px; font-weight: 800; margin-top: 4px;">آنلاین</h2></div>
+      <div class="stat-card bg-g2"><span>حجم مصرفی سرور</span><h2 style="font-size: 22px; font-weight: 800; margin-top: 4px;" id="st-used">0 GB</h2></div>
+      <div class="stat-card bg-g3"><span>زمان اعتبار</span><h2 style="font-size: 22px; font-weight: 800; margin-top: 4px;">۲۷ روز</h2></div>
+      <div class="stat-card bg-g4"><span>تعداد کانفیگ‌ها</span><h2 style="font-size: 22px; font-weight: 800; margin-top: 4px;" id="st-count">0</h2></div>
     </div>
 
-    <div class="stat-box">
-      <div class="stat-header"><span>ترافیک مصرفی سرور</span><i class="fa-solid fa-database" style="color:#8b5cf6;"></i></div>
-      <div class="stat-value" style="color: #8b5cf6;" id="s-traffic">0 GB</div>
-      <small style="font-size: 10px; color:#64748b; margin-top: 4px;">مجموع دانلود و آپلود</small>
+    <div class="panel-box">
+      <h4 style="font-size: 15px; margin-bottom: 14px;">کانفیگ‌های تعریف شده</h4>
+      <div style="overflow-x: auto;">
+        <table class="ui-table">
+          <thead>
+            <tr><th>نام کانفیگ</th><th>سرور</th><th>حجم مصرفی</th><th>مدت اعتبار</th><th>لینک مرورگر ساب</th><th>عملیات</th></tr>
+          </thead>
+          <tbody id="cfgBody"></tbody>
+        </table>
+      </div>
     </div>
-  </div>
+  </main>
 
-  <!-- نوار فیلتر و دکمه‌های + و رعدوبرق -->
-  <div class="action-bar">
-    <div class="search-input-wrap">
-      <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="tableSearch" class="search-input" placeholder="جستجوی نام کاربری یا UUID..." onkeyup="filterClients()">
-    </div>
-    <select class="filter-select">
-      <option>همه وضعیت‌ها</option>
-      <option>فعال</option>
-      <option>منقضی شده</option>
-    </select>
-    <select class="filter-select">
-      <option>جدیدترین</option>
-      <option>بیشترین مصرف</option>
-    </select>
-    <button class="btn-add btn-green-add" title="افزودن کاربر" onclick="openAddModal()"><i class="fa-solid fa-plus"></i></button>
-    <button class="btn-add btn-purple-fast" title="افزودن سریع" onclick="quickAdd()"><i class="fa-solid fa-bolt"></i></button>
-  </div>
+  <div class="modal-wrap" id="createModal">
+    <div class="modal-box">
+      <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 14px;">ساخت کانفیگ جدید (VLESS + VMess + Trojan)</h3>
+      <form id="addForm">
+        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">نام کاربر:</label>
+        <input type="text" id="m-name" class="input-field" placeholder="مثال: گوشی من" required>
+        
+        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">سرور:</label>
+        <select id="m-server" class="input-field">
+          <option value="Germany (DE)">🇩🇪 Germany (DE)</option>
+          <option value="Netherlands (NL)">🇳🇱 Netherlands (NL)</option>
+          <option value="Turkey (TR)">🇹🇷 Turkey (TR)</option>
+        </select>
 
-  <!-- جدول لیست کاربران دقیقاً با ساختار زئوس -->
-  <div class="table-container">
-    <table class="zeus-table">
-      <thead>
-        <tr>
-          <th>اطلاعات</th>
-          <th>عملیات</th>
-          <th>لینک ساب</th>
-          <th>تعداد کانفیگ‌ها</th>
-          <th>پورت</th>
-          <th>حجم</th>
-          <th>ریکوئست</th>
-          <th>زمان</th>
-          <th>کاربران آنلاین</th>
-        </tr>
-      </thead>
-      <tbody id="clientsTbody"></tbody>
-    </table>
-  </div>
-
-  <!-- مودال ساخت کاربر/کانفیگ -->
-  <div class="modal-backdrop" id="addModal">
-    <div class="modal-card">
-      <h3 style="font-size: 16px; margin-bottom: 14px; color: #38bdf8;">ساخت کانفیگ جدید (Xray Multi-Core)</h3>
-      <form id="addClientForm">
-        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">نام کاربر / ریمارک:</label>
-        <input type="text" id="m-user" class="input-field" placeholder="مثال: ONEX-VIP" required>
-
-        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">حجم مجاز (گیگابایت):</label>
-        <input type="number" id="m-gb" class="input-field" value="30" required>
+        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">حجم مجاز (GB):</label>
+        <input type="number" id="m-gb" class="input-field" value="20" required>
 
         <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">مدت اعتبار (روز):</label>
         <input type="number" id="m-days" class="input-field" value="30" required>
 
-        <div style="display:flex; gap:8px; margin-top:8px;">
-          <button type="submit" class="btn-mini btn-sub-qr" style="flex:1; justify-content:center; padding:10px;">ثبت و ساخت لایو</button>
-          <button type="button" class="btn-mini btn-del" style="padding:10px;" onclick="closeAddModal()">انصراف</button>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button type="submit" class="btn-main" style="flex:1; justify-content:center;">تولید فوری</button>
+          <button type="button" class="btn-main btn-del" onclick="closeModal()">انصراف</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- مودال نمایش کانفیگ‌ها و بارکد QR -->
-  <div class="modal-backdrop" id="qrModal">
-    <div class="modal-card" style="text-align: center;">
-      <h3 style="font-size: 15px; color:#38bdf8; margin-bottom: 12px;">کانفیگ‌های فعال (Real TLS + WS)</h3>
-      <div style="background: white; padding: 10px; border-radius: 12px; display: inline-block; margin-bottom: 14px;">
-        <div id="qrcodeBox"></div>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button class="btn-mini btn-sub-text" style="justify-content: center; padding: 8px;" id="btnCopyVless"><i class="fa-solid fa-copy"></i> کپی لینک VLESS</button>
-        <button class="btn-mini btn-sub-qr" style="justify-content: center; padding: 8px;" id="btnCopyVmess"><i class="fa-solid fa-copy"></i> کپی لینک VMess</button>
-        <button class="btn-mini btn-sub-text" style="justify-content: center; padding: 8px; background:#475569;" id="btnCopyTrojan"><i class="fa-solid fa-copy"></i> کپی لینک Trojan</button>
-      </div>
-      <button class="btn-mini btn-del" style="width:100%; justify-content:center; margin-top:14px; padding:8px;" onclick="document.getElementById('qrModal').style.display='none'">بستن</button>
-    </div>
-  </div>
-
   <script>
-    let clientsData = [];
+    function openModal() { document.getElementById('createModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('createModal').style.display = 'none'; }
 
-    async function loadStats() {
-      const res = await fetch('/api/panel-stats').then(r => r.json());
-      document.getElementById('s-total-users').innerText = res.totalUsers;
-      document.getElementById('s-active-users').innerText = res.activeUsers;
-      document.getElementById('s-traffic').innerText = res.totalTrafficUsed + ' GB';
-      clientsData = res.clients;
-      renderTable(clientsData);
-    }
+    async function loadData() {
+      const res = await fetch('/api/panel-data').then(r => r.json());
+      document.getElementById('st-count').innerText = res.configsCount;
+      document.getElementById('st-used').innerText = res.totalUsed + ' GB';
 
-    function renderTable(list) {
-      const tbody = document.getElementById('clientsTbody');
       const host = window.location.host;
-
-      tbody.innerHTML = list.map(c => `
+      const tbody = document.getElementById('cfgBody');
+      tbody.innerHTML = res.configs.map(c => `
         <tr>
+          <td><b>${c.name}</b></td>
+          <td>${c.server}</td>
+          <td>${c.used_gb} / ${c.total_gb} GB</td>
+          <td>${c.expire_days} روز</td>
           <td>
-            <div style="display:flex; align-items:center; justify-content:center; gap:6px;">
-              <span>🇩🇪</span>
-              <b>${c.username}</b>
-              <span class="tag-port" style="font-size:10px; background:rgba(16,185,129,0.15); color:#10b981;">فعال</span>
-            </div>
+            <a href="/subpage/${c.id}" target="_blank" class="btn-main" style="background:#6366f1;">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> باز کردن صفحه ساب
+            </a>
           </td>
           <td>
-            <div style="display:flex; justify-content:center; gap:4px;">
-              <button class="btn-mini btn-sub-qr" onclick="showLinksModal('${c.id}')"><i class="fa-solid fa-qrcode"></i></button>
-              <button class="btn-mini btn-del" onclick="delClient('${c.id}')"><i class="fa-solid fa-trash"></i></button>
-            </div>
+            <button class="btn-main" onclick="navigator.clipboard.writeText('https://${host}/sub/${c.id}'); alert('ساب متنی کپی شد!');">کپی ساب</button>
+            <button class="btn-main btn-del" onclick="delCfg('${c.id}')"><i class="fa-solid fa-trash"></i></button>
           </td>
-          <td>
-            <button class="btn-mini btn-sub-text" onclick="navigator.clipboard.writeText('https://${host}/sub/${c.id}'); alert('ساب متنی کپی شد!');">
-              <i class="fa-solid fa-link"></i> ساب متنی
-            </button>
-          </td>
-          <td><span class="tag-warning">۳ پروتکل</span></td>
-          <td><span class="tag-port">443</span></td>
-          <td><b>${c.used_gb || 0} / ${c.total_gb} GB</b></td>
-          <td>${c.requests_count || 1200}</td>
-          <td>${c.duration_days} روز</td>
-          <td><span style="color:#10b981;">● ${c.online_users || 1}</span></td>
         </tr>
       `).join('');
     }
 
-    function filterClients() {
-      const q = document.getElementById('tableSearch').value.toLowerCase();
-      const filtered = clientsData.filter(c => c.username.toLowerCase().includes(q) || (c.uuid && c.uuid.includes(q)));
-      renderTable(filtered);
-    }
-
-    function openAddModal() { document.getElementById('addModal').style.display = 'flex'; }
-    function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
-
-    function quickAdd() {
-      const randomName = 'USER-' + Math.floor(1000 + Math.random() * 9000);
-      fetch('/api/clients/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: randomName, total_gb: 30, duration_days: 30 })
-      }).then(() => loadStats());
-    }
-
-    document.getElementById('addClientForm').addEventListener('submit', async (e) => {
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      await fetch('/api/clients/add', {
+      await fetch('/api/configs/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: document.getElementById('m-user').value,
+          name: document.getElementById('m-name').value,
+          server: document.getElementById('m-server').value,
           total_gb: document.getElementById('m-gb').value,
-          duration_days: document.getElementById('m-days').value
+          expire_days: document.getElementById('m-days').value
         })
       });
-      closeAddModal();
-      loadStats();
+      closeModal();
+      loadData();
     });
 
-    async function showLinksModal(id) {
-      const res = await fetch('/api/client-links/' + id).then(r => r.json());
-      document.getElementById('qrcodeBox').innerHTML = '';
-      new QRCode(document.getElementById('qrcodeBox'), { text: res.subUrl, width: 130, height: 130 });
-
-      document.getElementById('btnCopyVless').onclick = () => { navigator.clipboard.writeText(res.vless); alert('کانفیگ VLESS کپی شد!'); };
-      document.getElementById('btnCopyVmess').onclick = () => { navigator.clipboard.writeText(res.vmess); alert('کانفیگ VMess کپی شد!'); };
-      document.getElementById('btnCopyTrojan').onclick = () => { navigator.clipboard.writeText(res.trojan); alert('کانفیگ Trojan کپی شد!'); };
-
-      document.getElementById('qrModal').style.display = 'flex';
-    }
-
-    async function delClient(id) {
-      if (confirm('حذف کاربر انجام شود؟')) {
-        await fetch('/api/clients/' + id, { method: 'DELETE' });
-        loadStats();
+    async function delCfg(id) {
+      if(confirm('حذف شود؟')) {
+        await fetch('/api/configs/' + id, { method: 'DELETE' });
+        loadData();
       }
     }
 
-    loadStats();
+    loadData();
   </script>
 </body>
 </html>

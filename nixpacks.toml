@@ -1,1 +1,9 @@
 
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "python -c 'from app import init_db; init_db()' && gunicorn app:app --workers 2"

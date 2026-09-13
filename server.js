@@ -15,13 +15,13 @@ const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
-  secret: 'onex-zeus-core-token-2026',
+  secret: 'onex-secure-vault-2026',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 14 * 24 * 60 * 60 * 1000 }
 }));
 
-const db = new sqlite3.Database('./onex_zeus.db');
+const db = new sqlite3.Database('./onex_platform.db');
 
 db.serialize(() => {
   db.run(`
@@ -34,22 +34,21 @@ db.serialize(() => {
   `);
 
   db.run(`
-    CREATE TABLE IF NOT EXISTS clients (
+    CREATE TABLE IF NOT EXISTS configs (
       id TEXT PRIMARY KEY,
-      username TEXT UNIQUE,
-      uuid TEXT UNIQUE,
-      total_gb REAL DEFAULT 30,
-      used_gb REAL DEFAULT 0,
-      duration_days INTEGER DEFAULT 30,
+      name TEXT,
+      server TEXT DEFAULT 'Germany (DE)',
+      total_gb REAL DEFAULT 10,
+      used_gb REAL DEFAULT 1.58,
+      expire_days INTEGER DEFAULT 27,
       expire_date DATETIME,
-      requests_count INTEGER DEFAULT 0,
-      online_users INTEGER DEFAULT 1,
+      uuid TEXT UNIQUE,
       status TEXT DEFAULT 'active',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // ایجاد کاربر ادمین و یک کلاینت پیش‌فرض
+  // ایجاد کاربر پیش‌فرض و یک اکانت اولیه
   db.get('SELECT * FROM users WHERE username = ?', ['Mehtif'], (err, row) => {
     if (!row) {
       const hash = bcrypt.hashSync('123456', 10);
@@ -57,20 +56,20 @@ db.serialize(() => {
     }
   });
 
-  db.get('SELECT COUNT(*) as count FROM clients', (err, r) => {
+  db.get('SELECT COUNT(*) as count FROM configs', (err, r) => {
     if (r && r.count === 0) {
       const exp = new Date();
-      exp.setDate(exp.getDate() + 30);
-      db.run(`INSERT INTO clients (id, username, uuid, total_gb, used_gb, duration_days, expire_date, requests_count) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
-              ['ONEX-DEMO', 'ONEX-USER-01', 'b831381d-6324-4d53-ad4f-8cda48b30811', 30, 2.4, 30, exp.toISOString(), 1420]);
+      exp.setDate(exp.getDate() + 27);
+      db.run(`INSERT INTO configs (id, name, server, total_gb, used_gb, expire_days, expire_date, uuid) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['7f3a9e2d6c', 'کاربر نمونه', 'Germany (DE)', 10, 1.58, 27, exp.toISOString(), 'b831381d-6324-4d53-ad4f-8cda48b30811']);
     }
   });
 });
 
-// بازسازی و اجرای کانفیگ جامع هسته Xray برای ۳ پروتکل واقعی
-function startXrayMultiCore() {
-  db.all('SELECT uuid FROM clients WHERE status = "active"', (err, rows) => {
+// اجرای پایدار موتور Xray برای VLESS, VMess, Trojan
+function runXrayMultiCore() {
+  db.all('SELECT uuid FROM configs WHERE status = "active"', (err, rows) => {
     const defaultUuid = "b831381d-6324-4d53-ad4f-8cda48b30811";
     const clientList = (rows && rows.length > 0) ? rows.map(r => ({ id: r.uuid })) : [{ id: defaultUuid }];
     const trojanList = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid })) : [{ password: defaultUuid }];
@@ -78,7 +77,6 @@ function startXrayMultiCore() {
     const xrayConfig = {
       log: { loglevel: "warning" },
       inbounds: [
-        // 1. VLESS WS
         {
           port: 8081,
           listen: "127.0.0.1",
@@ -86,7 +84,6 @@ function startXrayMultiCore() {
           settings: { clients: clientList, decryption: "none" },
           streamSettings: { network: "ws", wsSettings: { path: "/vless" } }
         },
-        // 2. VMESS WS
         {
           port: 8082,
           listen: "127.0.0.1",
@@ -94,7 +91,6 @@ function startXrayMultiCore() {
           settings: { clients: clientList.map(c => ({ id: c.id, alterId: 0 })) },
           streamSettings: { network: "ws", wsSettings: { path: "/vmess" } }
         },
-        // 3. TROJAN WS
         {
           port: 8083,
           listen: "127.0.0.1",
@@ -106,37 +102,33 @@ function startXrayMultiCore() {
       outbounds: [{ protocol: "freedom" }]
     };
 
-    fs.writeFileSync('/app/xray_multi.json', JSON.stringify(xrayConfig, null, 2));
+    fs.writeFileSync('/app/xray_active.json', JSON.stringify(xrayConfig, null, 2));
 
     if (fs.existsSync('/app/xray-bin/xray')) {
-      spawn('pkill', ['-f', 'xray']); // ریستارت در صورت وجود نمونه قبلی
+      spawn('pkill', ['-f', 'xray']);
       setTimeout(() => {
-        const proc = spawn('/app/xray-bin/xray', ['run', '-c', '/app/xray_multi.json']);
-        proc.stdout.on('data', d => console.log(`[XRAY]: ${d}`));
-        proc.stderr.on('data', d => console.error(`[XRAY ERR]: ${d}`));
+        const p = spawn('/app/xray-bin/xray', ['run', '-c', '/app/xray_active.json']);
+        p.stdout.on('data', d => console.log(`[XRAY]: ${d}`));
+        p.stderr.on('data', d => console.error(`[XRAY ERR]: ${d}`));
       }, 500);
     }
   });
 }
 
-startXrayMultiCore();
+runXrayMultiCore();
 
-// تولید تمام فرمت‌های پروتکل‌ها
-function makeClientLinks(client, host) {
-  const remark = `ONEX-${client.username}`;
-  
-  // VLESS WebSocket TLS
-  const vless = `vless://${client.uuid}@${host}:443?path=%2Fvless&security=tls&encryption=none&type=ws&sni=${host}#${encodeURIComponent(remark + '-VLESS')}`;
+// تولید کانفیگ‌های استاندارد
+function generateProtocolLinks(cfg, host) {
+  const remark = `ONEX-${cfg.name}`;
+  const vless = `vless://${cfg.uuid}@${host}:443?path=%2Fvless&security=tls&encryption=none&type=ws&sni=${host}#${encodeURIComponent(remark + '-VLESS')}`;
 
-  // VMess WebSocket TLS
   const vmessObj = {
-    v: "2", ps: `${remark}-VMESS`, add: host, port: "443", id: client.uuid,
+    v: "2", ps: `${remark}-VMESS`, add: host, port: "443", id: cfg.uuid,
     aid: "0", scy: "auto", net: "ws", type: "none", host: host, path: "/vmess", tls: "tls", sni: host
   };
   const vmess = `vmess://${Buffer.from(JSON.stringify(vmessObj)).toString('base64')}`;
 
-  // Trojan WebSocket TLS
-  const trojan = `trojan://${client.uuid}@${host}:443?path=%2Ftrojan&security=tls&type=ws&sni=${host}#${encodeURIComponent(remark + '-Trojan')}`;
+  const trojan = `trojan://${cfg.uuid}@${host}:443?path=%2Ftrojan&security=tls&type=ws&sni=${host}#${encodeURIComponent(remark + '-Trojan')}`;
 
   return { vless, vmess, trojan, rawSub: `${vless}\n${vmess}\n${trojan}` };
 }
@@ -146,8 +138,11 @@ function auth(req, res, next) {
   res.redirect('/login');
 }
 
+// مسیرهای صفحات وب
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'views', 'login.html')));
 app.get('/', auth, (req, res) => res.sendFile(path.join(__dirname, 'views', 'dashboard.html')));
+// قالب عکس دوم: مرورگر ساب لینک اختصاصی برای کلاینت
+app.get('/subpage/:id', (req, res) => res.sendFile(path.join(__dirname, 'views', 'sub_client.html')));
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
@@ -157,7 +152,7 @@ app.post('/api/login', (req, res) => {
       req.session.username = user.username;
       return res.json({ success: true });
     }
-    res.status(401).json({ error: 'نام کاربری یا رمز عبور نامعتبر است' });
+    res.status(401).json({ error: 'اطلاعات نامعتبر است' });
   });
 });
 
@@ -166,90 +161,90 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-// آمار کلی سیستم مانند Zeus Panel
-app.get('/api/panel-stats', auth, (req, res) => {
-  db.all('SELECT * FROM clients ORDER BY created_at DESC', (err, rows) => {
-    const totalUsers = rows.length;
-    const activeUsers = rows.filter(r => r.status === 'active').length;
-    const totalTrafficUsed = rows.reduce((s, r) => s + (r.used_gb || 0), 0);
-    const totalRequests = rows.reduce((s, r) => s + (r.requests_count || 0), 0);
-
+// دیتای پنل مدیریت (عکس اول)
+app.get('/api/panel-data', auth, (req, res) => {
+  db.all('SELECT * FROM configs ORDER BY created_at DESC', (err, rows) => {
+    const totalAllocated = rows.reduce((a, b) => a + (b.total_gb || 0), 0);
+    const totalUsed = rows.reduce((a, b) => a + (b.used_gb || 0), 0);
     res.json({
-      totalUsers,
-      activeUsers,
-      totalTrafficUsed: totalTrafficUsed.toFixed(2),
-      totalRequests,
-      clients: rows
+      configsCount: rows.length,
+      totalAllocated,
+      totalUsed: totalUsed.toFixed(2),
+      configs: rows
     });
   });
 });
 
-// ساخت کاربر/کانفیگ جدید در پنل
-app.post('/api/clients/add', auth, (req, res) => {
-  const { username, total_gb, duration_days } = req.body;
-  const id = 'ONEX-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+// ساخت کانفیگ جدید در پنل
+app.post('/api/configs/create', auth, (req, res) => {
+  const { name, server, total_gb, expire_days } = req.body;
+  const id = uuidv4().substring(0, 8);
   const uuid = uuidv4();
-  const days = parseInt(duration_days) || 30;
+  const days = parseInt(expire_days) || 30;
   const exp = new Date();
   exp.setDate(exp.getDate() + days);
 
   db.run(
-    `INSERT INTO clients (id, username, uuid, total_gb, duration_days, expire_date) VALUES (?, ?, ?, ?, ?, ?)`,
-    [id, username || id, uuid, parseFloat(total_gb) || 30, days, exp.toISOString()],
+    `INSERT INTO configs (id, name, server, total_gb, expire_days, expire_date, uuid) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, name || 'کاربر جدید', server || 'Germany (DE)', parseFloat(total_gb) || 20, days, exp.toISOString(), uuid],
     function(err) {
-      if (err) return res.status(400).json({ error: 'نام کاربری تکراری است.' });
-      startXrayMultiCore(); // ریلود لایو هسته Xray
-      res.json({ success: true, id, uuid });
+      if (err) return res.status(500).json({ error: 'خطا در دیتابیس' });
+      runXrayMultiCore();
+      res.json({ success: true, id });
     }
   );
 });
 
-// حذف کاربر
-app.delete('/api/clients/:id', auth, (req, res) => {
-  db.run('DELETE FROM clients WHERE id = ?', [req.params.id], () => {
-    startXrayMultiCore();
+app.delete('/api/configs/:id', auth, (req, res) => {
+  db.run('DELETE FROM configs WHERE id = ?', [req.params.id], () => {
+    runXrayMultiCore();
     res.json({ success: true });
   });
 });
 
-// ساب‌اسکریپشن کامل کاربر
+// خروجی مستقیم بیس ۶۴ برای کلاینت‌های v2rayNG و...
 app.get('/sub/:id', (req, res) => {
   const host = req.headers.host;
-  db.get('SELECT * FROM clients WHERE id = ? OR username = ?', [req.params.id, req.params.id], (err, client) => {
-    if (!client) return res.status(404).send('Client Not Found');
-    const links = makeClientLinks(client, host);
+  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
+    if (!cfg) return res.status(404).send('Not Found');
+    const links = generateProtocolLinks(cfg, host);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.send(Buffer.from(links.rawSub).toString('base64'));
   });
 });
 
-// دریافت تک‌لینک‌های کانفیگ
-app.get('/api/client-links/:id', auth, (req, res) => {
+// API اطلاعات زنده مخصوص صفحه ساب لینک کلاینت (عکس دوم)
+app.get('/api/subinfo/:id', (req, res) => {
   const host = req.headers.host;
-  db.get('SELECT * FROM clients WHERE id = ?', [req.params.id], (err, client) => {
-    if (!client) return res.status(404).json({ error: 'Not Found' });
-    const links = makeClientLinks(client, host);
-    res.json({ ...links, subUrl: `https://${host}/sub/${client.id}` });
+  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
+    if (!cfg) return res.status(404).json({ error: 'یافت نشد' });
+    const links = generateProtocolLinks(cfg, host);
+    const remainingGb = Math.max(0, (cfg.total_gb - cfg.used_gb)).toFixed(2);
+    const usagePercent = Math.min(100, Math.round((cfg.used_gb / cfg.total_gb) * 100));
+    
+    res.json({
+      config: cfg,
+      remainingGb,
+      usagePercent,
+      subUrl: `https://${host}/sub/${cfg.id}`,
+      vless: links.vless,
+      vmess: links.vmess,
+      trojan: links.trojan
+    });
   });
 });
 
-// سوئیچ ترافیک ورودی وب‌سوکت به هسته‌های Xray
-const proxyVless = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8081', ws: true });
-const proxyVmess = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8082', ws: true });
-const proxyTrojan = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8083', ws: true });
+// هدایت وب‌سوکت‌ها به هسته‌های متناظر
+const pVless = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8081', ws: true });
+const pVmess = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8082', ws: true });
+const pTrojan = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8083', ws: true });
 
 const server = http.createServer(app);
 
 server.on('upgrade', (req, socket, head) => {
-  if (req.url.startsWith('/vless')) {
-    proxyVless.ws(req, socket, head);
-  } else if (req.url.startsWith('/vmess')) {
-    proxyVmess.ws(req, socket, head);
-  } else if (req.url.startsWith('/trojan')) {
-    proxyTrojan.ws(req, socket, head);
-  }
+  if (req.url.startsWith('/vless')) pVless.ws(req, socket, head);
+  else if (req.url.startsWith('/vmess')) pVmess.ws(req, socket, head);
+  else if (req.url.startsWith('/trojan')) pTrojan.ws(req, socket, head);
 });
 
-server.listen(PORT, () => {
-  console.log(`ONEX Zeus Engine running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`ONEX Server running on port ${PORT}`));

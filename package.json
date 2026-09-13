@@ -1,13 +1,14 @@
 {
-  "name": "onex-panel-pro",
-  "version": "2.0.0",
-  "description": "ONEX Professional V2Ray Panel",
+  "name": "onex-enterprise-panel",
+  "version": "3.0.0",
+  "description": "ONEX Cloud Management Platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "chart.js": "^4.4.2",
     "express": "^4.19.2",
     "express-session": "^1.18.0",
     "sqlite3": "^5.1.7",

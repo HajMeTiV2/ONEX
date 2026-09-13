@@ -1,76 +1,87 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>کانفیگ‌های اختصاصی - ONEX</title>
+  <title>صفحه اتصال - ONEX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    body { background-color: #0b1120; color: #e2e8f0; font-family: system-ui, sans-serif; }
-    .box { background-color: #1e293b; border: 1px solid #334155; border-radius: 14px; }
-    .btn-copy { min-width: 90px; }
+    body { background-color: #030712; color: #f3f4f6; font-family: system-ui, sans-serif; }
+    .glass-card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; }
+    .qr-container { background: white; padding: 8px; border-radius: 8px; display: inline-block; }
   </style>
 </head>
 <body class="py-5">
-  <div class="container" style="max-width: 680px;">
+  <div class="container" style="max-width: 620px;">
+    
     <div class="text-center mb-4">
-      <h2 class="fw-bold text-info">ONEX Service</h2>
-      <p class="text-secondary mb-1">طراحی شده توسط @Mehtif</p>
-      <a href="https://t.me/V2rayTunp" class="badge bg-primary text-decoration-none px-3 py-2 mt-2">عضویت در کانال @V2rayTunp</a>
+      <h2 class="fw-bold text-info"><i class="fa-solid fa-bolt me-2"></i>ONEX Subscription</h2>
+      <p class="text-secondary small mb-2">توسعه داده شده توسط <b>@Mehtif</b></p>
+      <a href="https://t.me/V2rayTunp" target="_blank" class="btn btn-sm btn-outline-info rounded-pill px-3">
+        <i class="fa-brands fa-telegram me-1"></i> کانال تلگرام @V2rayTunp
+      </a>
     </div>
 
-    <!-- خلاصه وضعیت کاربر -->
-    <div class="box p-4 mb-4 text-center">
-      <h4 id="u-name" class="fw-bold mb-2">در حال بارگذاری...</h4>
-      <p class="mb-0 text-light">حجم کل: <span id="u-gb" class="badge bg-success">0 GB</span></p>
-    </div>
-
-    <!-- کپی لینک مستقیم ساب -->
-    <div class="box p-3 mb-4">
-      <label class="form-label text-warning fw-bold">لینک ساب‌اسکریپشن اتوماتیک:</label>
-      <div class="input-group">
-        <input type="text" id="sub-input" class="form-control bg-dark text-white border-secondary" readonly>
-        <button class="btn btn-warning btn-copy" onclick="copyField('sub-input')">کپی ساب</button>
+    <!-- وضعیت اکانت -->
+    <div class="glass-card p-4 mb-4 text-center">
+      <h4 id="u-name" class="fw-bold text-white mb-2">در حال بارگذاری...</h4>
+      <div class="d-flex justify-content-center gap-3">
+        <span class="badge bg-primary px-3 py-2">حجم: <span id="u-gb">0</span> GB</span>
+        <span class="badge bg-secondary px-3 py-2">اعتبار: <span id="u-days">0</span> روز</span>
       </div>
     </div>
 
-    <!-- کپی تک‌تک پروتکل‌ها -->
-    <div class="box p-4">
-      <h5 class="mb-3 text-secondary">پروتکل‌های موجود:</h5>
+    <!-- کپی لینک مستقیم ساب کلاینت -->
+    <div class="glass-card p-4 mb-4">
+      <label class="form-label text-warning fw-bold small"><i class="fa-solid fa-link me-1"></i> لینک Subscription خودکار (v2rayNG / Streisand / FoXray):</label>
+      <div class="input-group mb-3">
+        <input type="text" id="sub-url" class="form-control bg-dark text-white border-secondary" readonly>
+        <button class="btn btn-warning fw-bold" onclick="copyValue('sub-url')">کپی لینک ساب</button>
+      </div>
+      <div class="text-center">
+        <div id="sub-qrcode" class="qr-container"></div>
+      </div>
+    </div>
+
+    <!-- تفکیک پروتکل‌ها -->
+    <div class="glass-card p-4">
+      <h5 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-network-wired me-2"></i>کانفیگ‌های دستی:</h5>
 
       <div class="mb-3">
-        <label class="form-label text-light">پروتکل VLESS:</label>
+        <label class="form-label small text-info">پروتکل VLESS (پیشنهادی)</label>
         <div class="input-group">
-          <input type="text" id="vless-txt" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-outline-info btn-copy" onclick="copyField('vless-txt')">کپی</button>
+          <input type="text" id="cfg-vless" class="form-control bg-dark text-white border-secondary" readonly>
+          <button class="btn btn-outline-info" onclick="copyValue('cfg-vless')"><i class="fa-solid fa-copy"></i> کپی</button>
         </div>
       </div>
 
       <div class="mb-3">
-        <label class="form-label text-light">پروتکل VMess:</label>
+        <label class="form-label small text-info">پروتکل VMess</label>
         <div class="input-group">
-          <input type="text" id="vmess-txt" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-outline-info btn-copy" onclick="copyField('vmess-txt')">کپی</button>
+          <input type="text" id="cfg-vmess" class="form-control bg-dark text-white border-secondary" readonly>
+          <button class="btn btn-outline-info" onclick="copyValue('cfg-vmess')"><i class="fa-solid fa-copy"></i> کپی</button>
         </div>
       </div>
 
       <div class="mb-3">
-        <label class="form-label text-light">پروتکل Trojan:</label>
+        <label class="form-label small text-info">پروتکل Trojan</label>
         <div class="input-group">
-          <input type="text" id="trojan-txt" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-outline-info btn-copy" onclick="copyField('trojan-txt')">کپی</button>
+          <input type="text" id="cfg-trojan" class="form-control bg-dark text-white border-secondary" readonly>
+          <button class="btn btn-outline-info" onclick="copyValue('cfg-trojan')"><i class="fa-solid fa-copy"></i> کپی</button>
         </div>
       </div>
 
       <div>
-        <label class="form-label text-light">پروتکل Shadowsocks:</label>
+        <label class="form-label small text-info">پروتکل Shadowsocks</label>
         <div class="input-group">
-          <input type="text" id="ss-txt" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-outline-info btn-copy" onclick="copyField('ss-txt')">کپی</button>
+          <input type="text" id="cfg-ss" class="form-control bg-dark text-white border-secondary" readonly>
+          <button class="btn btn-outline-info" onclick="copyValue('cfg-ss')"><i class="fa-solid fa-copy"></i> کپی</button>
         </div>
       </div>
     </div>
+
   </div>
 
   <script>
@@ -78,19 +89,28 @@
     fetch('/api/subinfo/' + id)
       .then(res => res.json())
       .then(data => {
-        document.getElementById('u-name').innerText = 'کاربر: ' + data.user.username;
-        document.getElementById('u-gb').innerText = data.user.total_gb + ' GB';
-        document.getElementById('sub-input').value = data.subUrl;
-        document.getElementById('vless-txt').value = data.configs.vlessUri;
-        document.getElementById('vmess-txt').value = data.configs.vmessUri;
-        document.getElementById('trojan-txt').value = data.configs.trojanUri;
-        document.getElementById('ss-txt').value = data.configs.ssUri;
+        document.getElementById('u-name').innerText = data.user.username;
+        document.getElementById('u-gb').innerText = data.user.total_gb;
+        document.getElementById('u-days').innerText = data.user.expire_days;
+        document.getElementById('sub-url').value = data.subUrl;
+
+        document.getElementById('cfg-vless').value = data.configs.vlessUri;
+        document.getElementById('cfg-vmess').value = data.configs.vmessUri;
+        document.getElementById('cfg-trojan').value = data.configs.trojanUri;
+        document.getElementById('cfg-ss').value = data.configs.ssUri;
+
+        // تولید QR Code ساب‌اسکریپشن
+        new QRCode(document.getElementById("sub-qrcode"), {
+          text: data.subUrl,
+          width: 140,
+          height: 140
+        });
       });
 
-    function copyField(elementId) {
-      const copyText = document.getElementById(elementId);
-      navigator.clipboard.writeText(copyText.value);
-      alert('کپی شد!');
+    function copyValue(id) {
+      const input = document.getElementById(id);
+      navigator.clipboard.writeText(input.value);
+      alert('کانفیگ با موفقیت در کلیپ‌بورد کپی شد.');
     }
   </script>
 </body>

@@ -12,35 +12,17 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.use(session({
-  secret: 'onex-secret-key-987654',
+  secret: 'onex-ultra-secret-2026',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-// راه‌اندازی دیتابیس
 const db = new sqlite3.Database('./onex_pro.db');
 db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS admins (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE,
-      password TEXT
-    )
-  `);
+  db.run(`CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT)`);
+  db.run(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT, total_gb INTEGER, expire_days INTEGER, uuid TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT,
-      total_gb INTEGER,
-      expire_days INTEGER,
-      uuid TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // ایجاد کاربر ادمین پیش‌فرض (admin / admin123)
   db.get('SELECT * FROM admins WHERE username = ?', ['admin'], (err, row) => {
     if (!row) {
       const hash = bcrypt.hashSync('admin123', 10);
@@ -49,16 +31,13 @@ db.serialize(() => {
   });
 });
 
-// میان‌افزار احراز هویت
 function checkAuth(req, res, next) {
   if (req.session && req.session.isAdmin) return next();
   res.redirect('/login');
 }
 
-// تولید کانفیگ‌ها
 function generateConfigs(user, host) {
   const remark = `ONEX-${user.username}`;
-  
   const vmessObj = {
     v: "2", ps: remark, add: host, port: "443", id: user.uuid,
     aid: "0", scy: "auto", net: "ws", type: "none", host: host,
@@ -73,10 +52,7 @@ function generateConfigs(user, host) {
   return { vmessUri, vlessUri, trojanUri, ssUri };
 }
 
-// مسیرهای لاگین و احراز هویت
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'login.html'));
-});
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'views', 'login.html')));
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
@@ -94,52 +70,55 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-// داشبورد اصلی
-app.get('/', checkAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
-});
+app.get('/', checkAuth, (req, res) => res.sendFile(path.join(__dirname, 'views', 'dashboard.html')));
 
-// آمار داشبورد
 app.get('/api/stats', checkAuth, (req, res) => {
   db.all('SELECT total_gb FROM users', [], (err, rows) => {
-    const totalUsers = rows.length;
-    const totalAllocatedGb = rows.reduce((acc, r) => acc + (r.total_gb || 0), 0);
-    res.json({ totalUsers, totalAllocatedGb });
+    res.json({
+      totalUsers: rows.length,
+      totalAllocatedGb: rows.reduce((acc, r) => acc + (r.total_gb || 0), 0)
+    });
   });
 });
 
-// دریافت لیست کاربران
 app.get('/api/users', checkAuth, (req, res) => {
-  db.all('SELECT * FROM users ORDER BY created_at DESC', [], (err, rows) => {
-    res.json(rows);
-  });
+  db.all('SELECT * FROM users ORDER BY created_at DESC', [], (err, rows) => res.json(rows));
 });
 
-// ساخت کانفیگ
+// ساخت کانفیگ به همراه پاسخ کامل جهت باز شدن پاپ‌آپ آنی
 app.post('/api/users', checkAuth, (req, res) => {
   const { username, total_gb, expire_days } = req.body;
   const id = uuidv4().substring(0, 8);
   const userUuid = uuidv4();
+  const host = req.headers.host;
 
   db.run(
     'INSERT INTO users (id, username, total_gb, expire_days, uuid) VALUES (?, ?, ?, ?, ?)',
-    [id, username, parseInt(total_gb) || 20, parseInt(expire_days) || 30, userUuid],
-    () => res.json({ success: true })
+    [id, username, parseInt(total_gb) || 30, parseInt(expire_days) || 30, userUuid],
+    function (err) {
+      if (err) return res.status(500).json({ error: 'DB Error' });
+      const user = { id, username, total_gb, expire_days, uuid: userUuid };
+      const configs = generateConfigs(user, host);
+      res.json({
+        success: true,
+        user,
+        configs,
+        subUrl: `https://${host}/sub/${id}`,
+        clientPage: `https://${host}/subpage/${id}`
+      });
+    }
   );
 });
 
-// حذف کاربر
 app.delete('/api/users/:id', checkAuth, (req, res) => {
-  db.run('DELETE FROM users WHERE id = ?', [req.params.id], () => {
-    res.json({ success: true });
-  });
+  db.run('DELETE FROM users WHERE id = ?', [req.params.id], () => res.json({ success: true }));
 });
 
-// صفحه کلاینت و ساب‌اسکریپشن
+// مسیر تحویل کانفیگ‌های خام Base64 برای نرم‌افزارهای کلاینت
 app.get('/sub/:id', (req, res) => {
   const host = req.headers.host;
   db.get('SELECT * FROM users WHERE id = ?', [req.params.id], (err, user) => {
-    if (!user) return res.status(404).send('اشتراک پیدا نشد');
+    if (!user) return res.status(404).send('Not Found');
     const cfgs = generateConfigs(user, host);
     const rawList = `${cfgs.vlessUri}\n${cfgs.vmessUri}\n${cfgs.trojanUri}\n${cfgs.ssUri}`;
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -147,17 +126,15 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-app.get('/subpage/:id', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'sub_page.html'));
-});
+app.get('/subpage/:id', (req, res) => res.sendFile(path.join(__dirname, 'views', 'sub_page.html')));
 
 app.get('/api/subinfo/:id', (req, res) => {
   const host = req.headers.host;
   db.get('SELECT * FROM users WHERE id = ?', [req.params.id], (err, user) => {
-    if (!user) return res.status(404).json({ error: 'کاربر پیدا نشد' });
+    if (!user) return res.status(404).json({ error: 'Not found' });
     const configs = generateConfigs(user, host);
     res.json({ user, configs, subUrl: `https://${host}/sub/${user.id}` });
   });
 });
 
-app.listen(PORT, () => console.log(`ONEX Running on port ${PORT}`));
+app.listen(PORT, () => console.log(`ONEX running on ${PORT}`));

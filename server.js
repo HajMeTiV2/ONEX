@@ -4,6 +4,9 @@ const bcrypt = require('bcryptjs');
 const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const http = require('http');
+const httpProxy = require('http-proxy');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -186,4 +189,16 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-app.listen(PORT, () => console.log(`ONEX Server running on port ${PORT}`));
+const proxy = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8080', ws: true });
+
+const server = http.createServer(app);
+
+server.on('upgrade', (req, socket, head) => {
+  if (req.url.startsWith('/vless')) {
+    proxy.ws(req, socket, head);
+  }
+});
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

@@ -1,1 +1,10 @@
 
+services:
+  - type: web
+    name: onex-cloud
+    env: docker
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: PORT
+        value: 3000

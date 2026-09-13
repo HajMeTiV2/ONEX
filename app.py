@@ -43,7 +43,7 @@ def inject_branding():
 
 
 def sync_xray_config():
-    """همگام‌سازی کاربران فعال و راه‌اندازی مجدد هسته Xray"""
+    """همگام‌سازی کاربران فعال با هسته Xray"""
     with app.app_context():
         try:
             active_users = User.query.filter_by(is_active=True).all()
@@ -77,17 +77,14 @@ def sync_xray_config():
                 }]
             }
 
-            # نوشتن تنظیمات جدید
             with open('/app/xray_config.json', 'w') as f:
                 json.dump(xray_config, f, indent=2)
 
-            # کشتن پردازش قبلی Xray
+            # کشتن و اجرای مجدد Xray
             subprocess.run(["pkill", "-9", "-f", "xray"], stderr=subprocess.DEVNULL)
             time.sleep(0.5)
-
-            # اجرای مجدد و زنده نگه داشتن هسته Xray
             subprocess.Popen(["xray", "-config", "/app/xray_config.json"])
-            print("[ONEX] Xray Core successfully synced & restarted!")
+            print("[ONEX] Xray synced successfully!")
         except Exception as e:
             print(f"[ONEX] Xray Sync Error: {e}")
 
@@ -130,7 +127,17 @@ def dashboard():
     data_exceeded = sum(1 for u in all_users if u.status == 'اتمام حجم')
     disabled_users = sum(1 for u in all_users if u.status == 'غیرفعال')
     total_traffic = sum(u.data_used for u in all_users)
+    total_upload = sum(u.upload for u in all_users)
+    total_download = sum(u.download for u in all_users)
     recent_users = User.query.order_by(User.created_at.desc()).limit(10).all()
+
+    now = datetime.now(tehran_tz)
+    expiring_soon = [u for u in all_users
+                     if u.expire_date and u.status == 'فعال'
+                     and 0 <= ((u.expire_date.replace(tzinfo=tehran_tz)
+                                if u.expire_date.tzinfo is None
+                                else u.expire_date) - now).days <= 3
+                     ] if all_users else []
 
     return render_template('dashboard.html',
                            total_users=total_users,
@@ -139,15 +146,47 @@ def dashboard():
                            data_exceeded=data_exceeded,
                            disabled_users=disabled_users,
                            total_traffic=format_bytes(total_traffic),
-                           recent_users=recent_users)
+                           total_upload=format_bytes(total_upload),
+                           total_download=format_bytes(total_download),
+                           recent_users=recent_users,
+                           expiring_soon=len(expiring_soon))
 
 
 # ─── USER MANAGEMENT ─────────────────────────────────
 @app.route('/users')
 @login_required
 def users():
-    all_users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('users.html', users=all_users)
+    search = request.args.get('search', '').strip()
+    status_filter = request.args.get('status', 'all')
+    protocol_filter = request.args.get('protocol', 'all')
+    sort_by = request.args.get('sort', 'newest')
+
+    all_users = User.query.all()
+
+    if search:
+        all_users = [u for u in all_users
+                     if search.lower() in u.username.lower()
+                     or search.lower() in u.note.lower()]
+
+    if status_filter != 'all':
+        all_users = [u for u in all_users if u.status == status_filter]
+
+    if protocol_filter != 'all':
+        all_users = [u for u in all_users if u.protocol == protocol_filter]
+
+    if sort_by == 'newest':
+        all_users.sort(key=lambda u: u.created_at or datetime.min, reverse=True)
+    elif sort_by == 'oldest':
+        all_users.sort(key=lambda u: u.created_at or datetime.min)
+    elif sort_by == 'name':
+        all_users.sort(key=lambda u: u.username.lower())
+
+    return render_template('users.html',
+                           users=all_users,
+                           search=search,
+                           status_filter=status_filter,
+                           protocol_filter=protocol_filter,
+                           sort_by=sort_by)
 
 
 @app.route('/users/add', methods=['GET', 'POST'])
@@ -157,13 +196,16 @@ def add_user():
         username = request.form.get('username', '').strip()
         data_limit_gb = float(request.form.get('data_limit', 0))
         duration_days = int(request.form.get('duration_days', 30))
+        max_connections = int(request.form.get('max_connections', 1))
         protocol = request.form.get('protocol', 'vless')
+        note = request.form.get('note', '').strip()
 
         if User.query.filter_by(username=username).first():
             flash('این نام کاربری وجود دارد', 'danger')
             return redirect(url_for('add_user'))
 
-        expire_date = datetime.now(tehran_tz) + timedelta(days=duration_days) if duration_days > 0 else None
+        expire_date = (datetime.now(tehran_tz) + timedelta(days=duration_days)
+                       if duration_days > 0 else None)
         data_limit = int(data_limit_gb * (1024 ** 3)) if data_limit_gb > 0 else 0
 
         user = User(
@@ -173,7 +215,9 @@ def add_user():
             data_limit=data_limit,
             expire_date=expire_date,
             duration_days=duration_days,
+            max_connections=max_connections,
             protocol=protocol,
+            note=note,
             is_active=True
         )
         db.session.add(user)
@@ -197,8 +241,17 @@ def edit_user(user_id):
 
         duration_days = int(request.form.get('duration_days', 30))
         user.duration_days = duration_days
+        user.max_connections = int(request.form.get('max_connections', 1))
         user.protocol = request.form.get('protocol', 'vless')
+        user.note = request.form.get('note', '').strip()
         user.is_active = 'is_active' in request.form
+
+        if request.form.get('reset_expire') == 'on':
+            user.expire_date = (datetime.now(tehran_tz) + timedelta(days=duration_days)
+                                if duration_days > 0 else None)
+
+        if request.form.get('new_uuid') == 'on':
+            user.uuid_str = str(uuid.uuid4())
 
         db.session.commit()
         sync_xray_config()
@@ -223,7 +276,7 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     sync_xray_config()
-    flash('کاربر حذف شد', 'success')
+    flash('کاربر با موفقیت حذف شد', 'success')
     return redirect(url_for('users'))
 
 
@@ -238,16 +291,67 @@ def toggle_user(user_id):
     return redirect(url_for('users'))
 
 
+@app.route('/users/reset-traffic/<int:user_id>')
+@login_required
+def reset_traffic(user_id):
+    user = User.query.get_or_404(user_id)
+    user.data_used = 0
+    user.upload = 0
+    user.download = 0
+    db.session.commit()
+    flash(f'🔄 ترافیک {user.username} ریست شد', 'success')
+    return redirect(url_for('edit_user', user_id=user_id))
+
+
 @app.route('/users/renew/<int:user_id>')
 @login_required
 def renew_user(user_id):
     user = User.query.get_or_404(user_id)
     user.expire_date = datetime.now(tehran_tz) + timedelta(days=user.duration_days)
     user.data_used = 0
+    user.upload = 0
+    user.download = 0
     user.is_active = True
     db.session.commit()
     sync_xray_config()
-    flash(f'اشتراک کاربر تمدید شد', 'success')
+    flash(f'🔄 اشتراک {user.username} تمدید شد', 'success')
+    return redirect(url_for('users'))
+
+
+@app.route('/users/bulk', methods=['POST'])
+@login_required
+def bulk_action():
+    action = request.form.get('action')
+    user_ids = request.form.getlist('user_ids')
+
+    if not user_ids:
+        flash('هیچ کاربری انتخاب نشده', 'warning')
+        return redirect(url_for('users'))
+
+    target_users = User.query.filter(User.id.in_(user_ids)).all()
+    count = len(target_users)
+
+    if action == 'delete':
+        for u in target_users:
+            db.session.delete(u)
+        flash(f'🗑️ {count} کاربر حذف شد', 'success')
+    elif action == 'enable':
+        for u in target_users:
+            u.is_active = True
+        flash(f'✅ {count} کاربر فعال شد', 'success')
+    elif action == 'disable':
+        for u in target_users:
+            u.is_active = False
+        flash(f'❌ {count} کاربر غیرفعال شد', 'success')
+    elif action == 'reset':
+        for u in target_users:
+            u.data_used = 0
+            u.upload = 0
+            u.download = 0
+        flash(f'🔄 ترافیک {count} کاربر ریست شد', 'success')
+
+    db.session.commit()
+    sync_xray_config()
     return redirect(url_for('users'))
 
 
@@ -297,11 +401,13 @@ def sub_info(token):
     return redirect(url_for('subscription', token=token))
 
 
+# ─── SETTINGS ROUTE ──────────────────────────────────
 @app.route('/settings', methods=['GET', 'POST'])
 @login_required
 def settings():
     if request.method == 'POST':
         action = request.form.get('action')
+
         if action == 'change_password':
             old_pass = request.form.get('old_password')
             new_pass = request.form.get('new_password')
@@ -311,14 +417,26 @@ def settings():
                 flash('رمز عبور فعلی اشتباه است', 'danger')
             elif new_pass != confirm_pass:
                 flash('رمز عبور جدید مطابقت ندارد', 'danger')
+            elif len(new_pass) < 6:
+                flash('رمز عبور باید حداقل ۶ کاراکتر باشد', 'danger')
             else:
                 current_user.password_hash = generate_password_hash(new_pass)
                 db.session.commit()
                 flash('✅ رمز عبور تغییر کرد', 'success')
 
+        elif action == 'change_username':
+            new_username = request.form.get('new_username', '').strip()
+            if len(new_username) < 3:
+                flash('نام کاربری باید حداقل ۳ کاراکتر باشد', 'danger')
+            else:
+                current_user.username = new_username
+                db.session.commit()
+                flash('✅ نام کاربری تغییر کرد', 'success')
+
     return render_template('settings.html', config=Config)
 
 
+# ─── INIT DB ─────────────────────────────────────────
 def init_db():
     with app.app_context():
         try:
@@ -330,6 +448,7 @@ def init_db():
                 )
                 db.session.add(admin)
                 db.session.commit()
+                print(f"[ONEX] Admin initialized: {Config.ADMIN_USERNAME}")
         except Exception as e:
             print(f"[ONEX] DB Init Error: {e}")
 

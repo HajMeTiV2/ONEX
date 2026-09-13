@@ -3,6 +3,7 @@ import json
 import base64
 import uuid
 import time
+import socket
 import subprocess
 from datetime import datetime, timedelta
 from flask import (Flask, render_template, request, redirect,
@@ -43,7 +44,7 @@ def inject_branding():
 
 
 def sync_xray_config():
-    """همگام‌سازی کاربران فعال و راه‌اندازی پایدار هسته Xray"""
+    """همگام‌سازی کاربران فعال و استارت پایدار هسته Xray"""
     with app.app_context():
         try:
             active_users = User.query.filter_by(is_active=True).all()
@@ -55,7 +56,7 @@ def sync_xray_config():
                         "email": u.username
                     })
 
-            # جلوگیری از کرش کردن Xray اگر کاربری نبود
+            # جلوگیری از کرش کردن Xray در صورت نبود کاربر
             if not clients:
                 clients.append({
                     "id": "11111111-2222-3333-4444-555555555555",
@@ -63,9 +64,7 @@ def sync_xray_config():
                 })
 
             xray_config = {
-                "log": {
-                    "loglevel": "warning"
-                },
+                "log": {"loglevel": "warning"},
                 "inbounds": [{
                     "port": 10000,
                     "listen": "127.0.0.1",
@@ -89,13 +88,25 @@ def sync_xray_config():
             with open('/app/xray_config.json', 'w') as f:
                 json.dump(xray_config, f, indent=2)
 
-            # خاموش کردن و استارت مجدد و بدون کرش هسته
+            # ری‌ستارت تمیز پردازش Xray
             subprocess.run(["pkill", "-9", "-f", "xray"], stderr=subprocess.DEVNULL)
             time.sleep(0.5)
             subprocess.Popen(["/usr/local/bin/xray", "-config", "/app/xray_config.json"])
-            print("[ONEX] Xray is RUNNING and listening on 127.0.0.1:10000!")
+            print("[ONEX] Xray process started successfully!")
         except Exception as e:
             print(f"[ONEX] Xray Sync Error: {e}")
+
+
+# ─── ROUTE عیب‌یابی زنده هسته XRAY ─────────────────
+@app.route('/check-xray')
+def check_xray():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex(('127.0.0.1', 10000))
+    sock.close()
+    if result == 0:
+        return "<h2 style='color:green;text-align:center;margin-top:50px;'>✅ هسته Xray کاملاً روشن و فعال است! (پورت 10000 باز است)</h2>"
+    else:
+        return "<h2 style='color:red;text-align:center;margin-top:50px;'>❌ هسته Xray خاموش است! پورت 10000 پاسخ نمی‌دهد.</h2>"
 
 
 # ─── AUTH ROUTES ─────────────────────────────────────

@@ -1,28 +1,212 @@
-<!-- Subscription & Config Actions -->
-<div class="info-card fade-in fade-in-delay-3">
-    <!-- Sub Link -->
-    <div class="config-section">
-        <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-bold small"><i class="fas fa-satellite-dish me-1" style="color: #818cf8;"></i> لینک اشتراک (Sub Link)</span>
-            <small class="text-muted">جهت بروزرسانی خودکار</small>
-        </div>
-        <div class="config-text" id="subUrlText">{{ sub_link }}</div>
-        <button class="btn-copy-main btn-copy-gradient" onclick="doCopy('{{ sub_link }}')">
-            <i class="fas fa-copy"></i> کپی ساب لینک
-        </button>
-    </div>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ONEX | اشتراک {{ user.username }}</title>
+    <!-- لود کردن فونت و استایل‌های پایه -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --primary: #6366f1;
+            --secondary: #0ea5e9;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
 
-    <!-- Single Direct Config -->
-    <div class="config-section mt-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <span class="fw-bold small"><i class="fas fa-key me-1" style="color: #06b6d4;"></i> کانفیگ مستقیم (Config)</span>
-            <small class="text-muted">مستقیم {{ user.protocol|upper }}</small>
-        </div>
-        <div class="config-text" id="configUrlText">{{ config_link }}</div>
-        <div class="d-flex gap-2">
-            <button class="btn-copy-main btn-copy-outline" onclick="doCopy('{{ config_link }}')">
-                <i class="fas fa-copy"></i> کپی کانفیگ
-            </button>
-        </div>
-    </div>
-</div>
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 20px 15px;
+            padding-bottom: 40px;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 24px;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; left: 0; bottom: 0;
+            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIvPjwvc3ZnPg==');
+            opacity: 0.5;
+        }
+
+        .user-avatar {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Circle Progress */
+        .progress-circle-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+        }
+
+        .progress-circle-container svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        .progress-circle-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.05);
+            stroke-width: 10;
+        }
+
+        .progress-circle-value {
+            fill: none;
+            stroke: url(#gradient);
+            stroke-width: 10;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1.5s ease-out;
+        }
+
+        .progress-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 100%;
+        }
+
+        /* Mini Stats */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            padding: 15px 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .stat-box i {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Copy Sections */
+        .copy-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .copy-text-area {
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--text-muted);
+            padding: 10px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            word-break: break-all;
+            max-height: 60px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+        }
+
+        .btn-copy {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-copy-gradient {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+        .btn-copy-gradient:active { transform: scale(0.98); }
+
+        .btn-copy-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: #a5b4fc;
+        }
+        .btn-copy-outline:active { background: rgba(99, 102, 241, 0.1); transform: scale(0.98); }
+
+        /* Apps Section */
+        

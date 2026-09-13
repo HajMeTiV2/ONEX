@@ -6,79 +6,325 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: #070b14; color: #f8fafc; min-height: 100vh; display: flex; }
-    
-    .sidebar {
-      width: 230px; background: #0c1220; border-left: 1px solid rgba(255,255,255,0.06);
-      display: flex; flex-direction: column; justify-content: space-between; padding: 20px 14px;
-      position: fixed; top: 0; bottom: 0; right: 0; z-index: 100;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
     }
-    .brand { font-size: 20px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px; padding-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .nav-list { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 4px; }
-    .nav-btn {
-      display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px;
-      color: #94a3b8; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; width: 100%; text-align: inherit;
+    body {
+      background: #070b14;
+      color: #f8fafc;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
-    .nav-btn:hover, .nav-btn.active { background: #0284c7; color: #fff; }
-    .nav-btn i { width: 18px; }
 
-    .main-viewport { flex: 1; margin-right: 230px; padding: 20px 24px; min-height: 100vh; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-    .stat-card { border-radius: 14px; padding: 16px; color: #fff; display: flex; flex-direction: column; justify-content: space-between; }
+    /* هدر مخصوص موبایل */
+    .mobile-header {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 120;
+      background: rgba(12, 18, 32, 0.95);
+      backdrop-filter: blur(15px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 12px 16px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-toggle-menu {
+      background: none;
+      border: none;
+      color: #38bdf8;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    /* سایدبار ناوبری */
+    .sidebar {
+      width: 230px;
+      background: #0c1220;
+      border-left: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 20px 14px;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      z-index: 200;
+      transition: transform 0.3s ease;
+    }
+    .brand {
+      font-size: 19px;
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .nav-list {
+      list-style: none;
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border-radius: 10px;
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: inherit;
+      transition: 0.2s;
+    }
+    .nav-btn:hover, .nav-btn.active {
+      background: #0284c7;
+      color: #fff;
+    }
+    .nav-btn i {
+      width: 18px;
+      text-align: center;
+    }
+
+    /* پرده تیره پشت منو در موبایل */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 190;
+    }
+
+    /* فضای نمایش محتوا */
+    .main-viewport {
+      margin-right: 230px;
+      padding: 20px 24px;
+      min-height: 100vh;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* ۴ کارت آمار وضعیت */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .stat-card {
+      border-radius: 14px;
+      padding: 16px;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
     .bg-g1 { background: linear-gradient(135deg, #059669, #10b981); }
     .bg-g2 { background: linear-gradient(135deg, #0284c7, #38bdf8); }
     .bg-g3 { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
     .bg-g4 { background: linear-gradient(135deg, #0891b2, #06b6d4); }
 
-    .panel-box { background: #0d1424; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 20px; margin-bottom: 18px; }
-    .ui-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; }
-    .ui-table th { padding: 12px; color: #64748b; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .ui-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .panel-box {
+      background: #0d1424;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    /* جداول واکنش‌گرا */
+    .table-responsive {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .ui-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .ui-table th {
+      padding: 12px 10px;
+      color: #64748b;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .ui-table td {
+      padding: 12px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
 
     .btn-main {
-      padding: 8px 16px; background: #0284c7; border: none; border-radius: 8px;
-      color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+      padding: 9px 16px;
+      background: #0284c7;
+      border: none;
+      border-radius: 9px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: 0.15s;
     }
-    .btn-del { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .btn-del {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+    }
 
-    .modal-wrap { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 200; align-items: center; justify-content: center; padding: 14px; }
-    .modal-box { width: 100%; max-width: 480px; background: #0c1220; border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 22px; }
-    .input-field { width: 100%; padding: 10px 14px; background: #070b14; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #fff; font-size: 13px; margin-bottom: 12px; outline: none; }
+    /* منوی ناوبری پایین صفحه مخصوص گوشی */
+    .bottom-bar {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: rgba(12, 18, 32, 0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      z-index: 150;
+      justify-content: space-around;
+      align-items: center;
+    }
+    .bottom-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      color: #94a3b8;
+      font-size: 10px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .bottom-btn.active, .bottom-btn:hover {
+      color: #38bdf8;
+    }
+    .bottom-btn i {
+      font-size: 18px;
+    }
 
+    /* مودال ساخت کانفیگ */
+    .modal-wrap {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+    .modal-box {
+      width: 100%;
+      max-width: 440px;
+      background: #0c1220;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    }
+    .input-field {
+      width: 100%;
+      padding: 11px 14px;
+      background: #070b14;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 13px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    /* استایل‌های ریسپانسیو و بهینه‌سازی موبایل */
     @media (max-width: 850px) {
-      body { flex-direction: column; padding-bottom: 70px; }
-      .sidebar { width: 100%; height: 60px; top: auto; bottom: 0; right: 0; left: 0; flex-direction: row; align-items: center; padding: 2px 10px; border-top: 1px solid rgba(255,255,255,0.08); border-left: none; }
-      .brand, .sidebar-footer { display: none; }
-      .nav-list { flex-direction: row; justify-content: space-around; width: 100%; margin: 0; }
-      .nav-btn { flex-direction: column; gap: 2px; padding: 4px; font-size: 9px; }
-      .main-viewport { margin-right: 0 !important; padding: 14px; }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      body { padding-bottom: 70px; }
+      .mobile-header { display: flex; }
+      .topbar { display: none; }
+      .main-viewport { margin-right: 0 !important; padding: 12px; }
+      .sidebar {
+        transform: translateX(100%);
+        box-shadow: -10px 0 25px rgba(0, 0, 0, 0.7);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-overlay.active { display: block; }
+      .bottom-bar { display: flex; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .stat-card { padding: 12px; }
+      .stat-card h2 { font-size: 18px !important; }
+      .panel-box { padding: 14px; border-radius: 14px; }
     }
   </style>
 </head>
 <body>
 
-  <aside class="sidebar">
+  <!-- هدر اپلیکیشنی مخصوص موبایل -->
+  <div class="mobile-header">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button class="btn-toggle-menu" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+      <span style="font-size: 17px; font-weight: 800; color: #38bdf8;"><i class="fa-solid fa-bolt"></i> ONEX</span>
+    </div>
+    <a href="https://t.me/V2rayTunp" target="_blank" style="color: #38bdf8; font-size: 18px; text-decoration: none;">
+      <i class="fa-brands fa-telegram"></i>
+    </a>
+  </div>
+
+  <!-- پرده پس‌زمینه سایدبار در موبایل -->
+  <div class="sidebar-overlay" id="sideOverlay" onclick="toggleSidebar()"></div>
+
+  <!-- سایدبار کشویی کامل -->
+  <aside class="sidebar" id="mainSidebar">
     <div>
-      <div class="brand"><i class="fa-solid fa-bolt"></i><span>ONEX</span></div>
+      <div class="brand">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-bolt"></i>
+          <span>ONEX CLOUD</span>
+        </div>
+        <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 18px;" onclick="toggleSidebar()"></i>
+      </div>
       <ul class="nav-list">
         <li><button class="nav-btn active"><i class="fa-solid fa-house"></i><span>داشبورد</span></button></li>
-        <li><button class="nav-btn" onclick="openModal()"><i class="fa-solid fa-plus-circle"></i><span>ساخت کانفیگ</span></button></li>
+        <li><button class="nav-btn" onclick="openModal(); toggleSidebar();"><i class="fa-solid fa-plus-circle"></i><span>ساخت کانفیگ</span></button></li>
         <li><button class="nav-btn"><i class="fa-solid fa-server"></i><span>سرورها</span></button></li>
         <li><button class="nav-btn"><i class="fa-solid fa-chart-line"></i><span>مصرف و ترافیک</span></button></li>
         <li><button class="nav-btn"><i class="fa-solid fa-gear"></i><span>تنظیمات</span></button></li>
       </ul>
     </div>
-    <div class="sidebar-footer">
-      <a href="/logout" class="nav-btn" style="color:#ef4444;"><i class="fa-solid fa-power-off"></i><span>خروج</span></a>
+    <div class="sidebar-footer" style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
+      <a href="/logout" class="nav-btn" style="color:#ef4444; text-decoration:none;">
+        <i class="fa-solid fa-power-off"></i><span>خروج از پنل</span>
+      </a>
     </div>
   </aside>
 
+  <!-- محتوای اصلی داشبورد -->
   <main class="main-viewport">
     <header class="topbar">
       <div>
@@ -88,19 +334,43 @@
       <button class="btn-main" onclick="openModal()"><i class="fa-solid fa-plus"></i> ساخت کانفیگ جدید</button>
     </header>
 
+    <!-- ۴ کارت آمار نئونی -->
     <div class="stats-grid">
-      <div class="stat-card bg-g1"><span>وضعیت سرویس</span><h2 style="font-size: 22px; font-weight: 800; margin-top: 4px;">آنلاین</h2></div>
-      <div class="stat-card bg-g2"><span>حجم مصرفی سرور</span><h2 style="font-size: 22px; font-weight: 800; margin-top: 4px;" id="st-used">0 GB</h2></div>
-      <div class="stat-card bg-g3"><span>زمان اعتبار</span><h2 style="font-size: 22px; font-weight: 800; margin-top: 4px;">۲۷ روز</h2></div>
-      <div class="stat-card bg-g4"><span>تعداد کانفیگ‌ها</span><h2 style="font-size: 22px; font-weight: 800; margin-top: 4px;" id="st-count">0</h2></div>
+      <div class="stat-card bg-g1">
+        <span style="font-size: 11px;">وضعیت سرویس</span>
+        <h2 style="font-size: 20px; font-weight: 800; margin-top: 4px;">آنلاین</h2>
+      </div>
+      <div class="stat-card bg-g2">
+        <span style="font-size: 11px;">حجم مصرفی کل</span>
+        <h2 style="font-size: 20px; font-weight: 800; margin-top: 4px;" id="st-used">0 GB</h2>
+      </div>
+      <div class="stat-card bg-g3">
+        <span style="font-size: 11px;">اعتبار اشتراک</span>
+        <h2 style="font-size: 20px; font-weight: 800; margin-top: 4px;">۲۷ روز</h2>
+      </div>
+      <div class="stat-card bg-g4">
+        <span style="font-size: 11px;">تعداد کانفیگ‌ها</span>
+        <h2 style="font-size: 20px; font-weight: 800; margin-top: 4px;" id="st-count">0</h2>
+      </div>
     </div>
 
+    <!-- جدول لیست کانفیگ‌ها -->
     <div class="panel-box">
-      <h4 style="font-size: 15px; margin-bottom: 14px;">کانفیگ‌های تعریف شده</h4>
-      <div style="overflow-x: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h4 style="font-size: 14px; font-weight: 700;">کانفیگ‌های تعریف شده</h4>
+        <button class="btn-main" style="padding: 6px 10px; font-size: 11px;" onclick="openModal()"><i class="fa-solid fa-plus"></i> جدید</button>
+      </div>
+      <div class="table-responsive">
         <table class="ui-table">
           <thead>
-            <tr><th>نام کانفیگ</th><th>سرور</th><th>حجم مصرفی</th><th>مدت اعتبار</th><th>لینک مرورگر ساب</th><th>عملیات</th></tr>
+            <tr>
+              <th>نام کانفیگ</th>
+              <th>سرور</th>
+              <th>حجم مصرفی</th>
+              <th>مدت اعتبار</th>
+              <th>صفحه مرورگر ساب</th>
+              <th>عملیات</th>
+            </tr>
           </thead>
           <tbody id="cfgBody"></tbody>
         </table>
@@ -108,35 +378,59 @@
     </div>
   </main>
 
+  <!-- نوار ناوبری پایین صفحه مخصوص موبایل -->
+  <nav class="bottom-bar">
+    <button class="bottom-btn active" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+      <i class="fa-solid fa-house"></i><span>داشبورد</span>
+    </button>
+    <button class="bottom-btn" onclick="openModal()">
+      <i class="fa-solid fa-circle-plus"></i><span>ساخت کانفیگ</span>
+    </button>
+    <button class="bottom-btn" onclick="toggleSidebar()">
+      <i class="fa-solid fa-bars"></i><span>منو</span>
+    </button>
+  </nav>
+
+  <!-- مودال ساخت کانفیگ بهینه‌شده برای موبایل -->
   <div class="modal-wrap" id="createModal">
     <div class="modal-box">
-      <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 14px;">ساخت کانفیگ جدید (VLESS + VMess + Trojan)</h3>
+      <h3 style="font-size: 15px; color:#38bdf8; margin-bottom: 14px;">ساخت کانفیگ جدید (VLESS + VMess + Trojan)</h3>
       <form id="addForm">
         <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">نام کاربر:</label>
-        <input type="text" id="m-name" class="input-field" placeholder="مثال: گوشی من" required>
+        <input type="text" id="m-name" class="input-field" placeholder="مثال: اکانت اختصاصی" required>
         
-        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">سرور:</label>
+        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">سرور لوکیشن:</label>
         <select id="m-server" class="input-field">
           <option value="Germany (DE)">🇩🇪 Germany (DE)</option>
           <option value="Netherlands (NL)">🇳🇱 Netherlands (NL)</option>
           <option value="Turkey (TR)">🇹🇷 Turkey (TR)</option>
         </select>
 
-        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">حجم مجاز (GB):</label>
-        <input type="number" id="m-gb" class="input-field" value="20" required>
+        <div style="display: flex; gap: 8px;">
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">حجم (GB):</label>
+            <input type="number" id="m-gb" class="input-field" value="20" required>
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">اعتبار (روز):</label>
+            <input type="number" id="m-days" class="input-field" value="30" required>
+          </div>
+        </div>
 
-        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">مدت اعتبار (روز):</label>
-        <input type="number" id="m-days" class="input-field" value="30" required>
-
-        <div style="display:flex; gap:8px; margin-top:10px;">
-          <button type="submit" class="btn-main" style="flex:1; justify-content:center;">تولید فوری</button>
-          <button type="button" class="btn-main btn-del" onclick="closeModal()">انصراف</button>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button type="submit" class="btn-main" style="flex:1; justify-content:center; padding: 11px;">تولید فوری</button>
+          <button type="button" class="btn-main btn-del" style="padding: 11px;" onclick="closeModal()">انصراف</button>
         </div>
       </form>
     </div>
   </div>
 
   <script>
+    function toggleSidebar() {
+      document.getElementById('mainSidebar').classList.toggle('open');
+      document.getElementById('sideOverlay').classList.toggle('active');
+    }
+
     function openModal() { document.getElementById('createModal').style.display = 'flex'; }
     function closeModal() { document.getElementById('createModal').style.display = 'none'; }
 
@@ -154,13 +448,15 @@
           <td>${c.used_gb} / ${c.total_gb} GB</td>
           <td>${c.expire_days} روز</td>
           <td>
-            <a href="/subpage/${c.id}" target="_blank" class="btn-main" style="background:#6366f1;">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> باز کردن صفحه ساب
+            <a href="/subpage/${c.id}" target="_blank" class="btn-main" style="background:#6366f1; padding: 5px 10px; font-size: 11px;">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> مشاهده ساب
             </a>
           </td>
           <td>
-            <button class="btn-main" onclick="navigator.clipboard.writeText('https://${host}/sub/${c.id}'); alert('ساب متنی کپی شد!');">کپی ساب</button>
-            <button class="btn-main btn-del" onclick="delCfg('${c.id}')"><i class="fa-solid fa-trash"></i></button>
+            <div style="display: flex; gap: 4px;">
+              <button class="btn-main" style="padding: 5px 8px; font-size: 11px;" onclick="navigator.clipboard.writeText('https://${host}/sub/${c.id}'); alert('ساب متنی کپی شد!');">کپی ساب</button>
+              <button class="btn-main btn-del" style="padding: 5px 8px; font-size: 11px;" onclick="delCfg('${c.id}')"><i class="fa-solid fa-trash"></i></button>
+            </div>
           </td>
         </tr>
       `).join('');

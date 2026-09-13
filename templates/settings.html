@@ -1,1 +1,80 @@
 
+{% extends 'base.html' %}
+{% block content %}
+<div class="mb-4 fade-up">
+    <h3 class="fw-bold"><i class="fas fa-cog me-2" style="color: var(--primary);"></i>تنظیمات</h3>
+</div>
+
+<div class="row g-4">
+    <!-- Change Password -->
+    <div class="col-lg-6 fade-up">
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-lock me-2" style="color: var(--warning);"></i>تغییر رمز عبور</h5>
+            <form method="POST">
+                <input type="hidden" name="action" value="change_password">
+                <div class="mb-3">
+                    <label class="form-label">رمز فعلی</label>
+                    <input type="password" name="old_password" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">رمز جدید</label>
+                    <input type="password" name="new_password" class="form-control" required minlength="6">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">تکرار رمز</label>
+                    <input type="password" name="confirm_password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-onex"><i class="fas fa-save me-1"></i> ذخیره</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Username -->
+    <div class="col-lg-6 fade-up" style="animation-delay: 0.05s;">
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-user-edit me-2" style="color: var(--accent);"></i>تغییر نام کاربری</h5>
+            <form method="POST">
+                <input type="hidden" name="action" value="change_username">
+                <div class="mb-3">
+                    <label class="form-label">نام کاربری جدید</label>
+                    <input type="text" name="new_username" class="form-control" value="{{ current_user.username }}" required minlength="3">
+                </div>
+                <button type="submit" class="btn btn-onex"><i class="fas fa-save me-1"></i> ذخیره</button>
+            </form>
+        </div>
+
+        <!-- Server Info -->
+        <div class="glass-card p-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-server me-2" style="color: var(--success);"></i>تنظیمات سرور</h5>
+            <table class="table onex-table">
+                <tr><td class="fw-bold">آدرس</td><td>{{ config.XRAY_ADDRESS }}</td></tr>
+                <tr><td class="fw-bold">پورت</td><td>{{ config.XRAY_PORT }}</td></tr>
+                <tr><td class="fw-bold">SNI</td><td>{{ config.XRAY_SNI }}</td></tr>
+                <tr><td class="fw-bold">شبکه</td><td>{{ config.XRAY_NETWORK }}</td></tr>
+                <tr><td class="fw-bold">امنیت</td><td>{{ config.XRAY_SECURITY }}</td></tr>
+                <tr><td class="fw-bold">مسیر</td><td>{{ config.XRAY_PATH }}</td></tr>
+            </table>
+            <div class="alert alert-info small mt-3 mb-0" style="background: rgba(6,182,212,0.1); border-color: var(--border); color: var(--text2);">
+                <i class="fas fa-info-circle me-1"></i>
+                تغییر تنظیمات سرور از طریق Environment Variables در Railway
+            </div>
+        </div>
+    </div>
+
+    <!-- About -->
+    <div class="col-12 fade-up" style="animation-delay: 0.1s;">
+        <div class="glass-card p-4 text-center">
+            <h4 class="fw-bold" style="letter-spacing: 4px; color: var(--primary-light);">⚡ {{ panel_name }}</h4>
+            <p class="text-muted mb-3">پنل مدیریت حرفه‌ای V2Ray</p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ creator_url }}" target="_blank" class="btn btn-onex-outline">
+                    <i class="fas fa-code me-1"></i> {{ creator }}
+                </a>
+                <a href="{{ telegram_channel_url }}" target="_blank" class="btn btn-onex-outline" style="border-color: #0088cc; color: #0088cc;">
+                    <i class="fab fa-telegram me-1"></i> {{ telegram_channel }}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

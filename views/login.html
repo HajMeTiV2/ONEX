@@ -1,69 +1,124 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>ورود به پنل ONEX</title>
+  <title>ورود به سامانه ONEX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body {
-      background: radial-gradient(circle at 10% 20%, rgb(15, 23, 42) 0%, rgb(3, 7, 18) 90%);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #060913;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
     }
-    .login-card {
-      background: rgba(30, 41, 59, 0.7);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      width: 100%;
+    .glow-circle-1 {
+      position: absolute; width: 350px; height: 350px; background: radial-gradient(circle, rgba(14,165,233,0.35) 0%, rgba(0,0,0,0) 70%);
+      top: 10%; right: 15%; filter: blur(50px); pointer-events: none;
+    }
+    .glow-circle-2 {
+      position: absolute; width: 400px; height: 400px; background: radial-gradient(circle, rgba(168,85,247,0.3) 0%, rgba(0,0,0,0) 70%);
+      bottom: 10%; left: 15%; filter: blur(60px); pointer-events: none;
+    }
+    .glass-card {
+      position: relative;
+      z-index: 10;
+      width: 90%;
       max-width: 400px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      padding: 35px 28px;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
     }
-    .btn-gradient {
-      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    .icon-box {
+      width: 68px; height: 68px;
+      background: linear-gradient(135deg, rgba(14,165,233,0.2), rgba(168,85,247,0.2));
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      color: #38bdf8;
+      font-size: 28px;
+    }
+    .title { text-align: center; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 13px; margin-bottom: 25px; }
+    .input-group {
+      position: relative; margin-bottom: 18px;
+    }
+    .input-group i {
+      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+      color: #64748b; font-size: 16px;
+    }
+    .input-field {
+      width: 100%;
+      padding: 14px 44px 14px 16px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: 0.25s ease;
+    }
+    .input-field:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+      background: rgba(15, 23, 42, 0.85);
+    }
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);
       border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.4);
+      transition: transform 0.2s, opacity 0.2s;
     }
+    .btn-login:hover { opacity: 0.95; transform: translateY(-1px); }
+    .footer-links { text-align: center; margin-top: 22px; font-size: 12px; }
+    .footer-links a { color: #38bdf8; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
   </style>
 </head>
 <body>
-  <div class="login-card p-4 text-white">
-    <div class="text-center mb-4">
-      <div class="d-inline-flex align-items-center justify-content-center bg-primary bg-opacity-10 text-primary rounded-circle p-3 mb-2">
-        <i class="fa-solid fa-shield-halved fa-2x"></i>
-      </div>
-      <h3 class="fw-bold tracking-wide">ONEX Core</h3>
-      <p class="text-secondary small">ورود به پنل ادمین | ساخته شده توسط <span class="text-info">@Mehtif</span></p>
+  <div class="glow-circle-1"></div>
+  <div class="glow-circle-2"></div>
+
+  <div class="glass-card">
+    <div class="icon-box">
+      <i class="fa-solid fa-layer-group"></i>
     </div>
+    <div class="title">ONEX Core</div>
+    <div class="subtitle">طراحی و توسعه توسط <span style="color: #38bdf8;">@Mehtif</span></div>
 
     <form id="loginForm">
-      <div class="mb-3">
-        <label class="form-label text-secondary small">نام کاربری</label>
-        <div class="input-group">
-          <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fa-solid fa-user"></i></span>
-          <input type="text" id="username" class="form-control bg-dark text-white border-secondary" placeholder="admin" required>
-        </div>
+      <div class="input-group">
+        <i class="fa-solid fa-user"></i>
+        <input type="text" id="username" class="input-field" placeholder="نام کاربری" required>
       </div>
 
-      <div class="mb-4">
-        <label class="form-label text-secondary small">رمز عبور</label>
-        <div class="input-group">
-          <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fa-solid fa-lock"></i></span>
-          <input type="password" id="password" class="form-control bg-dark text-white border-secondary" placeholder="••••••••" required>
-        </div>
+      <div class="input-group">
+        <i class="fa-solid fa-lock"></i>
+        <input type="password" id="password" class="input-field" placeholder="رمز عبور" required>
       </div>
 
-      <button type="submit" class="btn btn-gradient text-white w-100 py-2 fw-bold">ورود به پنل</button>
+      <button type="submit" class="btn-login">ورود به مدیریت</button>
     </form>
-    
-    <div class="text-center mt-3">
-      <a href="https://t.me/V2rayTunp" target="_blank" class="text-secondary small text-decoration-none">
-        <i class="fa-brands fa-telegram text-info me-1"></i> کانال تلگرام: @V2rayTunp
+
+    <div class="footer-links">
+      <a href="https://t.me/V2rayTunp" target="_blank">
+        <i class="fa-brands fa-telegram"></i> عضویت در کانال @V2rayTunp
       </a>
     </div>
   </div>

@@ -1,95 +1,480 @@
+import os
 import json
 import base64
-import urllib.parse
+import uuid
+import time
+import socket
+import subprocess
+from datetime import datetime, timedelta
+from flask import (Flask, render_template, request, redirect,
+                   url_for, flash, Response, jsonify)
+from flask_login import (LoginManager, login_user, logout_user,
+                         login_required, current_user)
+from werkzeug.security import generate_password_hash, check_password_hash
+
 from config import Config
+from models import db, Admin, User, tehran_tz
+from utils import generate_config, generate_subscription_content, format_bytes
+
+app = Flask(__name__)
+app.config.from_object(Config)
+
+db.init_app(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'ابتدا وارد شوید'
 
 
-def generate_vless_config(user, request_domain=None):
-    uuid_str = user.uuid_str
-    
-    # دامنه اختصاصی ریلوی
-    domain = request_domain or Config.PANEL_DOMAIN
-    
-    params = {
-        'type': 'ws',
-        'security': 'tls',
-        'sni': domain,
-        'fp': 'chrome',
-        'path': '/ws',
-        'host': domain,
-        'encryption': 'none'
+@login_manager.user_loader
+def load_user(user_id):
+    return Admin.query.get(int(user_id))
+
+
+@app.context_processor
+def inject_branding():
+    return {
+        'panel_name': Config.PANEL_NAME,
+        'creator': Config.CREATOR,
+        'telegram_channel': Config.TELEGRAM_CHANNEL,
+        'telegram_channel_url': Config.TELEGRAM_CHANNEL_URL,
+        'creator_url': Config.CREATOR_URL
     }
 
-    params_str = '&'.join(f'{k}={v}' for k, v in params.items())
-    remark = urllib.parse.quote(f'ONEX-{user.username}')
 
-    # اتصال پورت 443 با TLS
-    return f"vless://{uuid_str}@{domain}:443?{params_str}#{remark}"
+def sync_xray_config():
+    """همگام‌سازی کاربران فعال و استارت پایدار هسته Xray"""
+    with app.app_context():
+        try:
+            active_users = User.query.filter_by(is_active=True).all()
+            clients = []
+            for u in active_users:
+                if u.status == 'فعال':
+                    clients.append({
+                        "id": u.uuid_str,
+                        "email": u.username
+                    })
 
+            # جلوگیری از کرش کردن Xray در صورت نبود کاربر
+            if not clients:
+                clients.append({
+                    "id": "11111111-2222-3333-4444-555555555555",
+                    "email": "system_keepalive"
+                })
 
-def generate_vmess_config(user, request_domain=None):
-    domain = request_domain or Config.PANEL_DOMAIN
-    config_dict = {
-        "v": "2",
-        "ps": f"ONEX-{user.username}",
-        "add": domain,
-        "port": "443",
-        "id": user.uuid_str,
-        "aid": "0",
-        "scy": "auto",
-        "net": "ws",
-        "type": "none",
-        "host": domain,
-        "path": "/ws",
-        "tls": "tls",
-        "sni": domain,
-        "alpn": "",
-        "fp": "chrome"
-    }
+            xray_config = {
+                "log": {"loglevel": "warning"},
+                "inbounds": [{
+                    "port": 10000,
+                    "listen": "127.0.0.1",
+                    "protocol": "vless",
+                    "settings": {
+                        "clients": clients,
+                        "decryption": "none"
+                    },
+                    "streamSettings": {
+                        "network": "ws",
+                        "wsSettings": {
+                            "path": "/ws"
+                        }
+                    }
+                }],
+                "outbounds": [{
+                    "protocol": "freedom"
+                }]
+            }
 
-    json_str = json.dumps(config_dict)
-    b64 = base64.b64encode(json_str.encode()).decode()
-    return f"vmess://{b64}"
+            with open('/app/xray_config.json', 'w') as f:
+                json.dump(xray_config, f, indent=2)
 
-
-def generate_trojan_config(user, request_domain=None):
-    domain = request_domain or Config.PANEL_DOMAIN
-    params = {
-        'type': 'ws',
-        'security': 'tls',
-        'sni': domain,
-        'fp': 'chrome',
-        'path': '/ws',
-        'host': domain
-    }
-
-    params_str = '&'.join(f'{k}={v}' for k, v in params.items())
-    remark = urllib.parse.quote(f'ONEX-{user.username}')
-
-    return f"trojan://{user.uuid_str}@{domain}:443?{params_str}#{remark}"
-
-
-def generate_config(user, request_domain=None):
-    generators = {
-        'vless': generate_vless_config,
-        'vmess': generate_vmess_config,
-        'trojan': generate_trojan_config
-    }
-    return generators.get(user.protocol, generate_vless_config)(user, request_domain)
+            # ری‌ستارت تمیز پردازش Xray
+            subprocess.run(["pkill", "-9", "-f", "xray"], stderr=subprocess.DEVNULL)
+            time.sleep(0.5)
+            subprocess.Popen(["/usr/local/bin/xray", "-config", "/app/xray_config.json"])
+            print("[ONEX] Xray process started successfully!")
+        except Exception as e:
+            print(f"[ONEX] Xray Sync Error: {e}")
 
 
-def generate_subscription_content(user, request_domain=None):
-    config = generate_config(user, request_domain)
-    return base64.b64encode(config.encode()).decode()
+# ─── ROUTE عیب‌یابی زنده هسته XRAY ─────────────────
+@app.route('/check-xray')
+def check_xray():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex(('127.0.0.1', 10000))
+    sock.close()
+    if result == 0:
+        return "<h2 style='color:green;text-align:center;margin-top:50px;'>✅ هسته Xray کاملاً روشن و فعال است! (پورت 10000 باز است)</h2>"
+    else:
+        return "<h2 style='color:red;text-align:center;margin-top:50px;'>❌ هسته Xray خاموش است! پورت 10000 پاسخ نمی‌دهد.</h2>"
 
 
-def format_bytes(bytes_val):
-    if bytes_val == 0:
-        return '0 B'
-    units = ['B', 'KB', 'MB', 'GB', 'TB']
-    unit_index = 0
-    size = float(bytes_val)
-    while size >= 1024 and unit_index < len(units) - 1:
-        size /= 1024
-        unit_index += 1
-    return f"{size:.2f} {units[unit_index]}"
+# ─── AUTH ROUTES ─────────────────────────────────────
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+
+        admin = Admin.query.filter_by(username=username).first()
+        if admin and check_password_hash(admin.password_hash, password):
+            login_user(admin, remember=True)
+            flash('خوش آمدید! 🚀', 'success')
+            return redirect(url_for('dashboard'))
+        flash('نام کاربری یا رمز عبور اشتباه است', 'danger')
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+
+# ─── DASHBOARD ───────────────────────────────────────
+@app.route('/')
+@login_required
+def dashboard():
+    all_users = User.query.all()
+    total_users = len(all_users)
+    active_users = sum(1 for u in all_users if u.status == 'فعال')
+    expired_users = sum(1 for u in all_users if u.status == 'منقضی')
+    data_exceeded = sum(1 for u in all_users if u.status == 'اتمام حجم')
+    disabled_users = sum(1 for u in all_users if u.status == 'غیرفعال')
+    total_traffic = sum(u.data_used for u in all_users)
+    total_upload = sum(u.upload for u in all_users)
+    total_download = sum(u.download for u in all_users)
+    recent_users = User.query.order_by(User.created_at.desc()).limit(10).all()
+
+    now = datetime.now(tehran_tz)
+    expiring_soon = [u for u in all_users
+                     if u.expire_date and u.status == 'فعال'
+                     and 0 <= ((u.expire_date.replace(tzinfo=tehran_tz)
+                                if u.expire_date.tzinfo is None
+                                else u.expire_date) - now).days <= 3
+                     ] if all_users else []
+
+    return render_template('dashboard.html',
+                           total_users=total_users,
+                           active_users=active_users,
+                           expired_users=expired_users,
+                           data_exceeded=data_exceeded,
+                           disabled_users=disabled_users,
+                           total_traffic=format_bytes(total_traffic),
+                           total_upload=format_bytes(total_upload),
+                           total_download=format_bytes(total_download),
+                           recent_users=recent_users,
+                           expiring_soon=len(expiring_soon))
+
+
+# ─── USER MANAGEMENT ─────────────────────────────────
+@app.route('/users')
+@login_required
+def users():
+    search = request.args.get('search', '').strip()
+    status_filter = request.args.get('status', 'all')
+    protocol_filter = request.args.get('protocol', 'all')
+    sort_by = request.args.get('sort', 'newest')
+
+    all_users = User.query.all()
+
+    if search:
+        all_users = [u for u in all_users
+                     if search.lower() in u.username.lower()
+                     or search.lower() in u.note.lower()]
+
+    if status_filter != 'all':
+        all_users = [u for u in all_users if u.status == status_filter]
+
+    if protocol_filter != 'all':
+        all_users = [u for u in all_users if u.protocol == protocol_filter]
+
+    if sort_by == 'newest':
+        all_users.sort(key=lambda u: u.created_at or datetime.min, reverse=True)
+    elif sort_by == 'oldest':
+        all_users.sort(key=lambda u: u.created_at or datetime.min)
+    elif sort_by == 'name':
+        all_users.sort(key=lambda u: u.username.lower())
+
+    return render_template('users.html',
+                           users=all_users,
+                           search=search,
+                           status_filter=status_filter,
+                           protocol_filter=protocol_filter,
+                           sort_by=sort_by)
+
+
+@app.route('/users/add', methods=['GET', 'POST'])
+@login_required
+def add_user():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        data_limit_gb = float(request.form.get('data_limit', 0))
+        duration_days = int(request.form.get('duration_days', 30))
+        max_connections = int(request.form.get('max_connections', 1))
+        protocol = request.form.get('protocol', 'vless')
+        note = request.form.get('note', '').strip()
+
+        if User.query.filter_by(username=username).first():
+            flash('این نام کاربری وجود دارد', 'danger')
+            return redirect(url_for('add_user'))
+
+        expire_date = (datetime.now(tehran_tz) + timedelta(days=duration_days)
+                       if duration_days > 0 else None)
+        data_limit = int(data_limit_gb * (1024 ** 3)) if data_limit_gb > 0 else 0
+
+        user = User(
+            username=username,
+            uuid_str=str(uuid.uuid4()),
+            sub_token=str(uuid.uuid4()),
+            data_limit=data_limit,
+            expire_date=expire_date,
+            duration_days=duration_days,
+            max_connections=max_connections,
+            protocol=protocol,
+            note=note,
+            is_active=True
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        sync_xray_config()
+        flash(f'✅ کاربر {username} با موفقیت ساخته شد', 'success')
+        return redirect(url_for('users'))
+
+    return render_template('add_user.html')
+
+
+@app.route('/users/edit/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+def edit_user(user_id):
+    user = User.query.get_or_404(user_id)
+
+    if request.method == 'POST':
+        data_limit_gb = float(request.form.get('data_limit', 0))
+        user.data_limit = int(data_limit_gb * (1024 ** 3)) if data_limit_gb > 0 else 0
+
+        duration_days = int(request.form.get('duration_days', 30))
+        user.duration_days = duration_days
+        user.max_connections = int(request.form.get('max_connections', 1))
+        user.protocol = request.form.get('protocol', 'vless')
+        user.note = request.form.get('note', '').strip()
+        user.is_active = 'is_active' in request.form
+
+        if request.form.get('reset_expire') == 'on':
+            user.expire_date = (datetime.now(tehran_tz) + timedelta(days=duration_days)
+                                if duration_days > 0 else None)
+
+        if request.form.get('new_uuid') == 'on':
+            user.uuid_str = str(uuid.uuid4())
+
+        db.session.commit()
+        sync_xray_config()
+        flash(f'✅ کاربر {user.username} ویرایش شد', 'success')
+        return redirect(url_for('users'))
+
+    domain = request.host.split(':')[0]
+    config_link = generate_config(user, domain)
+    sub_link = f"{request.host_url}sub/{user.sub_token}"
+
+    return render_template('edit_user.html',
+                           user=user,
+                           config_link=config_link,
+                           sub_link=sub_link,
+                           sub_info_link=sub_link)
+
+
+@app.route('/users/delete/<int:user_id>')
+@login_required
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+    sync_xray_config()
+    flash('کاربر با موفقیت حذف شد', 'success')
+    return redirect(url_for('users'))
+
+
+@app.route('/users/toggle/<int:user_id>')
+@login_required
+def toggle_user(user_id):
+    user = User.query.get_or_404(user_id)
+    user.is_active = not user.is_active
+    db.session.commit()
+    sync_xray_config()
+    flash(f'وضعیت کاربر تغییر کرد', 'info')
+    return redirect(url_for('users'))
+
+
+@app.route('/users/reset-traffic/<int:user_id>')
+@login_required
+def reset_traffic(user_id):
+    user = User.query.get_or_404(user_id)
+    user.data_used = 0
+    user.upload = 0
+    user.download = 0
+    db.session.commit()
+    flash(f'🔄 ترافیک {user.username} ریست شد', 'success')
+    return redirect(url_for('edit_user', user_id=user_id))
+
+
+@app.route('/users/renew/<int:user_id>')
+@login_required
+def renew_user(user_id):
+    user = User.query.get_or_404(user_id)
+    user.expire_date = datetime.now(tehran_tz) + timedelta(days=user.duration_days)
+    user.data_used = 0
+    user.upload = 0
+    user.download = 0
+    user.is_active = True
+    db.session.commit()
+    sync_xray_config()
+    flash(f'🔄 اشتراک {user.username} تمدید شد', 'success')
+    return redirect(url_for('users'))
+
+
+@app.route('/users/bulk', methods=['POST'])
+@login_required
+def bulk_action():
+    action = request.form.get('action')
+    user_ids = request.form.getlist('user_ids')
+
+    if not user_ids:
+        flash('هیچ کاربری انتخاب نشده', 'warning')
+        return redirect(url_for('users'))
+
+    target_users = User.query.filter(User.id.in_(user_ids)).all()
+    count = len(target_users)
+
+    if action == 'delete':
+        for u in target_users:
+            db.session.delete(u)
+        flash(f'🗑️ {count} کاربر حذف شد', 'success')
+    elif action == 'enable':
+        for u in target_users:
+            u.is_active = True
+        flash(f'✅ {count} کاربر فعال شد', 'success')
+    elif action == 'disable':
+        for u in target_users:
+            u.is_active = False
+        flash(f'❌ {count} کاربر غیرفعال شد', 'success')
+    elif action == 'reset':
+        for u in target_users:
+            u.data_used = 0
+            u.upload = 0
+            u.download = 0
+        flash(f'🔄 ترافیک {count} کاربر ریست شد', 'success')
+
+    db.session.commit()
+    sync_xray_config()
+    return redirect(url_for('users'))
+
+
+# ─── SUBSCRIPTION ROUTES ─────────────────────────────
+@app.route('/sub/<token>')
+def subscription(token):
+    user = User.query.filter_by(sub_token=token).first_or_404()
+    domain = request.host.split(':')[0]
+
+    user_agent = request.headers.get('User-Agent', '').lower()
+    accept_header = request.headers.get('Accept', '').lower()
+
+    v2ray_clients = [
+        'v2ray', 'v2rayng', 'shadowrocket', 'streisand', 'clash',
+        'sing-box', 'neko', 'quantumult', 'stash', 'surfboard',
+        'foxray', 'passwall', 'hiddify', 'subconverter', 'go-http-client'
+    ]
+
+    is_v2ray_client = any(client in user_agent for client in v2ray_clients)
+    is_browser = 'text/html' in accept_header or ('mozilla' in user_agent and not is_v2ray_client)
+
+    if is_browser and not is_v2ray_client:
+        config_link = generate_config(user, domain)
+        sub_link = f"{request.url_root}sub/{user.sub_token}"
+        return render_template('sub.html', user=user, config_link=config_link, sub_link=sub_link)
+
+    if user.status != 'فعال':
+        return Response(
+            base64.b64encode(b'# ONEX - Account Expired or Disabled').decode(),
+            content_type='text/plain; charset=utf-8'
+        )
+
+    content = generate_subscription_content(user, domain)
+    response = Response(content, content_type='text/plain; charset=utf-8')
+    response.headers['Subscription-Userinfo'] = (
+        f"upload={user.upload}; "
+        f"download={user.download}; "
+        f"total={user.data_limit}; "
+        f"expire={int(user.expire_date.timestamp()) if user.expire_date else 0}"
+    )
+    response.headers['Profile-Title'] = f"ONEX | {user.username}"
+    return response
+
+
+@app.route('/sub/info/<token>')
+def sub_info(token):
+    return redirect(url_for('subscription', token=token))
+
+
+# ─── SETTINGS ROUTE ──────────────────────────────────
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'change_password':
+            old_pass = request.form.get('old_password')
+            new_pass = request.form.get('new_password')
+            confirm_pass = request.form.get('confirm_password')
+
+            if not check_password_hash(current_user.password_hash, old_pass):
+                flash('رمز عبور فعلی اشتباه است', 'danger')
+            elif new_pass != confirm_pass:
+                flash('رمز عبور جدید مطابقت ندارد', 'danger')
+            elif len(new_pass) < 6:
+                flash('رمز عبور باید حداقل ۶ کاراکتر باشد', 'danger')
+            else:
+                current_user.password_hash = generate_password_hash(new_pass)
+                db.session.commit()
+                flash('✅ رمز عبور تغییر کرد', 'success')
+
+        elif action == 'change_username':
+            new_username = request.form.get('new_username', '').strip()
+            if len(new_username) < 3:
+                flash('نام کاربری باید حداقل ۳ کاراکتر باشد', 'danger')
+            else:
+                current_user.username = new_username
+                db.session.commit()
+                flash('✅ نام کاربری تغییر کرد', 'success')
+
+    return render_template('settings.html', config=Config)
+
+
+# ─── INIT DB ─────────────────────────────────────────
+def init_db():
+    with app.app_context():
+        try:
+            db.create_all()
+            if not Admin.query.first():
+                admin = Admin(
+                    username=Config.ADMIN_USERNAME,
+                    password_hash=generate_password_hash(Config.ADMIN_PASSWORD)
+                )
+                db.session.add(admin)
+                db.session.commit()
+                print(f"[ONEX] Admin initialized: {Config.ADMIN_USERNAME}")
+        except Exception as e:
+            print(f"[ONEX] DB Init Error: {e}")
+
+
+init_db()
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

@@ -1,19 +1,14 @@
 {
   "name": "onex-panel",
-  "version": "3.0.0",
-  "description": "ONEX Multi-Level V2Ray Panel by @Mehtif",
+  "version": "1.0.0",
+  "description": "ONEX V2Ray Management Panel",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
-  "engines": {
-    "node": "20.x"
-  },
   "dependencies": {
     "express": "^4.19.2",
     "sqlite3": "^5.1.7",
-    "uuid": "^9.0.1",
-    "cors": "^2.8.5",
-    "jsonwebtoken": "^9.0.2"
+    "uuid": "^9.0.1"
   }
 }

@@ -1,25 +1,54 @@
+def sync_xray_config():
+    """همگام‌سازی کاربران فعال و راه‌اندازی پایدار هسته Xray"""
+    with app.app_context():
+        try:
+            active_users = User.query.filter_by(is_active=True).all()
+            clients = []
+            for u in active_users:
+                if u.status == 'فعال':
+                    clients.append({
+                        "id": u.uuid_str,
+                        "email": u.username
+                    })
 
-server {
-    listen $PORT;
+            # جلوگیری از کرش کردن Xray اگر کاربری نبود
+            if not clients:
+                clients.append({
+                    "id": "11111111-2222-3333-4444-555555555555",
+                    "email": "system_keepalive"
+                })
 
-    # مسیر WebSocket برای کانفیگ‌های V2Ray
-    location /ws {
-        proxy_redirect off;
-        proxy_pass http://127.0.0.1:10000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
+            xray_config = {
+                "log": {
+                    "loglevel": "warning"
+                },
+                "inbounds": [{
+                    "port": 10000,
+                    "listen": "127.0.0.1",
+                    "protocol": "vless",
+                    "settings": {
+                        "clients": clients,
+                        "decryption": "none"
+                    },
+                    "streamSettings": {
+                        "network": "ws",
+                        "wsSettings": {
+                            "path": "/ws"
+                        }
+                    }
+                }],
+                "outbounds": [{
+                    "protocol": "freedom"
+                }]
+            }
 
-    # مسیر وب پنل و ساب‌لینک‌ها
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
+            with open('/app/xray_config.json', 'w') as f:
+                json.dump(xray_config, f, indent=2)
+
+            # خاموش کردن و استارت مجدد و بدون کرش هسته
+            subprocess.run(["pkill", "-9", "-f", "xray"], stderr=subprocess.DEVNULL)
+            time.sleep(0.5)
+            subprocess.Popen(["/usr/local/bin/xray", "-config", "/app/xray_config.json"])
+            print("[ONEX] Xray is RUNNING and listening on 127.0.0.1:10000!")
+        except Exception as e:
+            print(f"[ONEX] Xray Sync Error: {e}")

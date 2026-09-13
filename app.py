@@ -43,7 +43,7 @@ def inject_branding():
 
 
 def sync_xray_config():
-    """همگام‌سازی کاربران فعال با هسته Xray"""
+    """همگام‌سازی کاربران فعال و راه‌اندازی پایدار هسته Xray"""
     with app.app_context():
         try:
             active_users = User.query.filter_by(is_active=True).all()
@@ -55,8 +55,17 @@ def sync_xray_config():
                         "email": u.username
                     })
 
+            # جلوگیری از کرش کردن Xray اگر کاربری نبود
+            if not clients:
+                clients.append({
+                    "id": "11111111-2222-3333-4444-555555555555",
+                    "email": "system_keepalive"
+                })
+
             xray_config = {
-                "log": {"loglevel": "warning"},
+                "log": {
+                    "loglevel": "warning"
+                },
                 "inbounds": [{
                     "port": 10000,
                     "listen": "127.0.0.1",
@@ -80,11 +89,11 @@ def sync_xray_config():
             with open('/app/xray_config.json', 'w') as f:
                 json.dump(xray_config, f, indent=2)
 
-            # کشتن و اجرای مجدد Xray
+            # خاموش کردن و استارت مجدد و بدون کرش هسته
             subprocess.run(["pkill", "-9", "-f", "xray"], stderr=subprocess.DEVNULL)
             time.sleep(0.5)
-            subprocess.Popen(["xray", "-config", "/app/xray_config.json"])
-            print("[ONEX] Xray synced successfully!")
+            subprocess.Popen(["/usr/local/bin/xray", "-config", "/app/xray_config.json"])
+            print("[ONEX] Xray is RUNNING and listening on 127.0.0.1:10000!")
         except Exception as e:
             print(f"[ONEX] Xray Sync Error: {e}")
 

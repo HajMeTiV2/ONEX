@@ -2,83 +2,104 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>صفحه اتصال - ONEX</title>
+  <title>صفحه اشتراک ONEX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    body { background-color: #030712; color: #f3f4f6; font-family: system-ui, sans-serif; }
-    .glass-card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; }
-    .qr-container { background: white; padding: 8px; border-radius: 8px; display: inline-block; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      background-color: #050711;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 30px 16px;
+      display: flex; justify-content: center;
+    }
+    .wrapper { width: 100%; max-width: 500px; }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 22px;
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+    .qr-box {
+      background: #fff; padding: 12px; border-radius: 14px;
+      display: inline-block; margin: 15px auto;
+    }
+    .badge {
+      display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+      background: rgba(56, 189, 248, 0.15); color: #38bdf8;
+    }
+    .copy-row {
+      background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px; padding: 12px; margin-bottom: 10px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .btn-copy {
+      background: #0284c7; border: none; border-radius: 8px; padding: 8px 14px;
+      color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
   </style>
 </head>
-<body class="py-5">
-  <div class="container" style="max-width: 620px;">
+<body>
+  <div class="wrapper">
     
-    <div class="text-center mb-4">
-      <h2 class="fw-bold text-info"><i class="fa-solid fa-bolt me-2"></i>ONEX Subscription</h2>
-      <p class="text-secondary small mb-2">توسعه داده شده توسط <b>@Mehtif</b></p>
-      <a href="https://t.me/V2rayTunp" target="_blank" class="btn btn-sm btn-outline-info rounded-pill px-3">
-        <i class="fa-brands fa-telegram me-1"></i> کانال تلگرام @V2rayTunp
-      </a>
+    <!-- اطلاعات اکانت -->
+    <div class="glass-card" style="text-align: center;">
+      <h2 style="font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 6px;">ONEX Fast Connect</h2>
+      <p style="font-size: 12px; color: #94a3b8; margin-bottom: 16px;">طراحی شده توسط @Mehtif | <a href="https://t.me/V2rayTunp" target="_blank" style="color:#38bdf8; text-decoration: none;">@V2rayTunp</a></p>
+      
+      <div style="display: flex; justify-content: center; gap: 10px;">
+        <span class="badge" id="u-name">کاربر: ...</span>
+        <span class="badge" id="u-gb" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">حجم: 0 GB</span>
+      </div>
+
+      <div class="qr-box">
+        <div id="sub-qrcode"></div>
+      </div>
+      <p style="font-size: 12px; color: #64748b;">برای اتصال در v2rayNG یا Streisand اسکن کنید</p>
     </div>
 
-    <!-- وضعیت اکانت -->
-    <div class="glass-card p-4 mb-4 text-center">
-      <h4 id="u-name" class="fw-bold text-white mb-2">در حال بارگذاری...</h4>
-      <div class="d-flex justify-content-center gap-3">
-        <span class="badge bg-primary px-3 py-2">حجم: <span id="u-gb">0</span> GB</span>
-        <span class="badge bg-secondary px-3 py-2">اعتبار: <span id="u-days">0</span> روز</span>
+    <!-- لینک مستقیم ساب -->
+    <div class="glass-card">
+      <span style="font-size: 13px; color: #fbbf24; font-weight: 700; display: block; margin-bottom: 8px;">
+        <i class="fa-solid fa-bolt"></i> لینک ساب‌اسکریپشن هوشمند
+      </span>
+      <div class="copy-row">
+        <input type="text" id="sub-url" readonly style="background: transparent; border: none; color: #fff; width: 100%; outline: none; font-size: 12px;">
+        <button class="btn-copy" style="background: #eab308; color: #000;" onclick="copyField('sub-url')">کپی لینک ساب</button>
       </div>
     </div>
 
-    <!-- کپی لینک مستقیم ساب کلاینت -->
-    <div class="glass-card p-4 mb-4">
-      <label class="form-label text-warning fw-bold small"><i class="fa-solid fa-link me-1"></i> لینک Subscription خودکار (v2rayNG / Streisand / FoXray):</label>
-      <div class="input-group mb-3">
-        <input type="text" id="sub-url" class="form-control bg-dark text-white border-secondary" readonly>
-        <button class="btn btn-warning fw-bold" onclick="copyValue('sub-url')">کپی لینک ساب</button>
-      </div>
-      <div class="text-center">
-        <div id="sub-qrcode" class="qr-container"></div>
-      </div>
-    </div>
+    <!-- کانفیگ‌های دستی -->
+    <div class="glass-card">
+      <span style="font-size: 13px; color: #94a3b8; font-weight: 600; display: block; margin-bottom: 12px;">کانفیگ‌های دستی:</span>
 
-    <!-- تفکیک پروتکل‌ها -->
-    <div class="glass-card p-4">
-      <h5 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-network-wired me-2"></i>کانفیگ‌های دستی:</h5>
-
-      <div class="mb-3">
-        <label class="form-label small text-info">پروتکل VLESS (پیشنهادی)</label>
-        <div class="input-group">
-          <input type="text" id="cfg-vless" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-outline-info" onclick="copyValue('cfg-vless')"><i class="fa-solid fa-copy"></i> کپی</button>
-        </div>
+      <div class="copy-row">
+        <span style="font-size: 13px;">پروتکل VLESS</span>
+        <input type="hidden" id="cfg-vless">
+        <button class="btn-copy" onclick="copyField('cfg-vless')">کپی VLESS</button>
       </div>
 
-      <div class="mb-3">
-        <label class="form-label small text-info">پروتکل VMess</label>
-        <div class="input-group">
-          <input type="text" id="cfg-vmess" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-outline-info" onclick="copyValue('cfg-vmess')"><i class="fa-solid fa-copy"></i> کپی</button>
-        </div>
+      <div class="copy-row">
+        <span style="font-size: 13px;">پروتکل VMess</span>
+        <input type="hidden" id="cfg-vmess">
+        <button class="btn-copy" onclick="copyField('cfg-vmess')">کپی VMess</button>
       </div>
 
-      <div class="mb-3">
-        <label class="form-label small text-info">پروتکل Trojan</label>
-        <div class="input-group">
-          <input type="text" id="cfg-trojan" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-outline-info" onclick="copyValue('cfg-trojan')"><i class="fa-solid fa-copy"></i> کپی</button>
-        </div>
+      <div class="copy-row">
+        <span style="font-size: 13px;">پروتکل Trojan</span>
+        <input type="hidden" id="cfg-trojan">
+        <button class="btn-copy" onclick="copyField('cfg-trojan')">کپی Trojan</button>
       </div>
 
-      <div>
-        <label class="form-label small text-info">پروتکل Shadowsocks</label>
-        <div class="input-group">
-          <input type="text" id="cfg-ss" class="form-control bg-dark text-white border-secondary" readonly>
-          <button class="btn btn-outline-info" onclick="copyValue('cfg-ss')"><i class="fa-solid fa-copy"></i> کپی</button>
-        </div>
+      <div class="copy-row">
+        <span style="font-size: 13px;">پروتکل Shadowsocks</span>
+        <input type="hidden" id="cfg-ss">
+        <button class="btn-copy" onclick="copyField('cfg-ss')">کپی SS</button>
       </div>
     </div>
 
@@ -89,9 +110,8 @@
     fetch('/api/subinfo/' + id)
       .then(res => res.json())
       .then(data => {
-        document.getElementById('u-name').innerText = data.user.username;
-        document.getElementById('u-gb').innerText = data.user.total_gb;
-        document.getElementById('u-days').innerText = data.user.expire_days;
+        document.getElementById('u-name').innerText = 'کاربر: ' + data.user.username;
+        document.getElementById('u-gb').innerText = 'حجم: ' + data.user.total_gb + ' GB';
         document.getElementById('sub-url').value = data.subUrl;
 
         document.getElementById('cfg-vless').value = data.configs.vlessUri;
@@ -99,7 +119,6 @@
         document.getElementById('cfg-trojan').value = data.configs.trojanUri;
         document.getElementById('cfg-ss').value = data.configs.ssUri;
 
-        // تولید QR Code ساب‌اسکریپشن
         new QRCode(document.getElementById("sub-qrcode"), {
           text: data.subUrl,
           width: 140,
@@ -107,10 +126,10 @@
         });
       });
 
-    function copyValue(id) {
-      const input = document.getElementById(id);
-      navigator.clipboard.writeText(input.value);
-      alert('کانفیگ با موفقیت در کلیپ‌بورد کپی شد.');
+    function copyField(elementId) {
+      const val = document.getElementById(elementId).value;
+      navigator.clipboard.writeText(val);
+      alert('کپی شد!');
     }
   </script>
 </body>

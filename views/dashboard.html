@@ -1,206 +1,496 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <title>داشبورد ابری ONEX</title>
+  <title>ONEX Pro Management Panel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body {
-      background-color: #050711;
-      color: #e2e8f0;
+    :root {
+      --bg-body: #080c16;
+      --bg-sidebar: rgba(13, 20, 36, 0.7);
+      --bg-card: rgba(22, 33, 58, 0.45);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --accent: #38bdf8;
+      --danger: #ef4444;
+      --modal-bg: #0d1527;
+    }
+
+    [data-theme="light"] {
+      --bg-body: #f1f5f9;
+      --bg-sidebar: rgba(255, 255, 255, 0.85);
+      --bg-card: rgba(255, 255, 255, 0.7);
+      --border-color: rgba(0, 0, 0, 0.08);
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --accent: #0284c7;
+      --danger: #dc2626;
+      --modal-bg: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; transition: background 0.25s, color 0.25s, border-color 0.25s; }
+    body { background: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; overflow-x: hidden; }
+
+    /* سایدبار سمت چپ */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-sidebar);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 16px;
+      position: fixed;
+      top: 0; bottom: 0; left: 0;
+      z-index: 100;
+    }
+
+    /* جهت‌بندی RTL برای زبان فارسی */
+    html[dir="rtl"] .sidebar { left: auto; right: 0; border-right: none; border-left: 1px solid var(--border-color); }
+
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 10px 20px; border-bottom: 1px solid var(--border-color); }
+    .brand-icon { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #0284c7, #6366f1); display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+    .brand-text h2 { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
+    .brand-text span { font-size: 11px; color: var(--accent); }
+
+    .nav-menu { list-style: none; margin-top: 25px; display: flex; flex-direction: column; gap: 8px; }
+    .nav-item a {
+      display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+      color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 600;
+      border-radius: 12px; transition: all 0.2s;
+    }
+    .nav-item a:hover, .nav-item.active a { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); }
+
+    .sidebar-footer { border-top: 1px solid var(--border-color); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .control-row { display: flex; gap: 8px; justify-content: space-between; }
+    .btn-ctrl { flex: 1; padding: 8px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+    /* ناحیه محتوا */
+    .main-wrapper {
+      flex: 1;
+      margin-left: 260px;
+      padding: 30px;
       min-height: 100vh;
-      padding: 20px 14px;
-      position: relative;
     }
-    .ambient-bg {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 45%),
-                  radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.1), transparent 50%);
-      z-index: -1; pointer-events: none;
-    }
-    .container { max-width: 1000px; margin: 0 auto; }
-    
-    .glass-panel {
-      background: rgba(255, 255, 255, 0.035);
+    html[dir="rtl"] .main-wrapper { margin-left: 0; margin-right: 260px; }
+
+    .section-view { display: none; }
+    .section-view.active-section { display: block; }
+
+    /* کارت‌های شیشه‌ای محتوا */
+    .glass-box {
+      background: var(--bg-card);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
       border-radius: 20px;
-      padding: 20px;
-      margin-bottom: 20px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
     }
 
-    /* نوار هدر */
-    .topbar {
-      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;
+    .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border-color);
+      border-radius: 18px; padding: 20px;
     }
-    .brand-title { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
-    .badge-creator { font-size: 12px; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 4px 10px; border-radius: 8px; }
-    
-    /* کارت‌های وضعیت */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
-    .stat-item {
-      background: rgba(255, 255, 255, 0.025);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 16px; padding: 18px;
-    }
-    .stat-label { font-size: 13px; color: #94a3b8; display: flex; align-items: center; gap: 8px; }
-    .stat-val { font-size: 26px; font-weight: 800; margin-top: 6px; color: #fff; }
+    .stat-title { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+    .stat-value { font-size: 28px; font-weight: 800; margin-top: 8px; color: var(--text-main); }
 
-    /* دکمه‌ها */
-    .btn {
-      padding: 10px 18px; border-radius: 12px; border: none; font-size: 14px; font-weight: 600;
-      cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; transition: 0.2s ease;
+    /* فیلدها و فرم‌ها */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; margin-bottom: 6px; color: var(--text-muted); }
+    .input-control {
+      width: 100%; padding: 12px 16px; border-radius: 12px;
+      background: rgba(0, 0, 0, 0.15); border: 1px solid var(--border-color);
+      color: var(--text-main); font-size: 14px; outline: none;
     }
-    .btn-primary { background: linear-gradient(135deg, #0284c7, #6366f1); color: #fff; }
-    .btn-danger { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-    .btn-action { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
-
-    /* کارت‌های کانفیگ برای موبایل */
-    .user-card {
-      background: rgba(255, 255, 255, 0.025);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
+    .btn-submit {
+      padding: 12px 24px; border-radius: 12px; border: none;
+      background: linear-gradient(135deg, #0284c7, #6366f1);
+      color: #fff; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
     }
-    .user-info h4 { font-size: 16px; font-weight: 700; color: #f8fafc; }
-    .user-info span { font-size: 12px; color: #94a3b8; margin-left: 10px; }
 
-    /* مودال شیشه‌ای */
+    /* لیست کاربران */
+    .user-item {
+      background: rgba(0, 0, 0, 0.12);
+      border: 1px solid var(--border-color);
+      border-radius: 14px; padding: 16px; margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .btn-action {
+      padding: 8px 12px; font-size: 12px; border-radius: 8px; border: 1px solid var(--border-color);
+      background: var(--bg-card); color: var(--text-main); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+
+    /* مودال تحویل آنی کانفیگ */
     .modal-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-      z-index: 100; align-items: center; justify-content: center;
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+      z-index: 200; align-items: center; justify-content: center; padding: 20px;
     }
-    .modal-card {
-      width: 90%; max-width: 440px; background: #0c1222; border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 20px; padding: 25px;
+    .modal-box {
+      width: 100%; max-width: 520px; background: var(--modal-bg);
+      border: 1px solid var(--border-color); border-radius: 24px; padding: 28px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { width: 70px; padding: 16px 8px; }
+      .brand-text, .nav-item a span, .sidebar-footer { display: none; }
+      .main-wrapper { margin-left: 70px !important; margin-right: 0 !important; padding: 16px; }
+      html[dir="rtl"] .main-wrapper { margin-right: 70px !important; margin-left: 0 !important; }
     }
   </style>
 </head>
 <body>
-  <div class="ambient-bg"></div>
-  <div class="container">
-    
-    <!-- هدر بالا -->
-    <div class="glass-panel topbar">
-      <div>
-        <div class="brand-title">
-          <i class="fa-solid fa-cube text-primary" style="color: #38bdf8;"></i> ONEX Panel
-          <span class="badge-creator">@Mehtif</span>
+
+  <!-- سایدبار دست چپ -->
+  <aside class="sidebar">
+    <div>
+      <div class="brand">
+        <div class="brand-icon"><i class="fa-solid fa-cloud-bolt"></i></div>
+        <div class="brand-text">
+          <h2>ONEX Panel</h2>
+          <span>@Mehtif</span>
         </div>
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button class="btn btn-primary" onclick="openModal()"><i class="fa-solid fa-plus"></i> ساخت کانفیگ</button>
-        <a href="/logout" class="btn btn-danger"><i class="fa-solid fa-power-off"></i></a>
-      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-item active" onclick="switchSection('dashboard', this)">
+          <a href="#"><i class="fa-solid fa-chart-pie"></i> <span data-i18n="menu_dashboard">داشبورد</span></a>
+        </li>
+        <li class="nav-item" onclick="switchSection('create', this)">
+          <a href="#"><i class="fa-solid fa-plus-circle"></i> <span data-i18n="menu_create">ساخت کانفیگ</span></a>
+        </li>
+        <li class="nav-item" onclick="switchSection('sublinks', this)">
+          <a href="#"><i class="fa-solid fa-link"></i> <span data-i18n="menu_sublinks">ساب لینک</span></a>
+        </li>
+        <li class="nav-item" onclick="switchSection('settings', this)">
+          <a href="#"><i class="fa-solid fa-sliders"></i> <span data-i18n="menu_settings">تنظیمات</span></a>
+        </li>
+      </ul>
     </div>
 
-    <!-- آمار کلیدی -->
-    <div class="stats-grid">
-      <div class="stat-item">
-        <div class="stat-label"><i class="fa-solid fa-users text-info"></i> مجموع کاربران</div>
-        <div class="stat-val" id="total-users">0</div>
+    <div class="sidebar-footer">
+      <div class="control-row">
+        <!-- دکمه تغییر زبان -->
+        <button class="btn-ctrl" onclick="toggleLanguage()"><i class="fa-solid fa-globe"></i> <span id="lang-label">English</span></button>
+        <!-- دکمه تغییر تم -->
+        <button class="btn-ctrl" onclick="toggleTheme()"><i class="fa-solid fa-circle-half-stroke"></i> <span id="theme-label">تم روشن</span></button>
       </div>
-      <div class="stat-item">
-        <div class="stat-label"><i class="fa-solid fa-hard-drive text-primary" style="color: #38bdf8;"></i> حجم اختصاصی</div>
-        <div class="stat-val" id="total-traffic">0 GB</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-label"><i class="fa-brands fa-telegram text-info"></i> پشتیبانی کانال</div>
-        <div class="stat-val"><a href="https://t.me/V2rayTunp" target="_blank" style="color: #38bdf8; font-size: 17px; text-decoration: none;">@V2rayTunp</a></div>
-      </div>
+      <a href="/logout" class="btn-ctrl" style="color: var(--danger); text-decoration: none;"><i class="fa-solid fa-power-off"></i> <span data-i18n="btn_logout">خروج</span></a>
     </div>
+  </aside>
 
-    <!-- لیست کاربران و کانفیگ‌ها -->
-    <div class="glass-panel">
-      <h3 style="font-size: 16px; margin-bottom: 16px; color: #94a3b8;"><i class="fa-solid fa-list-check me-2"></i> اشتراک‌های فعال</h3>
-      <div id="userList"></div>
-    </div>
-  </div>
+  <!-- ناحیه اصلی پنل -->
+  <main class="main-wrapper">
 
-  <!-- مودال شیشه‌ای ثبت کانفیگ -->
-  <div class="modal-overlay" id="createModal">
-    <div class="modal-card">
-      <h3 style="margin-bottom: 16px; font-size: 18px;">ساخت کانفیگ جدید</h3>
-      <form id="createForm">
-        <input type="text" id="cfg-name" placeholder="نام کاربر (انگلیسی)" style="width: 100%; padding: 12px; background: #162032; border: 1px solid #233554; border-radius: 10px; color: #fff; margin-bottom: 12px;" required>
-        <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-          <input type="number" id="cfg-gb" placeholder="حجم (GB)" value="30" style="width: 50%; padding: 12px; background: #162032; border: 1px solid #233554; border-radius: 10px; color: #fff;" required>
-          <input type="number" id="cfg-days" placeholder="اعتبار (روز)" value="30" style="width: 50%; padding: 12px; background: #162032; border: 1px solid #233554; border-radius: 10px; color: #fff;" required>
+    <!-- بخش ۱: داشبورد اصلی -->
+    <section id="sec-dashboard" class="section-view active-section">
+      <div class="glass-box" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div>
+          <h2 style="font-size: 22px; font-weight: 800;" data-i18n="dash_welcome">داشبورد مدیریت ONEX</h2>
+          <span style="color: var(--text-muted); font-size: 13px;">سازنده: <b>@Mehtif</b> | کانال رسمی: <a href="https://t.me/V2rayTunp" target="_blank" style="color:var(--accent); text-decoration: none;">@V2rayTunp</a></span>
         </div>
-        <div style="display: flex; gap: 8px;">
-          <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">ایجاد کانفیگ</button>
-          <button type="button" class="btn btn-danger" onclick="closeModal()">لغو</button>
+        <button class="btn-submit" onclick="switchSection('create', document.querySelectorAll('.nav-item')[1])">
+          <i class="fa-solid fa-plus"></i> <span data-i18n="menu_create">ساخت کانفیگ</span>
+        </button>
+      </div>
+
+      <div class="grid-stats">
+        <div class="stat-card">
+          <div class="stat-title"><i class="fa-solid fa-users"></i> <span data-i18n="stat_total_users">تعداد کل کانفیگ‌ها</span></div>
+          <div class="stat-value" id="total-users">0</div>
         </div>
-      </form>
+        <div class="stat-card">
+          <div class="stat-title"><i class="fa-solid fa-database"></i> <span data-i18n="stat_total_traffic">حجم اختصاص یافته کل</span></div>
+          <div class="stat-value" id="total-traffic">0 GB</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-title"><i class="fa-brands fa-telegram"></i> <span data-i18n="stat_support">پشتیبانی تلگرام</span></div>
+          <div class="stat-value" style="font-size: 20px;"><a href="https://t.me/V2rayTunp" target="_blank" style="color: var(--accent); text-decoration:none;">@V2rayTunp</a></div>
+        </div>
+      </div>
+
+      <div class="glass-box">
+        <h3 style="font-size: 18px; margin-bottom: 16px;" data-i18n="recent_configs">لیست آخرین کانفیگ‌های ایجاد شده</h3>
+        <div id="usersListDash"></div>
+      </div>
+    </section>
+
+    <!-- بخش ۲: ساخت کانفیگ -->
+    <section id="sec-create" class="section-view">
+      <div class="glass-box" style="max-width: 600px;">
+        <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 20px;" data-i18n="create_title">ساخت کانفیگ اختصاصی جدید</h3>
+        <form id="createConfigForm">
+          <div class="form-group">
+            <label data-i18n="lbl_username">نام کانفیگ یا نام کاربر</label>
+            <input type="text" id="cfg-user" class="input-control" placeholder="Ali-Office" required>
+          </div>
+          <div class="form-group" style="display: flex; gap: 12px;">
+            <div style="flex: 1;">
+              <label data-i18n="lbl_traffic">حجم مجاز (گیگابایت)</label>
+              <input type="number" id="cfg-gb" class="input-control" value="30" required>
+            </div>
+            <div style="flex: 1;">
+              <label data-i18n="lbl_days">مدت اعتبار (روز)</label>
+              <input type="number" id="cfg-days" class="input-control" value="30" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-submit" style="width: 100%; justify-content: center; margin-top: 10px;">
+            <i class="fa-solid fa-bolt"></i> <span data-i18n="btn_generate">تولید آنی کانفیگ و ساب لینک</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- بخش ۳: مدیریت ساب لینک‌ها -->
+    <section id="sec-sublinks" class="section-view">
+      <div class="glass-box">
+        <h3 style="font-size: 18px; margin-bottom: 16px;" data-i18n="sublinks_title">مدیریت تمام ساب‌لینک‌ها و صفحات وب</h3>
+        <div id="usersListSub"></div>
+      </div>
+    </section>
+
+    <!-- بخش ۴: تنظیمات -->
+    <section id="sec-settings" class="section-view">
+      <div class="glass-box" style="max-width: 600px;">
+        <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 20px;" data-i18n="menu_settings">تنظیمات سیستم</h3>
+        <div class="form-group">
+          <label data-i18n="settings_creator">توسعه‌دهنده:</label>
+          <input type="text" class="input-control" value="@Mehtif" readonly>
+        </div>
+        <div class="form-group">
+          <label data-i18n="settings_channel">کانال پشتیبانی تلگرام:</label>
+          <input type="text" class="input-control" value="@V2rayTunp" readonly>
+        </div>
+        <div class="form-group">
+          <label data-i18n="settings_core">هسته پروتکل‌ها:</label>
+          <input type="text" class="input-control" value="VLESS / VMess / Trojan / Shadowsocks (WS+TLS)" readonly>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- مودال تحویل آنی پس از ساخت کانفیگ -->
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal-box">
+      <h3 style="font-size: 18px; font-weight: 800; margin-bottom: 16px; color: var(--accent);" data-i18n="modal_success_title">کانفیگ با موفقیت ساخته شد! 🎉</h3>
+      
+      <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 12px; margin-bottom: 16px;">
+        <label style="font-size: 12px; color: var(--text-muted);" data-i18n="modal_sublink">لینک ساب‌اسکریپشن خودکار:</label>
+        <div style="display: flex; gap: 8px; margin-top: 6px;">
+          <input type="text" id="res-sublink" class="input-control" readonly>
+          <button class="btn-submit" style="padding: 8px 14px;" onclick="copyInput('res-sublink')"><i class="fa-solid fa-copy"></i></button>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-bottom: 16px;">
+        <div id="modal-qrcode" style="background: white; padding: 10px; border-radius: 12px; display: inline-block;"></div>
+        <div style="margin-top: 8px;">
+          <a id="res-webpage" href="#" target="_blank" class="btn-action" style="background: var(--primary); color: white;">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> <span data-i18n="modal_open_page">مشاهده صفحه مرورگر کاربر</span>
+          </a>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button class="btn-action" onclick="closeResultModal()" data-i18n="btn_close">بستن</button>
+      </div>
     </div>
   </div>
 
   <script>
-    function openModal() { document.getElementById('createModal').style.display = 'flex'; }
-    function closeModal() { document.getElementById('createModal').style.display = 'none'; }
-
-    async function loadData() {
-      const s = await fetch('/api/stats').then(r => r.json());
-      document.getElementById('total-users').innerText = s.totalUsers;
-      document.getElementById('total-traffic').innerText = s.totalAllocatedGb + ' GB';
-
-      const users = await fetch('/api/users').then(r => r.json());
-      const container = document.getElementById('userList');
-      const host = window.location.host;
-
-      if(users.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color:#64748b; padding:20px;">هیچ کانفیگی ایجاد نشده است.</div>';
-        return;
+    // ترجمه دو زبانه کامل
+    const translations = {
+      fa: {
+        menu_dashboard: "داشبورد",
+        menu_create: "ساخت کانفیگ",
+        menu_sublinks: "ساب لینک",
+        menu_settings: "تنظیمات",
+        dash_welcome: "داشبورد مدیریت ONEX",
+        stat_total_users: "تعداد کل کانفیگ‌ها",
+        stat_total_traffic: "حجم اختصاص یافته کل",
+        stat_support: "پشتیبانی تلگرام",
+        recent_configs: "لیست آخرین کانفیگ‌های ایجاد شده",
+        create_title: "ساخت کانفیگ اختصاصی جدید",
+        lbl_username: "نام کانفیگ یا کاربر",
+        lbl_traffic: "حجم مجاز (GB)",
+        lbl_days: "مدت اعتبار (روز)",
+        btn_generate: "تولید آنی کانفیگ و ساب لینک",
+        sublinks_title: "مدیریت ساب‌لینک‌ها و صفحات وب",
+        settings_creator: "توسعه‌دهنده:",
+        settings_channel: "کانال پشتیبانی تلگرام:",
+        settings_core: "پروتکل‌های پشتیبانی‌شده:",
+        btn_logout: "خروج",
+        btn_copy: "کپی ساب",
+        btn_page: "صفحه مرورگر",
+        modal_success_title: "کانفیگ با موفقیت ساخته شد! 🎉",
+        modal_sublink: "لینک ساب‌اسکریپشن خودکار:",
+        modal_open_page: "مشاهده صفحه مرورگر کاربر",
+        btn_close: "بستن",
+        theme_light: "تم روشن",
+        theme_dark: "تم تاریک"
+      },
+      en: {
+        menu_dashboard: "Dashboard",
+        menu_create: "Create Config",
+        menu_sublinks: "Sub Links",
+        menu_settings: "Settings",
+        dash_welcome: "ONEX Management Dashboard",
+        stat_total_users: "Total Configs",
+        stat_total_traffic: "Total Allocated Traffic",
+        stat_support: "Telegram Support",
+        recent_configs: "Recently Created Configs",
+        create_title: "Create New Dedicated Config",
+        lbl_username: "Config / User Name",
+        lbl_traffic: "Bandwidth (GB)",
+        lbl_days: "Validity (Days)",
+        btn_generate: "Generate Config & Sublink Now",
+        sublinks_title: "Manage Subscriptions & Web Pages",
+        settings_creator: "Developer:",
+        settings_channel: "Telegram Channel:",
+        settings_core: "Supported Protocols:",
+        btn_logout: "Logout",
+        btn_copy: "Copy Sub",
+        btn_page: "Web View",
+        modal_success_title: "Config Successfully Created! 🎉",
+        modal_sublink: "Auto Subscription Link:",
+        modal_open_page: "Open Client Browser Page",
+        btn_close: "Close",
+        theme_light: "Light Mode",
+        theme_dark: "Dark Mode"
       }
+    };
 
-      container.innerHTML = users.map(u => `
-        <div class="user-card">
-          <div class="user-info">
-            <h4>${u.username}</h4>
-            <span><i class="fa-solid fa-database"></i> ${u.total_gb} GB</span>
-            <span><i class="fa-regular fa-clock"></i> ${u.expire_days} روز</span>
-          </div>
-          <div style="display: flex; gap: 6px;">
-            <button class="btn btn-primary btn-action" onclick="navigator.clipboard.writeText('https://${host}/sub/${u.id}'); alert('لینک ساب‌اسکریپشن کپی شد!');">
-              <i class="fa-solid fa-copy"></i> کپی ساب
-            </button>
-            <a href="/subpage/${u.id}" target="_blank" class="btn btn-action" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8;">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> صفحه کلاینت
-            </a>
-            <button class="btn btn-danger btn-action" onclick="deleteUser('${u.id}')">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      `).join('');
+    let currentLang = 'fa';
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+      document.getElementById('lang-label').innerText = lang === 'fa' ? 'English' : 'فارسی';
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) el.innerText = translations[lang][key];
+      });
+      loadData();
     }
 
-    document.getElementById('createForm').addEventListener('submit', async (e) => {
+    function toggleLanguage() {
+      setLanguage(currentLang === 'fa' ? 'en' : 'fa');
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const targetTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', targetTheme);
+      document.getElementById('theme-label').innerText = targetTheme === 'dark' ? translations[currentLang].theme_light : translations[currentLang].theme_dark;
+    }
+
+    function switchSection(sec, navItem) {
+      document.querySelectorAll('.section-view').forEach(s => s.classList.remove('active-section'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('sec-' + sec).classList.add('active-section');
+      if (navItem) navItem.classList.add('active');
+    }
+
+    async function loadData() {
+      const stats = await fetch('/api/stats').then(r => r.json());
+      document.getElementById('total-users').innerText = stats.totalUsers;
+      document.getElementById('total-traffic').innerText = stats.totalAllocatedGb + ' GB';
+
+      const users = await fetch('/api/users').then(r => r.json());
+      const host = window.location.host;
+      const t = translations[currentLang];
+
+      const renderList = (containerId) => {
+        const el = document.getElementById(containerId);
+        if (users.length === 0) {
+          el.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">هیچ رکوردی یافت نشد / No records found</div>';
+          return;
+        }
+        el.innerHTML = users.map(u => `
+          <div class="user-item">
+            <div>
+              <b style="font-size:15px;">${u.username}</b>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+                <span><i class="fa-solid fa-hard-drive"></i> ${u.total_gb} GB</span> | 
+                <span><i class="fa-solid fa-clock"></i> ${u.expire_days} Days</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn-action" onclick="navigator.clipboard.writeText('https://${host}/sub/${u.id}'); alert('Sublink copied!');">
+                <i class="fa-solid fa-copy"></i> ${t.btn_copy}
+              </button>
+              <a href="/subpage/${u.id}" target="_blank" class="btn-action" style="background:var(--primary); color:#fff;">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> ${t.btn_page}
+              </a>
+              <button class="btn-action" style="color:var(--danger);" onclick="deleteUser('${u.id}')">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+        `).join('');
+      };
+
+      renderList('usersListDash');
+      renderList('usersListSub');
+    }
+
+    document.getElementById('createConfigForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      await fetch('/api/users', {
+      const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: document.getElementById('cfg-name').value,
+          username: document.getElementById('cfg-user').value,
           total_gb: document.getElementById('cfg-gb').value,
           expire_days: document.getElementById('cfg-days').value
         })
       });
-      closeModal();
-      loadData();
+
+      const data = await res.json();
+      if(data.success) {
+        document.getElementById('res-sublink').value = data.subUrl;
+        document.getElementById('res-webpage').href = data.clientPage;
+        
+        document.getElementById('modal-qrcode').innerHTML = '';
+        new QRCode(document.getElementById('modal-qrcode'), {
+          text: data.subUrl,
+          width: 140,
+          height: 140
+        });
+
+        document.getElementById('resultModal').style.display = 'flex';
+        loadData();
+      }
     });
 
+    function closeResultModal() {
+      document.getElementById('resultModal').style.display = 'none';
+      switchSection('dashboard', document.querySelectorAll('.nav-item')[0]);
+    }
+
+    function copyInput(id) {
+      const el = document.getElementById(id);
+      navigator.clipboard.writeText(el.value);
+      alert('کپی شد!');
+    }
+
     async function deleteUser(id) {
-      if(confirm('حذف شود؟')) {
+      if(confirm('حذف شود؟ / Delete?')) {
         await fetch('/api/users/' + id, { method: 'DELETE' });
         loadData();
       }

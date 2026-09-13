@@ -1,5 +1,13 @@
-
 FROM python:3.11-slim
+
+# نصب Nginx، curl و unzip برای دریافت هسته Xray
+RUN apt-get update && apt-get install -y nginx curl unzip gettext-base procps && rm -rf /var/lib/apt/lists/*
+
+# دانلود و نصب آخرین نسخه Xray Core
+RUN curl -L https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o /tmp/xray.zip && \
+    unzip /tmp/xray.zip -d /usr/local/bin/ xray && \
+    rm /tmp/xray.zip && \
+    chmod +x /usr/local/bin/xray
 
 WORKDIR /app
 
@@ -8,4 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["sh", "-c", "python -c 'from app import init_db; init_db()' && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2"]
+# مجوز دادن به فایل استارت
+RUN chmod +x entrypoint.sh
+
+CMD ["/app/entrypoint.sh"]

@@ -28,7 +28,7 @@
       overflow-x: hidden;
     }
 
-    /* کارت ورود شیشه‌ای منطبق با تصویر */
+    /* کارت ورود شیشه‌ای */
     .login-container {
       width: 100%;
       max-width: 380px;
@@ -36,7 +36,7 @@
       border: 1px solid rgba(56, 189, 248, 0.22);
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), 0 0 35px rgba(2, 132, 199, 0.15);
       border-radius: 28px;
-      padding: 28px 24px 22px;
+      padding: 24px 24px 22px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -44,25 +44,136 @@
       z-index: 10;
     }
 
-    /* دایره لوگوی اصلی ONEX */
-    .brand-circle {
-      width: 88px;
-      height: 88px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #0284c7 0%, #032b4d 65%, #021324 100%);
-      border: 2px solid rgba(56, 189, 248, 0.6);
+    /* صحنه سه‌بعدی لوگوی متحرک ONEX */
+    .logo-3d-stage {
+      width: 120px;
+      height: 120px;
+      position: relative;
+      perspective: 800px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 30px rgba(56, 189, 248, 0.4), inset 0 0 15px rgba(56, 189, 248, 0.3);
-      margin-bottom: 14px;
-      position: relative;
+      margin-bottom: 12px;
     }
 
-    .brand-circle svg {
-      width: 78px;
-      height: 78px;
-      filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.8));
+    /* هاله نور پس‌زمینه راکتور */
+    .reactor-aura {
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, rgba(2, 132, 199, 0.15) 60%, transparent 80%);
+      filter: blur(12px);
+      animation: auraPulse 3s ease-in-out infinite alternate;
+    }
+
+    /* حلقه بیرونی مدار چرخشی 3D */
+    .orbit-ring-outer {
+      position: absolute;
+      width: 105px;
+      height: 105px;
+      border-radius: 50%;
+      border: 1.5px dashed rgba(56, 189, 248, 0.65);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.3), inset 0 0 15px rgba(56, 189, 248, 0.2);
+      animation: spinOrbitOuter 9s linear infinite;
+      transform-style: preserve-3d;
+    }
+
+    /* حلقه میانی مدار مایل 3D */
+    .orbit-ring-inner {
+      position: absolute;
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      border-top: 2px solid #38bdf8;
+      border-bottom: 2px solid #0284c7;
+      filter: drop-shadow(0 0 8px #38bdf8);
+      animation: spinOrbitInner 5s ease-in-out infinite alternate;
+      transform-style: preserve-3d;
+    }
+
+    /* گوی شیشه‌ای و هسته شناور مرکزی */
+    .core-sphere {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0369a1 40%, #082f49 75%, #021224 100%);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 25px rgba(2, 132, 199, 0.6), inset 0 3px 10px rgba(255, 255, 255, 0.6);
+      animation: floatCore 2.8s ease-in-out infinite alternate;
+      z-index: 5;
+    }
+
+    /* صاعقه مرکزی نئونی با پالس درخشان */
+    .core-bolt {
+      font-size: 24px;
+      color: #ffffff;
+      filter: drop-shadow(0 0 8px #38bdf8) drop-shadow(0 0 15px #0284c7);
+      animation: boltFlash 1.8s ease-in-out infinite alternate;
+    }
+
+    .core-brand-name {
+      font-size: 8px;
+      font-weight: 900;
+      color: #e0f2fe;
+      letter-spacing: 1.5px;
+      margin-top: 1px;
+      text-shadow: 0 0 6px #38bdf8;
+    }
+
+    /* انیمیشن‌های سه‌بعدی و فضایی */
+    @keyframes spinOrbitOuter {
+      0% {
+        transform: rotateX(68deg) rotateY(18deg) rotateZ(0deg);
+      }
+      100% {
+        transform: rotateX(68deg) rotateY(18deg) rotateZ(360deg);
+      }
+    }
+
+    @keyframes spinOrbitInner {
+      0% {
+        transform: rotateX(-55deg) rotateY(45deg) rotateZ(0deg);
+      }
+      100% {
+        transform: rotateX(-55deg) rotateY(45deg) rotateZ(-360deg);
+      }
+    }
+
+    @keyframes floatCore {
+      0% {
+        transform: translateY(0px) scale(0.98);
+      }
+      100% {
+        transform: translateY(-5px) scale(1.03);
+      }
+    }
+
+    @keyframes auraPulse {
+      0% {
+        transform: scale(0.9);
+        opacity: 0.5;
+      }
+      100% {
+        transform: scale(1.15);
+        opacity: 0.85;
+      }
+    }
+
+    @keyframes boltFlash {
+      0% {
+        opacity: 0.85;
+        filter: drop-shadow(0 0 5px #38bdf8);
+      }
+      100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 12px #ffffff) drop-shadow(0 0 20px #38bdf8);
+      }
     }
 
     .login-title {
@@ -220,7 +331,7 @@
       box-shadow: 0 2px 8px rgba(2, 132, 199, 0.5);
     }
 
-    /* نوار مدرن و اختصاصی پایین صفحه */
+    /* نوار پایینی بازطراحی‌شده با لوگوی سه‌بعدی و نوارهای حرفه‌ای */
     .pro-footer-dock {
       position: fixed;
       bottom: 16px;
@@ -233,7 +344,6 @@
       max-width: 95%;
     }
 
-    /* نوار اختصاصی سازنده */
     .creator-pill {
       display: flex;
       align-items: center;
@@ -263,7 +373,6 @@
       text-decoration: none;
     }
 
-    /* نوار اختصاصی کانال تلگرام */
     .channel-pill {
       display: flex;
       align-items: center;
@@ -299,7 +408,6 @@
       letter-spacing: 0.5px;
     }
 
-    /* لوگوی سه‌بعدی و براق تلگرام */
     .tg-3d-btn {
       width: 44px;
       height: 44px;
@@ -351,32 +459,15 @@
 
   <div class="login-container">
     
-    <!-- دایره لوگوی اختصاصی ONEX -->
-    <div class="brand-circle">
-      <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="neonCyan" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#38bdf8" />
-            <stop offset="100%" stop-color="#0284c7" />
-          </linearGradient>
-          <linearGradient id="glowBolt" x1="0%" y1="0%" x2="50%" y2="100%">
-            <stop offset="0%" stop-color="#ffffff" />
-            <stop offset="50%" stop-color="#38bdf8" />
-            <stop offset="100%" stop-color="#0369a1" />
-          </linearGradient>
-        </defs>
-        
-        <circle cx="50" cy="50" r="44" stroke="url(#neonCyan)" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.6"/>
-        <circle cx="50" cy="50" r="39" stroke="#38bdf8" stroke-width="2.5" opacity="0.9"/>
-        
-        <circle cx="50" cy="7" r="2.5" fill="#38bdf8"/>
-        <circle cx="93" cy="50" r="2.5" fill="#38bdf8"/>
-        <circle cx="50" cy="93" r="2.5" fill="#38bdf8"/>
-        <circle cx="7" cy="50" r="2.5" fill="#38bdf8"/>
-
-        <path d="M53 18 L34 50 L48 50 L43 78 L65 44 L51 44 Z" fill="url(#glowBolt)"/>
-        <text x="50" y="88" font-size="10.5" font-weight="900" fill="#e0f2fe" text-anchor="middle" letter-spacing="2" font-family="sans-serif">ONEX</text>
-      </svg>
+    <!-- صحنه سه‌بعدی و متحرک لوگوی راکتور ONEX -->
+    <div class="logo-3d-stage">
+      <div class="reactor-aura"></div>
+      <div class="orbit-ring-outer"></div>
+      <div class="orbit-ring-inner"></div>
+      <div class="core-sphere">
+        <i class="fa-solid fa-bolt core-bolt"></i>
+        <span class="core-brand-name">ONEX</span>
+      </div>
     </div>
 
     <h2 class="login-title" id="txtTitle">ورود به پنل</h2>
@@ -420,22 +511,19 @@
 
   </div>
 
-  <!-- نوار پایینی بازطراحی‌شده با لوگوی سه‌بعدی و نوارهای حرفه‌ای -->
+  <!-- نوار پایینی با لوگوی سه‌بعدی وکتور و نوارهای جداگانه کانال و سازنده -->
   <div class="pro-footer-dock">
     
-    <!-- نوار سازنده -->
     <div class="creator-pill">
       <span class="creator-badge">CREATOR</span>
       <span class="creator-name">@Mehtif</span>
     </div>
 
-    <!-- نوار کانال با نشانگر زنده -->
     <a href="https://t.me/V2rayTun0" target="_blank" class="channel-pill" title="پیوستن به کانال">
       <span class="pulse-dot"></span>
       <span class="channel-text">@V2rayTun0</span>
     </a>
 
-    <!-- دکمه سه‌بعدی وکتور تلگرام -->
     <a href="https://t.me/V2rayTun0" target="_blank" class="tg-3d-btn" title="کانال رسمی @V2rayTun0">
       <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M21.6 3.6L2.8 10.9C1.5 11.4 1.5 12.2 2.6 12.5L7.4 14L18.6 6.9C19.1 6.6 19.6 6.8 19.2 7.1L10.1 15.3H10.1L9.8 19.7C10.2 19.7 10.4 19.5 10.7 19.2L12.8 17.2L17.2 20.4C18 20.9 18.6 20.6 18.8 19.6L21.7 5.8C22 4.6 21.2 4 21.6 3.6Z" fill="#ffffff"/>

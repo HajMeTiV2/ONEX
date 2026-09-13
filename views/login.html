@@ -2,143 +2,107 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>ورود به سامانه ONEX</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ورود به پنل کاربری ONEX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #060913;
-      position: relative;
-      overflow: hidden;
-      color: #fff;
+      background: #090e1a; color: #f8fafc; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
     }
-    .glow-circle-1 {
-      position: absolute; width: 350px; height: 350px; background: radial-gradient(circle, rgba(14,165,233,0.35) 0%, rgba(0,0,0,0) 70%);
-      top: 10%; right: 15%; filter: blur(50px); pointer-events: none;
+    .auth-container {
+      width: 100%; max-width: 900px; background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px;
+      display: flex; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.6);
     }
-    .glow-circle-2 {
-      position: absolute; width: 400px; height: 400px; background: radial-gradient(circle, rgba(168,85,247,0.3) 0%, rgba(0,0,0,0) 70%);
-      bottom: 10%; left: 15%; filter: blur(60px); pointer-events: none;
+    .auth-info {
+      flex: 1; padding: 48px 40px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border-left: 1px solid rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; justify-content: space-between;
     }
-    .glass-card {
-      position: relative;
-      z-index: 10;
-      width: 90%;
-      max-width: 400px;
-      padding: 35px 28px;
-      background: rgba(255, 255, 255, 0.04);
-      backdrop-filter: blur(25px);
-      -webkit-backdrop-filter: blur(25px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 24px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-    }
-    .icon-box {
-      width: 68px; height: 68px;
-      background: linear-gradient(135deg, rgba(14,165,233,0.2), rgba(168,85,247,0.2));
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 20px;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 16px;
-      color: #38bdf8;
-      font-size: 28px;
-    }
-    .title { text-align: center; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .subtitle { text-align: center; color: #94a3b8; font-size: 13px; margin-bottom: 25px; }
-    .input-group {
-      position: relative; margin-bottom: 18px;
-    }
-    .input-group i {
-      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
-      color: #64748b; font-size: 16px;
-    }
+    .auth-form-side { flex: 1.1; padding: 48px 40px; }
+    .brand-logo { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; color: #38bdf8; }
+    .feature-item { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; font-size: 14px; color: #94a3b8; }
+    .feature-item i { color: #38bdf8; font-size: 16px; }
+    
     .input-field {
-      width: 100%;
-      padding: 14px 44px 14px 16px;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
-      color: #fff;
-      font-size: 14px;
-      outline: none;
-      transition: 0.25s ease;
+      width: 100%; padding: 14px 16px; background: #090e1a; border: 1px solid #1e293b;
+      border-radius: 12px; color: #fff; font-size: 14px; outline: none; margin-bottom: 14px;
     }
-    .input-field:focus {
-      border-color: #38bdf8;
-      box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
-      background: rgba(15, 23, 42, 0.85);
-    }
+    .input-field:focus { border-color: #0284c7; }
     .btn-login {
-      width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);
-      border: none;
-      border-radius: 14px;
-      color: #fff;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.4);
-      transition: transform 0.2s, opacity 0.2s;
+      width: 100%; padding: 14px; background: #0284c7; border: none; border-radius: 12px;
+      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 6px;
     }
-    .btn-login:hover { opacity: 0.95; transform: translateY(-1px); }
-    .footer-links { text-align: center; margin-top: 22px; font-size: 12px; }
-    .footer-links a { color: #38bdf8; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+    .btn-login:hover { background: #0369a1; }
+    @media (max-width: 768px) {
+      .auth-info { display: none; }
+      .auth-container { max-width: 440px; }
+    }
   </style>
 </head>
 <body>
-  <div class="glow-circle-1"></div>
-  <div class="glow-circle-2"></div>
 
-  <div class="glass-card">
-    <div class="icon-box">
-      <i class="fa-solid fa-layer-group"></i>
+  <div class="auth-container">
+    <div class="auth-info">
+      <div>
+        <div class="brand-logo mb-4">
+          <i class="fa-solid fa-cloud-bolt"></i>
+          <span>ONEX</span>
+        </div>
+        <h2 style="font-size: 22px; font-weight: 800; margin: 20px 0 10px;">به پنل کاربری ONEX خوش آمدید</h2>
+        <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 30px;">دسترسی سریع، امن و پایدار به اینترنت آزاد و مدیریت یکپارچه اشتراک‌ها</p>
+        
+        <div class="feature-item"><i class="fa-solid fa-bolt"></i> اتصال پایدار و بدون قطعی</div>
+        <div class="feature-item"><i class="fa-solid fa-gauge-high"></i> سرعت بالا و پینگ بهینه</div>
+        <div class="feature-item"><i class="fa-solid fa-shield-halved"></i> امنیت کامل و رمزنگاری پیشرفته</div>
+        <div class="feature-item"><i class="fa-solid fa-mobile-screen"></i> پشتیبانی از تمامی سیستم‌عامل‌ها</div>
+      </div>
+      <div style="font-size: 12px; color: #64748b;">
+        سازنده: <span style="color: #38bdf8;">@Mehtif</span> | پشتیبانی: <a href="https://t.me/V2rayTunp" target="_blank" style="color: #38bdf8; text-decoration: none;">@V2rayTunp</a>
+      </div>
     </div>
-    <div class="title">ONEX Core</div>
-    <div class="subtitle">طراحی و توسعه توسط <span style="color: #38bdf8;">@Mehtif</span></div>
 
-    <form id="loginForm">
-      <div class="input-group">
-        <i class="fa-solid fa-user"></i>
-        <input type="text" id="username" class="input-field" placeholder="نام کاربری" required>
+    <div class="auth-form-side">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h3 style="font-size: 18px; font-weight: 700;" id="formTitle">ورود به حساب</h3>
+        <span style="font-size: 12px; color: #0284c7; cursor: pointer;" onclick="toggleAuth()" id="switchText">ثبت‌نام کاربر جدید</span>
       </div>
 
-      <div class="input-group">
-        <i class="fa-solid fa-lock"></i>
+      <form id="loginForm">
+        <input type="text" id="username" class="input-field" placeholder="نام کاربری یا ایمیل" required>
         <input type="password" id="password" class="input-field" placeholder="رمز عبور" required>
-      </div>
-
-      <button type="submit" class="btn-login">ورود به مدیریت</button>
-    </form>
-
-    <div class="footer-links">
-      <a href="https://t.me/V2rayTunp" target="_blank">
-        <i class="fa-brands fa-telegram"></i> عضویت در کانال @V2rayTunp
-      </a>
+        <button type="submit" class="btn-login" id="submitBtn">ورود به پنل</button>
+      </form>
     </div>
   </div>
 
   <script>
+    let isRegister = false;
+    function toggleAuth() {
+      isRegister = !isRegister;
+      document.getElementById('formTitle').innerText = isRegister ? 'ثبت‌نام کاربر جدید' : 'ورود به حساب';
+      document.getElementById('switchText').innerText = isRegister ? 'ورود به حساب قبلی' : 'ثبت‌نام کاربر جدید';
+      document.getElementById('submitBtn').innerText = isRegister ? 'ایجاد حساب کاربری' : 'ورود به پنل';
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const res = await fetch('/api/login', {
+      const endpoint = isRegister ? '/api/register' : '/api/login';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: document.getElementById('username').value,
+          email: document.getElementById('username').value,
           password: document.getElementById('password').value
         })
       });
       const data = await res.json();
-      if(data.success) {
+      if (data.success) {
         window.location.href = '/';
       } else {
-        alert(data.message);
+        alert(data.error);
       }
     });
   </script>

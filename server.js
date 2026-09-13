@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
-  secret: 'onex-secure-vault-2026',
+  secret: 'onex-admin-vault-2026',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 14 * 24 * 60 * 60 * 1000 }
@@ -48,11 +48,11 @@ db.serialize(() => {
     )
   `);
 
-  // ایجاد کاربر پیش‌فرض و یک اکانت اولیه
-  db.get('SELECT * FROM users WHERE username = ?', ['Mehtif'], (err, row) => {
+  // تنظیم کاربر پیش‌فرض: admin و رمز عبور: admin
+  db.get('SELECT * FROM users WHERE username = ?', ['admin'], (err, row) => {
     if (!row) {
-      const hash = bcrypt.hashSync('123456', 10);
-      db.run('INSERT INTO users (username, password) VALUES (?, ?)', ['Mehtif', hash]);
+      const hash = bcrypt.hashSync('admin', 10);
+      db.run('INSERT INTO users (username, password) VALUES (?, ?)', ['admin', hash]);
     }
   });
 
@@ -67,7 +67,7 @@ db.serialize(() => {
   });
 });
 
-// اجرای پایدار موتور Xray برای VLESS, VMess, Trojan
+// اجرای پایدار موتور Xray
 function runXrayMultiCore() {
   db.all('SELECT uuid FROM configs WHERE status = "active"', (err, rows) => {
     const defaultUuid = "b831381d-6324-4d53-ad4f-8cda48b30811";
@@ -117,7 +117,6 @@ function runXrayMultiCore() {
 
 runXrayMultiCore();
 
-// تولید کانفیگ‌های استاندارد
 function generateProtocolLinks(cfg, host) {
   const remark = `ONEX-${cfg.name}`;
   const vless = `vless://${cfg.uuid}@${host}:443?path=%2Fvless&security=tls&encryption=none&type=ws&sni=${host}#${encodeURIComponent(remark + '-VLESS')}`;
@@ -127,7 +126,6 @@ function generateProtocolLinks(cfg, host) {
     aid: "0", scy: "auto", net: "ws", type: "none", host: host, path: "/vmess", tls: "tls", sni: host
   };
   const vmess = `vmess://${Buffer.from(JSON.stringify(vmessObj)).toString('base64')}`;
-
   const trojan = `trojan://${cfg.uuid}@${host}:443?path=%2Ftrojan&security=tls&type=ws&sni=${host}#${encodeURIComponent(remark + '-Trojan')}`;
 
   return { vless, vmess, trojan, rawSub: `${vless}\n${vmess}\n${trojan}` };
@@ -138,10 +136,8 @@ function auth(req, res, next) {
   res.redirect('/login');
 }
 
-// مسیرهای صفحات وب
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'views', 'login.html')));
 app.get('/', auth, (req, res) => res.sendFile(path.join(__dirname, 'views', 'dashboard.html')));
-// قالب عکس دوم: مرورگر ساب لینک اختصاصی برای کلاینت
 app.get('/subpage/:id', (req, res) => res.sendFile(path.join(__dirname, 'views', 'sub_client.html')));
 
 app.post('/api/login', (req, res) => {
@@ -152,7 +148,28 @@ app.post('/api/login', (req, res) => {
       req.session.username = user.username;
       return res.json({ success: true });
     }
-    res.status(401).json({ error: 'اطلاعات نامعتبر است' });
+    res.status(401).json({ error: 'نام کاربری یا رمز عبور اشتباه است' });
+  });
+});
+
+// API تغییر نام کاربری و رمز عبور از بخش تنظیمات
+app.post('/api/change-credentials', auth, (req, res) => {
+  const uid = req.session.userId;
+  const { currentPassword, newUsername, newPassword } = req.body;
+
+  db.get('SELECT * FROM users WHERE id = ?', [uid], (err, user) => {
+    if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
+      return res.status(400).json({ error: 'رمز عبور فعلی نادرست است.' });
+    }
+
+    const updatedUsername = newUsername && newUsername.trim() !== '' ? newUsername.trim() : user.username;
+    const updatedPassword = newPassword && newPassword.trim() !== '' ? bcrypt.hashSync(newPassword.trim(), 10) : user.password;
+
+    db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', [updatedUsername, updatedPassword, uid], function(err) {
+      if (err) return res.status(400).json({ error: 'نام کاربری تکراری است یا خطا رخ داد.' });
+      req.session.username = updatedUsername;
+      res.json({ success: true, message: 'مشخصات با موفقیت به‌روزرسانی شد.' });
+    });
   });
 });
 
@@ -161,12 +178,12 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-// دیتای پنل مدیریت (عکس اول)
 app.get('/api/panel-data', auth, (req, res) => {
   db.all('SELECT * FROM configs ORDER BY created_at DESC', (err, rows) => {
     const totalAllocated = rows.reduce((a, b) => a + (b.total_gb || 0), 0);
     const totalUsed = rows.reduce((a, b) => a + (b.used_gb || 0), 0);
     res.json({
+      currentUser: req.session.username,
       configsCount: rows.length,
       totalAllocated,
       totalUsed: totalUsed.toFixed(2),
@@ -175,7 +192,6 @@ app.get('/api/panel-data', auth, (req, res) => {
   });
 });
 
-// ساخت کانفیگ جدید در پنل
 app.post('/api/configs/create', auth, (req, res) => {
   const { name, server, total_gb, expire_days } = req.body;
   const id = uuidv4().substring(0, 8);
@@ -188,7 +204,7 @@ app.post('/api/configs/create', auth, (req, res) => {
     `INSERT INTO configs (id, name, server, total_gb, expire_days, expire_date, uuid) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [id, name || 'کاربر جدید', server || 'Germany (DE)', parseFloat(total_gb) || 20, days, exp.toISOString(), uuid],
     function(err) {
-      if (err) return res.status(500).json({ error: 'خطا در دیتابیس' });
+      if (err) return res.status(500).json({ error: 'خطا در ثبت کانفیگ' });
       runXrayMultiCore();
       res.json({ success: true, id });
     }
@@ -202,7 +218,6 @@ app.delete('/api/configs/:id', auth, (req, res) => {
   });
 });
 
-// خروجی مستقیم بیس ۶۴ برای کلاینت‌های v2rayNG و...
 app.get('/sub/:id', (req, res) => {
   const host = req.headers.host;
   db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
@@ -213,7 +228,6 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-// API اطلاعات زنده مخصوص صفحه ساب لینک کلاینت (عکس دوم)
 app.get('/api/subinfo/:id', (req, res) => {
   const host = req.headers.host;
   db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
@@ -234,7 +248,6 @@ app.get('/api/subinfo/:id', (req, res) => {
   });
 });
 
-// هدایت وب‌سوکت‌ها به هسته‌های متناظر
 const pVless = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8081', ws: true });
 const pVmess = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8082', ws: true });
 const pTrojan = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8083', ws: true });

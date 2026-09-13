@@ -2,300 +2,251 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>ONEX Cloud Platform</title>
+  <title>سامانه ابری ONEX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: #070b14; color: #f1f5f9; min-height: 100vh; display: flex; overflow-x: hidden; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #070b14; color: #f8fafc; min-height: 100vh; display: flex; overflow-x: hidden; }
 
-    /* سایدبار ناوبری (مطابق تصویر) */
+    /* سایدبار ناوبری */
     .sidebar {
-      width: 240px; background: #0c1220; border-left: 1px solid rgba(255, 255, 255, 0.06);
-      display: flex; flex-direction: column; justify-content: space-between; padding: 24px 14px;
+      width: 230px; background: #0c1220; border-left: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex; flex-direction: column; justify-content: space-between; padding: 20px 12px;
       position: fixed; top: 0; bottom: 0; right: 0; z-index: 100;
     }
-    .brand-box { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; color: #38bdf8; padding: 0 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .nav-list { list-style: none; margin-top: 16px; display: flex; flex-direction: column; gap: 4px; }
-    .nav-item {
-      display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 10px;
-      color: #94a3b8; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s;
+    .brand { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 800; color: #38bdf8; padding: 0 10px 18px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .nav-list { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 4px; }
+    .nav-btn {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px;
+      color: #94a3b8; font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; border: none; background: transparent; width: 100%; text-align: inherit;
     }
-    .nav-item:hover, .nav-item.active { background: #0284c7; color: #fff; }
-    .nav-item i { width: 18px; text-align: center; }
+    .nav-btn:hover, .nav-btn.active { background: #0284c7; color: #fff; }
+    .nav-btn i { width: 18px; text-align: center; }
 
-    /* فضای اصلی محتوا */
-    .main-viewport { flex: 1; margin-right: 240px; padding: 24px 30px; min-height: 100vh; }
-    
-    /* هدر بالا */
-    .top-navbar {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
-      padding-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    /* فضای محتوا */
+    .main-viewport { flex: 1; margin-right: 230px; padding: 20px 26px; min-height: 100vh; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 20px;
     }
-    .user-profile-badge { display: flex; align-items: center; gap: 10px; background: #0f172a; padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.06); }
-    .avatar-circle { width: 32px; height: 32px; border-radius: 50%; background: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; }
-
-    /* کارت‌های اصلی و گرید */
-    .panel-box {
-      background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 18px; padding: 22px; margin-bottom: 20px;
+    .panel-card {
+      background: #0d1424; border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px; padding: 20px; margin-bottom: 18px;
     }
-    .stat-cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-    .stat-card-glow {
-      border-radius: 14px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between;
-      color: #fff; position: relative; overflow: hidden;
+
+    /* کارت‌های وضعیت ۴ گانه نئونی داشبورد */
+    .dash-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .stat-card-neon {
+      border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; justify-content: space-between;
+      color: #fff; min-height: 95px;
     }
-    .glow-green { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
-    .glow-purple { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
-    .glow-blue { background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); }
-    .glow-orange { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); }
+    .neon-green { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+    .neon-purple { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+    .neon-blue { background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); }
+    .neon-cyan { background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%); }
 
-    /* جداول مدیریت */
-    .data-table { width: 100%; border-collapse: collapse; text-align: right; }
-    .data-table th { padding: 12px 14px; font-size: 12px; color: #64748b; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-    .data-table td { padding: 14px; font-size: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
-    .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
-    .status-active { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    /* جداول */
+    .table-responsive { overflow-x: auto; }
+    .ui-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; }
+    .ui-table th { padding: 12px 14px; color: #64748b; font-weight: 600; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+    .ui-table td { padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
+    .badge-status { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: #10b981; }
 
-    /* فیلدهای فرم ساخت کانفیگ */
-    .form-group { margin-bottom: 16px; }
+    /* فرم‌ها و دکمه‌ها */
+    .form-group { margin-bottom: 14px; }
     .form-group label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
     .form-control {
-      width: 100%; padding: 12px 14px; background: #090e1a; border: 1px solid rgba(255, 255, 255, 0.08);
+      width: 100%; padding: 10px 14px; background: #080d1a; border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 10px; color: #fff; font-size: 13px; outline: none;
     }
-    .form-control:focus { border-color: #0284c7; }
-    .btn-action-primary {
-      padding: 12px 24px; background: #0284c7; border: none; border-radius: 10px;
-      color: #fff; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    .btn-main {
+      padding: 10px 20px; background: #0284c7; border: none; border-radius: 10px;
+      color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
     }
 
-    /* کارت‌های خرید پکیج */
-    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
-    .price-card {
-      background: #090e1a; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 16px;
-      padding: 24px; text-align: center; display: flex; flex-direction: column; justify-content: space-between;
+    /* پکیج‌های پروتکل ۵ تایی */
+    .proto-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+    .proto-btn {
+      background: #080d1a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px;
+      padding: 14px 6px; color: #94a3b8; font-size: 12px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;
     }
-    .price-card.featured { border-color: #0284c7; box-shadow: 0 0 25px rgba(2, 132, 199, 0.2); }
+    .proto-btn.active { border-color: #0284c7; color: #38bdf8; background: rgba(2, 132, 199, 0.1); }
 
-    .view-tab { display: none; }
-    .view-tab.active-tab { display: block; }
+    .tab-section { display: none; }
+    .tab-section.active-tab { display: block; }
 
-    /* استایل مخصوص موبایل (صفحه ۱۵ تصویر) */
-    @media (max-width: 900px) {
-      body { flex-direction: column; padding-bottom: 75px; }
+    /* موبایل */
+    @media (max-width: 850px) {
+      body { flex-direction: column; padding-bottom: 70px; }
       .sidebar {
-        width: 100%; height: 65px; top: auto; bottom: 0; left: 0; right: 0;
-        flex-direction: row; align-items: center; padding: 4px 10px;
-        border-top: 1px solid rgba(255, 255, 255, 0.08); border-left: none;
+        width: 100%; height: 60px; top: auto; bottom: 0; left: 0; right: 0;
+        flex-direction: row; align-items: center; padding: 2px 8px; border-top: 1px solid rgba(255,255,255,0.08); border-left: none;
       }
-      .brand-box, .sidebar-footer { display: none; }
+      .brand, .sidebar-footer { display: none; }
       .nav-list { flex-direction: row; justify-content: space-around; width: 100%; margin: 0; }
-      .nav-item { flex-direction: column; gap: 4px; padding: 6px; font-size: 10px; }
-      .nav-item i { font-size: 16px; }
-      .main-viewport { margin-right: 0 !important; padding: 16px; }
-      .stat-cards-grid { grid-template-columns: repeat(2, 1fr); }
-      .pricing-grid { grid-template-columns: 1fr; }
+      .nav-btn { flex-direction: column; gap: 2px; padding: 4px; font-size: 9px; }
+      .nav-btn i { font-size: 15px; }
+      .main-viewport { margin-right: 0 !important; padding: 14px; }
+      .dash-stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .proto-grid { grid-template-columns: repeat(3, 1fr); }
     }
   </style>
 </head>
 <body>
 
-  <!-- سایدبار دقیقاً با عناوین تصویر -->
+  <!-- سایدبار دقیقاً با ۱۱ بخش عکس -->
   <aside class="sidebar">
     <div>
-      <div class="brand-box">
-        <i class="fa-solid fa-cloud-bolt"></i>
+      <div class="brand">
+        <i class="fa-solid fa-bolt"></i>
         <span>ONEX</span>
       </div>
 
       <ul class="nav-list">
-        <li class="nav-item active" onclick="showTab('dashboard', this)">
-          <i class="fa-solid fa-house"></i>
-          <span>داشبورد</span>
-        </li>
-        <li class="nav-item" onclick="showTab('services', this)">
-          <i class="fa-solid fa-layer-group"></i>
-          <span>سرویس‌های من</span>
-        </li>
-        <li class="nav-item" onclick="showTab('create', this)">
-          <i class="fa-solid fa-plus-circle"></i>
-          <span>ساخت کانفیگ</span>
-        </li>
-        <li class="nav-item" onclick="showTab('configs', this)">
-          <i class="fa-solid fa-code"></i>
-          <span>کانفیگ‌های من</span>
-        </li>
-        <li class="nav-item" onclick="showTab('sublinks', this)">
-          <i class="fa-solid fa-link"></i>
-          <span>مرورگر ساب</span>
-        </li>
-        <li class="nav-item" onclick="showTab('servers', this)">
-          <i class="fa-solid fa-server"></i>
-          <span>سرورها</span>
-        </li>
-        <li class="nav-item" onclick="showTab('traffic', this)">
-          <i class="fa-solid fa-chart-line"></i>
-          <span>مصرف و ترافیک</span>
-        </li>
-        <li class="nav-item" onclick="showTab('buy', this)">
-          <i class="fa-solid fa-cart-shopping"></i>
-          <span>خرید سرویس</span>
-        </li>
-        <li class="nav-item" onclick="showTab('transactions', this)">
-          <i class="fa-solid fa-receipt"></i>
-          <span>تراکنش‌ها</span>
-        </li>
-        <li class="nav-item" onclick="showTab('profile', this)">
-          <i class="fa-solid fa-user"></i>
-          <span>پروفایل کاربری</span>
-        </li>
-        <li class="nav-item" onclick="showTab('settings', this)">
-          <i class="fa-solid fa-gear"></i>
-          <span>تنظیمات</span>
-        </li>
+        <li><button class="nav-btn active" onclick="goTab('dash', this)"><i class="fa-solid fa-house"></i><span>داشبورد</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('subs', this)"><i class="fa-solid fa-link"></i><span>ساب لینک‌ها</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('create', this)"><i class="fa-solid fa-plus-circle"></i><span>ساخت کانفیگ</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('configs', this)"><i class="fa-solid fa-code"></i><span>کانفیگ‌های من</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('subpage', this)"><i class="fa-solid fa-window-maximize"></i><span>مرورگر ساب</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('traffic', this)"><i class="fa-solid fa-chart-line"></i><span>مصرف و ترافیک</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('servers', this)"><i class="fa-solid fa-server"></i><span>سرورها</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('profile', this)"><i class="fa-solid fa-user"></i><span>پروفایل</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('transactions', this)"><i class="fa-solid fa-receipt"></i><span>تراکنش‌ها</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('alerts', this)"><i class="fa-solid fa-bell"></i><span>اعلان‌ها</span></button></li>
+        <li><button class="nav-btn" onclick="goTab('support', this)"><i class="fa-solid fa-headset"></i><span>پشتیبانی</span></button></li>
       </ul>
     </div>
 
-    <div class="sidebar-footer" style="padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06);">
-      <a href="/logout" class="nav-item" style="color: #ef4444; text-decoration: none;">
-        <i class="fa-solid fa-right-from-bracket"></i>
-        <span>خروج از پنل</span>
-      </a>
+    <div class="sidebar-footer">
+      <a href="/logout" class="nav-btn" style="color: #ef4444; text-decoration: none;"><i class="fa-solid fa-power-off"></i><span>خروج</span></a>
     </div>
   </aside>
 
   <!-- ویوپورت اصلی -->
   <main class="main-viewport">
-    
-    <!-- هدر بالا با متادیتا -->
-    <header class="top-navbar">
-      <div>
-        <h4 style="font-weight: 800; font-size: 16px;">سامانه ابری ONEX</h4>
-        <small style="color: #64748b; font-size: 12px;">سازنده: <span style="color: #38bdf8;">@Mehtif</span> | پشتیبانی: <a href="https://t.me/V2rayTunp" target="_blank" style="color: #38bdf8; text-decoration: none;">@V2rayTunp</a></small>
-      </div>
 
-      <div class="user-profile-badge">
-        <div class="avatar-circle" id="u-avatar">M</div>
-        <div>
-          <span style="font-size: 13px; font-weight: 700; display: block;" id="u-name-top">Mehtif</span>
-        </div>
+    <header class="topbar">
+      <div>
+        <h3 style="font-size: 16px; font-weight: 700;">سلام، <span id="uTopName">کاربر گرامی</span> 👋</h3>
+        <small style="font-size: 11px; color: #64748b;">به پنل کاربری ONEX خوش آمدید | سازنده: <span style="color: #38bdf8;">@Mehtif</span></small>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <a href="https://t.me/V2rayTunp" target="_blank" class="btn-main" style="padding: 6px 12px; font-size: 12px; background: rgba(56, 189, 248, 0.15); color: #38bdf8;">
+          <i class="fa-brands fa-telegram"></i> @V2rayTunp
+        </a>
       </div>
     </header>
 
     <!-- ۲. صفحه داشبورد اصلی -->
-    <section id="tab-dashboard" class="view-tab active-tab">
-      <div class="stat-cards-grid">
-        <div class="stat-card-glow glow-green">
-          <span style="font-size: 12px; opacity: 0.9;">وضعیت اتصال</span>
-          <h2 style="font-size: 24px; font-weight: 800; margin-top: 6px;">آنلاین</h2>
+    <section id="tab-dash" class="tab-section active-tab">
+      <div class="dash-stats-grid">
+        <div class="stat-card-neon neon-green">
+          <span style="font-size: 12px;">وضعیت اتصال</span>
+          <h2 style="font-size: 20px; font-weight: 800; margin-top: 4px;">آنلاین</h2>
         </div>
-        <div class="stat-card-glow glow-purple">
-          <span style="font-size: 12px; opacity: 0.9;">کانفیگ‌های فعال</span>
-          <h2 style="font-size: 24px; font-weight: 800; margin-top: 6px;" id="dash-active-count">0</h2>
+        <div class="stat-card-neon neon-purple">
+          <span style="font-size: 12px;">کانفیگ‌های فعال</span>
+          <h2 style="font-size: 20px; font-weight: 800; margin-top: 4px;" id="statActive">0</h2>
         </div>
-        <div class="stat-card-glow glow-blue">
-          <span style="font-size: 12px; opacity: 0.9;">حجم مصرف شده</span>
-          <h2 style="font-size: 24px; font-weight: 800; margin-top: 6px;" id="dash-used-traffic">0 GB</h2>
+        <div class="stat-card-neon neon-blue">
+          <span style="font-size: 12px;">حجم مصرفی</span>
+          <h2 style="font-size: 20px; font-weight: 800; margin-top: 4px;" id="statUsed">0 GB</h2>
         </div>
-        <div class="stat-card-glow glow-orange">
-          <span style="font-size: 12px; opacity: 0.9;">زمان باقیمانده</span>
-          <h2 style="font-size: 24px; font-weight: 800; margin-top: 6px;">۳۰ روز</h2>
+        <div class="stat-card-neon neon-cyan">
+          <span style="font-size: 12px;">زمان باقیمانده</span>
+          <h2 style="font-size: 20px; font-weight: 800; margin-top: 4px;">۱۵ روز</h2>
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
-        <div class="panel-box">
-          <h4 style="font-size: 14px; margin-bottom: 16px; color: #94a3b8;">مصرف ترافیک (۳۰ روز اخیر)</h4>
-          <canvas id="trafficChart" height="130"></canvas>
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+        <div class="panel-card">
+          <h4 style="font-size: 13px; color: #94a3b8; margin-bottom: 14px;">مصرف ترافیک (آخرین ۷ روز)</h4>
+          <canvas id="chartTraffic" height="120"></canvas>
         </div>
-
-        <div class="panel-box">
-          <h4 style="font-size: 14px; margin-bottom: 16px; color: #94a3b8;">وضعیت سرورها (Live)</h4>
-          <div style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
-              <span>🇩🇪 آلمان (Frankfurt)</span>
-              <span class="status-badge status-active">Online (28ms)</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
-              <span>🇳🇱 هلند (Amsterdam)</span>
-              <span class="status-badge status-active">Online (32ms)</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
-              <span>🇹🇷 ترکیه (Istanbul)</span>
-              <span class="status-badge status-active">Online (22ms)</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
-              <span>🇫🇮 فنلاند (Helsinki)</span>
-              <span class="status-badge status-active">Online (35ms)</span>
-            </div>
+        <div class="panel-card">
+          <h4 style="font-size: 13px; color: #94a3b8; margin-bottom: 14px;">وضعیت سرورها</h4>
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between;"><span>🇩🇪 آلمان (Frankfurt)</span><span class="badge-status">Online (28ms)</span></div>
+            <div style="display: flex; justify-content: space-between;"><span>🇳🇱 هلند (Amsterdam)</span><span class="badge-status">Online (34ms)</span></div>
+            <div style="display: flex; justify-content: space-between;"><span>🇹🇷 ترکیه (Istanbul)</span><span class="badge-status">Online (22ms)</span></div>
+            <div style="display: flex; justify-content: space-between;"><span>🇫🇮 فنلاند (Helsinki)</span><span class="badge-status">Online (38ms)</span></div>
+            <div style="display: flex; justify-content: space-between;"><span>🇯🇵 ژاپن (Tokyo)</span><span class="badge-status">Online (85ms)</span></div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ۵. ساخت کانفیگ (دقیقاً مطابق صفحه ۵ تصویر) -->
-    <section id="tab-create" class="view-tab">
-      <div class="panel-box" style="max-width: 600px; margin: 0 auto;">
-        <h3 style="font-size: 18px; margin-bottom: 20px;">ساخت کانفیگ اختصاصی</h3>
-        <form id="createCfgForm">
-          <div class="form-group">
-            <label>پروتکل ارتباطی</label>
-            <div style="display: flex; gap: 10px;">
-              <button type="button" class="btn-action-primary" style="flex: 1; justify-content: center; background: #0284c7;">V2Ray (VLESS/VMess)</button>
-              <button type="button" class="btn-action-primary" style="flex: 1; justify-content: center; background: #1e293b;">Shadowsocks</button>
-              <button type="button" class="btn-action-primary" style="flex: 1; justify-content: center; background: #1e293b;">Trojan</button>
-            </div>
-          </div>
+    <!-- ۳. بخش ساب‌لینک‌ها -->
+    <section id="tab-subs" class="tab-section">
+      <div class="panel-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h4 style="font-size: 15px;">ساب لینک‌ها</h4>
+          <button class="btn-main" onclick="goTab('create', document.querySelectorAll('.nav-btn')[2])"><i class="fa-solid fa-plus"></i> ساخت ساب لینک جدید</button>
+        </div>
+        <div class="table-responsive">
+          <table class="ui-table">
+            <thead>
+              <tr><th>لینک ساب</th><th>تاریخ ایجاد</th><th>انقضا</th><th>وضعیت</th><th>عملیات</th></tr>
+            </thead>
+            <tbody id="subsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
-          <div class="form-group">
-            <label>نام کانفیگ / ریمارک</label>
-            <input type="text" id="cfg-name-in" class="form-control" placeholder="مثال: گوشی شخصی" required>
-          </div>
+    <!-- ۴. ساخت کانفیگ (دقیقاً مطابق صفحه ۴: با ۵ پروتکل انتخابی) -->
+    <section id="tab-create" class="tab-section">
+      <div class="panel-card" style="max-width: 620px; margin: 0 auto;">
+        <h4 style="font-size: 16px; margin-bottom: 16px;">ساخت کانفیگ جدید</h4>
+        <label style="font-size: 12px; color: #94a3b8; display: block; margin-bottom: 8px;">نوع کانفیگ مورد نظر را انتخاب کنید:</label>
+        
+        <div class="proto-grid">
+          <div class="proto-btn active" onclick="setProto('V2Ray', this)"><i class="fa-solid fa-bolt"></i><span>V2Ray</span></div>
+          <div class="proto-btn" onclick="setProto('Shadowsocks', this)"><i class="fa-solid fa-shield"></i><span>Shadowsocks</span></div>
+          <div class="proto-btn" onclick="setProto('Trojan', this)"><i class="fa-solid fa-horse-head"></i><span>Trojan</span></div>
+          <div class="proto-btn" onclick="setProto('WireGuard', this)"><i class="fa-solid fa-network-wired"></i><span>WireGuard</span></div>
+          <div class="proto-btn" onclick="setProto('OpenVPN', this)"><i class="fa-solid fa-key"></i><span>OpenVPN</span></div>
+        </div>
 
+        <form id="cfgForm">
           <div class="form-group">
-            <label>انتخاب لوکیشن سرور</label>
-            <select id="cfg-server-in" class="form-control">
-              <option value="Germany (DE)">🇩🇪 Germany (DE-1) - پینگ بهینه</option>
-              <option value="Netherlands (NL)">🇳🇱 Netherlands (NL-1) - پینگ بهینه</option>
-              <option value="Turkey (TR)">🇹🇷 Turkey (TR-1) - کمترین پینگ</option>
+            <label>نام کانفیگ:</label>
+            <input type="text" id="cfgName" class="form-control" placeholder="گوشی شخصی" required>
+          </div>
+          <div class="form-group">
+            <label>سرور:</label>
+            <select id="cfgServer" class="form-control">
+              <option value="Germany (DE)">🇩🇪 Germany (DE-1)</option>
+              <option value="Netherlands (NL)">🇳🇱 Netherlands (NL-1)</option>
+              <option value="Turkey (TR)">🇹🇷 Turkey (TR-1)</option>
             </select>
           </div>
-
-          <div style="display: flex; gap: 12px;">
+          <div style="display: flex; gap: 10px;">
             <div class="form-group" style="flex: 1;">
-              <label>حجم مجاز (گیگابایت)</label>
-              <input type="number" id="cfg-gb-in" class="form-control" value="30" required>
+              <label>حجم (GB):</label>
+              <input type="number" id="cfgGb" class="form-control" value="30" required>
             </div>
             <div class="form-group" style="flex: 1;">
-              <label>مدت زمان (روز)</label>
-              <input type="number" id="cfg-days-in" class="form-control" value="30" required>
+              <label>مدت زمان (روز):</label>
+              <input type="number" id="cfgDays" class="form-control" value="30" required>
             </div>
           </div>
-
-          <button type="submit" class="btn-action-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
-            <i class="fa-solid fa-plus"></i> ساخت و صدور آنی کانفیگ
-          </button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; margin-top: 8px;">ساخت کانفیگ</button>
         </form>
       </div>
     </section>
 
-    <!-- ۶. کانفیگ‌های ساخته شده (مطابق صفحه ۶ تصویر) -->
-    <section id="tab-configs" class="view-tab">
-      <div class="panel-box">
-        <h3 style="font-size: 16px; margin-bottom: 16px;">کانفیگ‌های ساخته شده</h3>
-        <div style="overflow-x: auto;">
-          <table class="data-table">
+    <!-- ۵. کانفیگ‌های من -->
+    <section id="tab-configs" class="tab-section">
+      <div class="panel-card">
+        <h4 style="font-size: 15px; margin-bottom: 14px;">کانفیگ‌های من</h4>
+        <div class="table-responsive">
+          <table class="ui-table">
             <thead>
-              <tr>
-                <th>نام کانفیگ</th>
-                <th>نوع</th>
-                <th>سرور</th>
-                <th>حجم</th>
-                <th>وضعیت</th>
-                <th>عملیات</th>
-              </tr>
+              <tr><th>نام کانفیگ</th><th>پروتکل</th><th>سرور</th><th>تاریخ ساخت</th><th>وضعیت</th><th>عملیات</th></tr>
             </thead>
             <tbody id="configsTableBody"></tbody>
           </table>
@@ -303,200 +254,212 @@
       </div>
     </section>
 
-    <!-- ۷. ساب‌لینک‌ها / لینک اشتراک (مطابق صفحه ۷ تصویر) -->
-    <section id="tab-sublinks" class="view-tab">
-      <div class="panel-box" style="max-width: 650px; margin: 0 auto;">
-        <h3 style="font-size: 18px; margin-bottom: 12px;">لینک ساب‌اسکریپشن هوشمند</h3>
-        <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">با اشتراک این لینک می‌توانید سرویس خود را در اپلیکیشن‌های v2rayNG ،Streisand ،FoXray دریافت کنید.</p>
-        
-        <div class="form-group">
-          <label>لینک اتصال هوشمند کلاینت:</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="mainSubLinkField" class="form-control" readonly>
-            <button class="btn-action-primary" onclick="copyFieldVal('mainSubLinkField')">کپی</button>
-          </div>
+    <!-- ۶. صفحه مرورگر ساب لینک (مطابق صفحه ۶ عکس) -->
+    <section id="tab-subpage" class="tab-section">
+      <div class="panel-card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+        <h4 style="font-size: 16px; margin-bottom: 12px;">وضعیت ساب لینک‌ها</h4>
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <input type="text" id="subUrlField" class="form-control" readonly>
+          <button class="btn-main" onclick="copyId('subUrlField')">کپی لینک</button>
+        </div>
+        <div style="background: white; padding: 10px; border-radius: 12px; display: inline-block; margin-bottom: 14px;">
+          <div id="subQrBox"></div>
+        </div>
+        <p style="font-size: 12px; color: #94a3b8;">برای اضافه شدن سریع به اپلیکیشن، بارکد را اسکن کنید</p>
+      </div>
+    </section>
+
+    <!-- ۷. مصرف زنده و ترافیک (مطابق صفحه ۷ عکس) -->
+    <section id="tab-traffic" class="tab-section">
+      <div class="panel-card">
+        <h4 style="font-size: 15px; margin-bottom: 14px;">مصرف و ترافیک لحظه‌ای</h4>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; text-align: center;">
+          <div style="background: #080d1a; padding: 14px; border-radius: 10px;"><small style="color:#64748b;">دانلود</small><h3 style="color:#38bdf8; margin-top:4px;">12.4 GB</h3></div>
+          <div style="background: #080d1a; padding: 14px; border-radius: 10px;"><small style="color:#64748b;">آپلود</small><h3 style="color:#a855f7; margin-top:4px;">3.2 GB</h3></div>
+          <div style="background: #080d1a; padding: 14px; border-radius: 10px;"><small style="color:#64748b;">کل ترافیک</small><h3 style="color:#10b981; margin-top:4px;">15.6 GB</h3></div>
+        </div>
+        <canvas id="trafficLiveChart" height="100"></canvas>
+      </div>
+    </section>
+
+    <!-- ۸. لیست سرورها -->
+    <section id="tab-servers" class="tab-section">
+      <div class="panel-card">
+        <h4 style="font-size: 15px; margin-bottom: 14px;">لیست سرورها</h4>
+        <div class="table-responsive">
+          <table class="ui-table">
+            <thead><tr><th>کشور</th><th>نام سرور</th><th>پینگ</th><th>وضعیت</th></tr></thead>
+            <tbody>
+              <tr><td>🇩🇪 Germany</td><td>DE-1 (Frankfurt)</td><td>28 ms</td><td><span class="badge-status">آنلاین</span></td></tr>
+              <tr><td>🇳🇱 Netherlands</td><td>NL-1 (Amsterdam)</td><td>34 ms</td><td><span class="badge-status">آنلاین</span></td></tr>
+              <tr><td>🇹🇷 Turkey</td><td>TR-1 (Istanbul)</td><td>22 ms</td><td><span class="badge-status">آنلاین</span></td></tr>
+              <tr><td>🇫🇮 Finland</td><td>FI-1 (Helsinki)</td><td>38 ms</td><td><span class="badge-status">آنلاین</span></td></tr>
+              <tr><td>🇯🇵 Japan</td><td>JP-1 (Tokyo)</td><td>85 ms</td><td><span class="badge-status">آنلاین</span></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
 
-    <!-- ۱۱. خرید سرویس / تمدید (مطابق صفحه ۱۱ تصویر) -->
-    <section id="tab-buy" class="view-tab">
-      <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 6px;">خرید اشتراک سرویس اختصاصی</h3>
-      <p style="font-size: 13px; color: #94a3b8;">پلن مورد نظر خود را با حجم و زمان دلخواه انتخاب نمایید.</p>
+    <!-- ۹. پروفایل کاربری -->
+    <section id="tab-profile" class="tab-section">
+      <div class="panel-card" style="max-width: 500px; margin: 0 auto;">
+        <h4 style="font-size: 15px; margin-bottom: 14px;">پروفایل کاربری</h4>
+        <div class="form-group"><label>نام کاربری:</label><input type="text" id="profUser" class="form-control" readonly></div>
+        <div class="form-group"><label>ایمیل:</label><input type="text" id="profEmail" class="form-control" readonly></div>
+        <div class="form-group"><label>شماره تماس:</label><input type="text" class="form-control" value="09120000000" readonly></div>
+      </div>
+    </section>
 
-      <div class="pricing-grid">
-        <div class="price-card">
-          <div>
-            <h4 style="font-size: 18px; font-weight: 700; margin-bottom: 10px;">پلن برنزی (۱ ماهه)</h4>
-            <h2 style="font-size: 32px; font-weight: 800; color: #38bdf8;">۵۰ GB</h2>
-            <p style="font-size: 13px; color: #94a3b8; margin: 16px 0;">مناسب استفاده یک‌ماهه شخصی</p>
-          </div>
-          <div>
-            <h3 style="font-size: 20px; margin-bottom: 16px;">۱۲۰,۰۰۰ تومان</h3>
-            <button class="btn-action-primary" style="width: 100%; justify-content: center;" onclick="alert('سرویس برای شما ثبت شد.')">انتخاب پلن</button>
-          </div>
-        </div>
-
-        <div class="price-card featured">
-          <div>
-            <span style="background: #0284c7; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 11px;">محبوب‌ترین</span>
-            <h4 style="font-size: 18px; font-weight: 700; margin: 10px 0;">پلن نقره‌ای (۲ ماهه)</h4>
-            <h2 style="font-size: 32px; font-weight: 800; color: #38bdf8;">۱۵۰ GB</h2>
-            <p style="font-size: 13px; color: #94a3b8; margin: 16px 0;">مناسب استفاده مداوم و استریم</p>
-          </div>
-          <div>
-            <h3 style="font-size: 20px; margin-bottom: 16px;">۲۸۰,۰۰۰ تومان</h3>
-            <button class="btn-action-primary" style="width: 100%; justify-content: center;" onclick="alert('سرویس برای شما ثبت شد.')">انتخاب پلن</button>
-          </div>
-        </div>
-
-        <div class="price-card">
-          <div>
-            <h4 style="font-size: 18px; font-weight: 700; margin-bottom: 10px;">پلن طلایی (۳ ماهه)</h4>
-            <h2 style="font-size: 32px; font-weight: 800; color: #38bdf8;">۳۰۰ GB</h2>
-            <p style="font-size: 13px; color: #94a3b8; margin: 16px 0;">بدون محدودیت تعداد کاربر</p>
-          </div>
-          <div>
-            <h3 style="font-size: 20px; margin-bottom: 16px;">۴۹۰,۰۰۰ تومان</h3>
-            <button class="btn-action-primary" style="width: 100%; justify-content: center;" onclick="alert('سرویس برای شما ثبت شد.')">انتخاب پلن</button>
-          </div>
+    <!-- ۱۰. تاریخچه تراکنش‌ها -->
+    <section id="tab-transactions" class="tab-section">
+      <div class="panel-card">
+        <h4 style="font-size: 15px; margin-bottom: 14px;">تاریخچه تراکنش‌ها</h4>
+        <div class="table-responsive">
+          <table class="ui-table">
+            <thead><tr><th>نوع</th><th>مبلغ</th><th>تاریخ</th><th>وضعیت</th></tr></thead>
+            <tbody>
+              <tr><td>تمدید سرویس ۱ ماهه</td><td>۱۲۰,۰۰۰ تومان</td><td>۱۴۰۳/۰۲/۱۵</td><td><span class="badge-status">موفق</span></td></tr>
+              <tr><td>شارژ کیف پول</td><td>۵۰,۰۰۰ تومان</td><td>۱۴۰۳/۰۱/۲۰</td><td><span class="badge-status">موفق</span></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
 
-    <!-- ۳. پروفایل کاربری (مطابق صفحه ۳ تصویر) -->
-    <section id="tab-profile" class="view-tab">
-      <div class="panel-box" style="max-width: 550px; margin: 0 auto;">
-        <h3 style="font-size: 18px; margin-bottom: 16px;">اطلاعات حساب کاربری</h3>
-        <div class="form-group">
-          <label>نام کاربری:</label>
-          <input type="text" class="form-control" id="profile-user" readonly>
-        </div>
-        <div class="form-group">
-          <label>ایمیل ثبت شده:</label>
-          <input type="text" class="form-control" id="profile-email" readonly>
-        </div>
-        <div class="form-group">
-          <label>کانال پشتیبانی رسمی:</label>
-          <input type="text" class="form-control" value="@V2rayTunp" readonly>
+    <!-- ۱۱. اعلان‌ها -->
+    <section id="tab-alerts" class="tab-section">
+      <div class="panel-card" style="max-width: 600px; margin: 0 auto;">
+        <h4 style="font-size: 15px; margin-bottom: 14px;">اعلان‌ها و رویدادها</h4>
+        <div style="background: #080d1a; padding: 12px; border-radius: 10px; margin-bottom: 10px; font-size: 13px;">
+          <b style="color: #38bdf8;">سرویس جدید اضافه شد</b>
+          <p style="color: #94a3b8; font-size: 12px; margin-top: 4px;">سرور اختصاصی لوکیشن ژاپن با پینگ بهینه به شبکه اضافه شد.</p>
         </div>
       </div>
     </section>
 
-    <!-- سایر بخش‌ها -->
-    <section id="tab-services" class="view-tab"><div class="panel-box">سرویس‌های شما در این بخش فعال می‌باشند.</div></section>
-    <section id="tab-servers" class="view-tab"><div class="panel-box">کلیه سرورهای لوکیشن آلمان، فنلاند و ترکیه آنلاین هستند.</div></section>
-    <section id="tab-traffic" class="view-tab"><div class="panel-box">گزارش مصرف زنده ترافیک در دسترس است.</div></section>
-    <section id="tab-transactions" class="view-tab"><div class="panel-box">تاریخچه پرداخت‌ها و تراکنش‌های شما خالی است.</div></section>
-    <section id="tab-settings" class="view-tab"><div class="panel-box">تنظیمات هسته ONEX بر روی پروتکل‌های WebSocket و TLS قرار دارد.</div></section>
+    <!-- ۱۲. پشتیبانی -->
+    <section id="tab-support" class="tab-section">
+      <div class="panel-card" style="max-width: 550px; margin: 0 auto; text-align: center;">
+        <h4 style="font-size: 16px; margin-bottom: 8px;">مرکز پشتیبانی ONEX</h4>
+        <p style="font-size: 12px; color: #94a3b8; margin-bottom: 16px;">برای دریافت راهنمایی و ارتباط با سازنده، از طریق کانال تلگرام اقدام فرمایید.</p>
+        <a href="https://t.me/V2rayTunp" target="_blank" class="btn-main" style="justify-content: center;"><i class="fa-brands fa-telegram"></i> کانال تلگرام @V2rayTunp</a>
+      </div>
+    </section>
 
   </main>
 
   <script>
-    // کنترل ناوبری تب‌ها
-    function showTab(tabId, elem) {
-      document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active-tab'));
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      const activeSection = document.getElementById('tab-' + tabId);
-      if (activeSection) activeSection.classList.add('active-tab');
-      if (elem) elem.classList.add('active');
+    let selectedProtocol = 'V2Ray';
+
+    function goTab(tId, el) {
+      document.querySelectorAll('.tab-section').forEach(t => t.classList.remove('active-tab'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const target = document.getElementById('tab-' + tId);
+      if (target) target.classList.add('active-tab');
+      if (el) el.classList.add('active');
     }
 
-    // بارگذاری دیتای پنل
-    async function loadPanelData() {
-      const res = await fetch('/api/dashboard').then(r => r.json());
-      document.getElementById('u-name-top').innerText = res.user.username;
-      document.getElementById('profile-user').value = res.user.username;
-      document.getElementById('profile-email').value = res.user.email || 'user@example.com';
-      document.getElementById('dash-active-count').innerText = res.activeCount;
-      document.getElementById('dash-used-traffic').innerText = res.totalUsed + ' GB';
+    function setProto(p, el) {
+      selectedProtocol = p;
+      document.querySelectorAll('.proto-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+    }
 
-      const tbody = document.getElementById('configsTableBody');
+    async function loadData() {
+      const res = await fetch('/api/dashboard').then(r => r.json());
+      document.getElementById('uTopName').innerText = res.user.username;
+      document.getElementById('profUser').value = res.user.username;
+      document.getElementById('profEmail').value = res.user.email || 'user@example.com';
+      document.getElementById('statActive').innerText = res.activeCount;
+      document.getElementById('statUsed').innerText = res.totalUsed + ' GB';
+
       const host = window.location.host;
+      const cBody = document.getElementById('configsTableBody');
+      const sBody = document.getElementById('subsTableBody');
 
       if (res.configs.length > 0) {
-        document.getElementById('mainSubLinkField').value = `https://${host}/sub/${res.configs[0].id}`;
+        const sub = `https://${host}/sub/${res.configs[0].id}`;
+        document.getElementById('subUrlField').value = sub;
+        document.getElementById('subQrBox').innerHTML = '';
+        new QRCode(document.getElementById('subQrBox'), { text: sub, width: 125, height: 125 });
       }
 
-      tbody.innerHTML = res.configs.map(c => `
+      cBody.innerHTML = res.configs.map(c => `
         <tr>
-          <td style="font-weight:700;">${c.name}</td>
+          <td><b>${c.name}</b></td>
           <td><span style="color:#38bdf8;">${c.protocol}</span></td>
           <td>${c.server}</td>
-          <td>${c.total_gb} GB</td>
-          <td><span class="status-badge status-active">فعال</span></td>
+          <td>${c.created_at.split(' ')[0]}</td>
+          <td><span class="badge-status">فعال</span></td>
           <td>
-            <button class="btn-action-primary" style="padding:6px 12px; font-size:11px;" onclick="navigator.clipboard.writeText('https://${host}/sub/${c.id}'); alert('لینک کپی شد!');">
-              کپی ساب
-            </button>
-            <button class="btn-action-primary" style="padding:6px 12px; font-size:11px; background:#ef4444;" onclick="deleteCfg('${c.id}')">
-              حذف
-            </button>
+            <button class="btn-main" style="padding:4px 8px; font-size:11px;" onclick="navigator.clipboard.writeText('https://${host}/sub/${c.id}'); alert('کپی شد!');">کپی ساب</button>
+            <button class="btn-main" style="padding:4px 8px; font-size:11px; background:#ef4444;" onclick="delCfg('${c.id}')">حذف</button>
           </td>
+        </tr>
+      `).join('');
+
+      sBody.innerHTML = res.configs.map(c => `
+        <tr>
+          <td>https://${host}/sub/${c.id}</td>
+          <td>${c.created_at.split(' ')[0]}</td>
+          <td>۳۰ روز</td>
+          <td><span class="badge-status">فعال</span></td>
+          <td><button class="btn-main" style="padding:4px 8px; font-size:11px;" onclick="navigator.clipboard.writeText('https://${host}/sub/${c.id}'); alert('کپی شد!');">کپی</button></td>
         </tr>
       `).join('');
     }
 
-    // ساخت کانفیگ
-    document.getElementById('createCfgForm').addEventListener('submit', async (e) => {
+    document.getElementById('cfgForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const res = await fetch('/api/configs', {
+      await fetch('/api/configs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: document.getElementById('cfg-name-in').value,
-          server: document.getElementById('cfg-server-in').value,
-          total_gb: document.getElementById('cfg-gb-in').value,
-          duration_days: document.getElementById('cfg-days-in').value
+          name: document.getElementById('cfgName').value,
+          protocol: selectedProtocol,
+          server: document.getElementById('cfgServer').value,
+          total_gb: document.getElementById('cfgGb').value,
+          duration_days: document.getElementById('cfgDays').value
         })
       });
-      const d = await res.json();
-      if (d.success) {
-        alert('کانفیگ با موفقیت ساخته شد.');
-        loadPanelData();
-        showTab('configs', document.querySelectorAll('.nav-item')[3]);
-      }
+      alert('کانفیگ با موفقیت ساخته شد.');
+      loadData();
+      goTab('configs', document.querySelectorAll('.nav-btn')[3]);
     });
 
-    async function deleteCfg(id) {
-      if (confirm('آیا از حذف این کانفیگ مطمئن هستید؟')) {
+    async function delCfg(id) {
+      if (confirm('حذف شود؟')) {
         await fetch('/api/configs/' + id, { method: 'DELETE' });
-        loadPanelData();
+        loadData();
       }
     }
 
-    function copyFieldVal(id) {
-      const el = document.getElementById(id);
-      navigator.clipboard.writeText(el.value);
-      alert('لینک ساب‌اسکریپشن کپی شد!');
+    function copyId(id) {
+      navigator.clipboard.writeText(document.getElementById(id).value);
+      alert('کپی شد!');
     }
 
-    // نمودار ترافیک مطابق تصویر
-    const ctx = document.getElementById('trafficChart').getContext('2d');
-    new Chart(ctx, {
+    // رسم چارت‌ها
+    new Chart(document.getElementById('chartTraffic').getContext('2d'), {
       type: 'line',
       data: {
-        labels: ['Apr 18', 'Apr 20', 'Apr 21', 'Apr 22', 'Apr 23', 'Apr 24', 'Apr 25'],
-        datasets: [{
-          label: 'مصرف ترافیک (GB)',
-          data: [1.2, 3.8, 2.1, 4.5, 3.2, 5.4, 4.8],
-          borderColor: '#0284c7',
-          backgroundColor: 'rgba(2, 132, 199, 0.15)',
-          fill: true,
-          tension: 0.4
-        }]
+        labels: ['۱۸ فروردین', '۱۹ فروردین', '۲۰ فروردین', '۲۱ فروردین', '۲۲ فروردین', '۲۳ فروردین', '۲۴ فروردین'],
+        datasets: [{ data: [1.2, 3.4, 2.1, 4.5, 3.8, 5.4, 4.8], borderColor: '#0284c7', backgroundColor: 'rgba(2,132,199,0.15)', fill: true, tension: 0.4 }]
       },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { color: 'rgba(255,255,255,0.05)' } },
-          y: { grid: { color: 'rgba(255,255,255,0.05)' } }
-        }
-      }
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
     });
 
-    loadPanelData();
+    new Chart(document.getElementById('trafficLiveChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'],
+        datasets: [{ data: [2.1, 3.5, 4.1, 1.8, 2.6, 5.2, 3.9], backgroundColor: '#38bdf8', borderRadius: 6 }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    loadData();
   </script>
 </body>
 </html>

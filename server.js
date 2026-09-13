@@ -15,96 +15,130 @@ const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
-  secret: 'onex-enterprise-token-2026',
+  secret: 'onex-zeus-core-token-2026',
   resave: false,
   saveUninitialized: false,
   cookie: { maxAge: 14 * 24 * 60 * 60 * 1000 }
 }));
 
-// دیتابیس
-const db = new sqlite3.Database('./onex_enterprise.db');
+const db = new sqlite3.Database('./onex_zeus.db');
 
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE,
-      email TEXT,
       password TEXT,
-      balance INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
   db.run(`
-    CREATE TABLE IF NOT EXISTS configs (
+    CREATE TABLE IF NOT EXISTS clients (
       id TEXT PRIMARY KEY,
-      user_id INTEGER,
-      name TEXT,
-      protocol TEXT,
-      server TEXT,
-      total_gb REAL,
+      username TEXT UNIQUE,
+      uuid TEXT UNIQUE,
+      total_gb REAL DEFAULT 30,
       used_gb REAL DEFAULT 0,
-      expire_days INTEGER,
+      duration_days INTEGER DEFAULT 30,
       expire_date DATETIME,
-      uuid TEXT,
+      requests_count INTEGER DEFAULT 0,
+      online_users INTEGER DEFAULT 1,
       status TEXT DEFAULT 'active',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // کاربر پیش فرض
+  // ایجاد کاربر ادمین و یک کلاینت پیش‌فرض
   db.get('SELECT * FROM users WHERE username = ?', ['Mehtif'], (err, row) => {
     if (!row) {
       const hash = bcrypt.hashSync('123456', 10);
-      db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', ['Mehtif', 'user@example.com', hash]);
+      db.run('INSERT INTO users (username, password) VALUES (?, ?)', ['Mehtif', hash]);
+    }
+  });
+
+  db.get('SELECT COUNT(*) as count FROM clients', (err, r) => {
+    if (r && r.count === 0) {
+      const exp = new Date();
+      exp.setDate(exp.getDate() + 30);
+      db.run(`INSERT INTO clients (id, username, uuid, total_gb, used_gb, duration_days, expire_date, requests_count) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
+              ['ONEX-DEMO', 'ONEX-USER-01', 'b831381d-6324-4d53-ad4f-8cda48b30811', 30, 2.4, 30, exp.toISOString(), 1420]);
     }
   });
 });
 
-// اجرای هسته پروکسی Xray در پس‌زمینه
-function startXray() {
-  const xrayConfig = {
-    log: { loglevel: "warning" },
-    inbounds: [
-      {
-        port: 8080,
-        listen: "127.0.0.1",
-        protocol: "vless",
-        settings: {
-          clients: [
-            { id: "b831381d-6324-4d53-ad4f-8cda48b30811" }
-          ],
-          decryption: "none"
+// بازسازی و اجرای کانفیگ جامع هسته Xray برای ۳ پروتکل واقعی
+function startXrayMultiCore() {
+  db.all('SELECT uuid FROM clients WHERE status = "active"', (err, rows) => {
+    const defaultUuid = "b831381d-6324-4d53-ad4f-8cda48b30811";
+    const clientList = (rows && rows.length > 0) ? rows.map(r => ({ id: r.uuid })) : [{ id: defaultUuid }];
+    const trojanList = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid })) : [{ password: defaultUuid }];
+
+    const xrayConfig = {
+      log: { loglevel: "warning" },
+      inbounds: [
+        // 1. VLESS WS
+        {
+          port: 8081,
+          listen: "127.0.0.1",
+          protocol: "vless",
+          settings: { clients: clientList, decryption: "none" },
+          streamSettings: { network: "ws", wsSettings: { path: "/vless" } }
         },
-        streamSettings: {
-          network: "ws",
-          wsSettings: { path: "/vless" }
+        // 2. VMESS WS
+        {
+          port: 8082,
+          listen: "127.0.0.1",
+          protocol: "vmess",
+          settings: { clients: clientList.map(c => ({ id: c.id, alterId: 0 })) },
+          streamSettings: { network: "ws", wsSettings: { path: "/vmess" } }
+        },
+        // 3. TROJAN WS
+        {
+          port: 8083,
+          listen: "127.0.0.1",
+          protocol: "trojan",
+          settings: { clients: trojanList },
+          streamSettings: { network: "ws", wsSettings: { path: "/trojan" } }
         }
-      }
-    ],
-    outbounds: [{ protocol: "freedom" }]
-  };
+      ],
+      outbounds: [{ protocol: "freedom" }]
+    };
 
-  fs.writeFileSync('/app/xray_run.json', JSON.stringify(xrayConfig, null, 2));
+    fs.writeFileSync('/app/xray_multi.json', JSON.stringify(xrayConfig, null, 2));
 
-  if (fs.existsSync('/app/xray-bin/xray')) {
-    const xrayProc = spawn('/app/xray-bin/xray', ['run', '-c', '/app/xray_run.json']);
-    xrayProc.stdout.on('data', d => console.log(`[XRAY]: ${d}`));
-    xrayProc.stderr.on('data', d => console.error(`[XRAY ERR]: ${d}`));
-  }
+    if (fs.existsSync('/app/xray-bin/xray')) {
+      spawn('pkill', ['-f', 'xray']); // ریستارت در صورت وجود نمونه قبلی
+      setTimeout(() => {
+        const proc = spawn('/app/xray-bin/xray', ['run', '-c', '/app/xray_multi.json']);
+        proc.stdout.on('data', d => console.log(`[XRAY]: ${d}`));
+        proc.stderr.on('data', d => console.error(`[XRAY ERR]: ${d}`));
+      }, 500);
+    }
+  });
 }
 
-startXray();
+startXrayMultiCore();
 
-// تولید لینک استاندارد VLESS
-function generateConfigs(cfg, host) {
-  const remark = `ONEX-${cfg.name}`;
-  const fixedUuid = "b831381d-6324-4d53-ad4f-8cda48b30811";
+// تولید تمام فرمت‌های پروتکل‌ها
+function makeClientLinks(client, host) {
+  const remark = `ONEX-${client.username}`;
   
-  // لینک اتصال واقعی VLESS با مسیر وب‌سوکت
-  const vlessUri = `vless://${fixedUuid}@${host}:443?path=%2Fvless&security=tls&encryption=none&type=ws&sni=${host}#${encodeURIComponent(remark)}`;
-  return { vlessUri };
+  // VLESS WebSocket TLS
+  const vless = `vless://${client.uuid}@${host}:443?path=%2Fvless&security=tls&encryption=none&type=ws&sni=${host}#${encodeURIComponent(remark + '-VLESS')}`;
+
+  // VMess WebSocket TLS
+  const vmessObj = {
+    v: "2", ps: `${remark}-VMESS`, add: host, port: "443", id: client.uuid,
+    aid: "0", scy: "auto", net: "ws", type: "none", host: host, path: "/vmess", tls: "tls", sni: host
+  };
+  const vmess = `vmess://${Buffer.from(JSON.stringify(vmessObj)).toString('base64')}`;
+
+  // Trojan WebSocket TLS
+  const trojan = `trojan://${client.uuid}@${host}:443?path=%2Ftrojan&security=tls&type=ws&sni=${host}#${encodeURIComponent(remark + '-Trojan')}`;
+
+  return { vless, vmess, trojan, rawSub: `${vless}\n${vmess}\n${trojan}` };
 }
 
 function auth(req, res, next) {
@@ -117,24 +151,13 @@ app.get('/', auth, (req, res) => res.sendFile(path.join(__dirname, 'views', 'das
 
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-  db.get('SELECT * FROM users WHERE username = ? OR email = ?', [username, username], (err, user) => {
+  db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
     if (user && bcrypt.compareSync(password, user.password)) {
       req.session.userId = user.id;
       req.session.username = user.username;
       return res.json({ success: true });
     }
-    res.status(401).json({ error: 'اطلاعات ورود نامعتبر است' });
-  });
-});
-
-app.post('/api/register', (req, res) => {
-  const { username, email, password } = req.body;
-  const hash = bcrypt.hashSync(password, 10);
-  db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hash], function(err) {
-    if (err) return res.status(400).json({ error: 'نام کاربری تکراری است' });
-    req.session.userId = this.lastID;
-    req.session.username = username;
-    res.json({ success: true });
+    res.status(401).json({ error: 'نام کاربری یا رمز عبور نامعتبر است' });
   });
 });
 
@@ -143,71 +166,90 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-app.get('/api/dashboard', auth, (req, res) => {
-  const uid = req.session.userId;
-  db.get('SELECT * FROM users WHERE id = ?', [uid], (err, user) => {
-    db.all('SELECT * FROM configs WHERE user_id = ? ORDER BY created_at DESC', [uid], (err, cfgs) => {
-      const activeCount = cfgs.filter(c => c.status === 'active').length;
-      const totalAllocated = cfgs.reduce((acc, c) => acc + (c.total_gb || 0), 0);
-      const totalUsed = cfgs.reduce((acc, c) => acc + (c.used_gb || 0), 0);
-      res.json({
-        user: { username: user ? user.username : 'Mehtif', email: user ? user.email : '' },
-        activeCount,
-        totalAllocated,
-        totalUsed: totalUsed.toFixed(1),
-        configs: cfgs
-      });
+// آمار کلی سیستم مانند Zeus Panel
+app.get('/api/panel-stats', auth, (req, res) => {
+  db.all('SELECT * FROM clients ORDER BY created_at DESC', (err, rows) => {
+    const totalUsers = rows.length;
+    const activeUsers = rows.filter(r => r.status === 'active').length;
+    const totalTrafficUsed = rows.reduce((s, r) => s + (r.used_gb || 0), 0);
+    const totalRequests = rows.reduce((s, r) => s + (r.requests_count || 0), 0);
+
+    res.json({
+      totalUsers,
+      activeUsers,
+      totalTrafficUsed: totalTrafficUsed.toFixed(2),
+      totalRequests,
+      clients: rows
     });
   });
 });
 
-app.post('/api/configs', auth, (req, res) => {
-  const uid = req.session.userId;
-  const { name, protocol, server, total_gb, duration_days } = req.body;
-  const id = uuidv4().substring(0, 8);
-  const cfgUuid = "b831381d-6324-4d53-ad4f-8cda48b30811";
+// ساخت کاربر/کانفیگ جدید در پنل
+app.post('/api/clients/add', auth, (req, res) => {
+  const { username, total_gb, duration_days } = req.body;
+  const id = 'ONEX-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+  const uuid = uuidv4();
   const days = parseInt(duration_days) || 30;
   const exp = new Date();
   exp.setDate(exp.getDate() + days);
 
   db.run(
-    `INSERT INTO configs (id, user_id, name, protocol, server, total_gb, expire_days, expire_date, uuid)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, uid, name || 'Config', protocol || 'V2Ray', server || 'Germany (DE)', parseFloat(total_gb) || 30, days, exp.toISOString(), cfgUuid],
+    `INSERT INTO clients (id, username, uuid, total_gb, duration_days, expire_date) VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, username || id, uuid, parseFloat(total_gb) || 30, days, exp.toISOString()],
     function(err) {
-      if (err) return res.status(500).json({ error: 'خطا در ثبت کانفیگ' });
-      res.json({ success: true, id });
+      if (err) return res.status(400).json({ error: 'نام کاربری تکراری است.' });
+      startXrayMultiCore(); // ریلود لایو هسته Xray
+      res.json({ success: true, id, uuid });
     }
   );
 });
 
-app.delete('/api/configs/:id', auth, (req, res) => {
-  db.run('DELETE FROM configs WHERE id = ? AND user_id = ?', [req.params.id, req.session.userId], () => {
+// حذف کاربر
+app.delete('/api/clients/:id', auth, (req, res) => {
+  db.run('DELETE FROM clients WHERE id = ?', [req.params.id], () => {
+    startXrayMultiCore();
     res.json({ success: true });
   });
 });
 
-// ساب‌لینک برای v2rayNG
+// ساب‌اسکریپشن کامل کاربر
 app.get('/sub/:id', (req, res) => {
   const host = req.headers.host;
-  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg) return res.status(404).send('Not Found');
-    const { vlessUri } = generateConfigs(cfg, host);
+  db.get('SELECT * FROM clients WHERE id = ? OR username = ?', [req.params.id, req.params.id], (err, client) => {
+    if (!client) return res.status(404).send('Client Not Found');
+    const links = makeClientLinks(client, host);
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.send(Buffer.from(vlessUri).toString('base64'));
+    res.send(Buffer.from(links.rawSub).toString('base64'));
   });
 });
 
-// پروکسی مستقیم وب‌سوکت فیلترشکن به هسته Xray داخلی
-const proxy = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8080', ws: true });
+// دریافت تک‌لینک‌های کانفیگ
+app.get('/api/client-links/:id', auth, (req, res) => {
+  const host = req.headers.host;
+  db.get('SELECT * FROM clients WHERE id = ?', [req.params.id], (err, client) => {
+    if (!client) return res.status(404).json({ error: 'Not Found' });
+    const links = makeClientLinks(client, host);
+    res.json({ ...links, subUrl: `https://${host}/sub/${client.id}` });
+  });
+});
+
+// سوئیچ ترافیک ورودی وب‌سوکت به هسته‌های Xray
+const proxyVless = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8081', ws: true });
+const proxyVmess = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8082', ws: true });
+const proxyTrojan = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8083', ws: true });
+
 const server = http.createServer(app);
 
 server.on('upgrade', (req, socket, head) => {
   if (req.url.startsWith('/vless')) {
-    proxy.ws(req, socket, head);
+    proxyVless.ws(req, socket, head);
+  } else if (req.url.startsWith('/vmess')) {
+    proxyVmess.ws(req, socket, head);
+  } else if (req.url.startsWith('/trojan')) {
+    proxyTrojan.ws(req, socket, head);
   }
 });
 
 server.listen(PORT, () => {
-  console.log(`ONEX Server with Xray running on port ${PORT}`);
+  console.log(`ONEX Zeus Engine running on port ${PORT}`);
 });

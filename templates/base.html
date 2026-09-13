@@ -1,1 +1,567 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ panel_name }} Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --accent: #06b6d4;
+            --accent2: #8b5cf6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #0f172a;
+            --darker: #020617;
+            --card: #1e293b;
+            --card2: #162032;
+            --sidebar: #0c1222;
+            --text: #e2e8f0;
+            --text2: #94a3b8;
+            --text3: #64748b;
+            --border: #1e3a5f;
+            --glow: rgba(99,102,241,0.15);
+        }
+
+        * {
+            font-family: 'Vazirmatn', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--darker);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--darker); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 270px;
+            height: 100vh;
+            background: linear-gradient(180deg, var(--sidebar) 0%, #0a0f1e 100%);
+            border-left: 1px solid var(--border);
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 28px 24px 20px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-logo {
+            font-size: 2rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 4px;
+        }
+
+        .sidebar-subtitle {
+            font-size: 0.7rem;
+            color: var(--text3);
+            margin-top: 4px;
+            letter-spacing: 2px;
+        }
+
+        .sidebar-nav {
+            padding: 16px 14px;
+            flex: 1;
+        }
+
+        .nav-label {
+            font-size: 0.7rem;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 8px 16px;
+            margin-top: 12px;
+        }
+
+        .nav-link-custom {
+            display: flex;
+            align-items: center;
+            padding: 13px 18px;
+            color: var(--text2);
+            text-decoration: none;
+            border-radius: 12px;
+            margin-bottom: 4px;
+            transition: all 0.25s ease;
+            font-weight: 500;
+            font-size: 0.9rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link-custom::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--primary);
+            border-radius: 0 3px 3px 0;
+            transform: scaleY(0);
+            transition: transform 0.25s;
+        }
+
+        .nav-link-custom:hover,
+        .nav-link-custom.active {
+            background: linear-gradient(135deg, var(--glow), rgba(6,182,212,0.05));
+            color: var(--primary-light);
+        }
+
+        .nav-link-custom.active::before {
+            transform: scaleY(1);
+        }
+
+        .nav-link-custom i {
+            width: 22px;
+            margin-left: 14px;
+            font-size: 1.05rem;
+            text-align: center;
+        }
+
+        .nav-badge {
+            margin-right: auto;
+            background: var(--primary);
+            color: white;
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 700;
+        }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .sidebar-footer a {
+            color: var(--text3);
+            text-decoration: none;
+            font-size: 0.75rem;
+            transition: color 0.2s;
+        }
+
+        .sidebar-footer a:hover {
+            color: var(--primary);
+        }
+
+        /* ── Main Content ── */
+        .main-content {
+            margin-right: 270px;
+            padding: 28px;
+            min-height: 100vh;
+        }
+
+        /* ── Cards ── */
+        .glass-card {
+            background: linear-gradient(135deg, var(--card) 0%, var(--card2) 100%);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.25s, box-shadow 0.25s;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 20px var(--glow);
+        }
+
+        .stat-card {
+            padding: 24px;
+        }
+
+        .stat-icon-wrap {
+            width: 58px;
+            height: 58px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+        }
+
+        .stat-value {
+            font-size: 1.7rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text2);
+            margin-top: 4px;
+        }
+
+        /* ── Table ── */
+        .onex-table {
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--text);
+            --bs-table-border-color: var(--border);
+            margin: 0;
+        }
+
+        .onex-table thead th {
+            background: rgba(99,102,241,0.08);
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--text2);
+            padding: 14px 16px;
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .onex-table tbody td {
+            padding: 14px 16px;
+            vertical-align: middle;
+            border-color: rgba(30,58,95,0.4);
+        }
+
+        .onex-table tbody tr {
+            transition: background 0.2s;
+        }
+
+        .onex-table tbody tr:hover {
+            background: rgba(99,102,241,0.04);
+        }
+
+        /* ── Buttons ── */
+        .btn-onex {
+            background: linear-gradient(135deg, var(--primary), var(--accent2));
+            border: none;
+            border-radius: 12px;
+            padding: 10px 24px;
+            font-weight: 700;
+            color: white;
+            transition: all 0.25s;
+            font-size: 0.9rem;
+        }
+
+        .btn-onex:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99,102,241,0.4);
+            color: white;
+        }
+
+        .btn-onex-sm {
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            border-radius: 8px;
+        }
+
+        .btn-onex-outline {
+            background: transparent;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 16px;
+            color: var(--text2);
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .btn-onex-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary-light);
+            background: var(--glow);
+        }
+
+        /* ── Badge ── */
+        .badge-status {
+            padding: 6px 16px;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.3px;
+        }
+
+        /* ── Forms ── */
+        .form-control,
+        .form-select {
+            background: var(--dark);
+            border: 1.5px solid var(--border);
+            color: var(--text);
+            border-radius: 12px;
+            padding: 11px 18px;
+            transition: all 0.25s;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            background: var(--dark);
+            border-color: var(--primary);
+            color: var(--text);
+            box-shadow: 0 0 0 4px var(--glow);
+        }
+
+        .form-control::placeholder {
+            color: var(--text3);
+        }
+
+        .form-label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text2);
+            margin-bottom: 6px;
+        }
+
+        .form-check-input {
+            background-color: var(--dark);
+            border-color: var(--border);
+        }
+
+        .form-check-input:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* ── Progress ── */
+        .progress-onex {
+            height: 7px;
+            border-radius: 4px;
+            background: rgba(15,23,42,0.6);
+            overflow: hidden;
+        }
+
+        .progress-onex .bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        /* ── Config Box ── */
+        .config-box {
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+            word-break: break-all;
+            font-family: 'JetBrains Mono', monospace, 'Vazirmatn';
+            font-size: 0.8rem;
+            max-height: 80px;
+            overflow-y: auto;
+            color: var(--text3);
+            line-height: 1.6;
+        }
+
+        /* ── Toast ── */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+        }
+
+        .toast-container .alert {
+            border: none;
+            border-radius: 14px;
+            padding: 14px 20px;
+            font-weight: 600;
+            backdrop-filter: blur(20px);
+            animation: slideIn 0.4s ease;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ── Mobile ── */
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            z-index: 1001;
+            background: linear-gradient(135deg, var(--primary), var(--accent2));
+            border: none;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 14px;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 15px rgba(99,102,241,0.4);
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 999;
+            backdrop-filter: blur(4px);
+        }
+
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(100%); }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-right: 0; padding: 20px 16px; padding-top: 70px; }
+            .mobile-toggle { display: block; }
+            .overlay.show { display: block; }
+        }
+
+        /* ── Animations ── */
+        .fade-up {
+            animation: fadeUp 0.5s ease forwards;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-header-custom {
+            background: transparent;
+            border-bottom: 1px solid var(--border);
+            padding: 18px 24px;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <!-- Mobile Toggle -->
+    <button class="mobile-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">⚡ {{ panel_name }}</div>
+            <div class="sidebar-subtitle">MANAGEMENT PANEL</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-label">منو اصلی</div>
+            <a href="{{ url_for('dashboard') }}"
+               class="nav-link-custom {{ 'active' if request.endpoint == 'dashboard' }}">
+                <i class="fas fa-chart-pie"></i> داشبورد
+            </a>
+            <a href="{{ url_for('users') }}"
+               class="nav-link-custom {{ 'active' if request.endpoint in ['users'] }}">
+                <i class="fas fa-users"></i> کاربران
+            </a>
+            <a href="{{ url_for('add_user') }}"
+               class="nav-link-custom {{ 'active' if request.endpoint == 'add_user' }}">
+                <i class="fas fa-user-plus"></i> کاربر جدید
+            </a>
+
+            <div class="nav-label">سیستم</div>
+            <a href="{{ url_for('settings') }}"
+               class="nav-link-custom {{ 'active' if request.endpoint == 'settings' }}">
+                <i class="fas fa-cog"></i> تنظیمات
+            </a>
+            <a href="{{ telegram_channel_url }}" target="_blank" class="nav-link-custom">
+                <i class="fab fa-telegram"></i> کانال تلگرام
+            </a>
+
+            <hr style="border-color: var(--border); margin: 16px 0;">
+            <a href="{{ url_for('logout') }}" class="nav-link-custom" style="color: var(--danger);">
+                <i class="fas fa-sign-out-alt"></i> خروج
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="{{ creator_url }}" target="_blank">
+                ساخته شده توسط {{ creator }}
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="{% if current_user.is_authenticated %}main-content{% endif %}">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="toast-container">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('show');
+            document.getElementById('overlay').classList.toggle('show');
+        }
+
+        function copyText(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (btn) {
+                    const orig = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> کپی شد!';
+                    btn.classList.add('btn-success');
+                    setTimeout(() => {
+                        btn.innerHTML = orig;
+                        btn.classList.remove('btn-success');
+                    }, 2000);
+                }
+            }).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (btn) {
+                    const orig = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> کپی شد!';
+                    setTimeout(() => { btn.innerHTML = orig; }, 2000);
+                }
+            });
+        }
+
+        // Auto-hide alerts
+        setTimeout(() => {
+            document.querySelectorAll('.toast-container .alert').forEach(el => {
+                el.style.transition = 'all 0.5s';
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(-20px)';
+                setTimeout(() => el.remove(), 500);
+            });
+        }, 4000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

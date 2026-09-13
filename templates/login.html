@@ -1,1 +1,82 @@
 
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-center" style="min-height: 100vh; background: linear-gradient(135deg, #020617 0%, #0f172a 40%, #1e1b4b 70%, #020617 100%);">
+    
+    <!-- Animated Background -->
+    <div style="position: fixed; inset: 0; overflow: hidden; pointer-events: none;">
+        <div style="position: absolute; top: 20%; left: 20%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%); border-radius: 50%; animation: pulse 4s ease infinite;"></div>
+        <div style="position: absolute; bottom: 20%; right: 20%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(6,182,212,0.1), transparent 70%); border-radius: 50%; animation: pulse 5s ease infinite 1s;"></div>
+    </div>
+    
+    <style>
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+        }
+    </style>
+
+    <div class="glass-card p-5 fade-up" style="width: 100%; max-width: 440px; position: relative; z-index: 1;">
+        <div class="text-center mb-4">
+            <div class="stat-icon-wrap mx-auto mb-3" 
+                 style="background: linear-gradient(135deg, var(--primary), var(--accent)); width: 80px; height: 80px; font-size: 2rem; box-shadow: 0 8px 32px rgba(99,102,241,0.3);">
+                <i class="fas fa-bolt text-white"></i>
+            </div>
+            <h2 class="fw-bold" style="letter-spacing: 6px; background: linear-gradient(135deg, var(--primary-light), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                {{ panel_name }}
+            </h2>
+            <p class="text-muted small" style="letter-spacing: 2px;">MANAGEMENT PANEL</p>
+        </div>
+
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">
+                    <i class="fas fa-user me-1"></i> نام کاربری
+                </label>
+                <input type="text" name="username" class="form-control" placeholder="admin" required autofocus>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">
+                    <i class="fas fa-lock me-1"></i> رمز عبور
+                </label>
+                <div class="input-group">
+                    <input type="password" name="password" id="loginPass" class="form-control" placeholder="••••••••" required>
+                    <button class="btn btn-onex-outline" type="button" onclick="togglePassword()" style="border-radius: 0 12px 12px 0;">
+                        <i class="fas fa-eye" id="eyeIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-onex w-100 py-3" style="font-size: 1rem; letter-spacing: 1px;">
+                <i class="fas fa-sign-in-alt me-2"></i> ورود به پنل
+            </button>
+        </form>
+
+        <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--border);">
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ telegram_channel_url }}" target="_blank" class="text-muted small text-decoration-none">
+                    <i class="fab fa-telegram me-1"></i> {{ telegram_channel }}
+                </a>
+                <a href="{{ creator_url }}" target="_blank" class="text-muted small text-decoration-none">
+                    <i class="fas fa-code me-1"></i> {{ creator }}
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePassword() {
+    const input = document.getElementById('loginPass');
+    const icon = document.getElementById('eyeIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+</script>
+{% endblock %}

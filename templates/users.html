@@ -1,1 +1,164 @@
 
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="fas fa-users me-2" style="color: var(--primary);"></i>مدیریت کاربران</h3>
+        <p class="text-muted mb-0 small">{{ users|length }} کاربر</p>
+    </div>
+    <a href="{{ url_for('add_user') }}" class="btn btn-onex">
+        <i class="fas fa-user-plus me-1"></i> افزودن
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="glass-card p-3 mb-4 fade-up">
+    <form method="GET" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <input type="text" name="search" class="form-control" placeholder="🔍 جستجو..." value="{{ search }}">
+        </div>
+        <div class="col-6 col-md-2">
+            <select name="status" class="form-select">
+                <option value="all" {{ 'selected' if status_filter == 'all' }}>همه وضعیت</option>
+                <option value="فعال" {{ 'selected' if status_filter == 'فعال' }}>✅ فعال</option>
+                <option value="منقضی" {{ 'selected' if status_filter == 'منقضی' }}>⏰ منقضی</option>
+                <option value="اتمام حجم" {{ 'selected' if status_filter == 'اتمام حجم' }}>🚫 اتمام حجم</option>
+                <option value="غیرفعال" {{ 'selected' if status_filter == 'غیرفعال' }}>❌ غیرفعال</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <select name="protocol" class="form-select">
+                <option value="all" {{ 'selected' if protocol_filter == 'all' }}>همه پروتکل</option>
+                <option value="vless" {{ 'selected' if protocol_filter == 'vless' }}>VLESS</option>
+                <option value="vmess" {{ 'selected' if protocol_filter == 'vmess' }}>VMess</option>
+                <option value="trojan" {{ 'selected' if protocol_filter == 'trojan' }}>Trojan</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <select name="sort" class="form-select">
+                <option value="newest" {{ 'selected' if sort_by == 'newest' }}>جدیدترین</option>
+                <option value="oldest" {{ 'selected' if sort_by == 'oldest' }}>قدیمی‌ترین</option>
+                <option value="name" {{ 'selected' if sort_by == 'name' }}>نام</option>
+                <option value="traffic" {{ 'selected' if sort_by == 'traffic' }}>ترافیک</option>
+                <option value="expire" {{ 'selected' if sort_by == 'expire' }}>انقضا</option>
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            <button type="submit" class="btn btn-onex w-100">
+                <i class="fas fa-filter me-1"></i> فیلتر
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Bulk Actions & Table -->
+<form method="POST" action="{{ url_for('bulk_action') }}">
+    <div class="glass-card p-3 mb-3 fade-up" id="bulkBar" style="display: none;">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <span class="badge bg-primary"><span id="selCount">0</span> انتخاب</span>
+            <button type="submit" name="action" value="enable" class="btn btn-sm btn-success"><i class="fas fa-check me-1"></i>فعال</button>
+            <button type="submit" name="action" value="disable" class="btn btn-sm btn-warning"><i class="fas fa-ban me-1"></i>غیرفعال</button>
+            <button type="submit" name="action" value="reset" class="btn btn-sm btn-info"><i class="fas fa-redo me-1"></i>ریست</button>
+            <button type="submit" name="action" value="renew" class="btn btn-sm btn-primary"><i class="fas fa-sync me-1"></i>تمدید</button>
+            <button type="submit" name="action" value="delete" class="btn btn-sm btn-danger" onclick="return confirm('حذف شوند؟')"><i class="fas fa-trash me-1"></i>حذف</button>
+        </div>
+    </div>
+
+    <div class="glass-card fade-up">
+        <div class="table-responsive">
+            <table class="table onex-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="checkAll" onchange="toggleAll()"></th>
+                        <th>کاربر</th>
+                        <th>پروتکل</th>
+                        <th>وضعیت</th>
+                        <th>مصرف / حجم</th>
+                        <th>انقضا</th>
+                        <th>اتصال</th>
+                        <th>عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td><input type="checkbox" name="user_ids" value="{{ user.id }}" class="uchk" onchange="updateBulk()"></td>
+                        <td>
+                            <div class="fw-bold" style="font-size: 0.9rem;">{{ user.username }}</div>
+                            {% if user.note %}<small class="text-muted">{{ user.note[:30] }}</small>{% endif %}
+                        </td>
+                        <td><span class="badge" style="background: var(--dark);">{{ user.protocol|upper }}</span></td>
+                        <td>
+                            <span class="badge badge-status bg-{{ user.status_color }}">
+                                <i class="fas fa-{{ user.status_icon }} me-1"></i>{{ user.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="progress-onex mb-1" style="width: 90px;">
+                                <div class="bar bg-{{ 'danger' if user.data_usage_percent > 80 else 'warning' if user.data_usage_percent > 50 else 'success' }}"
+                                     style="width: {{ user.data_usage_percent }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ user.data_used_gb }} / {{ user.data_limit_gb }} GB</small>
+                        </td>
+                        <td>
+                            <div class="fw-bold small">{{ user.remaining_days }} روز</div>
+                            {% if user.expire_date %}
+                            <small class="text-muted" style="font-size:0.7rem">{{ user.expire_date.strftime('%m/%d') }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ user.current_connections }}/{{ user.max_connections }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-onex-outline btn-onex-sm" title="ویرایش">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('toggle_user', user_id=user.id) }}" 
+                                   class="btn btn-onex-outline btn-onex-sm" 
+                                   title="{{ 'غیرفعال' if user.is_active else 'فعال' }}"
+                                   style="border-color: {{ 'var(--warning)' if user.is_active else 'var(--success)' }}; color: {{ 'var(--warning)' if user.is_active else 'var(--success)' }};">
+                                    <i class="fas fa-{{ 'ban' if user.is_active else 'check' }}"></i>
+                                </a>
+                                <a href="{{ url_for('renew_user', user_id=user.id) }}" class="btn btn-onex-outline btn-onex-sm" title="تمدید" style="border-color: var(--accent); color: var(--accent);">
+                                    <i class="fas fa-sync"></i>
+                                </a>
+                                <a href="{{ url_for('delete_user', user_id=user.id) }}" class="btn btn-onex-outline btn-onex-sm" title="حذف" style="border-color: var(--danger); color: var(--danger);" onclick="return confirm('حذف شود؟')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not users %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5">
+                            <i class="fas fa-search fa-3x mb-3 d-block" style="color: var(--text3);"></i>
+                            <h5 class="text-muted">کاربری یافت نشد</h5>
+                            <a href="{{ url_for('add_user') }}" class="btn btn-onex mt-2">
+                                <i class="fas fa-user-plus me-1"></i> ایجاد کاربر
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+{% block scripts %}
+<script>
+function toggleAll() {
+    const c = document.getElementById('checkAll').checked;
+    document.querySelectorAll('.uchk').forEach(x => x.checked = c);
+    updateBulk();
+}
+function updateBulk() {
+    const n = document.querySelectorAll('.uchk:checked').length;
+    document.getElementById('bulkBar').style.display = n > 0 ? 'block' : 'none';
+    document.getElementById('selCount').textContent = n;
+}
+</script>
+{% endblock %}
+{% endblock %}

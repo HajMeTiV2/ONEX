@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ONEX | اشتراک {{ user.username }}</title>
-    <!-- لود کردن فونت و استایل‌های پایه -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.0.0/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
     
     <style>
         :root {
@@ -21,7 +19,7 @@
         }
 
         body {
-            font-family: 'Vazirmatn', sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             min-height: 100vh;
@@ -40,7 +38,6 @@
             padding-bottom: 40px;
         }
 
-        /* Hero Section */
         .hero-section {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             border-radius: 24px;
@@ -49,15 +46,6 @@
             box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
             margin-bottom: 20px;
             position: relative;
-            overflow: hidden;
-        }
-
-        .hero-section::after {
-            content: '';
-            position: absolute;
-            top: 0; right: 0; left: 0; bottom: 0;
-            background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIvPjwvc3ZnPg==');
-            opacity: 0.5;
         }
 
         .user-avatar {
@@ -71,8 +59,6 @@
             justify-content: center;
             font-size: 2rem;
             margin: 0 auto 15px;
-            position: relative;
-            z-index: 1;
         }
 
         .status-badge {
@@ -80,25 +66,20 @@
             padding: 6px 16px;
             border-radius: 20px;
             font-size: 0.85rem;
-            font-weight: 700;
+            font-weight: bold;
             background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(5px);
-            position: relative;
-            z-index: 1;
         }
 
-        /* Glass Cards */
         .glass-card {
             background: var(--card-bg);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--border-color);
             border-radius: 20px;
             padding: 20px;
             margin-bottom: 20px;
         }
 
-        /* Circle Progress */
         .progress-circle-container {
             position: relative;
             width: 150px;
@@ -120,10 +101,9 @@
 
         .progress-circle-value {
             fill: none;
-            stroke: url(#gradient);
+            stroke: var(--primary);
             stroke-width: 10;
             stroke-linecap: round;
-            transition: stroke-dashoffset 1.5s ease-out;
         }
 
         .progress-content {
@@ -135,7 +115,6 @@
             width: 100%;
         }
 
-        /* Mini Stats */
         .stat-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -151,15 +130,6 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .stat-box i {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        /* Copy Sections */
         .copy-box {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 16px;
@@ -187,26 +157,178 @@
             border: none;
             border-radius: 12px;
             font-weight: bold;
-            font-family: inherit;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            transition: all 0.2s;
+            cursor: pointer;
         }
 
         .btn-copy-gradient {
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
         }
-        .btn-copy-gradient:active { transform: scale(0.98); }
 
         .btn-copy-outline {
             background: transparent;
             border: 2px solid var(--primary);
             color: #a5b4fc;
         }
-        .btn-copy-outline:active { background: rgba(99, 102, 241, 0.1); transform: scale(0.98); }
 
-        /* Apps Section */
+        .app-btn {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            padding: 10px 15px;
+            border-radius: 12px;
+            color: var(--text-main);
+            text-decoration: none;
+            margin-bottom: 10px;
+        }
         
+        .app-icon {
+            width: 35px; height: 35px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            margin-left: 15px;
+            font-size: 1.2rem;
+        }
+
+        .custom-toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: bold;
+            transition: bottom 0.3s;
+            z-index: 1000;
+        }
+        .custom-toast.show { bottom: 30px; }
+    </style>
+</head>
+<body>
+
+    <div class="custom-toast" id="toast">
+        <i class="fas fa-check-circle"></i> کپی شد!
+    </div>
+
+    <div class="app-container">
+        
+        <!-- هدر -->
+        <div class="hero-section">
+            <div class="user-avatar">
+                <i class="fas fa-user text-white"></i>
+            </div>
+            <h4 class="text-white fw-bold mb-2">{{ user.username }}</h4>
+            <div class="status-badge text-white">
+                <i class="fas fa-signal me-1"></i> وضعیت: {{ user.status }}
+            </div>
+        </div>
+
+        <!-- مصرف -->
+        <div class="glass-card">
+            <h6 class="fw-bold mb-4 text-center"><i class="fas fa-chart-pie me-2 text-primary"></i>وضعیت مصرف</h6>
+            
+            <div class="progress-circle-container">
+                <svg>
+                    <circle class="progress-circle-bg" cx="75" cy="75" r="65"></circle>
+                    <circle class="progress-circle-value" cx="75" cy="75" r="65" 
+                            stroke-dasharray="408.4" 
+                            stroke-dashoffset="{{ 408.4 - (408.4 * user.data_usage_percent / 100) }}"></circle>
+                </svg>
+                <div class="progress-content">
+                    <h3 class="fw-bold mb-0 text-white">{{ user.data_usage_percent }}%</h3>
+                    <small class="text-muted">مصرف شده</small>
+                </div>
+            </div>
+            
+            <div class="text-center mt-3">
+                <span class="text-muted">{{ user.data_used_gb }} GB</span>
+                <span class="mx-2 text-muted">/</span>
+                <span class="fw-bold text-white">{{ user.data_limit_gb }} GB</span>
+            </div>
+
+            <div class="stat-grid">
+                <div class="stat-box">
+                    <i class="fas fa-cloud-download-alt text-primary"></i>
+                    <h5 class="fw-bold mb-0 text-white">{{ user.remaining_data_gb }}</h5>
+                    <small class="text-muted">حجم باقیمانده</small>
+                </div>
+                <div class="stat-box">
+                    <i class="fas fa-calendar-day text-info"></i>
+                    <h5 class="fw-bold mb-0 text-white">{{ user.remaining_days }}</h5>
+                    <small class="text-muted">روز باقیمانده</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- لینک‌ها -->
+        <div class="glass-card">
+            <h6 class="fw-bold mb-3"><i class="fas fa-link me-2 text-primary"></i>دریافت تنظیمات</h6>
+            
+            <div class="copy-box">
+                <div class="fw-bold mb-2">لینک اشتراک هوشمند (Sub Link)</div>
+                <div class="copy-text-area">{{ sub_link }}</div>
+                <button class="btn-copy btn-copy-gradient" onclick="copyToClipboard('{{ sub_link }}')">
+                    <i class="fas fa-copy"></i> کپی لینک اشتراک
+                </button>
+            </div>
+
+            <div class="copy-box mb-0">
+                <div class="fw-bold mb-2">کانفیگ مستقیم (Config)</div>
+                <div class="copy-text-area">{{ config_link }}</div>
+                <button class="btn-copy btn-copy-outline" onclick="copyToClipboard('{{ config_link }}')">
+                    <i class="fas fa-clone"></i> کپی کانفیگ
+                </button>
+            </div>
+        </div>
+
+        <!-- نرم افزارها -->
+        <div class="glass-card">
+            <h6 class="fw-bold mb-3"><i class="fas fa-download me-2 text-primary"></i>دانلود نرم افزار</h6>
+            
+            <div class="text-muted small mb-2"><i class="fab fa-android text-success"></i> اندروید</div>
+            <a href="https://play.google.com/store/apps/details?id=com.v2ray.ang" class="app-btn">
+                <div class="app-icon text-success"><i class="fas fa-v"></i></div>
+                <div><div class="fw-bold">v2rayNG</div><small class="text-muted">نسخه استاندارد</small></div>
+            </a>
+            
+            <div class="text-muted small mb-2 mt-3"><i class="fab fa-apple text-light"></i> آیفون</div>
+            <a href="https://apps.apple.com/us/app/v2box-v2ray-client/id6446814690" class="app-btn">
+                <div class="app-icon text-info"><i class="fas fa-box"></i></div>
+                <div><div class="fw-bold">V2Box</div><small class="text-muted">رایگان و سریع</small></div>
+            </a>
+        </div>
+
+        <!-- فوتر -->
+        <div class="text-center mt-4">
+            <h4 class="fw-bold text-muted" style="letter-spacing: 2px;">ONEX</h4>
+            <a href="https://t.me/V2rayTun0" class="btn btn-outline-info rounded-pill mt-2">
+                <i class="fab fa-telegram-plane"></i> پشتیبانی @V2rayTun0
+            </a>
+        </div>
+
+    </div>
+
+    <script>
+        function copyToClipboard(text) {
+            let textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            textArea.remove();
+            
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+    </script>
+</body>
+</html>

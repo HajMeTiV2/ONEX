@@ -1,1 +1,190 @@
 
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 fade-up">
+    <div>
+        <h3 class="fw-bold mb-1">⚡ داشبورد {{ panel_name }}</h3>
+        <p class="text-muted mb-0 small">خلاصه وضعیت سیستم</p>
+    </div>
+    <a href="{{ url_for('add_user') }}" class="btn btn-onex">
+        <i class="fas fa-user-plus me-1"></i> کاربر جدید
+    </a>
+</div>
+
+<!-- Main Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3 fade-up" style="animation-delay: 0.05s;">
+        <div class="glass-card stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">کل کاربران</div>
+                    <div class="stat-value mt-1">{{ total_users }}</div>
+                </div>
+                <div class="stat-icon-wrap" style="background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(99,102,241,0.05));">
+                    <i class="fas fa-users" style="color: var(--primary);"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-xl-3 fade-up" style="animation-delay: 0.1s;">
+        <div class="glass-card stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">فعال</div>
+                    <div class="stat-value mt-1 text-success">{{ active_users }}</div>
+                </div>
+                <div class="stat-icon-wrap" style="background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(16,185,129,0.05));">
+                    <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-xl-3 fade-up" style="animation-delay: 0.15s;">
+        <div class="glass-card stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">منقضی / اتمام</div>
+                    <div class="stat-value mt-1 text-warning">{{ expired_users + data_exceeded }}</div>
+                </div>
+                <div class="stat-icon-wrap" style="background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.05));">
+                    <i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-xl-3 fade-up" style="animation-delay: 0.2s;">
+        <div class="glass-card stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">ترافیک کل</div>
+                    <div class="stat-value mt-1" style="color: var(--accent); font-size: 1.3rem;">{{ total_traffic }}</div>
+                </div>
+                <div class="stat-icon-wrap" style="background: linear-gradient(135deg, rgba(6,182,212,0.2), rgba(6,182,212,0.05));">
+                    <i class="fas fa-chart-area" style="color: var(--accent);"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-4 col-lg-2 fade-up">
+        <div class="glass-card stat-card text-center p-3">
+            <i class="fas fa-arrow-up text-info mb-1"></i>
+            <div class="fw-bold small">{{ total_upload }}</div>
+            <small class="text-muted" style="font-size:0.7rem">آپلود</small>
+        </div>
+    </div>
+    <div class="col-4 col-lg-2 fade-up">
+        <div class="glass-card stat-card text-center p-3">
+            <i class="fas fa-arrow-down text-primary mb-1"></i>
+            <div class="fw-bold small">{{ total_download }}</div>
+            <small class="text-muted" style="font-size:0.7rem">دانلود</small>
+        </div>
+    </div>
+    <div class="col-4 col-lg-2 fade-up">
+        <div class="glass-card stat-card text-center p-3">
+            <i class="fas fa-ban text-danger mb-1"></i>
+            <div class="fw-bold small text-danger">{{ data_exceeded }}</div>
+            <small class="text-muted" style="font-size:0.7rem">اتمام حجم</small>
+        </div>
+    </div>
+    <div class="col-4 col-lg-2 fade-up">
+        <div class="glass-card stat-card text-center p-3">
+            <i class="fas fa-toggle-off text-secondary mb-1"></i>
+            <div class="fw-bold small">{{ disabled_users }}</div>
+            <small class="text-muted" style="font-size:0.7rem">غیرفعال</small>
+        </div>
+    </div>
+    <div class="col-4 col-lg-2 fade-up">
+        <div class="glass-card stat-card text-center p-3">
+            <i class="fas fa-hourglass-half text-warning mb-1"></i>
+            <div class="fw-bold small text-warning">{{ expiring_soon }}</div>
+            <small class="text-muted" style="font-size:0.7rem">رو به انقضا</small>
+        </div>
+    </div>
+    <div class="col-4 col-lg-2 fade-up">
+        <div class="glass-card stat-card text-center p-3">
+            <i class="fas fa-percentage mb-1" style="color: var(--primary);"></i>
+            <div class="fw-bold small" style="color: var(--primary);">
+                {% if total_users > 0 %}{{ ((active_users / total_users) * 100)|round(0)|int }}%{% else %}0%{% endif %}
+            </div>
+            <small class="text-muted" style="font-size:0.7rem">نرخ فعال</small>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Users -->
+<div class="glass-card fade-up" style="animation-delay: 0.25s;">
+    <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-clock me-2" style="color: var(--accent);"></i>آخرین کاربران</span>
+        <a href="{{ url_for('users') }}" class="btn btn-onex-outline btn-onex-sm">
+            مشاهده همه <i class="fas fa-arrow-left ms-1"></i>
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table onex-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>نام کاربری</th>
+                    <th>پروتکل</th>
+                    <th>وضعیت</th>
+                    <th>مصرف</th>
+                    <th>انقضا</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in recent_users %}
+                <tr>
+                    <td class="text-muted">{{ loop.index }}</td>
+                    <td>
+                        <div class="fw-bold">{{ user.username }}</div>
+                        {% if user.note %}<small class="text-muted">{{ user.note[:25] }}</small>{% endif %}
+                    </td>
+                    <td><span class="badge" style="background: var(--dark); color: var(--text2);">{{ user.protocol|upper }}</span></td>
+                    <td>
+                        <span class="badge badge-status bg-{{ user.status_color }}">
+                            <i class="fas fa-{{ user.status_icon }} me-1"></i>{{ user.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="width: 70px;">
+                                <div class="progress-onex">
+                                    <div class="bar bg-{{ 'danger' if user.data_usage_percent > 80 else 'warning' if user.data_usage_percent > 50 else 'success' }}"
+                                         style="width: {{ user.data_usage_percent }}%"></div>
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ user.data_used_gb }}/{{ user.data_limit_gb }}</small>
+                        </div>
+                    </td>
+                    <td><small>{{ user.remaining_days }} روز</small></td>
+                    <td>
+                        <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-onex-outline btn-onex-sm">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not recent_users %}
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x mb-3 d-block" style="color: var(--text3);"></i>
+                        <p class="text-muted">هنوز کاربری ثبت نشده</p>
+                        <a href="{{ url_for('add_user') }}" class="btn btn-onex">
+                            <i class="fas fa-user-plus me-1"></i> اولین کاربر
+                        </a>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

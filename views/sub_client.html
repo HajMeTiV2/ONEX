@@ -1,1 +1,183 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>مرورگر ساب لینک | ONEX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #060913; color: #f1f5f9; min-height: 100vh; padding: 20px 16px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 1050px; }
+
+    .client-header {
+      background: #0c1222; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;
+    }
+    .brand-glow { font-size: 20px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+    .badge-status { background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+
+    .hero-grid { display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 16px; margin-bottom: 18px; }
+    .card-dark { background: #0b1120; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 22px; }
+
+    .circle-wrap { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+    .circle-progress {
+      width: 130px; height: 130px; border-radius: 50%;
+      background: conic-gradient(#10b981 var(--prog, 20%), rgba(255,255,255,0.08) 0);
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .circle-inner {
+      width: 105px; height: 105px; border-radius: 50%; background: #0b1120;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    }
+
+    .stat-list { display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 180px; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 6px; }
+
+    .sub-field-group { display: flex; gap: 8px; margin-top: 14px; }
+    .sub-input { flex: 1; padding: 12px 14px; background: #070b14; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; color: #fff; font-size: 13px; outline: none; }
+    .btn-action { padding: 12px 20px; background: #0284c7; border: none; border-radius: 12px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+
+    .configs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
+    .cfg-tile {
+      background: #0b1120; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+      padding: 16px; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .proto-badge { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 6px; }
+
+    @media (max-width: 800px) {
+      .hero-grid, .configs-grid { grid-template-columns: 1fr; }
+      .circle-wrap { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <header class="client-header">
+      <div>
+        <div class="brand-glow"><i class="fa-solid fa-bolt"></i><span>مرورگر ساب لینک ONEX</span></div>
+        <small style="color: #64748b; font-size: 11px; margin-top: 4px; display: block;">
+          کانال پشتیبانی: <a href="https://t.me/V2rayTunp" target="_blank" style="color: #38bdf8; text-decoration: none;">@V2rayTunp</a> | توسعه: @Mehtif
+        </small>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="badge-status"><i class="fa-solid fa-circle-check"></i> اتصال فعال</span>
+        <span style="font-size: 12px; color: #94a3b8;" id="c-server-tag">🇩🇪 Germany (DE)</span>
+      </div>
+    </header>
+
+    <div class="hero-grid">
+      <div class="card-dark">
+        <h4 style="font-size: 14px; color: #94a3b8; margin-bottom: 18px;">وضعیت اشتراک و ترافیک لحظه‌ای</h4>
+        <div class="circle-wrap">
+          <div class="circle-progress" id="circProg">
+            <div class="circle-inner">
+              <span style="font-size: 10px; color: #64748b;">باقیمانده</span>
+              <b style="font-size: 15px; color: #10b981; margin: 2px 0;" id="c-remain">-- GB</b>
+              <small style="font-size: 9px; color: #94a3b8;" id="c-total">از -- GB</small>
+            </div>
+          </div>
+          
+          <div class="stat-list">
+            <div class="stat-row">
+              <span style="color: #64748b;">زمان باقیمانده:</span>
+              <b style="color: #38bdf8;" id="c-days">-- روز</b>
+            </div>
+            <div class="stat-row">
+              <span style="color: #64748b;">حجم مصرف شده:</span>
+              <b style="color: #f59e0b;" id="c-used">-- GB</b>
+            </div>
+            <div class="stat-row">
+              <span style="color: #64748b;">تاریخ پایان اشتراک:</span>
+              <b id="c-exp">--</b>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-field-group">
+          <input type="text" id="subUrlIn" class="sub-input" readonly>
+          <button class="btn-action" onclick="copySub()"><i class="fa-solid fa-copy"></i> کپی لینک ساب</button>
+        </div>
+      </div>
+
+      <div class="card-dark" style="text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <h4 style="font-size: 14px; color: #94a3b8; margin-bottom: 12px;">QR Code اتصال خودکار</h4>
+        <div style="background: white; padding: 10px; border-radius: 12px; display: inline-block;">
+          <div id="subQrCode"></div>
+        </div>
+        <p style="font-size: 11px; color: #64748b; margin-top: 10px;">در نرم‌افزار v2rayNG بارکد را اسکن کنید</p>
+      </div>
+    </div>
+
+    <h4 style="font-size: 15px; margin-bottom: 12px; color: #94a3b8;">کانفیگ‌های شما (پروتکل‌های واقعی آماده اتصال)</h4>
+    <div class="configs-grid">
+      <div class="cfg-tile">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <b>VLESS + WebSocket + TLS</b>
+          <span class="proto-badge" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8;">VLESS</span>
+        </div>
+        <p style="font-size: 11px; color:#64748b; margin: 12px 0;">پایداری بالا، بدون افت سرعت و سبک</p>
+        <button class="btn-action" style="justify-content:center; padding: 10px;" id="btnVless"><i class="fa-solid fa-copy"></i> کپی کانفیگ VLESS</button>
+      </div>
+
+      <div class="cfg-tile">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <b>VMess + WebSocket + TLS</b>
+          <span class="proto-badge" style="background:rgba(168, 85, 247, 0.15); color:#a855f7;">VMess</span>
+        </div>
+        <p style="font-size: 11px; color:#64748b; margin: 12px 0;">سازگاری کامل با تمامی سیستم‌ها</p>
+        <button class="btn-action" style="justify-content:center; padding: 10px; background:#8b5cf6;" id="btnVmess"><i class="fa-solid fa-copy"></i> کپی کانفیگ VMess</button>
+      </div>
+
+      <div class="cfg-tile">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <b>Trojan + WebSocket + TLS</b>
+          <span class="proto-badge" style="background:rgba(239, 68, 68, 0.15); color:#ef4444;">Trojan</span>
+        </div>
+        <p style="font-size: 11px; color:#64748b; margin: 12px 0;">شبیه‌سازی کامل وب‌گردی طبیعی و ضد فیلتر</p>
+        <button class="btn-action" style="justify-content:center; padding: 10px; background:#475569;" id="btnTrojan"><i class="fa-solid fa-copy"></i> کپی کانفیگ Trojan</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const cfgId = window.location.pathname.split('/').pop();
+
+    async function loadClientSub() {
+      const res = await fetch('/api/subinfo/' + cfgId).then(r => r.json());
+      if (res.error) {
+        document.body.innerHTML = '<h3 style="text-align:center; margin-top:50px;">لینک ساب‌اسکریپشن نامعتبر است.</h3>';
+        return;
+      }
+
+      document.getElementById('c-remain').innerText = res.remainingGb + ' GB';
+      document.getElementById('c-total').innerText = 'از ' + res.config.total_gb + ' GB';
+      document.getElementById('c-days').innerText = res.config.expire_days + ' روز';
+      document.getElementById('c-used').innerText = res.config.used_gb + ' GB';
+      document.getElementById('c-exp').innerText = res.config.expire_date.split('T')[0];
+      document.getElementById('c-server-tag').innerText = res.config.server;
+      
+      document.getElementById('subUrlIn').value = res.subUrl;
+      document.getElementById('circProg').style.setProperty('--prog', (100 - res.usagePercent) + '%');
+
+      new QRCode(document.getElementById('subQrCode'), { text: res.subUrl, width: 130, height: 130 });
+
+      document.getElementById('btnVless').onclick = () => { navigator.clipboard.writeText(res.vless); alert('کانفیگ VLESS کپی شد!'); };
+      document.getElementById('btnVmess').onclick = () => { navigator.clipboard.writeText(res.vmess); alert('کانفیگ VMess کپی شد!'); };
+      document.getElementById('btnTrojan').onclick = () => { navigator.clipboard.writeText(res.trojan); alert('کانفیگ Trojan کپی شد!'); };
+    }
+
+    function copySub() {
+      navigator.clipboard.writeText(document.getElementById('subUrlIn').value);
+      alert('لینک ساب‌اسکریپشن کپی شد!');
+    }
+
+    loadClientSub();
+  </script>
+</body>
+</html>

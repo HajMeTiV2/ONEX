@@ -10,14 +10,6 @@ const os = require('os');
 const { spawn, exec } = require('child_process');
 const http = require('http');
 const httpProxy = require('http-proxy');
-const crypto = require('crypto');
-
-let TelegramBot;
-try {
-  TelegramBot = require('node-telegram-bot-api');
-} catch (e) {
-  TelegramBot = null;
-}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -100,16 +92,8 @@ db.serialize(() => {
 
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('custom_domain', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('clean_ip', '')`);
+  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('active_announcement', '')`);
 });
-
-let botInstance = null;
-function notifyAdmin(message) {
-  if (botInstance && ADMIN_TG_ID) {
-    try {
-      botInstance.sendMessage(ADMIN_TG_ID, `📢 *اطلاعیه ONEX*\n\n${message}`, { parse_mode: 'Markdown' });
-    } catch (e) {}
-  }
-}
 
 function getServerMetrics() {
   const totalMem = os.totalmem();
@@ -145,63 +129,22 @@ function startCoreEngine() {
     const tClients = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid, email: r.uuid })) : [{ password: fallbackId, email: fallbackId }];
 
     const inbounds = [
-      {
-        tag: "api",
-        port: 10085,
-        listen: "127.0.0.1",
-        protocol: "dokodemo-door",
-        settings: { address: "127.0.0.1" }
-      },
-      {
-        port: 8081,
-        listen: "127.0.0.1",
-        protocol: "vless",
-        settings: { clients: vClients, decryption: "none" },
-        streamSettings: { network: "ws", wsSettings: { path: "/vless" } }
-      },
-      {
-        port: 8082,
-        listen: "127.0.0.1",
-        protocol: "vmess",
-        settings: { clients: vClients.map(c => ({ id: c.id, alterId: 0, email: c.email })) },
-        streamSettings: { network: "ws", wsSettings: { path: "/vmess" } }
-      },
-      {
-        port: 8083,
-        listen: "127.0.0.1",
-        protocol: "trojan",
-        settings: { clients: tClients },
-        streamSettings: { network: "ws", wsSettings: { path: "/trojan" } }
-      },
-      {
-        port: 8084,
-        listen: "127.0.0.1",
-        protocol: "vless",
-        settings: { clients: vClients, decryption: "none" },
-        streamSettings: { network: "ws", wsSettings: { path: "/xhttp" } }
-      },
-      {
-        port: 8085,
-        listen: "127.0.0.1",
-        protocol: "vless",
-        settings: { clients: vClients, decryption: "none" },
-        streamSettings: { network: "ws", wsSettings: { path: "/grpc" } }
-      }
+      { tag: "api", port: 10085, listen: "127.0.0.1", protocol: "dokodemo-door", settings: { address: "127.0.0.1" } },
+      { port: 8081, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/vless" } } },
+      { port: 8082, listen: "127.0.0.1", protocol: "vmess", settings: { clients: vClients.map(c => ({ id: c.id, alterId: 0, email: c.email })) }, streamSettings: { network: "ws", wsSettings: { path: "/vmess" } } },
+      { port: 8083, listen: "127.0.0.1", protocol: "trojan", settings: { clients: tClients }, streamSettings: { network: "ws", wsSettings: { path: "/trojan" } } },
+      { port: 8084, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/xhttp" } } },
+      { port: 8085, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/grpc" } } }
     ];
 
     const xrayConfig = {
       log: { loglevel: "error" },
       stats: {},
       api: { tag: "api", services: ["StatsService"] },
-      policy: {
-        levels: { "0": { statsUserUplink: true, statsUserDownlink: true } },
-        system: { statsInboundUplink: true, statsInboundDownlink: true }
-      },
+      policy: { levels: { "0": { statsUserUplink: true, statsUserDownlink: true } }, system: { statsInboundUplink: true, statsInboundDownlink: true } },
       inbounds: inbounds,
       outbounds: [{ protocol: "freedom" }],
-      routing: {
-        rules: [{ inboundTag: ["api"], outboundTag: "api", type: "field" }]
-      }
+      routing: { rules: [{ inboundTag: ["api"], outboundTag: "api", type: "field" }] }
     };
 
     const cfgPath = path.join(DATA_DIR, 'xray_run.json');
@@ -266,25 +209,18 @@ function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const connectionAddress = (cleanIp && cleanIp.trim() !== '') ? cleanIp.trim() : activeHost;
 
   const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-WS')}`;
-
   const vmessPayload = {
     v: "2", ps: `${remark}-VMess`, add: connectionAddress, port: "443", id: cfg.uuid,
     aid: "0", scy: "auto", net: "ws", type: "none", host: activeHost, path: "/vmess", tls: "tls", sni: activeHost
   };
   const vmessWs = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
   const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan')}`;
-
   const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
   const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fgrpc&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
   const vlessReality = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-REALITY')}`;
 
-  let chosenLinks = [vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc];
-  const plainSub = chosenLinks.join('\n');
-
-  return {
-    vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc, vlessReality,
-    plainSub, activeHost, connectionAddress
-  };
+  const plainSub = [vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc].join('\n');
+  return { vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc, vlessReality, plainSub, activeHost, connectionAddress };
 }
 
 function auth(req, res, next) {
@@ -321,6 +257,7 @@ app.get('/api/panel-data', auth, (req, res) => {
         totalAllocated: rows.reduce((s, c) => s + (c.total_gb || 0), 0),
         totalUsed: rows.reduce((s, c) => s + (c.used_gb || 0), 0).toFixed(2),
         customDomain: setMap['custom_domain'] || '',
+        cleanIp: setMap['clean_ip'] || '',
         metrics: getServerMetrics(),
         logs: liveLogs,
         configs: rows
@@ -346,7 +283,7 @@ app.post('/api/configs/create', auth, (req, res) => {
   );
 });
 
-// مسیر ویرایش مشخصات کانفیگ
+// مسیر ویرایش کانفیگ
 app.post('/api/configs/:id/edit', auth, (req, res) => {
   const { name, total_gb, expire_days } = req.body;
   db.run(
@@ -358,6 +295,34 @@ app.post('/api/configs/:id/edit', auth, (req, res) => {
       res.json({ success: true });
     }
   );
+});
+
+// مسیر ذخیره تنظیمات ورکر و کلین آی‌پی
+app.post('/api/save-worker-settings', auth, (req, res) => {
+  const { customDomain, cleanIp } = req.body;
+  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('custom_domain', ?)`, [customDomain || ''], () => {
+    db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('clean_ip', ?)`, [cleanIp || ''], () => {
+      addLog(`تنظیمات ورکر و Clean IP به‌روز شد.`);
+      res.json({ success: true });
+    });
+  });
+});
+
+// مسیر ذخیره پیام همگانی
+app.post('/api/broadcast/save', auth, (req, res) => {
+  if (req.session.role !== 'admin') return res.status(403).json({ error: 'ممنوع' });
+  const { message } = req.body;
+  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('active_announcement', ?)`, [message || ''], () => {
+    addLog(`پیام همگانی پنل به‌روز شد.`);
+    res.json({ success: true });
+  });
+});
+
+// دریافت پیام همگانی برای کلاینت‌ها
+app.get('/api/announcement', (req, res) => {
+  db.get('SELECT value FROM settings WHERE key = "active_announcement"', (err, row) => {
+    res.json({ message: row ? row.value : '' });
+  });
 });
 
 app.post('/api/configs/:id/renew', auth, (req, res) => {
@@ -428,7 +393,7 @@ app.get('/api/subinfo/:id', (req, res) => {
   });
 });
 
-// مسیر دعوت دوستان (Referral)
+// مسیر معرفی دوستان (Referral)
 app.get('/invite/:uuid', (req, res) => {
   const inviterUuid = req.params.uuid;
   db.get('SELECT * FROM configs WHERE uuid = ?', [inviterUuid], (err, inviter) => {
@@ -454,7 +419,6 @@ const pXhttp = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8084', ws
 const pGrpc = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8085', ws: true });
 
 const server = http.createServer(app);
-
 server.on('upgrade', (req, socket, head) => {
   if (req.url.startsWith('/vless')) pVless.ws(req, socket, head);
   else if (req.url.startsWith('/vmess')) pVmess.ws(req, socket, head);

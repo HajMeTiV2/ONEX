@@ -286,17 +286,26 @@ function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
   const connectionAddress = (cleanIp && cleanIp.trim() !== '') ? cleanIp.trim() : activeHost;
 
+  // 1. WebSocket VLESS
   const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-WS')}`;
 
+  // 2. VMess WS
   const vmessPayload = {
     v: "2", ps: `${remark}-VMess`, add: connectionAddress, port: "443", id: cfg.uuid,
     aid: "0", scy: "auto", net: "ws", type: "none", host: activeHost, path: "/vmess", tls: "tls", sni: activeHost
   };
   const vmessWs = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
+
+  // 3. Trojan WS
   const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan')}`;
 
-  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
-  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fgrpc&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
+  // 4. XHTTP واقعی با نوع xhttp
+  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=xhttp&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
+
+  // 5. gRPC واقعی با نوع grpc
+  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fgrpc&security=tls&encryption=none&type=grpc&serviceName=onex-grpc&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
+
+  // 6. REALITY
   const vlessReality = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-REALITY')}`;
   const ssLink = vlessWs;
 

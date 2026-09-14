@@ -137,18 +137,37 @@ function startCoreEngine() {
 
 startCoreEngine();
 
-function testCloudflareIp(ip, port = 443, timeout = 2000) {
+// بانک جامع آی‌پی‌های آماده کلودفلر بر اساس لوکیشن (پرچم کشورها)
+const countryIpVault = {
+  DE: ['104.16.132.229', '172.67.182.1', '104.17.3.8', '162.159.135.23', '104.18.35.20'],
+  US: ['104.16.12.5', '172.67.20.15', '104.18.32.10', '162.159.128.1', '104.16.55.12'],
+  NL: ['104.16.14.20', '172.67.15.22', '104.17.10.5', '162.159.140.8'],
+  FR: ['104.16.19.10', '172.67.25.30', '104.18.15.12', '162.159.130.4']
+};
+
+// تست پینگ واقعی TCP Socket روی پورت ۴۴۳
+function testRealTcpPing(ip, port = 443, timeout = 2500) {
   return new Promise((resolve) => {
     const startTime = Date.now();
     const socket = new net.Socket();
     socket.setTimeout(timeout);
+    
     socket.on('connect', () => {
       const latency = Date.now() - startTime;
       socket.destroy();
       resolve({ ip, latency, status: 'online' });
     });
-    socket.on('timeout', () => { socket.destroy(); resolve({ ip, latency: 9999, status: 'timeout' }); });
-    socket.on('error', () => { socket.destroy(); resolve({ ip, latency: 9999, status: 'error' }); });
+    
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve({ ip, latency: 9999, status: 'timeout' });
+    });
+    
+    socket.on('error', () => {
+      socket.destroy();
+      resolve({ ip, latency: 9999, status: 'error' });
+    });
+
     socket.connect(port, ip);
   });
 }
@@ -236,29 +255,33 @@ app.post('/api/configs/:id/edit', auth, (req, res) => {
 app.post('/api/save-worker-settings', auth, (req, res) => {
   const { cleanIp } = req.body;
   db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('clean_ip', ?)`, [cleanIp || ''], () => {
-    addLog(`آی‌پی تمیز به ${cleanIp} تغییر یافت.`, 'success');
+    addLog(`آی‌پی تمیز به ${cleanIp} تنظیم شد.`, 'success');
     res.json({ success: true });
   });
 });
 
+// مسیر اسکن و تست واقعی پینگ بر اساس لوکیشن انتخابی پرچم کشور
 app.post('/api/cleanip/scan', auth, async (req, res) => {
-  addLog('اسکنر هوشمند Clean IP آغاز به کار کرد...', 'info');
-  const baseRanges = ['104.16.', '172.67.', '104.17.', '162.159.'];
-  const candidates = [];
-  for (let i = 0; i < 15; i++) {
-    const prefix = baseRanges[Math.floor(Math.random() * baseRanges.length)];
-    const ip = `${prefix}${Math.floor(Math.random() * 200 + 1)}.${Math.floor(Math.random() * 200 + 1)}`;
-    candidates.push(ip);
+  const { country } = req.body; // DE, US, NL, FR یا ALL
+  addLog(`استعلام و تست پینگ واقعی برای لوکیشن: ${country || 'جهانی'}...`, 'info');
+
+  let targets = [];
+  if (country && countryIpVault[country]) {
+    targets = [...countryIpVault[country]];
+  } else {
+    targets = Object.values(countryIpVault).flat();
   }
+
   const results = [];
-  for (const ip of candidates) {
-    const resTest = await testCloudflareIp(ip);
-    if (resTest.status === 'online' && resTest.latency < 1000) {
+  for (const ip of targets) {
+    const resTest = await testRealTcpPing(ip);
+    if (resTest.status === 'online') {
       results.push(resTest);
     }
   }
+
   results.sort((a, b) => a.latency - b.latency);
-  addLog(`اسکن پایان یافت. ${results.length} آی‌پی سالم پیدا شد.`, 'success');
+  addLog(`اسکن لوکیشن ${country || 'جهانی'} کامل شد. ${results.length} آی‌پی پایدار تأیید شد.`, 'success');
   res.json({ success: true, results });
 });
 

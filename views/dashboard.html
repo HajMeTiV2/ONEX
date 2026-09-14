@@ -260,7 +260,6 @@
       </div>
     </div>
 
-    <!-- سایر تب‌های مدیریت -->
     <div id="view-ssl" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">SSL</h3></div></div>
     <div id="view-reseller" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">نمایندگان</h3></div></div>
     <div id="view-logs" class="view-section"><div class="panel-box"><h3 style="color:var(--accent)">لاگ</h3><div class="log-terminal" id="logBox"></div></div></div>
@@ -332,7 +331,27 @@
     let globalConfigs = [];
     let currentFilter = 'all';
 
-    function setTheme(t) { document.documentElement.setAttribute('data-theme', t); }
+    // سیستم هوشمند تغییر تم خودکار بر اساس ساعت شبانه‌روز
+    function checkAutoTheme() {
+      const currentHour = new Date().getHours();
+      const isNightTime = currentHour >= 19 || currentHour < 6; // از ۱۹ تا ۶ صبح تم تیره مطلق/سایبرپانک
+      if (!localStorage.getItem('manual_theme_set')) {
+        setTheme(isNightTime ? 'oled' : 'glass');
+      }
+    }
+
+    function setTheme(themeName) {
+      document.documentElement.setAttribute('data-theme', themeName);
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.theme-btn').forEach(b => {
+        if (b.innerText.toLowerCase().includes(themeName.substring(0, 3))) {
+          b.classList.add('active');
+        }
+      });
+      localStorage.setItem('manual_theme_set', 'true');
+      localStorage.setItem('preferred_theme', themeName);
+    }
+
     function toggleSidebar() { document.getElementById('mainSidebar').classList.toggle('open'); document.getElementById('sideOverlay').classList.toggle('active'); }
     function switchView(name) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
@@ -486,6 +505,16 @@
     async function renewCfg(id) { await fetch(`/api/configs/${id}/renew`, { method: 'POST' }); closeDrawer(); loadData(); }
     async function resetTraffic(id) { await fetch(`/api/configs/${id}/reset-traffic`, { method: 'POST' }); closeDrawer(); loadData(); }
     async function delCfg(id) { if (confirm('حذف شود؟')) { await fetch('/api/configs/' + id, { method: 'DELETE' }); closeDrawer(); loadData(); } }
+
+    // تنظیم تم اولیه هنگام لود صفحه
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedTheme = localStorage.getItem('preferred_theme');
+      if (savedTheme) {
+        setTheme(savedTheme);
+      } else {
+        checkAutoTheme();
+      }
+    });
 
     setInterval(loadData, 15000);
     loadData();

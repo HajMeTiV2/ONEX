@@ -1,225 +1,366 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <title>ONEX • پورتال هوشمند اشتراک</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <style>
-    :root {
-      --bg-main: #070e1b;
-      --bg-card: rgba(16, 26, 48, 0.75);
-      --border-color: rgba(56, 189, 248, 0.25);
-      --text-main: #f1f5f9;
-      --text-muted: #94a3b8;
-      --accent: #38bdf8;
+const express = require('express');
+const session = require('express-session');
+const fileUpload = require('express-fileupload');
+const bcrypt = require('bcryptjs');
+const sqlite3 = require('sqlite3').verbose();
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const { spawn, exec } = require('child_process');
+const http = require('http');
+const httpProxy = require('http-proxy');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 } }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'onex-master-vault-2026',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }
+}));
+
+const dbPath = path.join(DATA_DIR, 'onex_vault.db');
+const db = new sqlite3.Database(dbPath);
+
+const liveLogs = [];
+function addLog(msg) {
+  const time = new Date().toLocaleTimeString('fa-IR');
+  liveLogs.unshift(`[${time}] ${msg}`);
+  if (liveLogs.length > 100) liveLogs.pop();
+}
+
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE,
+      password TEXT,
+      role TEXT DEFAULT 'admin',
+      credit_gb REAL DEFAULT 1000,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS configs (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      owner TEXT DEFAULT 'admin',
+      server TEXT DEFAULT 'Germany (DE)',
+      protocol TEXT DEFAULT 'all',
+      total_gb REAL DEFAULT 15,
+      used_gb REAL DEFAULT 0,
+      downlink_bytes INTEGER DEFAULT 0,
+      uplink_bytes INTEGER DEFAULT 0,
+      expire_days INTEGER DEFAULT 30,
+      expire_date DATETIME,
+      uuid TEXT UNIQUE,
+      tag TEXT DEFAULT 'normal',
+      referred_by TEXT,
+      referral_count INTEGER DEFAULT 0,
+      ip_limit INTEGER DEFAULT 2,
+      status TEXT DEFAULT 'pending',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.get('SELECT * FROM users WHERE username = ?', ['admin'], (err, row) => {
+    if (!row) {
+      const hash = bcrypt.hashSync('admin', 10);
+      db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['admin', hash, 'admin']);
     }
+  });
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: var(--bg-main); color: var(--text-main); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-x: hidden; }
+  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('custom_domain', '')`);
+  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('clean_ip', '')`);
+  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('active_announcement', '')`);
+});
 
-    .portal-container {
-      width: 100%; max-width: 480px; background: var(--bg-card);
-      border: 1px solid var(--border-color); border-radius: 24px; padding: 24px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
-      backdrop-filter: blur(20px); transform: perspective(1000px);
+function getServerMetrics() {
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+  const memPercent = Math.round((usedMem / totalMem) * 100);
+  const cpus = os.cpus();
+  let user = 0, sys = 0, idle = 0;
+  for (const cpu of cpus) {
+    user += cpu.times.user;
+    sys += cpu.times.sys;
+    idle += cpu.times.idle;
+  }
+  const total = user + sys + idle;
+  const cpuPercent = total > 0 ? Math.round(((total - idle) / total) * 100) : 0;
+  return { cpu: cpuPercent, ram: memPercent, uptime: Math.round(os.uptime() / 3600) };
+}
+
+function startCoreEngine() {
+  db.all('SELECT * FROM configs WHERE status != "expired"', (err, rows) => {
+    const fallbackId = "b831381d-6324-4d53-ad4f-8cda48b30811";
+    const vClients = (rows && rows.length > 0) ? rows.map(r => ({ id: r.uuid, email: r.uuid })) : [{ id: fallbackId, email: fallbackId }];
+    const tClients = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid, email: r.uuid })) : [{ password: fallbackId, email: fallbackId }];
+
+    const inbounds = [
+      { tag: "api", port: 10085, listen: "127.0.0.1", protocol: "dokodemo-door", settings: { address: "127.0.0.1" } },
+      { port: 8081, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/vless" } } },
+      { port: 8082, listen: "127.0.0.1", protocol: "vmess", settings: { clients: vClients.map(c => ({ id: c.id, alterId: 0, email: c.email })) }, streamSettings: { network: "ws", wsSettings: { path: "/vmess" } } },
+      { port: 8083, listen: "127.0.0.1", protocol: "trojan", settings: { clients: tClients }, streamSettings: { network: "ws", wsSettings: { path: "/trojan" } } },
+      { port: 8084, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/xhttp" } } },
+      { port: 8085, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/grpc" } } }
+    ];
+
+    const xrayConfig = {
+      log: { loglevel: "error" },
+      stats: {},
+      api: { tag: "api", services: ["StatsService"] },
+      policy: { levels: { "0": { statsUserUplink: true, statsUserDownlink: true } }, system: { statsInboundUplink: true, statsInboundDownlink: true } },
+      inbounds: inbounds,
+      outbounds: [{ protocol: "freedom" }],
+      routing: { rules: [{ inboundTag: ["api"], outboundTag: "api", type: "field" }] }
+    };
+
+    const cfgPath = path.join(DATA_DIR, 'xray_run.json');
+    fs.writeFileSync(cfgPath, JSON.stringify(xrayConfig, null, 2));
+
+    const binPath = path.join(__dirname, 'xray-bin', 'xray');
+    if (fs.existsSync(binPath)) {
+      spawn('pkill', ['-f', 'xray']);
+      setTimeout(() => {
+        const proc = spawn(binPath, ['run', '-c', cfgPath]);
+        proc.stdout.on('data', d => process.stdout.write(`[XRAY]: ${d}`));
+      }, 400);
     }
+  });
+}
 
-    /* هدر با لوگوی ۳بعدی و وضعیت آنلاین/آفلاین */
-    .portal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
-    .brand-box { display: flex; align-items: center; gap: 10px; }
-    .logo-3d {
-      width: 40px; height: 40px; border-radius: 12px;
-      background: linear-gradient(135deg, #0284c7 0%, #38bdf8 50%, #0369a1 100%);
-      display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;
-      box-shadow: 0 8px 20px rgba(56, 189, 248, 0.4); transform: perspective(500px) rotateX(10deg) rotateY(-10deg);
-    }
-    
-    .status-badge {
-      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;
-    }
-    .status-online { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .status-offline { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
-
-    /* باکس اطلاعیه همگانی */
-    #announcementBox {
-      display: none; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1);
-      border-radius: 14px; padding: 12px; margin-bottom: 16px; text-align: center;
-    }
-
-    /* بخش اطلاعات حجم و مصرف */
-    .usage-card {
-      background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border-color);
-      border-radius: 16px; padding: 16px; margin-bottom: 16px;
-    }
-    .progress-bar-bg { width: 100%; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; margin: 10px 0; }
-    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #0284c7, #38bdf8); border-radius: 4px; width: 0%; transition: width 0.5s ease; }
-
-    /* دکمه‌های اکشن اصلی */
-    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-    .btn-action {
-      padding: 12px; border-radius: 12px; border: none; font-size: 12.5px; font-weight: 800; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none; transition: 0.2s;
-    }
-    .btn-primary { background: var(--accent); color: #000; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3); }
-    .btn-secondary { background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid var(--border-color); }
-    .btn-full { grid-column: span 2; background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; }
-    .btn-action:hover { filter: brightness(1.1); transform: translateY(-1px); }
-
-    /* فوتر و اطلاعات سازنده */
-    .portal-footer {
-      display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);
-      padding-top: 14px; margin-top: 16px; font-size: 11.5px; color: var(--text-muted);
-    }
-    .channel-link { color: var(--accent); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
-    .channel-link:hover { text-decoration: underline; }
-  </style>
-</head>
-<body>
-
-  <div class="portal-container">
-    
-    <!-- هدر پورتال -->
-    <div class="portal-header">
-      <div class="brand-box">
-        <div class="logo-3d"><i class="fa-solid fa-bolt"></i></div>
-        <div>
-          <h3 style="font-size: 15px; font-weight: 900; color: var(--accent);" id="clientNameTitle">بارگذاری...</h3>
-          <small style="font-size: 10.5px; color: var(--text-muted);" id="clientProtocolTitle">مختص اشتراک ابری</small>
-        </div>
-      </div>
-      <div id="statusBadgeContainer">
-        <span class="status-badge status-offline"><i class="fa-solid fa-circle"></i> بررسی...</span>
-      </div>
-    </div>
-
-    <!-- اطلاعیه همگانی ادمین -->
-    <div id="announcementBox">
-      <h4 style="font-size: 11.5px; color: #fbbf24; margin-bottom: 3px;"><i class="fa-solid fa-bullhorn"></i> اطلاعیه مهم</h4>
-      <p style="font-size: 11px; color: #fef3c7;" id="announcementText">--</p>
-    </div>
-
-    <!-- کارت وضعیت حجم و ترافیک -->
-    <div class="usage-card">
-      <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
-        <span style="color: var(--text-muted);">مصرف کل ترافیک:</span>
-        <b id="usedTrafficText">0 GB / 0 GB</b>
-      </div>
-      <div class="progress-bar-bg">
-        <div class="progress-bar-fill" id="usageProgressBar"></div>
-      </div>
-      <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-top: 6px;">
-        <span>باقی‌مانده: <b id="remainingTrafficText" style="color: #34d399;">0 GB</b></span>
-        <span>اعتبار زمانی: <b id="expireDaysText" style="color: var(--accent);">30 روز</b></span>
-      </div>
-    </div>
-
-    <!-- دکمه‌های کپی و دسترسی -->
-    <div class="action-grid">
-      <button class="btn-action btn-primary" onclick="copyAllConfigs()"><i class="fa-solid fa-copy"></i> کپی همه کانفیگ‌ها</button>
-      <button class="btn-action btn-secondary" onclick="copySubLink()"><i class="fa-solid fa-link"></i> کپی لینک ساب</button>
-      <button class="btn-action btn-full" onclick="openQrModal()"><i class="fa-solid fa-qrcode"></i> نمایش QR Code اشتراک</button>
-    </div>
-
-    <!-- فوتر با لینک کانال تلگرام و اسم سازنده -->
-    <div class="portal-footer">
-      <div>Developer: <b style="color: var(--text-main);">@MehTif</b></div>
-      <a href="https://t.me/V2rayTun0" target="_blank" class="channel-link">
-        <i class="fa-brands fa-telegram" style="font-size: 14px;"></i> @V2rayTun0
-      </a>
-    </div>
-
-  </div>
-
-  <!-- مودال QR Code -->
-  <div style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 300; align-items: center; justify-content: center; padding: 16px;" id="qrModal">
-    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; padding: 24px; text-align: center; max-width: 340px; width: 100%;">
-      <h3 style="font-size: 15px; color: var(--accent); margin-bottom: 12px; font-weight: 800;">QR Code اشتراک</h3>
-      <div style="background: #fff; padding: 12px; border-radius: 12px; display: inline-block; margin-bottom: 14px;" id="qrcodeBox"></div>
-      <button class="btn-action btn-primary" style="width: 100%; justify-content: center;" onclick="closeQrModal()">بستن</button>
-    </div>
-  </div>
-
-  <script>
-    let rawSubText = '';
-    let currentSubUrl = '';
-
-    const pathSegments = window.location.pathname.split('/');
-    const configId = pathSegments[pathSegments.length - 1];
-
-    async function loadPortalData() {
-      try {
-        const res = await fetch(`/api/subinfo/${configId}`).then(r => r.json());
-        if (res.config) {
-          const c = res.config;
-          document.getElementById('clientNameTitle').innerText = c.name;
-          document.getElementById('clientProtocolTitle').innerText = `پروتکل: ${(c.protocol || 'all').toUpperCase()}`;
-          
-          // وضعیت آنلاین/آفلاین بر اساس فعال بودن و داشتن حجم/تاریخ
-          const badgeContainer = document.getElementById('statusBadgeContainer');
-          if (c.status === 'active') {
-            badgeContainer.innerHTML = `<span class="status-badge status-online"><i class="fa-solid fa-circle"></i> آنلاین (فعال)</span>`;
-          } else if (c.status === 'pending') {
-            badgeContainer.innerHTML = `<span class="status-badge status-online" style="background:rgba(56,189,248,0.2); color:#38bdf8;"><i class="fa-solid fa-circle"></i> آماده اتصال</span>`;
-          } else {
-            badgeContainer.innerHTML = `<span class="status-badge status-offline"><i class="fa-solid fa-circle"></i> آفلاین (منقضی)</span>`;
+function syncUserTrafficFromCore() {
+  const binPath = path.join(__dirname, 'xray-bin', 'xray');
+  if (!fs.existsSync(binPath)) return;
+  exec(`${binPath} api statsquery -server 127.0.0.1:10085 -reset true`, (error, stdout) => {
+    if (error || !stdout) return;
+    try {
+      const statsObj = JSON.parse(stdout);
+      if (!statsObj.stat || !Array.isArray(statsObj.stat)) return;
+      statsObj.stat.forEach(item => {
+        const parts = item.name.split('>>>');
+        if (parts[0] === 'user' && parts[2] === 'traffic') {
+          const uuid = parts[1];
+          const direction = parts[3];
+          const bytes = parseInt(item.value, 10) || 0;
+          if (bytes > 0) {
+            const addedGb = bytes / (1024 * 1024 * 1024);
+            const column = direction === 'downlink' ? 'downlink_bytes' : 'uplink_bytes';
+            db.get('SELECT id, status, expire_days FROM configs WHERE uuid = ?', [uuid], (err, cfg) => {
+              if (cfg) {
+                if (cfg.status === 'pending') {
+                  const exp = new Date();
+                  exp.setDate(exp.getDate() + cfg.expire_days);
+                  db.run('UPDATE configs SET status = "active", expire_date = ? WHERE id = ?', [exp.toISOString(), cfg.id]);
+                }
+                db.run(`UPDATE configs SET used_gb = used_gb + ?, ${column} = ${column} + ? WHERE uuid = ?`, [addedGb, bytes, uuid]);
+              }
+            });
           }
-
-          // محاسبه حجم و درصد پیشرفت
-          const used = c.used_gb || 0;
-          const total = c.total_gb || 15;
-          const percent = Math.min(100, Math.round((used / total) * 100));
-
-          document.getElementById('usedTrafficText').innerText = `${used.toFixed(2)} GB / ${total} GB`;
-          document.getElementById('remainingTrafficText').innerText = `${res.remainingGb} GB`;
-          document.getElementById('usageProgressBar').style.width = `${percent}%`;
-          document.getElementById('expireDaysText').innerText = `${c.expire_days || 30} روز`;
-
-          currentSubUrl = res.subUrl;
-
-          // دریافت لینک‌های کامل برای کپی همزمان همه پروتکل‌ها
-          const subTextRes = await fetch(`/sub/${configId}`).then(r => r.text());
-          rawSubText = atob(subTextRes);
         }
-      } catch (e) {
-        document.getElementById('clientNameTitle').innerText = 'خطا در بارگذاری';
-      }
+      });
+    } catch (e) {}
+  });
+}
 
-      // دریافت اطلاعیه همگانی
-      try {
-        const annRes = await fetch('/api/announcement').then(r => r.json());
-        if (annRes.message && annRes.message.trim() !== '') {
-          document.getElementById('announcementText').innerText = annRes.message;
-          document.getElementById('announcementBox').style.display = 'block';
-        }
-      } catch (e) {}
+setInterval(syncUserTrafficFromCore, 10000);
+startCoreEngine();
+
+function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
+  const remark = `ONEX-${cfg.name}`;
+  const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
+  const connectionAddress = (cleanIp && cleanIp.trim() !== '') ? cleanIp.trim() : activeHost;
+
+  const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-WS')}`;
+  const vmessPayload = { v: "2", ps: `${remark}-VMess`, add: connectionAddress, port: "443", id: cfg.uuid, aid: "0", scy: "auto", net: "ws", type: "none", host: activeHost, path: "/vmess", tls: "tls", sni: activeHost };
+  const vmessWs = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
+  const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan')}`;
+  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
+  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fgrpc&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
+
+  const plainSub = [vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc].join('\n');
+  return { plainSub };
+}
+
+function auth(req, res, next) {
+  if (req.session && req.session.userId) return next();
+  res.redirect('/login');
+}
+
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'views', 'login.html')));
+app.get('/', auth, (req, res) => res.sendFile(path.join(__dirname, 'views', 'dashboard.html')));
+app.get('/subpage/:id', (req, res) => res.sendFile(path.join(__dirname, 'views', 'sub_client.html')));
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  db.get('SELECT * FROM users WHERE username = ?', [username], (err, user) => {
+    if (user && bcrypt.compareSync(password, user.password)) {
+      req.session.userId = user.id;
+      req.session.username = user.username;
+      req.session.role = user.role;
+      return res.json({ success: true });
     }
+    res.status(401).json({ error: 'اطلاعات ورود اشتباه است.' });
+  });
+});
 
-    function copyAllConfigs() {
-      if (!rawSubText) { alert('اطلاعات در حال بارگذاری است...'); return; }
-      navigator.clipboard.writeText(rawSubText);
-      alert('📋 تمام کانفیگ‌های تمام پروتکل‌ها با موفقیت کپی شدند!');
+app.get('/api/panel-data', auth, (req, res) => {
+  db.all('SELECT * FROM configs ORDER BY created_at DESC', (err, rows) => {
+    db.all('SELECT key, value FROM settings', (err, sets) => {
+      const setMap = {};
+      (sets || []).forEach(s => setMap[s.key] = s.value);
+      res.json({
+        currentUser: req.session.username,
+        configsCount: rows.length,
+        totalUsed: rows.reduce((s, c) => s + (c.used_gb || 0), 0).toFixed(2),
+        customDomain: setMap['custom_domain'] || '',
+        cleanIp: setMap['clean_ip'] || '',
+        metrics: getServerMetrics(),
+        logs: liveLogs,
+        configs: rows
+      });
+    });
+  });
+});
+
+app.post('/api/settings/update-credentials', auth, (req, res) => {
+  const { new_username, new_password, current_password } = req.body;
+  db.get('SELECT * FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+    if (!user || !bcrypt.compareSync(current_password, user.password)) {
+      return res.status(400).json({ error: 'رمز عبور فعلی اشتباه است.' });
     }
+    const updatedUser = new_username && new_username.trim() !== '' ? new_username.trim() : user.username;
+    const updatedPass = new_password && new_password.trim() !== '' ? bcrypt.hashSync(new_password, 10) : user.password;
 
-    function copySubLink() {
-      if (!currentSubUrl) { alert('لینک در دسترس نیست.'); return; }
-      navigator.clipboard.writeText(currentSubUrl);
-      alert('🔗 لینک اشتراک (Subscription) کپی شد!');
+    db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', [updatedUser, updatedPass, user.id], (err) => {
+      if (err) return res.status(500).json({ error: 'نام کاربری تکراری است.' });
+      req.session.username = updatedUser;
+      addLog(`حساب ادمین به‌روز شد: ${updatedUser}`);
+      res.json({ success: true });
+    });
+  });
+});
+
+app.post('/api/settings/save-domain', auth, (req, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: 'وارد کردن دامنه الزامی است.' });
+  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('custom_domain', ?)`, [domain.trim()], () => {
+    addLog(`دامنه جدید ست شد: ${domain}`);
+    res.json({ success: true, message: 'دامنه با موفقیت تأیید و ذخیره شد.' });
+  });
+});
+
+app.post('/api/configs/create', auth, (req, res) => {
+  const { name, server, protocol, tag, total_gb, expire_days } = req.body;
+  const id = uuidv4().substring(0, 8);
+  const uuid = uuidv4();
+
+  db.run(
+    `INSERT INTO configs (id, name, owner, server, protocol, tag, total_gb, expire_days, uuid, status) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    [id, name || 'اکانت', req.session.username, server || 'Germany', protocol || 'all', tag || 'normal', parseFloat(total_gb) || 20, parseInt(expire_days) || 30, uuid],
+    function(err) {
+      if (err) return res.status(500).json({ error: 'خطا' });
+      startCoreEngine();
+      res.json({ success: true, id });
     }
+  );
+});
 
-    function openQrModal() {
-      if (!currentSubUrl) return;
-      document.getElementById('qrcodeBox').innerHTML = '';
-      new QRCode(document.getElementById('qrcodeBox'), { text: currentSubUrl, width: 150, height: 150 });
-      document.getElementById('qrModal').style.display = 'flex';
-    }
+app.post('/api/configs/:id/edit', auth, (req, res) => {
+  const { name, total_gb, expire_days } = req.body;
+  db.run('UPDATE configs SET name = ?, total_gb = ?, expire_days = ? WHERE id = ?', [name, parseFloat(total_gb), parseInt(expire_days), req.params.id], () => {
+    addLog(`کانفیگ ${req.params.id} ویرایش شد.`);
+    res.json({ success: true });
+  });
+});
 
-    function closeQrModal() {
-      document.getElementById('qrModal').style.display = 'none';
-    }
+app.post('/api/save-worker-settings', auth, (req, res) => {
+  const { cleanIp } = req.body;
+  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('clean_ip', ?)`, [cleanIp || ''], () => {
+    addLog(`آی‌پی تمیز اعمال شد: ${cleanIp}`);
+    res.json({ success: true });
+  });
+});
 
-    loadPortalData();
-  </script>
-</body>
-</html>
+app.post('/api/broadcast/save', auth, (req, res) => {
+  const { message } = req.body;
+  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('active_announcement', ?)`, [message || ''], () => {
+    res.json({ success: true });
+  });
+});
+
+app.get('/api/announcement', (req, res) => {
+  db.get('SELECT value FROM settings WHERE key = "active_announcement"', (err, row) => {
+    res.json({ message: row ? row.value : '' });
+  });
+});
+
+app.get('/api/backup/download', auth, (req, res) => {
+  if (fs.existsSync(dbPath)) {
+    res.download(dbPath, `onex_backup_${Date.now()}.db`);
+  } else {
+    res.status(404).send('فایل دیتابیس یافت نشد.');
+  }
+});
+
+app.get('/sub/:id', (req, res) => {
+  const defaultHost = req.headers.host;
+  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
+    if (!cfg || cfg.status === 'expired') return res.status(403).send('منقضی شده');
+    db.all('SELECT key, value FROM settings', (err, sets) => {
+      const setMap = {};
+      (sets || []).forEach(s => setMap[s.key] = s.value);
+      const links = buildLinks(cfg, defaultHost, setMap['custom_domain'], setMap['clean_ip']);
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.send(Buffer.from(links.plainSub).toString('base64'));
+    });
+  });
+});
+
+// مسیر دقیق پورتال برای بازگرداندن حجم، درصد مصرف و لینک ساب
+app.get('/api/subinfo/:id', (req, res) => {
+  const defaultHost = req.headers.host;
+  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
+    if (!cfg) return res.status(404).json({ error: 'یافت نشد' });
+    db.all('SELECT key, value FROM settings', (err, sets) => {
+      const setMap = {};
+      (sets || []).forEach(s => setMap[s.key] = s.value);
+      const activeHost = (setMap['custom_domain'] && setMap['custom_domain'].trim() !== '') ? setMap['custom_domain'].trim() : defaultHost;
+      const used = cfg.used_gb || 0;
+      const total = cfg.total_gb || 20;
+
+      res.json({
+        config: cfg,
+        remainingGb: Math.max(0, (total - used)).toFixed(2),
+        usagePercent: Math.min(100, Math.round((used / total) * 100)),
+        subUrl: `https://${activeHost}/sub/${cfg.id}`
+      });
+    });
+  });
+});
+
+const server = http.createServer(app);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[ONEX Enterprise] Running on port ${PORT}`);
+});

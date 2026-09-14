@@ -123,7 +123,6 @@
     .view-section { display: none; }
     .view-section.active-view { display: block; }
 
-    /* طراحی حرفه‌ای بخش ترمینال و مانیتورینگ لاگ */
     .log-terminal { background: #020409; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; font-family: monospace; font-size: 12px; color: #38bdf8; height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 0 15px rgba(0,0,0,0.8); }
     .log-item { display: flex; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px; }
     .log-time { color: var(--text-muted); font-size: 11px; min-width: 70px; }
@@ -169,10 +168,10 @@
       <ul class="nav-list">
         <li><button class="nav-btn active" onclick="switchView('dashboard')"><i class="fa-solid fa-house"></i><span>داشبورد ابری</span></button></li>
         <li><button class="nav-btn" onclick="openModal();"><i class="fa-solid fa-circle-plus"></i><span>ساخت گروهی کانفیگ</span></button></li>
-        <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>مدیریت Clean IPs</span></button></li>
+        <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>اسکنر Clean IP</span></button></li>
         <li><button class="nav-btn" onclick="switchView('broadcast')"><i class="fa-solid fa-bullhorn"></i><span>ارسال اطلاعیه همگانی</span></button></li>
-        <li class="admin-only"><button class="nav-btn" onclick="switchView('logs')"><i class="fa-solid fa-terminal"></i><span>مانیتورینگ و لاگ</span></button></li>
-        <li class="admin-only"><button class="nav-btn" onclick="switchView('backup')"><i class="fa-solid fa-database"></i><span>پشتیبان‌گیری</span></button></li>
+        <li><button class="nav-btn" onclick="switchView('logs')"><i class="fa-solid fa-terminal"></i><span>مانیتورینگ و لاگ</span></button></li>
+        <li><button class="nav-btn" onclick="switchView('backup')"><i class="fa-solid fa-database"></i><span>پشتیبان‌گیری</span></button></li>
         <li><button class="nav-btn" onclick="switchView('settings')"><i class="fa-solid fa-gear"></i><span>تنظیمات حساب</span></button></li>
       </ul>
     </div>
@@ -241,6 +240,49 @@
       </div>
     </div>
 
+    <!-- بخش اسکنر هوشمند Clean IP -->
+    <div id="view-cleanip" class="view-section">
+      <div class="panel-box" style="max-width: 700px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <div>
+            <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 4px;"><i class="fa-solid fa-network-wired"></i> اسکنر هوشمند Clean IP کلودفلر</h3>
+            <small style="color: var(--text-muted);">پیدا کردن سریع‌ترین و پایدارترین آی‌پی‌های بدون فیلتر</small>
+          </div>
+          <button class="btn-main" onclick="startIpScan()" id="scanBtn" style="background:#10b981; color:#fff; padding: 10px 16px;"><i class="fa-solid fa-radar"></i> شروع اسکن خودکار</button>
+        </div>
+
+        <form id="cleanIpForm" style="margin-bottom: 20px;">
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">آی‌پی فعال فعلی (قابل ویرایش دستی):</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="w-clean-ip" class="input-field" placeholder="104.16.132.229" style="margin-bottom:0;">
+            <button type="submit" class="btn-main" style="padding: 0 20px;">ذخیره دستی</button>
+          </div>
+        </form>
+
+        <hr style="border-color: var(--border-color); margin: 20px 0;">
+
+        <h4 style="font-size: 14px; color: var(--text-main); margin-bottom: 10px;"><i class="fa-solid fa-list-check"></i> نتایج اسکن زنده (بهترین گزینه‌ها)</h4>
+        <div class="table-responsive">
+          <table class="ui-table">
+            <thead>
+              <tr>
+                <th>رتبه و وضعیت</th>
+                <th>آدرس IP</th>
+                <th>پینگ (Latency)</th>
+                <th>امتیاز کیفیت</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="scanResultsBody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted);">هنوز اسکن انجام نشده است. روی دکمه شروع اسکن کلیک کنید.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- بخش مانیتورینگ و لاگ حرفه‌ای (Logs Terminal) -->
     <div id="view-logs" class="view-section">
       <div class="panel-box">
@@ -254,22 +296,9 @@
             <button class="btn-main btn-del" onclick="clearTerminal()" style="padding: 7px 12px; font-size: 11.5px;"><i class="fa-solid fa-trash-can"></i> پاکسازی ترمینال</button>
           </div>
         </div>
-
         <div class="log-terminal" id="logBox">
           <div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">در حال اتصال به جریان لاگ سرور...</span></div>
         </div>
-      </div>
-    </div>
-
-    <!-- بخش مدیریت Clean IP -->
-    <div id="view-cleanip" class="view-section">
-      <div class="panel-box" style="max-width: 520px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 8px;"><i class="fa-solid fa-network-wired"></i> مدیریت Clean IPs</h3>
-        <p style="font-size: 11.5px; color:var(--text-muted); margin-bottom: 12px;">آی‌پی‌های تمیز جهت اتصال پایدار کلاینت‌ها.</p>
-        <form id="cleanIpForm">
-          <input type="text" id="w-clean-ip" class="input-field" placeholder="104.16.132.229">
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">ذخیره Clean IP</button>
-        </form>
       </div>
     </div>
 
@@ -512,7 +541,6 @@
       if (res.cleanIp) document.getElementById('w-clean-ip').value = res.cleanIp;
       if (res.customDomain) document.getElementById('set-custom-domain').value = res.customDomain;
       
-      // رندر ترمینال لاگ پیشرفته
       if (res.logs && Array.isArray(res.logs)) {
         const logBox = document.getElementById('logBox');
         logBox.innerHTML = res.logs.map(l => `
@@ -527,6 +555,53 @@
       renderConfigs();
     }
 
+    async function startIpScan() {
+      const btn = document.getElementById('scanBtn');
+      const tbody = document.getElementById('scanResultsBody');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> در حال اسکن رنج‌ها...';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--accent);">در حال بررسی و تست پینگ آی‌پی‌های کلودفلر، لطفاً چند لحظه صبر کنید...</td></tr>';
+
+      try {
+        const res = await fetch('/api/cleanip/scan', { method: 'POST' }).then(r => r.json());
+        if (res.success && res.results && res.results.length > 0) {
+          tbody.innerHTML = res.results.map((item, index) => {
+            const score = item.latency < 150 ? '⭐⭐⭐⭐⭐ عالی' : (item.latency < 300 ? '⭐⭐⭐⭐ خوب' : '⭐⭐⭐ متوسط');
+            const color = item.latency < 150 ? '#34d399' : (item.latency < 300 ? '#38bdf8' : '#fbbf24');
+            return `
+              <tr>
+                <td><b>#${index + 1}</b></td>
+                <td><code style="color:var(--accent); font-weight:bold;">${item.ip}</code></td>
+                <td><span style="color:${color}; font-weight:bold;">${item.latency} ms</span></td>
+                <td>${score}</td>
+                <td>
+                  <button class="btn-main" onclick="applyScannedIp('${item.ip}')" style="padding: 4px 10px; font-size: 11px; background:#10b981; color:#fff;">
+                    <i class="fa-solid fa-check"></i> اعمال این آی‌پی
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #f87171;">هیچ آی‌پی فعالی در این دور از اسکن یافت نشد. مجدداً تلاش کنید.</td></tr>';
+        }
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #f87171;">خطا در ارتباط با اسکنر سرور.</td></tr>';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-radar"></i> شروع اسکن خودکار';
+      }
+    }
+
+    async function applyScannedIp(ip) {
+      document.getElementById('w-clean-ip').value = ip;
+      await fetch('/api/save-worker-settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cleanIp: ip })
+      });
+      alert(`✅ آی‌پی ${ip} با موفقیت به عنوان Clean IP اصلی ذخیره شد!`);
+    }
+
     async function restartCore() {
       if (confirm('هسته Xray مجدداً راه‌اندازی شود؟')) {
         const res = await fetch('/api/core/restart', { method: 'POST' }).then(r => r.json());
@@ -535,7 +610,7 @@
     }
 
     function clearTerminal() {
-      document.getElementById('logBox.innerHTML = \'<div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">ترمینال پاکسازی شد.</span></div>\';');
+      document.getElementById('logBox').innerHTML = '<div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">ترمینال پاکسازی شد.</span></div>';
     }
 
     document.getElementById('addForm').addEventListener('submit', async (e) => {
@@ -562,7 +637,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cleanIp: document.getElementById('w-clean-ip').value })
       });
-      alert('Clean IP ذخیره شد.');
+      alert('Clean IP دستی ذخیره شد.');
     });
 
     document.getElementById('broadcastForm').addEventListener('submit', async (e) => {
@@ -586,7 +661,7 @@
       }).then(r => r.json());
 
       if (res.success) {
-        alert('✅ حساب کاربری با موفقیت بروز شد. لطفاً مجدداً وارد شوید.');
+        alert('✅ حساب کاربری بروز شد.');
         location.reload();
       } else {
         alert('❌ خطا: ' + (res.error || 'رمز عبور فعلی اشتباه است.'));

@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>ONEX • Login</title>
+  <title>ONEX • ورود به پنل</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
@@ -12,7 +12,6 @@
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       -webkit-tap-highlight-color: transparent;
-      transition: all 0.25s ease;
     }
 
     body {
@@ -21,518 +20,616 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px 14px 100px;
+      padding: 24px 14px 60px;
       position: relative;
-      background: radial-gradient(circle at 50% 10%, #0d2847 0%, #061528 50%, #020712 100%);
+      background-color: #030a16;
+      background-image: 
+        radial-gradient(circle at 50% 18%, rgba(2, 132, 199, 0.45) 0%, transparent 45%),
+        radial-gradient(circle at 80% 8%, rgba(56, 189, 248, 0.25) 0%, transparent 35%),
+        linear-gradient(to bottom, #06152b 0%, #030a17 55%, #01040a 100%);
       color: #f1f5f9;
       overflow-x: hidden;
+      perspective: 1000px;
     }
 
-    /* کارت ورود شیشه‌ای */
-    .login-container {
-      width: 100%;
-      max-width: 380px;
-      background: rgba(10, 22, 40, 0.82);
-      border: 1px solid rgba(56, 189, 248, 0.22);
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75), 0 0 35px rgba(2, 132, 199, 0.15);
-      border-radius: 28px;
-      padding: 24px 24px 22px;
+    /* لایه کوهستان و نورهای شبانه پشت صحنه */
+    .bg-mountains {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48%;
+      background: 
+        radial-gradient(ellipse at 85% 70%, rgba(56, 189, 248, 0.22) 0%, transparent 40%),
+        linear-gradient(to top, rgba(2, 6, 17, 0.95) 10%, transparent 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* خط سیر قطار سریع‌السیر نئونی در افق */
+    .train-light-ray {
+      position: absolute;
+      bottom: 52%;
+      right: -20%;
+      width: 70%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.8) 50%, #ffffff 90%, transparent 100%);
+      box-shadow: 0 0 16px #38bdf8, 0 0 30px #0284c7;
+      transform: rotate(-4deg);
+      opacity: 0.65;
+      animation: trainStreak 4s ease-in-out infinite;
+      z-index: 2;
+    }
+
+    @keyframes trainStreak {
+      0% { transform: rotate(-4deg) translateX(10%); opacity: 0.3; }
+      50% { opacity: 0.85; filter: drop-shadow(0 0 8px #38bdf8); }
+      100% { transform: rotate(-4deg) translateX(-80%); opacity: 0.2; }
+    }
+
+    /* ماژول سه‌بعدی و متحرک لوگوی ONEX */
+    .hero-brand-stage {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
-      backdrop-filter: blur(20px);
+      justify-content: center;
+      margin-bottom: 20px;
       z-index: 10;
+      transform-style: preserve-3d;
     }
 
-    /* صحنه سه‌بعدی لوگوی متحرک ONEX */
-    .logo-3d-stage {
-      width: 120px;
-      height: 120px;
+    .planet-reactor {
+      width: 130px;
+      height: 130px;
       position: relative;
-      perspective: 800px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 12px;
+      perspective: 900px;
     }
 
-    /* هاله نور پس‌زمینه راکتور */
-    .reactor-aura {
+    /* هاله نور پس‌زمینه گوی */
+    .reactor-glow {
       position: absolute;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.5) 0%, rgba(2, 132, 199, 0.2) 60%, transparent 80%);
+      filter: blur(16px);
+      animation: pulseAura 3s ease-in-out infinite alternate;
+    }
+
+    /* حلقه مدار چرخان بیرونی */
+    .orbit-ring-3d {
+      position: absolute;
+      width: 146px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2.5px solid #38bdf8;
+      box-shadow: 0 0 18px #38bdf8, inset 0 0 14px #0284c7;
+      transform: rotateX(65deg) rotateZ(25deg);
+      animation: orbitSpin 8s linear infinite;
+    }
+
+    /* حلقه مداری معکوس */
+    .orbit-ring-counter {
+      position: absolute;
+      width: 138px;
+      height: 52px;
+      border-radius: 50%;
+      border: 1.5px dashed rgba(255, 255, 255, 0.7);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+      transform: rotateX(65deg) rotateZ(-35deg);
+      animation: orbitSpinCounter 6s linear infinite;
+    }
+
+    /* گوی شیشه‌ای اقیانوسی */
+    .sphere-core {
       width: 90px;
       height: 90px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, rgba(2, 132, 199, 0.15) 60%, transparent 80%);
-      filter: blur(12px);
-      animation: auraPulse 3s ease-in-out infinite alternate;
+      background: radial-gradient(circle at 35% 28%, #e0f2fe 0%, #38bdf8 35%, #0284c7 65%, #082f49 90%, #031422 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 
+        0 10px 30px rgba(2, 132, 199, 0.8),
+        0 0 45px rgba(56, 189, 248, 0.5),
+        inset 0 3px 12px rgba(255, 255, 255, 0.8),
+        inset 0 -6px 14px rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      animation: sphereFloat 3s ease-in-out infinite alternate;
     }
 
-    /* حلقه بیرونی مدار چرخشی 3D */
-    .orbit-ring-outer {
-      position: absolute;
-      width: 105px;
-      height: 105px;
-      border-radius: 50%;
-      border: 1.5px dashed rgba(56, 189, 248, 0.65);
-      box-shadow: 0 0 15px rgba(56, 189, 248, 0.3), inset 0 0 15px rgba(56, 189, 248, 0.2);
-      animation: spinOrbitOuter 9s linear infinite;
-      transform-style: preserve-3d;
+    .core-lightning {
+      font-size: 38px;
+      color: #ffffff;
+      filter: drop-shadow(0 0 8px #38bdf8) drop-shadow(0 0 16px #0ea5e9);
+      animation: boltEnergy 1.6s ease-in-out infinite alternate;
     }
 
-    /* حلقه میانی مدار مایل 3D */
-    .orbit-ring-inner {
-      position: absolute;
-      width: 88px;
-      height: 88px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      border-top: 2px solid #38bdf8;
-      border-bottom: 2px solid #0284c7;
-      filter: drop-shadow(0 0 8px #38bdf8);
-      animation: spinOrbitInner 5s ease-in-out infinite alternate;
-      transform-style: preserve-3d;
+    /* تایپوگرافی کریستالی سه بعدی ONEX */
+    .brand-text-3d {
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: 5px;
+      margin-top: 8px;
+      background: linear-gradient(180deg, #ffffff 0%, #bae6fd 40%, #38bdf8 70%, #0284c7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 4px 14px rgba(56, 189, 248, 0.7));
+      text-transform: uppercase;
+      font-family: 'Impact', 'Segoe UI Black', sans-serif;
+      animation: textGlow 2.5s ease-in-out infinite alternate;
     }
 
-    /* گوی شیشه‌ای و هسته شناور مرکزی */
-    .core-sphere {
-      width: 68px;
-      height: 68px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0369a1 40%, #082f49 75%, #021224 100%);
-      border: 1px solid rgba(255, 255, 255, 0.4);
+    /* کارت لاگین شیشه‌ای نئونی */
+    .glass-card {
+      width: 100%;
+      max-width: 380px;
+      background: rgba(8, 20, 42, 0.78);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      box-shadow: 
+        0 25px 55px rgba(0, 0, 0, 0.8),
+        0 0 35px rgba(2, 132, 199, 0.25),
+        inset 0 1px 1px rgba(255, 255, 255, 0.15);
+      border-radius: 26px;
+      padding: 24px 22px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      box-shadow: 0 8px 25px rgba(2, 132, 199, 0.6), inset 0 3px 10px rgba(255, 255, 255, 0.6);
-      animation: floatCore 2.8s ease-in-out infinite alternate;
-      z-index: 5;
+      backdrop-filter: blur(22px);
+      z-index: 10;
+      transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.3s ease;
     }
 
-    /* صاعقه مرکزی نئونی با پالس درخشان */
-    .core-bolt {
-      font-size: 24px;
-      color: #ffffff;
-      filter: drop-shadow(0 0 8px #38bdf8) drop-shadow(0 0 15px #0284c7);
-      animation: boltFlash 1.8s ease-in-out infinite alternate;
-    }
-
-    .core-brand-name {
-      font-size: 8px;
-      font-weight: 900;
-      color: #e0f2fe;
-      letter-spacing: 1.5px;
-      margin-top: 1px;
-      text-shadow: 0 0 6px #38bdf8;
-    }
-
-    /* انیمیشن‌های سه‌بعدی و فضایی */
-    @keyframes spinOrbitOuter {
-      0% {
-        transform: rotateX(68deg) rotateY(18deg) rotateZ(0deg);
-      }
-      100% {
-        transform: rotateX(68deg) rotateY(18deg) rotateZ(360deg);
-      }
-    }
-
-    @keyframes spinOrbitInner {
-      0% {
-        transform: rotateX(-55deg) rotateY(45deg) rotateZ(0deg);
-      }
-      100% {
-        transform: rotateX(-55deg) rotateY(45deg) rotateZ(-360deg);
-      }
-    }
-
-    @keyframes floatCore {
-      0% {
-        transform: translateY(0px) scale(0.98);
-      }
-      100% {
-        transform: translateY(-5px) scale(1.03);
-      }
-    }
-
-    @keyframes auraPulse {
-      0% {
-        transform: scale(0.9);
-        opacity: 0.5;
-      }
-      100% {
-        transform: scale(1.15);
-        opacity: 0.85;
-      }
-    }
-
-    @keyframes boltFlash {
-      0% {
-        opacity: 0.85;
-        filter: drop-shadow(0 0 5px #38bdf8);
-      }
-      100% {
-        opacity: 1;
-        filter: drop-shadow(0 0 12px #ffffff) drop-shadow(0 0 20px #38bdf8);
-      }
-    }
-
-    .login-title {
+    .card-title {
       font-size: 23px;
       font-weight: 800;
       color: #38bdf8;
       margin-bottom: 4px;
-      text-shadow: 0 2px 12px rgba(56, 189, 248, 0.35);
+      text-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
     }
 
-    .login-subtitle {
+    .card-subtitle {
       font-size: 12px;
       color: #94a3b8;
       margin-bottom: 22px;
       text-align: center;
     }
 
-    form {
-      width: 100%;
-    }
+    form { width: 100%; }
 
-    .field-wrap {
+    .input-field-group {
       width: 100%;
-      margin-bottom: 15px;
-      text-align: inherit;
-    }
-
-    .field-label {
-      display: block;
-      font-size: 11px;
-      color: #94a3b8;
-      margin-bottom: 6px;
-      font-weight: 600;
-      padding: 0 4px;
-    }
-
-    .input-box {
-      width: 100%;
+      height: 50px;
+      background: rgba(3, 11, 24, 0.75);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 14px;
       display: flex;
       align-items: center;
-      background: rgba(6, 15, 29, 0.85);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      border-radius: 14px;
       padding: 0 14px;
-      height: 48px;
+      margin-bottom: 14px;
+      transition: border-color 0.25s, box-shadow 0.25s;
     }
 
-    .input-box:focus-within {
+    .input-field-group:focus-within {
       border-color: #38bdf8;
-      box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
     }
 
-    .input-box input {
+    .input-field-group input {
       flex: 1;
       height: 100%;
       background: transparent;
       border: none;
       outline: none;
-      color: #f8fafc;
-      font-size: 13px;
+      color: #ffffff;
+      font-size: 13.5px;
       text-align: inherit;
+      padding: 0 8px;
     }
 
-    .input-box i {
+    .input-label-tag {
+      font-size: 11px;
+      color: #94a3b8;
+      white-space: nowrap;
+      margin-left: 6px;
+    }
+
+    [dir="ltr"] .input-label-tag {
+      margin-left: 0;
+      margin-right: 6px;
+    }
+
+    .input-field-group i {
       color: #64748b;
       font-size: 15px;
     }
 
-    .eye-btn {
+    .toggle-eye-btn {
       background: none;
       border: none;
       cursor: pointer;
       color: #64748b;
-      padding: 4px;
+      padding: 6px;
       display: flex;
       align-items: center;
     }
-    .eye-btn:hover {
-      color: #38bdf8;
-    }
+    .toggle-eye-btn:hover { color: #38bdf8; }
 
-    .btn-submit {
+    /* دکمه ورود نئونی با آیکون فلش */
+    .btn-login-glow {
       width: 100%;
-      height: 46px;
-      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-      border: 1px solid rgba(56, 189, 248, 0.5);
+      height: 48px;
+      background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+      border: 1px solid rgba(255, 255, 255, 0.4);
       border-radius: 14px;
       color: #ffffff;
-      font-size: 15px;
-      font-weight: 700;
+      font-size: 16px;
+      font-weight: 800;
       cursor: pointer;
-      margin-top: 8px;
-      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.4);
+      margin-top: 6px;
+      box-shadow: 0 8px 25px rgba(2, 132, 199, 0.6), 0 0 15px rgba(56, 189, 248, 0.4);
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 10px;
+      transition: transform 0.2s, box-shadow 0.25s, filter 0.2s;
     }
 
-    .btn-submit:hover {
-      background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
-      box-shadow: 0 6px 25px rgba(56, 189, 248, 0.55);
+    .btn-login-glow:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 10px 32px rgba(56, 189, 248, 0.7);
+      transform: translateY(-1px);
     }
 
-    .card-footer-controls {
+    .btn-login-glow i {
+      font-size: 17px;
+      transition: transform 0.2s;
+    }
+
+    [dir="rtl"] .btn-login-glow i {
+      transform: rotate(180deg);
+    }
+
+    /* نوار کنترل تنظیمات و زبان */
+    .card-options-bar {
       width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 20px;
-      padding-top: 14px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      margin-top: 18px;
     }
 
-    .icon-pill {
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
-      background: rgba(6, 15, 29, 0.85);
-      border: 1px solid rgba(56, 189, 248, 0.2);
+    .lang-toggle-box {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #94a3b8;
-      cursor: pointer;
-    }
-    .icon-pill:hover {
-      color: #38bdf8;
-      border-color: #38bdf8;
-    }
-
-    .lang-switcher {
-      display: flex;
-      background: rgba(6, 15, 29, 0.85);
-      border: 1px solid rgba(56, 189, 248, 0.2);
+      background: rgba(3, 11, 24, 0.8);
+      border: 1px solid rgba(56, 189, 248, 0.25);
       border-radius: 12px;
       padding: 3px;
       gap: 3px;
     }
 
     .lang-tab {
-      padding: 5px 12px;
+      padding: 6px 14px;
       border-radius: 9px;
       font-size: 11px;
-      font-weight: 700;
+      font-weight: 800;
       color: #94a3b8;
       border: none;
       background: transparent;
       cursor: pointer;
+      transition: all 0.2s;
     }
 
     .lang-tab.active {
       background: #0284c7;
       color: #ffffff;
-      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.5);
+      box-shadow: 0 2px 10px rgba(2, 132, 199, 0.7);
     }
 
-    /* نوار پایینی بازطراحی‌شده با لوگوی سه‌بعدی و نوارهای حرفه‌ای */
-    .pro-footer-dock {
-      position: fixed;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
+    .gear-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(3, 11, 24, 0.8);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 15px;
+      transition: all 0.2s;
+    }
+
+    .gear-btn:hover {
+      border-color: #38bdf8;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+      transform: rotate(45deg);
+    }
+
+    /* بخش ورود از طریق شبکه‌ها */
+    .via-divider {
+      margin-top: 16px;
+      font-size: 11px;
+      color: #64748b;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* داک پایینی تلگرام و کانال */
+    .bottom-telegram-dock {
+      margin-top: 10px;
       display: flex;
       align-items: center;
       gap: 8px;
-      z-index: 100;
-      max-width: 95%;
+      width: 100%;
     }
 
-    .creator-pill {
+    .tg-round-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 65%, #075985 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.65);
+      text-decoration: none;
+      flex-shrink: 0;
+      animation: pulseGlow 2.2s infinite;
+    }
+
+    .tg-round-avatar svg {
+      width: 22px;
+      height: 22px;
+      fill: #ffffff;
+    }
+
+    .dock-pill-bar {
+      flex: 1;
+      height: 44px;
+      background: rgba(3, 11, 24, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      text-decoration: none;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      transition: all 0.25s;
+    }
+
+    .dock-pill-bar:hover {
+      border-color: #38bdf8;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.4);
+    }
+
+    .channel-title-tag {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: linear-gradient(135deg, rgba(8, 20, 36, 0.94), rgba(4, 12, 24, 0.96));
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      padding: 6px 12px;
-      border-radius: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(12px);
-    }
-
-    .creator-badge {
-      font-size: 9px;
+      font-size: 12px;
       font-weight: 800;
-      color: #0284c7;
-      background: rgba(56, 189, 248, 0.15);
-      padding: 2px 6px;
-      border-radius: 6px;
-      letter-spacing: 0.5px;
+      color: #38bdf8;
     }
 
-    .creator-name {
-      font-size: 11px;
-      font-weight: 700;
-      color: #e2e8f0;
-      text-decoration: none;
-    }
-
-    .channel-pill {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      background: linear-gradient(135deg, rgba(2, 132, 199, 0.18), rgba(8, 28, 52, 0.94));
-      border: 1px solid rgba(56, 189, 248, 0.45);
-      padding: 6px 12px;
-      border-radius: 20px;
-      box-shadow: 0 4px 18px rgba(2, 132, 199, 0.25);
-      backdrop-filter: blur(12px);
-      text-decoration: none;
-    }
-
-    .channel-pill:hover {
-      border-color: #38bdf8;
-      box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
-      transform: translateY(-1px);
-    }
-
-    .pulse-dot {
+    .status-dot-green {
       width: 7px;
       height: 7px;
       border-radius: 50%;
       background: #10b981;
       box-shadow: 0 0 8px #10b981;
-      animation: blinker 1.5s infinite;
+      animation: blinker 1.4s infinite;
     }
 
-    .channel-text {
-      font-size: 11px;
-      font-weight: 800;
-      color: #38bdf8;
-      letter-spacing: 0.5px;
-    }
-
-    .tg-3d-btn {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 60%, #034b8c 100%);
-      border: 1.5px solid rgba(255, 255, 255, 0.4);
+    .creator-title-tag {
       display: flex;
       align-items: center;
-      justify-content: center;
-      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.6);
+      gap: 5px;
+      font-size: 11px;
+      color: #e2e8f0;
+      font-weight: 700;
+    }
+
+    .creator-mini-badge {
+      font-size: 9px;
+      background: #0284c7;
+      color: #ffffff;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-weight: 800;
+    }
+
+    /* فوتِر مینیمال سایبرپانکی پایینی */
+    .cyber-bottom-bar {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 20;
+    }
+
+    .cyber-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(3, 11, 24, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      color: #cbd5e1;
       text-decoration: none;
-      position: relative;
-      flex-shrink: 0;
-      animation: pulse-glow 2.5s infinite;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+      transition: all 0.2s;
     }
 
-    .tg-3d-btn svg {
-      width: 24px;
-      height: 24px;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    .cyber-pill:hover {
+      border-color: #38bdf8;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
     }
 
-    @keyframes pulse-glow {
-      0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.65); }
-      70% { box-shadow: 0 0 0 11px rgba(14, 165, 233, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+    .cyber-pill i {
+      color: #38bdf8;
+      font-size: 12px;
+    }
+
+    /* کی‌فریم‌های متحرک */
+    @keyframes orbitSpin {
+      0% { transform: rotateX(65deg) rotateZ(0deg); }
+      100% { transform: rotateX(65deg) rotateZ(360deg); }
+    }
+
+    @keyframes orbitSpinCounter {
+      0% { transform: rotateX(65deg) rotateZ(360deg); }
+      100% { transform: rotateX(65deg) rotateZ(0deg); }
+    }
+
+    @keyframes sphereFloat {
+      0% { transform: translateY(0px) scale(0.98); }
+      100% { transform: translateY(-7px) scale(1.02); }
+    }
+
+    @keyframes pulseAura {
+      0% { transform: scale(0.9); opacity: 0.5; }
+      100% { transform: scale(1.15); opacity: 0.85; }
+    }
+
+    @keyframes boltEnergy {
+      0% { opacity: 0.85; filter: drop-shadow(0 0 6px #38bdf8); }
+      100% { opacity: 1; filter: drop-shadow(0 0 14px #ffffff) drop-shadow(0 0 22px #38bdf8); }
+    }
+
+    @keyframes textGlow {
+      0% { filter: drop-shadow(0 2px 10px rgba(56, 189, 248, 0.5)); }
+      100% { filter: drop-shadow(0 4px 22px rgba(56, 189, 248, 0.95)); }
+    }
+
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.65); }
+      70% { box-shadow: 0 0 0 10px transparent; }
+      100% { box-shadow: 0 0 0 0 transparent; }
     }
 
     @keyframes blinker {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    @media (max-width: 420px) {
-      .pro-footer-dock {
-        flex-direction: row;
-        gap: 6px;
-      }
-      .creator-pill, .channel-pill {
-        padding: 5px 9px;
-      }
-      .creator-name, .channel-text {
-        font-size: 10px;
-      }
+      50% { opacity: 0.2; }
     }
   </style>
 </head>
 <body>
 
-  <div class="login-container">
-    
-    <!-- صحنه سه‌بعدی و متحرک لوگوی راکتور ONEX -->
-    <div class="logo-3d-stage">
-      <div class="reactor-aura"></div>
-      <div class="orbit-ring-outer"></div>
-      <div class="orbit-ring-inner"></div>
-      <div class="core-sphere">
-        <i class="fa-solid fa-bolt core-bolt"></i>
-        <span class="core-brand-name">ONEX</span>
+  <div class="bg-mountains"></div>
+  <div class="train-light-ray"></div>
+
+  <!-- بخش بالایی: لوگوی متحرک کوانتومی ONEX -->
+  <div class="hero-brand-stage">
+    <div class="planet-reactor">
+      <div class="reactor-glow"></div>
+      <div class="orbit-ring-3d"></div>
+      <div class="orbit-ring-counter"></div>
+      <div class="sphere-core">
+        <i class="fa-solid fa-bolt core-lightning"></i>
       </div>
     </div>
+    <div class="brand-text-3d">ONEX</div>
+  </div>
 
-    <h2 class="login-title" id="txtTitle">ورود به پنل</h2>
-    <p class="login-subtitle" id="txtSubtitle">با نام کاربری و رمز عبور خود وارد شوید</p>
+  <!-- کارت اصلی ورود به پنل -->
+  <div class="glass-card" id="tiltCard">
+    
+    <h2 class="card-title" id="txtTitle">ورود به پنل</h2>
+    <p class="card-subtitle" id="txtSubtitle">با نام کاربری و رمز عبور خود وارد شوید</p>
 
     <form id="loginForm">
-      <div class="field-wrap">
-        <label class="field-label" id="lblUser">نام کاربری</label>
-        <div class="input-box">
-          <input type="text" id="uName" placeholder="admin" required autocomplete="username">
-          <i class="fa-regular fa-user"></i>
-        </div>
+      
+      <!-- فیلد نام کاربری -->
+      <div class="input-field-group">
+        <i class="fa-regular fa-user"></i>
+        <span class="input-label-tag" id="lblUser">نام کاربری</span>
+        <input type="text" id="uName" placeholder="admin" required autocomplete="username">
       </div>
 
-      <div class="field-wrap">
-        <label class="field-label" id="lblPass">رمز عبور</label>
-        <div class="input-box">
-          <button type="button" class="eye-btn" onclick="togglePass()">
-            <i class="fa-regular fa-eye" id="eyeIcon"></i>
-          </button>
-          <input type="password" id="uPass" placeholder="••••••••" required autocomplete="current-password">
-          <i class="fa-solid fa-key"></i>
-        </div>
+      <!-- فیلد رمز عبور -->
+      <div class="input-field-group">
+        <i class="fa-solid fa-key"></i>
+        <span class="input-label-tag" id="lblPass">رمز عبور</span>
+        <input type="password" id="uPass" placeholder="••••••••" required autocomplete="current-password">
+        <button type="button" class="toggle-eye-btn" onclick="togglePass()">
+          <i class="fa-regular fa-eye" id="eyeIcon"></i>
+        </button>
       </div>
 
-      <button type="submit" class="btn-submit" id="btnSubmit">
+      <!-- دکمه ورود با افکت نئون -->
+      <button type="submit" class="btn-login-glow" id="btnSubmit">
         <span id="txtBtn">ورود</span>
+        <i class="fa-solid fa-arrow-left" id="btnArrow"></i>
       </button>
+
     </form>
 
-    <div class="card-footer-controls">
-      <div class="icon-pill" title="تنظیمات تم" onclick="toggleMode()">
-        <i class="fa-solid fa-gear" id="gearIcon"></i>
-      </div>
-
-      <div class="lang-switcher">
+    <!-- کلیدهای کنترل زبان و تم -->
+    <div class="card-options-bar">
+      <div class="lang-toggle-box">
         <button type="button" class="lang-tab" id="btnEn" onclick="setLang('en')">EN</button>
         <button type="button" class="lang-tab active" id="btnFa" onclick="setLang('fa')">FA</button>
       </div>
+      <div class="gear-btn" onclick="cycleGlowMode()" title="تنظیمات نورپردازی">
+        <i class="fa-solid fa-gear"></i>
+      </div>
+    </div>
+
+    <div class="via-divider" id="txtVia">با از طریق</div>
+
+    <!-- داک ورود تلگرام متصل به کانال و سازنده -->
+    <div class="bottom-telegram-dock">
+      <a href="https://t.me/V2rayTun0" target="_blank" class="tg-round-avatar" title="کانال تلگرام @V2rayTun0">
+        <svg viewBox="0 0 24 24">
+          <path d="M21.6 3.6L2.8 10.9C1.5 11.4 1.5 12.2 2.6 12.5L7.4 14L18.6 6.9C19.1 6.6 19.6 6.8 19.2 7.1L10.1 15.3H10.1L9.8 19.7C10.2 19.7 10.4 19.5 10.7 19.2L12.8 17.2L17.2 20.4C18 20.9 18.6 20.6 18.8 19.6L21.7 5.8C22 4.6 21.2 4 21.6 3.6Z"/>
+        </svg>
+      </a>
+
+      <a href="https://t.me/V2rayTun0" target="_blank" class="dock-pill-bar">
+        <div class="channel-title-tag">
+          <span>V2rayTun0@</span>
+          <span class="status-dot-green"></span>
+        </div>
+        <div class="creator-title-tag">
+          <span>Mehtif@</span>
+          <span class="creator-mini-badge">CREATOR</span>
+        </div>
+      </a>
     </div>
 
   </div>
 
-  <!-- نوار پایینی با لوگوی سه‌بعدی وکتور و نوارهای جداگانه کانال و سازنده -->
-  <div class="pro-footer-dock">
-    
-    <div class="creator-pill">
-      <span class="creator-badge">CREATOR</span>
-      <span class="creator-name">@Mehtif</span>
-    </div>
-
-    <a href="https://t.me/V2rayTun0" target="_blank" class="channel-pill" title="پیوستن به کانال">
-      <span class="pulse-dot"></span>
-      <span class="channel-text">@V2rayTun0</span>
+  <!-- نوار ساده و شیک پایین صفحه بدون نوشته اضافی تیم -->
+  <div class="cyber-bottom-bar">
+    <a href="https://t.me/V2rayTun0" target="_blank" class="cyber-pill">
+      <i class="fa-brands fa-telegram"></i>
+      <span>V2rayTun0@</span>
     </a>
-
-    <a href="https://t.me/V2rayTun0" target="_blank" class="tg-3d-btn" title="کانال رسمی @V2rayTun0">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M21.6 3.6L2.8 10.9C1.5 11.4 1.5 12.2 2.6 12.5L7.4 14L18.6 6.9C19.1 6.6 19.6 6.8 19.2 7.1L10.1 15.3H10.1L9.8 19.7C10.2 19.7 10.4 19.5 10.7 19.2L12.8 17.2L17.2 20.4C18 20.9 18.6 20.6 18.8 19.6L21.7 5.8C22 4.6 21.2 4 21.6 3.6Z" fill="#ffffff"/>
-      </svg>
+    <a href="https://t.me/V2rayTun0" target="_blank" class="cyber-pill">
+      <i class="fa-solid fa-crown"></i>
+      <span>Mehtif@</span>
+      <span class="creator-mini-badge">CREATOR</span>
     </a>
-
   </div>
 
   <script>
+    // دیکشنری دوزبانه
     const i18n = {
       fa: {
         title: "ورود به پنل",
@@ -540,6 +637,7 @@
         userLabel: "نام کاربری",
         passLabel: "رمز عبور",
         btn: "ورود",
+        via: "با از طریق",
         dir: "rtl"
       },
       en: {
@@ -548,6 +646,7 @@
         userLabel: "Username",
         passLabel: "Password",
         btn: "Login",
+        via: "Connect via",
         dir: "ltr"
       }
     };
@@ -565,16 +664,21 @@
       document.getElementById('lblUser').innerText = data.userLabel;
       document.getElementById('lblPass').innerText = data.passLabel;
       document.getElementById('txtBtn').innerText = data.btn;
+      document.getElementById('txtVia').innerText = data.via;
 
+      const arrow = document.getElementById('btnArrow');
       if (lang === 'fa') {
         document.getElementById('btnFa').classList.add('active');
         document.getElementById('btnEn').classList.remove('active');
+        arrow.className = 'fa-solid fa-arrow-left';
       } else {
         document.getElementById('btnEn').classList.add('active');
         document.getElementById('btnFa').classList.remove('active');
+        arrow.className = 'fa-solid fa-arrow-right';
       }
     }
 
+    // تاگل نمایش پسورد
     function togglePass() {
       const passIn = document.getElementById('uPass');
       const eye = document.getElementById('eyeIcon');
@@ -589,16 +693,38 @@
       }
     }
 
-    let isDark = true;
-    function toggleMode() {
-      isDark = !isDark;
-      if (!isDark) {
-        document.body.style.background = 'radial-gradient(circle at 50% 10%, #1e40af 0%, #0369a1 50%, #021f3f 100%)';
+    // افکت سه‌بعدی حرکت با زاویه دست و ماوس (3D Tilt)
+    const card = document.getElementById('tiltCard');
+    document.addEventListener('mousemove', (e) => {
+      if (window.innerWidth < 768) return;
+      const x = (window.innerWidth / 2 - e.pageX) / 35;
+      const y = (window.innerHeight / 2 - e.pageY) / 35;
+      card.style.transform = `rotateY(${-x}deg) rotateX(${y}deg)`;
+    });
+
+    document.addEventListener('mouseleave', () => {
+      card.style.transform = `rotateY(0deg) rotateX(0deg)`;
+    });
+
+    // تغییر مود اشباع نور (چرخ‌دنده)
+    let glowMode = 0;
+    function cycleGlowMode() {
+      glowMode = (glowMode + 1) % 3;
+      const sphere = document.querySelector('.sphere-core');
+      const glow = document.querySelector('.reactor-glow');
+      if (glowMode === 1) {
+        sphere.style.filter = 'saturate(1.4) brightness(1.15)';
+        glow.style.filter = 'blur(22px)';
+      } else if (glowMode === 2) {
+        sphere.style.filter = 'hue-rotate(25deg) brightness(1.2)';
+        glow.style.filter = 'blur(26px)';
       } else {
-        document.body.style.background = 'radial-gradient(circle at 50% 10%, #0d2847 0%, #061528 50%, #020712 100%)';
+        sphere.style.filter = 'none';
+        glow.style.filter = 'blur(16px)';
       }
     }
 
+    // ورود به پنل
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btnSubmit');

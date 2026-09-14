@@ -1,412 +1,1621 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
-
 <head>
 <meta charset="UTF-8">
 
-<meta name="viewport"
-      content="width=device-width,
-               initial-scale=1,
-               maximum-scale=1,
-               viewport-fit=cover">
-
-<meta name="theme-color" content="#020914">
-
 <title>ONEX • Login</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+>
 
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap"
-      rel="stylesheet">
+<meta name="theme-color" content="#030a16">
 
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-      rel="stylesheet">
-
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+>
 
 <style>
 
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    width: 100%;
+    min-height: 100%;
+    background: #020712;
+}
+
+body {
+    width: 100%;
+    min-height: 100svh;
+
+    position: relative;
+
+    display: block;
+
+    color: #f8fafc;
+
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    background: #020712;
+}
+
 /* =========================================================
-   RESET
+   BACKGROUND
 ========================================================= */
 
-*{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
-    font-family:"Vazirmatn",Tahoma,Arial,sans-serif;
-    -webkit-tap-highlight-color:transparent;
-}
+body::before {
+    content: "";
 
-html{
-    width:100%;
-    min-height:100%;
-    background:#020914;
-}
+    position: fixed;
+    inset: 0;
 
-body{
-    width:100%;
-    min-height:100svh;
+    width: 100%;
+    height: 100%;
 
-    color:#fff;
-
-    overflow-x:hidden;
-    overflow-y:auto;
-
-    position:relative;
-
-    background-color:#020914;
+    z-index: 0;
+    pointer-events: none;
 
     background-image:
         linear-gradient(
             to bottom,
-            rgba(2,10,25,.20) 0%,
-            rgba(2,10,25,.52) 45%,
-            rgba(0,3,10,.94) 100%
+            rgba(3, 10, 22, 0.20) 0%,
+            rgba(3, 10, 22, 0.35) 35%,
+            rgba(1, 5, 15, 0.78) 75%,
+            rgba(0, 3, 10, 0.96) 100%
         ),
-        url("https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=1600&auto=format&fit=crop");
+        url("https://images.unsplash.com/photo-1519681393784-d120267933ba?q=90&w=1600&auto=format&fit=crop");
 
-    background-repeat:no-repeat;
-    background-position:center center;
-    background-size:cover;
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
 
-    -webkit-overflow-scrolling:touch;
+    transform: translateZ(0);
 }
 
+/* نور آبی محیط */
 
-/* =========================================================
-   BACKGROUND LIGHT
-========================================================= */
+body::after {
+    content: "";
 
-.background-light{
-    position:fixed;
-    inset:0;
+    position: fixed;
+    inset: 0;
 
-    pointer-events:none;
+    z-index: 1;
+    pointer-events: none;
 
     background:
         radial-gradient(
-            circle at 50% 18%,
-            rgba(0,180,255,.25),
-            transparent 30%
+            circle at 50% 22%,
+            rgba(14, 165, 233, 0.24),
+            transparent 35%
         ),
         radial-gradient(
-            circle at 15% 55%,
-            rgba(0,100,255,.10),
-            transparent 30%
+            circle at 50% 65%,
+            rgba(2, 132, 199, 0.10),
+            transparent 45%
         );
-
-    z-index:0;
 }
 
-
 /* =========================================================
-   MAIN WRAPPER
+   MAIN PAGE
 ========================================================= */
 
-.page{
+.page {
+    position: relative;
 
-    position:relative;
+    z-index: 5;
 
-    z-index:5;
+    width: 100%;
+    min-height: 100svh;
 
-    width:100%;
-    max-width:430px;
+    display: flex;
+    flex-direction: column;
 
-    min-height:100svh;
-
-    margin:0 auto;
+    align-items: center;
+    justify-content: center;
 
     padding:
-        max(18px, env(safe-area-inset-top))
-        15px
-        max(25px, env(safe-area-inset-bottom))
-        15px;
+        max(25px, env(safe-area-inset-top))
+        14px
+        max(35px, env(safe-area-inset-bottom));
 
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-
+    isolation: isolate;
 }
-
 
 /* =========================================================
-   LOGO AREA
+   LIGHT STREAK
 ========================================================= */
 
-.logo-area{
+.train-streak-ray {
+    position: fixed;
 
-    width:100%;
-    height:210px;
+    top: 27%;
+    right: -30%;
 
-    flex-shrink:0;
+    width: 75%;
+    height: 2px;
 
-    display:flex;
-    flex-direction:column;
+    z-index: 2;
 
-    justify-content:center;
-    align-items:center;
+    pointer-events: none;
 
-    position:relative;
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(56,189,248,.8),
+            white,
+            transparent
+        );
 
-    margin-bottom:8px;
+    box-shadow:
+        0 0 12px #38bdf8,
+        0 0 30px #0284c7;
+
+    transform: rotate(-5deg);
+
+    animation:
+        trainRay 5s ease-in-out infinite;
 }
 
+@keyframes trainRay {
 
-/* glow */
+    0% {
+        opacity: 0;
+        transform:
+            translateX(35%)
+            rotate(-5deg);
+    }
 
-.logo-glow{
+    35% {
+        opacity: .85;
+    }
 
-    position:absolute;
+    70% {
+        opacity: .25;
+    }
 
-    width:220px;
-    height:170px;
+    100% {
+        opacity: 0;
+        transform:
+            translateX(-60%)
+            rotate(-5deg);
+    }
+}
 
-    top:10px;
+/* =========================================================
+   HERO
+========================================================= */
 
-    border-radius:50%;
+.hero-stage {
+    position: relative;
+
+    z-index: 10;
+
+    width: 100%;
+
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 14px;
+
+    flex-shrink: 0;
+}
+
+/* =========================================================
+   3D PLANET
+========================================================= */
+
+.planet-wrap-3d {
+
+    position: relative;
+
+    width: 132px;
+    height: 132px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    perspective: 700px;
+}
+
+/* Aura */
+
+.planet-aura {
+
+    position: absolute;
+
+    width: 150px;
+    height: 150px;
+
+    border-radius: 50%;
 
     background:
         radial-gradient(
-            ellipse,
-            rgba(0,190,255,.42),
-            rgba(0,110,255,.16) 45%,
+            circle,
+            rgba(56,189,248,.48) 0%,
+            rgba(14,165,233,.20) 45%,
             transparent 72%
         );
 
-    filter:blur(25px);
+    filter: blur(16px);
 
-    animation:
-        logoGlow 3s ease-in-out infinite alternate;
+    animation: auraPulse 3s ease-in-out infinite alternate;
 }
 
+@keyframes auraPulse {
 
-@keyframes logoGlow{
-
-    from{
-        transform:scale(.88);
-        opacity:.55;
+    from {
+        transform: scale(.88);
+        opacity: .55;
     }
 
-    to{
-        transform:scale(1.08);
-        opacity:1;
+    to {
+        transform: scale(1.15);
+        opacity: .95;
     }
-
 }
 
+/* Orbit */
 
-/* =========================================================
-   ORBITS
-========================================================= */
+.orbit-ring-bright {
 
-.logo-orbit{
+    position: absolute;
 
-    position:absolute;
+    width: 158px;
+    height: 55px;
 
-    width:205px;
-    height:72px;
-
-    border-radius:50%;
-
-    border:2px solid rgba(45,201,255,.9);
-
-    box-shadow:
-        0 0 12px #00bfff,
-        0 0 28px rgba(0,170,255,.65);
-
-    transform:
-        rotate(-18deg)
-        rotateX(64deg);
-
-    animation:
-        orbit 8s linear infinite;
-}
-
-
-.logo-orbit:after{
-
-    content:"";
-
-    position:absolute;
-
-    width:8px;
-    height:8px;
-
-    border-radius:50%;
-
-    background:#fff;
-
-    box-shadow:
-        0 0 8px #fff,
-        0 0 20px #00c8ff;
-
-    left:25px;
-    top:-5px;
-}
-
-
-.logo-orbit.second{
-
-    width:185px;
-    height:60px;
+    border-radius: 50%;
 
     border:
-        1px dashed
-        rgba(150,235,255,.75);
+        2px solid rgba(56,189,248,.95);
+
+    box-shadow:
+        0 0 12px #38bdf8,
+        0 0 28px rgba(14,165,233,.65);
 
     transform:
-        rotate(24deg)
-        rotateX(64deg);
+        rotateX(67deg)
+        rotateZ(25deg);
 
-    animation:
-        orbitReverse 9s linear infinite reverse;
+    animation: orbitOne 8s linear infinite;
 
-    opacity:.75;
+    z-index: 2;
 }
 
+.orbit-ring-dashed {
 
-@keyframes orbit{
+    position: absolute;
 
-    from{
+    width: 150px;
+    height: 52px;
+
+    border-radius: 50%;
+
+    border:
+        1px dashed rgba(186,230,253,.9);
+
+    box-shadow:
+        0 0 10px rgba(56,189,248,.55);
+
+    transform:
+        rotateX(67deg)
+        rotateZ(-30deg);
+
+    animation: orbitTwo 6s linear infinite;
+
+    z-index: 3;
+}
+
+@keyframes orbitOne {
+
+    from {
         transform:
-            rotate(-18deg)
-            rotateX(64deg)
+            rotateX(67deg)
             rotateZ(0deg);
     }
 
-    to{
+    to {
         transform:
-            rotate(-18deg)
-            rotateX(64deg)
+            rotateX(67deg)
+            rotateZ(360deg);
+    }
+}
+
+@keyframes orbitTwo {
+
+    from {
+        transform:
+            rotateX(67deg)
             rotateZ(360deg);
     }
 
-}
-
-
-@keyframes orbitReverse{
-
-    from{
+    to {
         transform:
-            rotate(24deg)
-            rotateX(64deg)
+            rotateX(67deg)
             rotateZ(0deg);
     }
-
-    to{
-        transform:
-            rotate(24deg)
-            rotateX(64deg)
-            rotateZ(360deg);
-    }
-
 }
-
 
 /* =========================================================
-   3D BALL
+   SPHERE
 ========================================================= */
 
-.logo-ball{
+.quantum-sphere {
 
-    position:relative;
+    position: relative;
 
-    z-index:4;
+    width: 92px;
+    height: 92px;
 
-    width:112px;
-    height:112px;
+    border-radius: 50%;
 
-    border-radius:50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-    display:flex;
-    align-items:center;
-    justify-content:center;
+    z-index: 8;
 
     background:
         radial-gradient(
-            circle at 30% 20%,
+            circle at 32% 22%,
             #ffffff 0%,
-            #baf3ff 8%,
-            #36d2ff 25%,
-            #079ce8 48%,
-            #00579e 72%,
-            #011c38 100%
+            #bae6fd 16%,
+            #38bdf8 36%,
+            #0ea5e9 55%,
+            #0369a1 76%,
+            #021b31 100%
         );
 
     border:
-        2px solid
-        rgba(255,255,255,.85);
+        2px solid rgba(255,255,255,.78);
 
     box-shadow:
-
-        inset -18px -20px 32px
-        rgba(0,0,0,.62),
-
-        inset 12px 9px 20px
-        rgba(255,255,255,.48),
-
-        0 8px 35px
-        rgba(0,130,255,.9),
-
-        0 0 65px
-        rgba(0,190,255,.65);
+        0 12px 35px rgba(2,132,199,.75),
+        0 0 45px rgba(56,189,248,.55),
+        inset 0 4px 12px rgba(255,255,255,.9),
+        inset 0 -12px 20px rgba(0,0,0,.65);
 
     animation:
-        ballFloat 3s ease-in-out infinite alternate;
+        sphereFloat 3s ease-in-out infinite alternate;
 }
 
+@keyframes sphereFloat {
 
-.logo-ball:before{
-
-    content:"";
-
-    position:absolute;
-
-    width:55px;
-    height:24px;
-
-    top:9px;
-    left:17px;
-
-    border-radius:50%;
-
-    background:
-        rgba(255,255,255,.28);
-
-    filter:blur(7px);
-
-    transform:rotate(-25deg);
-}
-
-
-@keyframes ballFloat{
-
-    from{
-        transform:translateY(2px) scale(.98);
+    from {
+        transform:
+            translateY(2px)
+            scale(.98);
     }
 
-    to{
-        transform:translateY(-7px) scale(1.02);
+    to {
+        transform:
+            translateY(-6px)
+            scale(1.02);
     }
-
 }
 
+.lightning-icon {
 
-/* bolt */
+    color: white;
 
-.bolt{
-
-    position:relative;
-
-    z-index:6;
-
-    color:#fff;
-
-    font-size:53px;
+    font-size: 38px;
 
     filter:
-        drop-shadow(0 0 5px #fff)
-        drop-shadow(0 0 14px #00c8ff)
-        drop-shadow(0 0 28
+        drop-shadow(0 0 6px #fff)
+        drop-shadow(0 0 15px #38bdf8)
+        drop-shadow(0 0 25px #0ea5e9);
+
+    animation: lightningGlow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes lightningGlow {
+
+    from {
+        opacity: .8;
+    }
+
+    to {
+        opacity: 1;
+        filter:
+            drop-shadow(0 0 8px #fff)
+            drop-shadow(0 0 22px #38bdf8);
+    }
+}
+
+/* =========================================================
+   ONEX TEXT
+========================================================= */
+
+.brand-logo-text {
+
+    margin-top: 3px;
+
+    font-size: 27px;
+
+    font-weight: 900;
+
+    letter-spacing: 7px;
+
+    color: #7dd3fc;
+
+    text-transform: uppercase;
+
+    text-shadow:
+        0 0 8px rgba(56,189,248,.9),
+        0 0 22px rgba(14,165,233,.7);
+
+    position: relative;
+    z-index: 10;
+}
+
+/* =========================================================
+   LOGIN PANEL
+========================================================= */
+
+.glass-login-panel {
+
+    position: relative;
+
+    z-index: 20;
+
+    width: min(100%, 380px);
+
+    flex-shrink: 0;
+
+    padding: 23px 21px 18px;
+
+    border-radius: 27px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(8,24,47,.91),
+            rgba(3,13,29,.89)
+        );
+
+    border:
+        1px solid rgba(56,189,248,.36);
+
+    box-shadow:
+        0 25px 60px rgba(0,0,0,.75),
+        0 0 35px rgba(14,165,233,.18),
+        inset 0 1px 1px rgba(255,255,255,.12);
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.panel-header-title {
+
+    text-align: center;
+
+    font-size: 23px;
+
+    font-weight: 800;
+
+    color: #38bdf8;
+
+    margin-bottom: 5px;
+
+    text-shadow:
+        0 0 14px rgba(56,189,248,.55);
+}
+
+.panel-header-sub {
+
+    text-align: center;
+
+    font-size: 12px;
+
+    line-height: 1.8;
+
+    color: #94a3b8;
+
+    margin-bottom: 18px;
+}
+
+/* =========================================================
+   FORM
+========================================================= */
+
+form {
+    width: 100%;
+}
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+.input-label {
+    display: block;
+
+    font-size: 11px;
+
+    color: #94a3b8;
+
+    margin-bottom: 6px;
+
+    padding-right: 5px;
+}
+
+.input-box-wrap {
+
+    width: 100%;
+
+    height: 51px;
+
+    display: flex;
+
+    align-items: center;
+
+    padding: 0 13px;
+
+    margin-bottom: 13px;
+
+    background:
+        rgba(1,9,21,.78);
+
+    border:
+        1px solid rgba(56,189,248,.25);
+
+    border-radius: 14px;
+
+    transition:
+        .25s ease;
+}
+
+.input-box-wrap:focus-within {
+
+    border-color: #38bdf8;
+
+    box-shadow:
+        0 0 18px rgba(56,189,248,.28);
+}
+
+.input-box-wrap > i {
+
+    width: 21px;
+
+    color: #64748b;
+
+    font-size: 15px;
+
+    flex-shrink: 0;
+}
+
+.input-box-wrap input {
+
+    min-width: 0;
+
+    flex: 1;
+
+    height: 100%;
+
+    border: 0;
+    outline: 0;
+
+    background: transparent;
+
+    color: white;
+
+    font-size: 14px;
+
+    padding: 0 8px;
+
+    font-family: inherit;
+}
+
+.input-box-wrap input::placeholder {
+    color: #64748b;
+}
+
+.pass-eye-toggle {
+
+    border: 0;
+
+    outline: 0;
+
+    background: transparent;
+
+    color: #64748b;
+
+    padding: 5px;
+
+    cursor: pointer;
+}
+
+.pass-eye-toggle:hover {
+    color: #38bdf8;
+}
+
+/* =========================================================
+   LOGIN BUTTON
+========================================================= */
+
+.btn-login-action {
+
+    width: 100%;
+    height: 49px;
+
+    margin-top: 3px;
+
+    border: 1px solid rgba(255,255,255,.35);
+
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #0284c7,
+            #0ea5e9
+        );
+
+    color: white;
+
+    font-family: inherit;
+
+    font-size: 16px;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 9px;
+
+    box-shadow:
+        0 8px 24px rgba(2,132,199,.48),
+        0 0 15px rgba(56,189,248,.25);
+
+    transition: .2s ease;
+}
+
+.btn-login-action:active {
+
+    transform: scale(.98);
+}
+
+.btn-login-action:disabled {
+
+    opacity: .65;
+
+    cursor: wait;
+}
+
+/* =========================================================
+   CONTROLS
+========================================================= */
+
+.controls-panel-row {
+
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-top: 17px;
+}
+
+.settings-gear-btn {
+
+    width: 40px;
+    height: 40px;
+
+    border-radius: 12px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    color: #38bdf8;
+
+    background: rgba(1,9,21,.75);
+
+    border:
+        1px solid rgba(56,189,248,.28);
+
+    cursor: pointer;
+
+    transition: .3s;
+}
+
+.settings-gear-btn:hover {
+
+    transform: rotate(45deg);
+
+    box-shadow:
+        0 0 14px rgba(56,189,248,.35);
+}
+
+/* =========================================================
+   LANGUAGE
+========================================================= */
+
+.lang-capsule {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 3px;
+
+    padding: 3px;
+
+    border-radius: 12px;
+
+    background: rgba(1,9,21,.75);
+
+    border:
+        1px solid rgba(56,189,248,.28);
+}
+
+.lang-item-btn {
+
+    border: 0;
+
+    background: transparent;
+
+    color: #94a3b8;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    padding: 7px 14px;
+
+    border-radius: 9px;
+
+    cursor: pointer;
+}
+
+.lang-item-btn.active {
+
+    color: white;
+
+    background: #0284c7;
+
+    box-shadow:
+        0 2px 10px rgba(2,132,199,.55);
+}
+
+/* =========================================================
+   VIA
+========================================================= */
+
+.divider-via-text {
+
+    width: 100%;
+
+    text-align: center;
+
+    margin-top: 14px;
+
+    margin-bottom: 9px;
+
+    font-size: 10px;
+
+    color: #64748b;
+}
+
+/* =========================================================
+   BOTTOM DOCK
+========================================================= */
+
+.bottom-dock-container {
+
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+}
+
+.round-telegram-link {
+
+    width: 43px;
+    height: 43px;
+
+    flex-shrink: 0;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle at 35% 25%,
+            #38bdf8,
+            #0284c7 65%,
+            #075985
+        );
+
+    border:
+        1px solid rgba(255,255,255,.65);
+
+    box-shadow:
+        0 5px 18px rgba(2,132,199,.55);
+
+    text-decoration: none;
+}
+
+.round-telegram-link svg {
+
+    width: 21px;
+    height: 21px;
+
+    fill: white;
+}
+
+.capsule-info-link {
+
+    flex: 1;
+
+    min-width: 0;
+
+    height: 43px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 7px;
+
+    padding: 0 11px;
+
+    border-radius: 22px;
+
+    background:
+        rgba(1,9,21,.82);
+
+    border:
+        1px solid rgba(56,189,248,.28);
+
+    text-decoration: none;
+
+    overflow: hidden;
+}
+
+.tag-channel-box {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 5px;
+
+    min-width: 0;
+
+    color: #38bdf8;
+
+    font-size: 11px;
+
+    font-weight: 800;
+}
+
+.tag-channel-box span:last-child {
+
+    white-space: nowrap;
+}
+
+.green-status-light {
+
+    width: 7px;
+    height: 7px;
+
+    flex-shrink: 0;
+
+    border-radius: 50%;
+
+    background: #10b981;
+
+    box-shadow:
+        0 0 8px #10b981;
+
+    animation: statusBlink 1.5s infinite;
+}
+
+@keyframes statusBlink {
+
+    50% {
+        opacity: .25;
+    }
+}
+
+.tag-creator-box {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 4px;
+
+    color: #e2e8f0;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+.badge-creator-pill {
+
+    padding: 2px 5px;
+
+    border-radius: 5px;
+
+    background: #075985;
+
+    color: #7dd3fc;
+
+    font-size: 8px;
+
+    font-weight: 900;
+}
+
+/* =========================================================
+   MOBILE FIX
+========================================================= */
+
+@media (max-height: 700px) {
+
+    .page {
+
+        justify-content: flex-start;
+
+        padding-top: 18px;
+    }
+
+    .hero-stage {
+
+        transform: scale(.86);
+
+        margin-bottom: 0;
+
+        margin-top: -8px;
+    }
+
+    .glass-login-panel {
+
+        padding-top: 18px;
+    }
+}
+
+@media (max-width: 360px) {
+
+    .glass-login-panel {
+
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .brand-logo-text {
+
+        font-size: 24px;
+    }
+
+    .tag-creator-box {
+
+        font-size: 9px;
+    }
+
+    .capsule-info-link {
+
+        padding: 0 8px;
+    }
+}
+
+</style>
+</head>
+
+
+<body>
+
+<!-- خط نور -->
+<div class="train-streak-ray"></div>
+
+
+<!-- کل محتوای سایت -->
+<main class="page">
+
+    <!-- =====================================================
+         LOGO
+    ====================================================== -->
+
+    <section class="hero-stage">
+
+        <div class="planet-wrap-3d">
+
+            <div class="planet-aura"></div>
+
+            <div class="orbit-ring-bright"></div>
+
+            <div class="orbit-ring-dashed"></div>
+
+            <div class="quantum-sphere">
+
+                <i class="fa-solid fa-bolt lightning-icon"></i>
+
+            </div>
+
+        </div>
+
+        <div class="brand-logo-text">
+            ONEX
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         LOGIN PANEL
+    ====================================================== -->
+
+    <section class="glass-login-panel">
+
+        <h2
+            class="panel-header-title"
+            id="txtTitle"
+        >
+            ورود به پنل
+        </h2>
+
+
+        <p
+            class="panel-header-sub"
+            id="txtSubtitle"
+        >
+            با نام کاربری و رمز عبور خود وارد شوید
+        </p>
+
+
+        <form id="loginForm">
+
+
+            <!-- USERNAME -->
+
+            <label
+                class="input-label"
+                id="lblUser"
+            >
+                نام کاربری
+            </label>
+
+            <div class="input-box-wrap">
+
+                <i class="fa-regular fa-user"></i>
+
+                <input
+                    type="text"
+                    id="uName"
+                    placeholder="admin"
+                    required
+                    autocomplete="username"
+                >
+
+            </div>
+
+
+            <!-- PASSWORD -->
+
+            <label
+                class="input-label"
+                id="lblPass"
+            >
+                رمز عبور
+            </label>
+
+            <div class="input-box-wrap">
+
+                <i class="fa-solid fa-key"></i>
+
+                <input
+                    type="password"
+                    id="uPass"
+                    placeholder="••••••••"
+                    required
+                    autocomplete="current-password"
+                >
+
+                <button
+                    type="button"
+                    class="pass-eye-toggle"
+                    onclick="togglePasswordVisibility()"
+                >
+
+                    <i
+                        class="fa-regular fa-eye"
+                        id="eyeIcon"
+                    ></i>
+
+                </button>
+
+            </div>
+
+
+            <!-- LOGIN -->
+
+            <button
+                type="submit"
+                class="btn-login-action"
+                id="btnSubmit"
+            >
+
+                <span id="txtBtn">
+                    ورود
+                </span>
+
+                <i
+                    class="fa-solid fa-arrow-left"
+                    id="btnArrow"
+                ></i>
+
+            </button>
+
+        </form>
+
+
+        <!-- =================================================
+             SETTINGS + LANGUAGE
+        ================================================== -->
+
+        <div class="controls-panel-row">
+
+            <button
+                type="button"
+                class="settings-gear-btn"
+                onclick="toggleLightMode()"
+            >
+
+                <i class="fa-solid fa-gear"></i>
+
+            </button>
+
+
+            <div class="lang-capsule">
+
+                <button
+                    type="button"
+                    class="lang-item-btn"
+                    id="btnEn"
+                    onclick="switchLanguage('en')"
+                >
+                    EN
+                </button>
+
+                <button
+                    type="button"
+                    class="lang-item-btn active"
+                    id="btnFa"
+                    onclick="switchLanguage('fa')"
+                >
+                    FA
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             VIA
+        ================================================== -->
+
+        <div
+            class="divider-via-text"
+            id="txtVia"
+        >
+            با از طریق
+        </div>
+
+
+        <!-- =================================================
+             TELEGRAM / CREATOR
+        ================================================== -->
+
+        <div class="bottom-dock-container">
+
+
+            <a
+                href="https://t.me/V2rayTun0"
+                target="_blank"
+                class="round-telegram-link"
+                title="Telegram"
+            >
+
+                <svg viewBox="0 0 24 24">
+
+                    <path d="
+                    M21.6 3.6
+                    L2.8 10.9
+                    C1.5 11.4 1.5 12.2 2.6 12.5
+                    L7.4 14
+                    L18.6 6.9
+                    C19.1 6.6 19.6 6.8 19.2 7.1
+                    L10.1 15.3
+                    L9.8 19.7
+                    C10.2 19.7 10.4 19.5 10.7 19.2
+                    L12.8 17.2
+                    L17.2 20.4
+                    C18 20.9 18.6 20.6 18.8 19.6
+                    L21.7 5.8
+                    C22 4.6 21.2 4 21.6 3.6Z
+                    "/>
+
+                </svg>
+
+            </a>
+
+
+            <a
+                href="https://t.me/V2rayTun0"
+                target="_blank"
+                class="capsule-info-link"
+            >
+
+                <div class="tag-channel-box">
+
+                    <span class="green-status-light"></span>
+
+                    <span>
+                        @V2rayTun0
+                    </span>
+
+                </div>
+
+
+                <div class="tag-creator-box">
+
+                    <span class="badge-creator-pill">
+                        CREATOR
+                    </span>
+
+                    <span>
+                        @Mehtif
+                    </span>
+
+                </div>
+
+            </a>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<script>
+
+/* =========================================================
+   LANGUAGE
+========================================================= */
+
+const i18n = {
+
+    fa: {
+
+        title: "ورود به پنل",
+
+        subtitle:
+            "با نام کاربری و رمز عبور خود وارد شوید",
+
+        userLabel:
+            "نام کاربری",
+
+        passLabel:
+            "رمز عبور",
+
+        btn:
+            "ورود",
+
+        via:
+            "با از طریق",
+
+        dir:
+            "rtl"
+    },
+
+    en: {
+
+        title:
+            "Panel Login",
+
+        subtitle:
+            "Enter your username and password",
+
+        userLabel:
+            "Username",
+
+        passLabel:
+            "Password",
+
+        btn:
+            "Login",
+
+        via:
+            "Connect via",
+
+        dir:
+            "ltr"
+    }
+
+};
+
+
+let currentLang = "fa";
+
+
+function switchLanguage(lang) {
+
+    currentLang = lang;
+
+    const data = i18n[lang];
+
+    document.documentElement.lang = lang;
+
+    document.documentElement.dir = data.dir;
+
+
+    document.getElementById("txtTitle").textContent =
+        data.title;
+
+    document.getElementById("txtSubtitle").textContent =
+        data.subtitle;
+
+    document.getElementById("lblUser").textContent =
+        data.userLabel;
+
+    document.getElementById("lblPass").textContent =
+        data.passLabel;
+
+    document.getElementById("txtBtn").textContent =
+        data.btn;
+
+    document.getElementById("txtVia").textContent =
+        data.via;
+
+
+    const arrow =
+        document.getElementById("btnArrow");
+
+
+    if (lang === "fa") {
+
+        document
+            .getElementById("btnFa")
+            .classList
+            .add("active");
+
+        document
+            .getElementById("btnEn")
+            .classList
+            .remove("active");
+
+        arrow.className =
+            "fa-solid fa-arrow-left";
+
+    } else {
+
+        document
+            .getElementById("btnEn")
+            .classList
+            .add("active");
+
+        document
+            .getElementById("btnFa")
+            .classList
+            .remove("active");
+
+        arrow.className =
+            "fa-solid fa-arrow-right";
+    }
+
+}
+
+
+/* =========================================================
+   PASSWORD
+========================================================= */
+
+function togglePasswordVisibility() {
+
+    const pass =
+        document.getElementById("uPass");
+
+    const eye =
+        document.getElementById("eyeIcon");
+
+
+    if (pass.type === "password") {
+
+        pass.type = "text";
+
+        eye.classList.remove("fa-eye");
+
+        eye.classList.add("fa-eye-slash");
+
+    } else {
+
+        pass.type = "password";
+
+        eye.classList.remove("fa-eye-slash");
+
+        eye.classList.add("fa-eye");
+
+    }
+
+}
+
+
+/* =========================================================
+   LIGHT
+========================================================= */
+
+let isHighGlow = false;
+
+
+function toggleLightMode() {
+
+    isHighGlow = !isHighGlow;
+
+    const sphere =
+        document.querySelector(".quantum-sphere");
+
+    const aura =
+        document.querySelector(".planet-aura");
+
+
+    if (isHighGlow) {
+
+        sphere.style.filter =
+            "brightness(1.25) contrast(1.12)";
+
+        aura.style.filter =
+            "blur(25px)";
+
+    } else {
+
+        sphere.style.filter =
+            "none";
+
+        aura.style.filter =
+            "blur(16px)";
+    }
+
+}
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+document
+.getElementById("loginForm")
+.addEventListener("submit", async function(e) {
+
+    e.preventDefault();
+
+
+    const btn =
+        document.getElementById("btnSubmit");
+
+
+    btn.disabled = true;
+
+    btn.style.opacity = ".7";
+
+
+    try {
+
+        const res =
+            await fetch("/api/login", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    username:
+                        document
+                        .getElementById("uName")
+                        .value,
+
+                    password:
+                        document
+                        .getElementById("uPass")
+                        .value
+                })
+
+            });
+
+
+        const data =
+            await res.json();
+
+
+        if (data.success) {
+
+            window.location.href = "/";
+
+        } else {
+
+            alert(
+                data.error ||
+                (
+                    currentLang === "fa"
+                    ? "اطلاعات ورود اشتباه است"
+                    : "Invalid credentials"
+                )
+            );
+
+        }
+
+
+    } catch (error) {
+
+        alert(
+            currentLang === "fa"
+            ? "خطا در برقراری ارتباط با سرور"
+            : "Server connection error"
+        );
+
+    } finally {
+
+        btn.disabled = false;
+
+        btn.style.opacity = "1";
+
+    }
+
+});
+
+</script>
+
+</body>
+</html>

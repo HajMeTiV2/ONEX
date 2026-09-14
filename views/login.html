@@ -2,13 +2,11 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>ONEX • Login</title>
+  <title>ONEX • ورود به پنل</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <!-- تگ‌های جلوگیری از کش شدن مرورگر جهت اعمال آنی تغییرات -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
     * {
@@ -25,145 +23,164 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px 14px 40px;
+      padding: 18px 14px 40px;
       position: relative;
-      background-color: #030a16;
-      /* پس زمینه گرادیانت کوهستان و افق تاریک شب */
-      background: 
-        radial-gradient(circle at 50% 16%, rgba(2, 132, 199, 0.42) 0%, transparent 45%),
-        radial-gradient(circle at 82% 8%, rgba(56, 189, 248, 0.22) 0%, transparent 35%),
-        linear-gradient(to bottom, #07172e 0%, #030b18 55%, #01040a 100%);
+      background: radial-gradient(circle at 50% 12%, #0b254a 0%, #06152b 45%, #020712 100%);
       color: #f1f5f9;
       overflow-x: hidden;
     }
 
-    /* جلوه تصویری خطوط نوری قطار پرسرعت در افق */
-    .train-light-effect {
+    /* لایه منظره رشته‌کوه‌های برفی در شب */
+    .scenery-layer {
       position: absolute;
-      top: 24%;
-      right: -10%;
-      width: 65%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.9) 60%, #ffffff 95%, transparent 100%);
-      box-shadow: 0 0 16px #38bdf8, 0 0 30px #0284c7;
-      transform: rotate(-3.5deg);
-      opacity: 0.75;
-      animation: trainPulse 3.5s ease-in-out infinite alternate;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       pointer-events: none;
       z-index: 1;
+      overflow: hidden;
     }
 
-    @keyframes trainPulse {
-      0% { opacity: 0.35; transform: rotate(-3.5deg) translateX(5%); }
-      100% { opacity: 0.95; transform: rotate(-3.5deg) translateX(-15%); filter: drop-shadow(0 0 10px #38bdf8); }
+    .mountain-svg {
+      position: absolute;
+      top: 2%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 520px;
+      height: 340px;
+      opacity: 0.45;
+      filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.2));
+    }
+
+    /* مسیر و پرتو نوری قطار سریع‌السیر در سمت راست کوه */
+    .neon-train-track {
+      position: absolute;
+      top: 250px;
+      right: -10%;
+      width: 70%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.7) 30%, #ffffff 85%, transparent 100%);
+      box-shadow: 0 0 15px #38bdf8, 0 0 30px #0284c7;
+      transform: rotate(-6deg);
+      opacity: 0.85;
+      animation: trainRun 3.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes trainRun {
+      0% { opacity: 0.4; transform: rotate(-6deg) translateX(8%); }
+      100% { opacity: 1; transform: rotate(-6deg) translateX(-12%); filter: drop-shadow(0 0 10px #38bdf8); }
     }
 
     /* صحنه لوگوی سه‌بعدی و شناور ONEX */
-    .hero-sphere-area {
+    .hero-stage {
       position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
       z-index: 10;
     }
 
-    .sphere-container {
-      width: 130px;
-      height: 130px;
+    .reactor-3d-wrap {
+      width: 145px;
+      height: 145px;
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    /* هاله نئونی پشت کره */
-    .sphere-aura {
+    /* هاله نئونی عمیق پشت راکتور */
+    .glow-aura-layer {
       position: absolute;
-      width: 140px;
-      height: 140px;
+      width: 155px;
+      height: 155px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.45) 0%, rgba(2, 132, 199, 0.15) 60%, transparent 80%);
-      filter: blur(18px);
-      animation: pulseAura 2.8s ease-in-out infinite alternate;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.55) 0%, rgba(2, 132, 199, 0.2) 60%, transparent 80%);
+      filter: blur(20px);
+      animation: pulseAura 2.6s ease-in-out infinite alternate;
     }
 
-    /* حلقه مداری چرخان دور کره */
-    .orbit-ring-anim {
+    /* حلقه مدار سه‌بعدی اول با چرخش */
+    .ring-orbit-primary {
       position: absolute;
-      width: 148px;
-      height: 56px;
+      width: 165px;
+      height: 64px;
       border-radius: 50%;
-      border: 2px solid #38bdf8;
-      box-shadow: 0 0 18px #38bdf8, inset 0 0 12px #0284c7;
-      transform: rotateX(68deg) rotateZ(28deg);
-      animation: orbitSpin 7.5s linear infinite;
+      border: 3px solid #38bdf8;
+      box-shadow: 0 0 20px #38bdf8, inset 0 0 14px #0284c7;
+      transform: rotateX(70deg) rotateZ(32deg);
+      animation: spinOrbit1 8s linear infinite;
     }
 
-    .orbit-ring-dashed {
+    /* حلقه مدار متقاطع دوم */
+    .ring-orbit-secondary {
       position: absolute;
-      width: 140px;
-      height: 50px;
+      width: 155px;
+      height: 54px;
       border-radius: 50%;
-      border: 1.5px dashed rgba(255, 255, 255, 0.75);
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
-      transform: rotateX(68deg) rotateZ(-32deg);
-      animation: orbitSpinRev 5.5s linear infinite;
+      border: 2px dashed rgba(255, 255, 255, 0.85);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+      transform: rotateX(70deg) rotateZ(-38deg);
+      animation: spinOrbit2 6s linear infinite;
     }
 
-    /* گوی شیشه‌ای و بازتاب نوری */
-    .sphere-3d-ball {
-      width: 88px;
-      height: 88px;
+    /* گوی متالیک با سایه‌روشن طبیعی سیاره‌ای */
+    .planet-core-ball {
+      width: 96px;
+      height: 96px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 26%, #f0f9ff 0%, #38bdf8 35%, #0284c7 65%, #082f49 90%, #031422 100%);
-      border: 1.5px solid rgba(255, 255, 255, 0.7);
+      background: radial-gradient(circle at 35% 25%, #ffffff 0%, #7dd3fc 20%, #0ea5e9 45%, #0284c7 70%, #032b4d 90%, #011222 100%);
+      border: 2px solid rgba(255, 255, 255, 0.85);
       box-shadow: 
-        0 10px 30px rgba(2, 132, 199, 0.8),
-        0 0 45px rgba(56, 189, 248, 0.55),
-        inset 0 3px 12px rgba(255, 255, 255, 0.85),
-        inset 0 -6px 14px rgba(0, 0, 0, 0.6);
+        0 12px 35px rgba(2, 132, 199, 0.85),
+        0 0 50px rgba(56, 189, 248, 0.65),
+        inset 0 4px 14px rgba(255, 255, 255, 0.9),
+        inset 0 -8px 18px rgba(0, 0, 0, 0.7);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 5;
-      animation: floatBall 3s ease-in-out infinite alternate;
+      animation: floatPlanet 3.2s ease-in-out infinite alternate;
     }
 
-    .sphere-bolt-icon {
-      font-size: 38px;
+    /* صاعقه مرکزی شارپ و درخشان */
+    .bolt-energy-icon {
+      font-size: 42px;
       color: #ffffff;
-      filter: drop-shadow(0 0 8px #38bdf8) drop-shadow(0 0 16px #0ea5e9);
-      animation: flashBolt 1.6s ease-in-out infinite alternate;
+      filter: drop-shadow(0 0 8px #38bdf8) drop-shadow(0 0 18px #0284c7);
+      animation: flashLightning 1.5s ease-in-out infinite alternate;
     }
 
-    /* عنوان سه‌بعدی کریستالی ONEX */
-    .brand-title-onex {
-      font-size: 34px;
+    /* کلمه ONEX با استایل فلزی سه‌بعدی و سایه نئونی */
+    .brand-logo-text {
+      font-size: 38px;
       font-weight: 900;
-      letter-spacing: 6px;
+      letter-spacing: 7px;
       margin-top: 6px;
-      background: linear-gradient(180deg, #ffffff 0%, #bae6fd 40%, #38bdf8 70%, #0284c7 100%);
+      background: linear-gradient(180deg, #ffffff 0%, #bae6fd 35%, #38bdf8 70%, #0284c7 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 4px 14px rgba(56, 189, 248, 0.75));
+      filter: drop-shadow(0 5px 18px rgba(56, 189, 248, 0.85));
       text-transform: uppercase;
       font-family: 'Impact', 'Segoe UI Black', sans-serif;
     }
 
-    /* کارت ورود دقیقاً بر اساس تصویر */
-    .login-card-box {
+    /* کارت ورود دقیقاً مشابه عکس */
+    .cyber-glass-panel {
       width: 100%;
       max-width: 380px;
-      background: rgba(8, 20, 42, 0.82);
-      border: 1.5px solid rgba(56, 189, 248, 0.45);
+      background: rgba(8, 20, 42, 0.84);
+      border: 1.8px solid rgba(56, 189, 248, 0.45);
       box-shadow: 
-        0 25px 55px rgba(0, 0, 0, 0.85),
+        0 25px 60px rgba(0, 0, 0, 0.85),
         0 0 35px rgba(2, 132, 199, 0.28),
-        inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        inset 0 1px 2px rgba(255, 255, 255, 0.25);
       border-radius: 28px;
-      padding: 24px 22px;
+      padding: 24px 22px 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -171,43 +188,43 @@
       z-index: 10;
     }
 
-    .main-login-text {
+    .panel-header-title {
       font-size: 23px;
       font-weight: 800;
       color: #38bdf8;
       margin-bottom: 4px;
-      text-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+      text-shadow: 0 0 14px rgba(56, 189, 248, 0.65);
     }
 
-    .sub-login-text {
+    .panel-header-sub {
       font-size: 12px;
       color: #94a3b8;
-      margin-bottom: 22px;
+      margin-bottom: 20px;
       text-align: center;
     }
 
     form { width: 100%; }
 
-    /* فیلدهای ورودی نام کاربری و پسورد */
-    .input-row {
+    /* فیلدهای ورودی */
+    .input-box-wrap {
       width: 100%;
       height: 50px;
-      background: rgba(3, 11, 24, 0.8);
+      background: rgba(3, 11, 24, 0.85);
       border: 1px solid rgba(56, 189, 248, 0.3);
       border-radius: 14px;
       display: flex;
       align-items: center;
       padding: 0 14px;
-      margin-bottom: 14px;
+      margin-bottom: 13px;
       transition: all 0.25s ease;
     }
 
-    .input-row:focus-within {
+    .input-box-wrap:focus-within {
       border-color: #38bdf8;
       box-shadow: 0 0 18px rgba(56, 189, 248, 0.45);
     }
 
-    .input-row input {
+    .input-box-wrap input {
       flex: 1;
       height: 100%;
       background: transparent;
@@ -219,24 +236,24 @@
       padding: 0 8px;
     }
 
-    .field-tag {
+    .input-desc-label {
       font-size: 11px;
       color: #94a3b8;
       white-space: nowrap;
       margin-left: 6px;
     }
 
-    [dir="ltr"] .field-tag {
+    [dir="ltr"] .input-desc-label {
       margin-left: 0;
       margin-right: 6px;
     }
 
-    .input-row i {
+    .input-box-wrap i {
       color: #64748b;
       font-size: 15px;
     }
 
-    .eye-toggle-btn {
+    .pass-eye-toggle {
       background: none;
       border: none;
       cursor: pointer;
@@ -245,21 +262,21 @@
       display: flex;
       align-items: center;
     }
-    .eye-toggle-btn:hover { color: #38bdf8; }
+    .pass-eye-toggle:hover { color: #38bdf8; }
 
     /* دکمه ورود نئونی با فلش */
-    .btn-login-main {
+    .btn-login-action {
       width: 100%;
       height: 48px;
       background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
-      border: 1px solid rgba(255, 255, 255, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.45);
       border-radius: 14px;
       color: #ffffff;
       font-size: 16px;
       font-weight: 800;
       cursor: pointer;
       margin-top: 6px;
-      box-shadow: 0 8px 25px rgba(2, 132, 199, 0.65), 0 0 15px rgba(56, 189, 248, 0.45);
+      box-shadow: 0 8px 25px rgba(2, 132, 199, 0.7), 0 0 15px rgba(56, 189, 248, 0.45);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -267,30 +284,30 @@
       transition: all 0.25s ease;
     }
 
-    .btn-login-main:hover {
+    .btn-login-action:hover {
       filter: brightness(1.12);
-      box-shadow: 0 10px 32px rgba(56, 189, 248, 0.75);
+      box-shadow: 0 10px 32px rgba(56, 189, 248, 0.8);
       transform: translateY(-1px);
     }
 
-    .btn-login-main i {
+    .btn-login-action i {
       font-size: 17px;
     }
 
-    [dir="rtl"] .btn-login-main i {
+    [dir="rtl"] .btn-login-action i {
       transform: rotate(180deg);
     }
 
-    /* نوار کنترل تنظیمات و زبان */
-    .control-tools-row {
+    /* نوار گزینه‌ها: زبان و چرخ‌دنده لوزی */
+    .controls-panel-row {
       width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 18px;
+      margin-top: 16px;
     }
 
-    .lang-switcher-box {
+    .lang-capsule {
       display: flex;
       background: rgba(3, 11, 24, 0.85);
       border: 1px solid rgba(56, 189, 248, 0.3);
@@ -299,7 +316,7 @@
       gap: 3px;
     }
 
-    .lang-btn {
+    .lang-item-btn {
       padding: 6px 14px;
       border-radius: 9px;
       font-size: 11px;
@@ -311,43 +328,48 @@
       transition: all 0.2s;
     }
 
-    .lang-btn.active {
+    .lang-item-btn.active {
       background: #0284c7;
       color: #ffffff;
-      box-shadow: 0 2px 10px rgba(2, 132, 199, 0.7);
+      box-shadow: 0 2px 10px rgba(2, 132, 199, 0.75);
     }
 
-    .settings-gear-btn {
+    /* دکمه لوزی چرخ‌دنده */
+    .rhombus-gear-btn {
       width: 38px;
       height: 38px;
-      border-radius: 12px;
+      border-radius: 10px;
       background: rgba(3, 11, 24, 0.85);
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      border: 1px solid rgba(56, 189, 248, 0.35);
       color: #38bdf8;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       font-size: 15px;
+      transform: rotate(45deg);
       transition: all 0.25s;
     }
 
-    .settings-gear-btn:hover {
-      border-color: #38bdf8;
-      box-shadow: 0 0 14px rgba(56, 189, 248, 0.5);
-      transform: rotate(45deg);
+    .rhombus-gear-btn i {
+      transform: rotate(-45deg);
     }
 
-    .via-text-tag {
-      margin-top: 16px;
+    .rhombus-gear-btn:hover {
+      border-color: #38bdf8;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
+    }
+
+    .divider-via-text {
+      margin-top: 14px;
       font-size: 11px;
       color: #64748b;
       text-align: center;
       width: 100%;
     }
 
-    /* نوار پایینی متصل به تلگرام با طراحی شیک تصویر */
-    .tg-dock-wrapper {
+    /* نوار پایینی داخل کارت: تلگرام، سازنده و کانال */
+    .bottom-dock-container {
       margin-top: 10px;
       display: flex;
       align-items: center;
@@ -355,31 +377,31 @@
       width: 100%;
     }
 
-    .tg-avatar-button {
+    .round-telegram-link {
       width: 44px;
       height: 44px;
       border-radius: 50%;
       background: radial-gradient(circle at 35% 30%, #38bdf8 0%, #0284c7 65%, #075985 100%);
-      border: 1.5px solid rgba(255, 255, 255, 0.65);
+      border: 1.5px solid rgba(255, 255, 255, 0.7);
       display: flex;
       align-items: center;
       justify-content: center;
       box-shadow: 0 6px 20px rgba(2, 132, 199, 0.7);
       text-decoration: none;
       flex-shrink: 0;
-      animation: glowPulse 2.2s infinite;
+      animation: pulseGlow 2.2s infinite;
     }
 
-    .tg-avatar-button svg {
+    .round-telegram-link svg {
       width: 22px;
       height: 22px;
       fill: #ffffff;
     }
 
-    .tg-info-pill-bar {
+    .capsule-info-link {
       flex: 1;
       height: 44px;
-      background: rgba(3, 11, 24, 0.88);
+      background: rgba(3, 11, 24, 0.9);
       border: 1px solid rgba(56, 189, 248, 0.35);
       border-radius: 22px;
       display: flex;
@@ -391,12 +413,12 @@
       transition: all 0.25s;
     }
 
-    .tg-info-pill-bar:hover {
+    .capsule-info-link:hover {
       border-color: #38bdf8;
-      box-shadow: 0 0 18px rgba(56, 189, 248, 0.45);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.5);
     }
 
-    .channel-title-item {
+    .tag-channel-box {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -405,16 +427,16 @@
       color: #38bdf8;
     }
 
-    .status-dot-green {
+    .green-status-light {
       width: 7px;
       height: 7px;
       border-radius: 50%;
       background: #10b981;
       box-shadow: 0 0 8px #10b981;
-      animation: blinker 1.4s infinite;
+      animation: blink 1.4s infinite;
     }
 
-    .creator-title-item {
+    .tag-creator-box {
       display: flex;
       align-items: center;
       gap: 5px;
@@ -423,7 +445,7 @@
       font-weight: 700;
     }
 
-    .creator-badge-box {
+    .badge-creator-pill {
       font-size: 9px;
       background: #0284c7;
       color: #ffffff;
@@ -432,39 +454,39 @@
       font-weight: 800;
     }
 
-    /* کی‌فریم انیمیشن‌های مداری و شناور */
-    @keyframes orbitSpin {
-      0% { transform: rotateX(68deg) rotateZ(0deg); }
-      100% { transform: rotateX(68deg) rotateZ(360deg); }
+    /* انیمیشن‌ها */
+    @keyframes spinOrbit1 {
+      0% { transform: rotateX(70deg) rotateZ(0deg); }
+      100% { transform: rotateX(70deg) rotateZ(360deg); }
     }
 
-    @keyframes orbitSpinRev {
-      0% { transform: rotateX(68deg) rotateZ(360deg); }
-      100% { transform: rotateX(68deg) rotateZ(0deg); }
+    @keyframes spinOrbit2 {
+      0% { transform: rotateX(70deg) rotateZ(360deg); }
+      100% { transform: rotateX(70deg) rotateZ(0deg); }
     }
 
-    @keyframes floatBall {
+    @keyframes floatPlanet {
       0% { transform: translateY(0px) scale(0.98); }
       100% { transform: translateY(-7px) scale(1.02); }
     }
 
     @keyframes pulseAura {
       0% { transform: scale(0.9); opacity: 0.5; }
-      100% { transform: scale(1.15); opacity: 0.85; }
+      100% { transform: scale(1.18); opacity: 0.85; }
     }
 
-    @keyframes flashBolt {
+    @keyframes flashLightning {
       0% { opacity: 0.85; filter: drop-shadow(0 0 6px #38bdf8); }
-      100% { opacity: 1; filter: drop-shadow(0 0 14px #ffffff) drop-shadow(0 0 22px #38bdf8); }
+      100% { opacity: 1; filter: drop-shadow(0 0 14px #ffffff) drop-shadow(0 0 24px #38bdf8); }
     }
 
-    @keyframes glowPulse {
+    @keyframes pulseGlow {
       0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
       70% { box-shadow: 0 0 0 11px transparent; }
       100% { box-shadow: 0 0 0 0 transparent; }
     }
 
-    @keyframes blinker {
+    @keyframes blink {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.2; }
     }
@@ -472,84 +494,95 @@
 </head>
 <body>
 
-  <!-- افکت قطار نئونی -->
-  <div class="train-light-effect"></div>
-
-  <!-- بخش بالایی: راکتور سه‌بعدی و شناور ONEX -->
-  <div class="hero-sphere-area">
-    <div class="sphere-container">
-      <div class="sphere-aura"></div>
-      <div class="orbit-ring-anim"></div>
-      <div class="orbit-ring-dashed"></div>
-      <div class="sphere-3d-ball">
-        <i class="fa-solid fa-bolt sphere-bolt-icon"></i>
-      </div>
-    </div>
-    <div class="brand-title-onex">ONEX</div>
+  <!-- لایه پس‌زمینه کوهستان برفی شبانه و افق قطار نئونی -->
+  <div class="scenery-layer">
+    <svg class="mountain-svg" viewBox="0 0 1000 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- کوه‌های یخی پس‌زمینه -->
+      <path d="M0 600 L120 380 L260 520 L420 280 L560 480 L720 220 L860 440 L1000 320 L1000 600 Z" fill="#061a38" opacity="0.6"/>
+      <path d="M0 600 L200 420 L350 560 L500 340 L680 520 L850 310 L1000 480 L1000 600 Z" fill="#041228" opacity="0.85"/>
+      <!-- برف و صخره‌های بالایی کوه -->
+      <polygon points="420,280 400,320 440,320" fill="#bae6fd" opacity="0.7"/>
+      <polygon points="720,220 695,270 745,270" fill="#bae6fd" opacity="0.8"/>
+      <polygon points="850,310 830,355 870,355" fill="#bae6fd" opacity="0.6"/>
+    </svg>
+    <div class="neon-train-track"></div>
   </div>
 
-  <!-- کارت اصلی ورود به پنل -->
-  <div class="login-card-box">
+  <!-- بخش بالایی: سیاره و راکتور کوانتومی ONEX -->
+  <div class="hero-stage">
+    <div class="reactor-3d-wrap">
+      <div class="glow-aura-layer"></div>
+      <div class="ring-orbit-primary"></div>
+      <div class="ring-orbit-secondary"></div>
+      <div class="planet-core-ball">
+        <i class="fa-solid fa-bolt bolt-energy-icon"></i>
+      </div>
+    </div>
+    <div class="brand-logo-text">ONEX</div>
+  </div>
+
+  <!-- کارت شیشه‌ای اصلی لاگین -->
+  <div class="cyber-glass-panel">
     
-    <h2 class="main-login-text" id="txtTitle">ورود به پنل</h2>
-    <p class="sub-login-text" id="txtSubtitle">با نام کاربری و رمز عبور خود وارد شوید</p>
+    <h2 class="panel-header-title" id="txtTitle">ورود به پنل</h2>
+    <p class="panel-header-sub" id="txtSubtitle">با نام کاربری و رمز عبور خود وارد شوید</p>
 
     <form id="loginForm">
       
-      <!-- فیلد نام کاربری -->
-      <div class="input-row">
+      <!-- نام کاربری -->
+      <div class="input-box-wrap">
         <i class="fa-regular fa-user"></i>
-        <span class="field-tag" id="lblUser">نام کاربری</span>
+        <span class="input-desc-label" id="lblUser">نام کاربری</span>
         <input type="text" id="uName" placeholder="admin" required autocomplete="username">
       </div>
 
-      <!-- فیلد رمز عبور -->
-      <div class="input-row">
+      <!-- رمز عبور -->
+      <div class="input-box-wrap">
         <i class="fa-solid fa-key"></i>
-        <span class="field-tag" id="lblPass">رمز عبور</span>
+        <span class="input-desc-label" id="lblPass">رمز عبور</span>
         <input type="password" id="uPass" placeholder="••••••••" required autocomplete="current-password">
-        <button type="button" class="eye-toggle-btn" onclick="togglePass()">
+        <button type="button" class="pass-eye-toggle" onclick="togglePasswordVisibility()">
           <i class="fa-regular fa-eye" id="eyeIcon"></i>
         </button>
       </div>
 
-      <!-- دکمه ورود با افکت نئون -->
-      <button type="submit" class="btn-login-main" id="btnSubmit">
+      <!-- دکمه ورود -->
+      <button type="submit" class="btn-login-action" id="btnSubmit">
         <span id="txtBtn">ورود</span>
         <i class="fa-solid fa-arrow-left" id="btnArrow"></i>
       </button>
 
     </form>
 
-    <!-- نوار گزینه‌ها (تغییر زبان و تنظیمات) -->
-    <div class="control-tools-row">
-      <div class="lang-switcher-box">
-        <button type="button" class="lang-btn" id="btnEn" onclick="setLang('en')">EN</button>
-        <button type="button" class="lang-btn active" id="btnFa" onclick="setLang('fa')">FA</button>
-      </div>
-      <div class="settings-gear-btn" onclick="toggleAtmosphere()" title="تنظیمات افکت نوری">
+    <!-- نوار زبان و چرخ‌دنده لوزی -->
+    <div class="controls-panel-row">
+      <div class="rhombus-gear-btn" onclick="toggleLightMode()" title="تنظیمات نور">
         <i class="fa-solid fa-gear"></i>
+      </div>
+      <div class="lang-capsule">
+        <button type="button" class="lang-item-btn" id="btnEn" onclick="switchLanguage('en')">EN</button>
+        <button type="button" class="lang-item-btn active" id="btnFa" onclick="switchLanguage('fa')">FA</button>
       </div>
     </div>
 
-    <div class="via-text-tag" id="txtVia">با از طریق</div>
+    <div class="divider-via-text" id="txtVia">با از طریق</div>
 
-    <!-- داک تلگرام پایینی مطابق با عکس -->
-    <div class="tg-dock-wrapper">
-      <a href="https://t.me/V2rayTun0" target="_blank" class="tg-avatar-button" title="کانال تلگرام @V2rayTun0">
+    <!-- داک تلگرام پایین کارت با لینک مستقیم -->
+    <div class="bottom-dock-container">
+      <a href="https://t.me/V2rayTun0" target="_blank" class="round-telegram-link" title="کانال تلگرام @V2rayTun0">
         <svg viewBox="0 0 24 24">
           <path d="M21.6 3.6L2.8 10.9C1.5 11.4 1.5 12.2 2.6 12.5L7.4 14L18.6 6.9C19.1 6.6 19.6 6.8 19.2 7.1L10.1 15.3H10.1L9.8 19.7C10.2 19.7 10.4 19.5 10.7 19.2L12.8 17.2L17.2 20.4C18 20.9 18.6 20.6 18.8 19.6L21.7 5.8C22 4.6 21.2 4 21.6 3.6Z"/>
         </svg>
       </a>
 
-      <a href="https://t.me/V2rayTun0" target="_blank" class="tg-info-pill-bar">
-        <div class="channel-title-item">
-          <span>V2rayTun0@</span>
-          <span class="status-dot-green"></span>
+      <a href="https://t.me/V2rayTun0" target="_blank" class="capsule-info-link">
+        <div class="tag-creator-box">
+          <span class="badge-creator-pill">CREATOR</span>
+          <span>@Mehtif</span>
         </div>
-        <div class="creator-title-item">
-          <span>Mehtif@</span>
-          <span class="creator-badge-box">CREATOR</span>
+        <div class="tag-channel-box">
+          <span class="green-status-light"></span>
+          <span>@V2rayTun0</span>
         </div>
       </a>
     </div>
@@ -557,7 +590,6 @@
   </div>
 
   <script>
-    // سیستم دو زبانه کامل
     const i18n = {
       fa: {
         title: "ورود به پنل",
@@ -581,7 +613,7 @@
 
     let currentLang = 'fa';
 
-    function setLang(lang) {
+    function switchLanguage(lang) {
       currentLang = lang;
       const data = i18n[lang];
       document.documentElement.setAttribute('dir', data.dir);
@@ -606,8 +638,7 @@
       }
     }
 
-    // مشاهده و پنهان‌سازی رمز عبور
-    function togglePass() {
+    function togglePasswordVisibility() {
       const passIn = document.getElementById('uPass');
       const eye = document.getElementById('eyeIcon');
       if (passIn.type === 'password') {
@@ -621,22 +652,20 @@
       }
     }
 
-    // تغییر مود اشباع نور دکمه چرخ‌دنده
-    let atmoMode = false;
-    function toggleAtmosphere() {
-      atmoMode = !atmoMode;
-      const ball = document.querySelector('.sphere-3d-ball');
-      const aura = document.querySelector('.sphere-aura');
-      if (atmoMode) {
-        ball.style.filter = 'brightness(1.2) contrast(1.1)';
-        aura.style.filter = 'blur(25px)';
+    let isHighGlow = false;
+    function toggleLightMode() {
+      isHighGlow = !isHighGlow;
+      const ball = document.querySelector('.planet-core-ball');
+      const aura = document.querySelector('.glow-aura-layer');
+      if (isHighGlow) {
+        ball.style.filter = 'brightness(1.25) contrast(1.15)';
+        aura.style.filter = 'blur(28px)';
       } else {
         ball.style.filter = 'none';
-        aura.style.filter = 'blur(18px)';
+        aura.style.filter = 'blur(20px)';
       }
     }
 
-    // لاگین واقعی به بک‌اند سرور
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btnSubmit');

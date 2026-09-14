@@ -22,11 +22,17 @@ if (!fs.existsSync(DATA_DIR)) {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 } }));
+
+// تنظیمات سشن با رفع هشدار MemoryStore و سازگاری ابری
 app.use(session({
   secret: process.env.SESSION_SECRET || 'onex-master-vault-2026',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }
+  proxy: true,
+  cookie: { 
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    secure: false 
+  }
 }));
 
 const dbPath = path.join(DATA_DIR, 'onex_vault.db');
@@ -74,6 +80,8 @@ db.serialize(() => {
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('custom_domain', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('clean_ip', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('active_announcement', '')`);
+  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('bot_token', '')`);
+  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('admin_tg_id', '')`);
 });
 
 function getServerMetrics() {
@@ -88,7 +96,7 @@ function getServerMetrics() {
   };
 }
 
-// استارت و راه‌اندازی هسته Xray با پشتبانی کامل از پروتکل‌ها
+// راه‌اندازی هسته Xray-core
 function startCoreEngine() {
   db.all('SELECT * FROM configs WHERE status != "expired"', (err, rows) => {
     const fallbackId = "b831381d-6324-4d53-ad4f-8cda48b30811";
@@ -105,23 +113,17 @@ function startCoreEngine() {
       inbounds: [
         { tag: "api", port: 10085, listen: "127.0.0.1", protocol: "dokodemo-door", settings: { address: "127.0.0.1" } },
         {
-          port: 8081,
-          listen: "0.0.0.0",
-          protocol: "vless",
+          port: 8081, listen: "0.0.0.0", protocol: "vless",
           settings: { clients: clients, decryption: "none" },
           streamSettings: { network: "ws", wsSettings: { path: "/vless" } }
         },
         {
-          port: 8082,
-          listen: "0.0.0.0",
-          protocol: "vmess",
+          port: 8082, listen: "0.0.0.0", protocol: "vmess",
           settings: { clients: clients.map(c => ({ id: c.id, alterId: 0, email: c.email })) },
           streamSettings: { network: "ws", wsSettings: { path: "/vmess" } }
         },
         {
-          port: 8083,
-          listen: "0.0.0.0",
-          protocol: "trojan",
+          port: 8083, listen: "0.0.0.0", protocol: "trojan",
           settings: { clients: clients.map(c => ({ password: c.id, email: c.email })) },
           streamSettings: { network: "ws", wsSettings: { path: "/trojan" } }
         }
@@ -197,6 +199,7 @@ app.get('/api/panel-data', auth, (req, res) => {
         configsCount: rows.length,
         totalUsed: rows.reduce((s, c) => s + (c.used_gb || 0), 0).toFixed(2),
         cleanIp: setMap['clean_ip'] || '',
+        customDomain: setMap['custom_domain'] || '',
         metrics: getServerMetrics(),
         logs: liveLogs,
         configs: rows
@@ -247,6 +250,49 @@ app.post('/api/broadcast/save', auth, (req, res) => {
 app.get('/api/announcement', (req, res) => {
   db.get('SELECT value FROM settings WHERE key = "active_announcement"', (err, row) => {
     res.json({ message: row ? row.value : '' });
+  });
+});
+
+// آپدیت نام کاربری و رمز عبور مدیریت
+app.post('/api/settings/account', auth, (req, res) => {
+  const { newUsername, newPassword, currentPassword } = req.body;
+  
+  db.get('SELECT * FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+    if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
+      return res.status(401).json({ error: 'رمز عبور فعلی اشتباه است.' });
+    }
+
+    const updatedUsername = (newUsername && newUsername.trim() !== '') ? newUsername.trim() : user.username;
+    
+    if (newPassword && newPassword.trim() !== '') {
+      const hashedPassword = bcrypt.hashSync(newPassword, 10);
+      db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', [updatedUsername, hashedPassword, user.id], (err) => {
+        if (err) return res.status(500).json({ error: 'نام کاربری تکراری است.' });
+        req.session.username = updatedUsername;
+        addLog('مشخصات حساب مدیریت به‌روز شد.');
+        res.json({ success: true });
+      });
+    } else {
+      db.run('UPDATE users SET username = ? WHERE id = ?', [updatedUsername, user.id], (err) => {
+        if (err) return res.status(500).json({ error: 'نام کاربری تکراری است.' });
+        req.session.username = updatedUsername;
+        addLog('نام کاربری مدیریت به‌روز شد.');
+        res.json({ success: true });
+      });
+    }
+  });
+});
+
+// آپدیت تنظیمات دامنه و تلگرام
+app.post('/api/settings/general', auth, (req, res) => {
+  const { customDomain, botToken, adminTgId } = req.body;
+  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('custom_domain', ?)`, [customDomain || ''], () => {
+    db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('bot_token', ?)`, [botToken || ''], () => {
+      db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_tg_id', ?)`, [adminTgId || ''], () => {
+        addLog('تنظیمات عمومی و تلگرام به‌روز شد.');
+        res.json({ success: true });
+      });
+    });
   });
 });
 

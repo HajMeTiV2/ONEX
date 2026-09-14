@@ -119,7 +119,7 @@
     .btn-reset { background: rgba(245, 158, 11, 0.2); color: #fbbf24; box-shadow: none; }
     .btn-qr { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; box-shadow: none; }
 
-    /* کشوی جزئیات و ویرایش کلاینت (Slide-Over Drawer) */
+    /* کشوی ویرایش و جزئیات کلاینت (Slide-Over Drawer) */
     .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 250; }
     .user-drawer {
       position: fixed; top: 0; bottom: 0; left: -400px; width: 100%; max-width: 380px;
@@ -546,7 +546,7 @@
 
         return `
           <tr>
-            <td onclick='openUserDrawer(${JSON.stringify(c)})' style="cursor: pointer;">
+            <td>
               <span class="tag-pill ${tagClass}">${tagName}</span>
               <b>${c.name}</b>
             </td>
@@ -563,11 +563,14 @@
               </span>
             </td>
             <td>
-              <div style="display: flex; gap: 6px;">
-                <a href="${portalLink}" target="_blank" class="btn-main" style="background:#6366f1; color:#fff; padding: 5px 10px; font-size: 11px; text-decoration: none;">
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                <button class="btn-main" onclick='openUserDrawer(${JSON.stringify(c)})' style="background:#0284c7; color:#fff; padding: 5px 8px; font-size: 10.5px;">
+                  <i class="fa-solid fa-pen-to-square"></i> ویرایش
+                </button>
+                <a href="${portalLink}" target="_blank" class="btn-main" style="background:#6366f1; color:#fff; padding: 5px 8px; font-size: 10.5px; text-decoration: none;">
                   <i class="fa-solid fa-eye"></i> پورتال
                 </a>
-                <button class="btn-main btn-qr" onclick="event.stopPropagation(); showQuickQr('${c.name}', '${subLink}')" style="padding: 5px 10px; font-size: 11px;">
+                <button class="btn-main btn-qr" onclick="showQuickQr('${c.name}', '${subLink}')" style="padding: 5px 8px; font-size: 10.5px;">
                   <i class="fa-solid fa-qrcode"></i> QR
                 </button>
               </div>

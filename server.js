@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const net = require('net');
 const { spawn, exec } = require('child_process');
 const http = require('http');
 const httpProxy = require('http-proxy');
@@ -136,6 +137,22 @@ function startCoreEngine() {
 
 startCoreEngine();
 
+function testCloudflareIp(ip, port = 443, timeout = 2000) {
+  return new Promise((resolve) => {
+    const startTime = Date.now();
+    const socket = new net.Socket();
+    socket.setTimeout(timeout);
+    socket.on('connect', () => {
+      const latency = Date.now() - startTime;
+      socket.destroy();
+      resolve({ ip, latency, status: 'online' });
+    });
+    socket.on('timeout', () => { socket.destroy(); resolve({ ip, latency: 9999, status: 'timeout' }); });
+    socket.on('error', () => { socket.destroy(); resolve({ ip, latency: 9999, status: 'error' }); });
+    socket.connect(port, ip);
+  });
+}
+
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const remark = `ONEX-${cfg.name}`;
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
@@ -219,13 +236,36 @@ app.post('/api/configs/:id/edit', auth, (req, res) => {
 app.post('/api/save-worker-settings', auth, (req, res) => {
   const { cleanIp } = req.body;
   db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('clean_ip', ?)`, [cleanIp || ''], () => {
+    addLog(`آی‌پی تمیز به ${cleanIp} تغییر یافت.`, 'success');
     res.json({ success: true });
   });
+});
+
+app.post('/api/cleanip/scan', auth, async (req, res) => {
+  addLog('اسکنر هوشمند Clean IP آغاز به کار کرد...', 'info');
+  const baseRanges = ['104.16.', '172.67.', '104.17.', '162.159.'];
+  const candidates = [];
+  for (let i = 0; i < 15; i++) {
+    const prefix = baseRanges[Math.floor(Math.random() * baseRanges.length)];
+    const ip = `${prefix}${Math.floor(Math.random() * 200 + 1)}.${Math.floor(Math.random() * 200 + 1)}`;
+    candidates.push(ip);
+  }
+  const results = [];
+  for (const ip of candidates) {
+    const resTest = await testCloudflareIp(ip);
+    if (resTest.status === 'online' && resTest.latency < 1000) {
+      results.push(resTest);
+    }
+  }
+  results.sort((a, b) => a.latency - b.latency);
+  addLog(`اسکن پایان یافت. ${results.length} آی‌پی سالم پیدا شد.`, 'success');
+  res.json({ success: true, results });
 });
 
 app.post('/api/broadcast/save', auth, (req, res) => {
   const { message } = req.body;
   db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('active_announcement', ?)`, [message || ''], () => {
+    addLog('پیام همگانی منتشر شد.', 'success');
     res.json({ success: true });
   });
 });
@@ -236,7 +276,6 @@ app.get('/api/announcement', (req, res) => {
   });
 });
 
-// مسیر ری‌استارت دستی هسته Xray از پنل
 app.post('/api/core/restart', auth, (req, res) => {
   addLog('درخواست ری‌استارت دستی هسته Xray صادر شد.', 'info');
   startCoreEngine();

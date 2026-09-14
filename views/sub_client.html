@@ -23,35 +23,21 @@
 
     .container { width: 100%; max-width: 480px; margin: 0 auto; z-index: 10; }
 
-    /* هدر پورتال */
     .portal-header {
-      background: rgba(12, 22, 40, 0.82);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      backdrop-filter: blur(20px);
-      border-radius: 20px;
-      padding: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 14px;
+      background: rgba(12, 22, 40, 0.82); border: 1px solid rgba(56, 189, 248, 0.3);
+      backdrop-filter: blur(20px); border-radius: 20px; padding: 16px;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
     .brand-title { font-size: 17px; font-weight: 900; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
     
-    .status-badge {
-      padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;
-    }
+    .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; }
     .badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
     .badge-expired { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
 
-    /* کارت اصلی وضعیت */
     .glass-card {
-      background: rgba(10, 22, 42, 0.82);
-      border: 1px solid rgba(56, 189, 248, 0.28);
-      border-radius: 22px;
-      padding: 20px 16px;
-      margin-bottom: 14px;
-      backdrop-filter: blur(20px);
+      background: rgba(10, 22, 42, 0.82); border: 1px solid rgba(56, 189, 248, 0.28);
+      border-radius: 22px; padding: 20px 16px; margin-bottom: 14px; backdrop-filter: blur(20px);
       box-shadow: 0 15px 35px rgba(0,0,0,0.6);
     }
 
@@ -81,10 +67,8 @@
     }
     .btn-neon:hover { filter: brightness(1.1); }
 
-    /* دکمه‌های ایمپورت سریع */
     .import-buttons-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
 
-    /* لیست پروتکل‌ها */
     .protocols-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
     .proto-card {
       background: rgba(10, 22, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.22);
@@ -100,29 +84,21 @@
     }
     .btn-copy-sm:hover { background: #0284c7; color: #fff; }
 
-    /* QR Code */
     .qr-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px; }
     .qr-frame { background: #ffffff; padding: 10px; border-radius: 14px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.2); }
-
     .footer-brand { text-align: center; font-size: 11px; color: #64748b; margin-top: 18px; }
   </style>
 </head>
 <body>
 
   <div class="container">
-    
-    <!-- هدر -->
     <header class="portal-header">
       <div class="brand-title"><i class="fa-solid fa-bolt"></i><span>ONEX PORTAL</span></div>
-      <div>
-        <span class="status-badge badge-active" id="c-badge"><i class="fa-solid fa-circle-check"></i> فعال</span>
-      </div>
+      <div><span class="status-badge badge-active" id="c-badge"><i class="fa-solid fa-circle-check"></i> فعال</span></div>
     </header>
 
-    <!-- کارت وضعیت مصرف -->
     <div class="glass-card">
       <h4 style="font-size: 12px; color: #94a3b8; margin-bottom: 12px; text-align: center; font-weight: 700;">وضعیت مصرف و اعتبار اشتراک</h4>
-      
       <div class="circle-wrap">
         <div class="circle-progress" id="circProg">
           <div class="circle-inner">
@@ -133,104 +109,52 @@
         </div>
         
         <div class="stats-table">
-          <div class="stats-row">
-            <span style="color: #94a3b8;">لوکیشن سرور:</span>
-            <b style="color: #38bdf8;" id="c-server">--</b>
-          </div>
-          <div class="stats-row">
-            <span style="color: #94a3b8;">حجم مصرف شده:</span>
-            <b style="color: #f59e0b;" id="c-used">-- GB</b>
-          </div>
-          <div class="stats-row">
-            <span style="color: #94a3b8;">اعتبار زمانی:</span>
-            <b style="color: #10b981;" id="c-days">-- روز</b>
-          </div>
+          <div class="stats-row"><span style="color: #94a3b8;">لوکیشن سرور:</span><b style="color: #38bdf8;" id="c-server">--</b></div>
+          <div class="stats-row"><span style="color: #94a3b8;">حجم مصرف شده:</span><b style="color: #f59e0b;" id="c-used">-- GB</b></div>
+          <div class="stats-row"><span style="color: #94a3b8;">اعتبار زمانی:</span><b style="color: #10b981;" id="c-days">-- روز</b></div>
         </div>
       </div>
 
-      <!-- لینک ساب و دکمه کپی -->
       <div class="sub-link-box">
         <input type="text" id="subUrlIn" class="sub-url-input" readonly>
         <button class="btn-neon" onclick="copySub()"><i class="fa-solid fa-copy"></i> کپی ساب</button>
       </div>
 
-      <!-- دکمه‌های ایمپورت مستقیم -->
       <div class="import-buttons-grid">
         <a id="btnV2rayNg" class="btn-neon" style="justify-content:center; background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
-          <i class="fa-solid fa-bolt"></i> ایمپورت در v2rayNG
+          <i class="fa-solid fa-bolt"></i> v2rayNG
         </a>
-        <a id="btnClashImport" class="btn-neon" style="justify-content:center; background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);" onclick="copyClash()">
+        <a class="btn-neon" style="justify-content:center; background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); cursor:pointer;" onclick="copyClash()">
           <i class="fa-solid fa-cat"></i> کپی لینک Clash
         </a>
       </div>
     </div>
 
-    <!-- بارکد QR -->
     <div class="glass-card qr-container">
       <h4 style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">اسکن سریع لینک ساب‌اسکریپشن</h4>
-      <div class="qr-frame">
-        <div id="subQrCode"></div>
-      </div>
+      <div class="qr-frame"><div id="subQrCode"></div></div>
     </div>
 
-    <!-- لیست پروتکل‌های اختصاصی -->
     <h4 style="font-size: 12px; margin: 16px 4px 8px; color: #94a3b8; font-weight: 700;">دریافت تکی پروتکل‌ها</h4>
     <div class="protocols-stack">
-      
-      <div class="proto-card">
-        <div class="proto-info">
-          <span class="proto-name">VLESS WebSocket</span>
-          <span class="proto-tag">Standard / TLS / WS</span>
-        </div>
-        <button class="btn-copy-sm" onclick="copyConfig('vlessWs', 'VLESS WS')"><i class="fa-solid fa-copy"></i> کپی</button>
-      </div>
-
-      <div class="proto-card">
-        <div class="proto-info">
-          <span class="proto-name">VLESS REALITY</span>
-          <span class="proto-tag">Anti-Filter / Vision</span>
-        </div>
-        <button class="btn-copy-sm" onclick="copyConfig('vlessReality', 'REALITY')"><i class="fa-solid fa-copy"></i> کپی</button>
-      </div>
-
-      <div class="proto-card">
-        <div class="proto-info">
-          <span class="proto-name">XHTTP / SplitHTTP</span>
-          <span class="proto-tag">Next-Gen Core Protocol</span>
-        </div>
-        <button class="btn-copy-sm" onclick="copyConfig('vlessXhttp', 'XHTTP')"><i class="fa-solid fa-copy"></i> کپی</button>
-      </div>
-
-      <div class="proto-card">
-        <div class="proto-info">
-          <span class="proto-name">gRPC Gaming</span>
-          <span class="proto-tag">Low Latency / Multiplex</span>
-        </div>
-        <button class="btn-copy-sm" onclick="copyConfig('vlessGrpc', 'gRPC')"><i class="fa-solid fa-copy"></i> کپی</button>
-      </div>
-
-      <div class="proto-card">
-        <div class="proto-info">
-          <span class="proto-name">VMess WebSocket</span>
-          <span class="proto-tag">Classic / Secure</span>
-        </div>
-        <button class="btn-copy-sm" onclick="copyConfig('vmessWs', 'VMess')"><i class="fa-solid fa-copy"></i> کپی</button>
-      </div>
-
-      <div class="proto-card">
-        <div class="proto-info">
-          <span class="proto-name">Trojan WebSocket</span>
-          <span class="proto-tag">Encrypted TLS Tunnel</span>
-        </div>
-        <button class="btn-copy-sm" onclick="copyConfig('trojanWs', 'Trojan')"><i class="fa-solid fa-copy"></i> کپی</button>
-      </div>
-
+      <div class="proto-card"><div class="proto-info"><span class="proto-name">VLESS WebSocket</span><span class="proto-tag">Standard / TLS / WS</span></div><button class="btn-copy-sm" onclick="copyConfig('vlessWs', 'VLESS WS')"><i class="fa-solid fa-copy"></i> کپی</button></div>
+      <div class="proto-card"><div class="proto-info"><span class="proto-name">VLESS REALITY</span><span class="proto-tag">Anti-Filter / Vision</span></div><button class="btn-copy-sm" onclick="copyConfig('vlessReality', 'REALITY')"><i class="fa-solid fa-copy"></i> کپی</button></div>
+      <div class="proto-card"><div class="proto-info"><span class="proto-name">XHTTP / SplitHTTP</span><span class="proto-tag">Next-Gen Protocol</span></div><button class="btn-copy-sm" onclick="copyConfig('vlessXhttp', 'XHTTP')"><i class="fa-solid fa-copy"></i> کپی</button></div>
+      <div class="proto-card"><div class="proto-info"><span class="proto-name">gRPC Gaming</span><span class="proto-tag">Low Latency</span></div><button class="btn-copy-sm" onclick="copyConfig('vlessGrpc', 'gRPC')"><i class="fa-solid fa-copy"></i> کپی</button></div>
     </div>
 
-    <div class="footer-brand">
-      ONEX Cloud Core • کانال: <a href="https://t.me/V2rayTun0" target="_blank" style="color: #38bdf8; text-decoration: none;">@V2rayTun0</a>
+    <!-- بخش معرفی دوستان (Referral) -->
+    <div class="glass-card" style="text-align: center; margin-top: 14px;">
+      <h4 style="font-size: 13px; color: #38bdf8; margin-bottom: 6px;"><i class="fa-solid fa-gift"></i> معرفی به دوستان</h4>
+      <p style="font-size: 11px; color: #94a3b8; margin-bottom: 12px;">با دعوت از دوستان خود حجم هدیه بگیرید!</p>
+      <div class="sub-link-box">
+        <input type="text" id="refUrlIn" class="sub-url-input" readonly>
+        <button class="btn-neon" onclick="copyRef()"><i class="fa-solid fa-copy"></i> کپی</button>
+      </div>
+      <small style="font-size: 10px; color: #64748b; margin-top: 8px; display: block;" id="refCountText">تعداد دعوت: ۰ نفر</small>
     </div>
 
+    <div class="footer-brand">ONEX Cloud Core • <a href="https://t.me/V2rayTun0" target="_blank" style="color: #38bdf8; text-decoration: none;">@V2rayTun0</a></div>
   </div>
 
   <script>
@@ -240,7 +164,7 @@
     async function loadPortalData() {
       const res = await fetch('/api/subinfo/' + cfgId).then(r => r.json());
       if (res.error) {
-        document.body.innerHTML = '<h4 style="text-align:center; margin-top:80px; color:#ef4444;">لینک اشتراک نامعتبر است یا منقضی شده است.</h4>';
+        document.body.innerHTML = '<h4 style="text-align:center; margin-top:80px; color:#ef4444;">لینک اشتراک نامعتبر است.</h4>';
         return;
       }
       subData = res;
@@ -253,30 +177,21 @@
 
       document.getElementById('subUrlIn').value = res.subUrl;
       document.getElementById('btnV2rayNg').href = `v2rayng://install-config?url=${encodeURIComponent(res.subUrl)}`;
+      
+      const refUrl = `https://${window.location.host}/invite/${res.config.uuid}`;
+      document.getElementById('refUrlIn').value = refUrl;
+      document.getElementById('refCountText').innerText = `تعداد دعوت‌های موفق: ${res.config.referral_count || 0} نفر`;
 
       document.getElementById('circProg').style.setProperty('--prog', (100 - res.usagePercent) + '%');
-
       document.getElementById('subQrCode').innerHTML = '';
       new QRCode(document.getElementById('subQrCode'), { text: res.subUrl, width: 130, height: 130 });
     }
 
-    function copySub() {
-      navigator.clipboard.writeText(document.getElementById('subUrlIn').value);
-      alert('🔗 لینک ساب‌اسکریپشن با موفقیت کپی شد!');
-    }
-
-    function copyClash() {
-      navigator.clipboard.writeText(subData.subUrl);
-      alert('📋 لینک ساب جهت ایمپورت در Clash کپی شد!');
-    }
-
+    function copySub() { navigator.clipboard.writeText(document.getElementById('subUrlIn').value); alert('لینک ساب کپی شد!'); }
+    function copyClash() { navigator.clipboard.writeText(subData.subUrl); alert('لینک ساب Clash کپی شد!'); }
+    function copyRef() { navigator.clipboard.writeText(document.getElementById('refUrlIn').value); alert('لینک دعوت کپی شد!'); }
     function copyConfig(key, title) {
-      if (subData[key]) {
-        navigator.clipboard.writeText(subData[key]);
-        alert(`✅ کانفیگ ${title} با موفقیت کپی شد!`);
-      } else {
-        alert('❌ اطلاعات این پروتکل موجود نیست.');
-      }
+      if (subData[key]) { navigator.clipboard.writeText(subData[key]); alert(`کانفیگ ${title} کپی شد!`); }
     }
 
     loadPortalData();

@@ -1,149 +1,159 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl" data-theme="cyberpunk">
+<html lang="fa" dir="rtl" data-theme="glass">
 <head>
   <meta charset="UTF-8">
-  <title>ONEX Enterprise • Ultimate Dashboard</title>
+  <title>ONEX Enterprise • Glassmorphism Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    :root[data-theme="cyberpunk"] {
-      --bg-main: #050812; --bg-sidebar: #0a1020; --bg-card: #0c152a;
-      --border-color: rgba(56, 189, 248, 0.25); --text-main: #f8fafc; --text-muted: #94a3b8; --accent: #38bdf8;
-    }
-    :root[data-theme="oled"] {
-      --bg-main: #000000; --bg-sidebar: #050505; --bg-card: #0a0a0a;
-      --border-color: rgba(255, 255, 255, 0.15); --text-main: #ffffff; --text-muted: #a3a3a3; --accent: #00ffff;
-    }
-    :root[data-theme="glass"] {
-      --bg-main: #0b1329; --bg-sidebar: rgba(12, 20, 38, 0.85); --bg-card: rgba(16, 26, 48, 0.75);
-      --border-color: rgba(255, 255, 255, 0.12); --text-main: #f1f5f9; --text-muted: #cbd5e1; --accent: #60a5fa;
+    :root {
+      --bg-main: #070c1b;
+      --bg-sidebar: rgba(11, 18, 35, 0.75);
+      --bg-card: rgba(17, 26, 49, 0.65);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: var(--bg-main); color: var(--text-main); min-height: 100vh; overflow-x: hidden; transition: background 0.3s ease; }
+    
+    body {
+      background: var(--bg-main);
+      background-image: 
+        radial-gradient(at 10% 20%, rgba(14, 116, 144, 0.18) 0px, transparent 50%),
+        radial-gradient(at 90% 80%, rgba(79, 70, 229, 0.15) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
     .mobile-header {
       display: none; position: sticky; top: 0; z-index: 120;
-      background: var(--bg-sidebar); backdrop-filter: blur(15px);
-      border-bottom: 1px solid var(--border-color); padding: 12px 16px; justify-content: space-between; align-items: center;
+      background: var(--bg-sidebar); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color); padding: 14px 18px; justify-content: space-between; align-items: center;
     }
     .btn-toggle-menu { background: none; border: none; color: var(--accent); font-size: 20px; cursor: pointer; }
 
     .sidebar {
-      width: 230px; background: var(--bg-sidebar); border-left: 1px solid var(--border-color);
-      display: flex; flex-direction: column; justify-content: space-between; padding: 20px 14px;
+      width: 250px; background: var(--bg-sidebar); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+      border-left: 1px solid var(--border-color);
+      display: flex; flex-direction: column; justify-content: space-between; padding: 24px 16px;
       position: fixed; top: 0; bottom: 0; right: 0; z-index: 200; transition: transform 0.3s ease;
     }
-    .brand { font-size: 18px; font-weight: 900; color: var(--accent); display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); }
-    .nav-list { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 5px; }
+    .brand { font-size: 16px; font-weight: 900; color: var(--accent); display: flex; align-items: center; justify-content: space-between; padding-bottom: 18px; border-bottom: 1px solid var(--border-color); letter-spacing: 0.5px; }
+    .nav-list { list-style: none; margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
     .nav-btn {
-      display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 12px;
-      color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; width: 100%; text-align: inherit; transition: 0.2s;
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px;
+      color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; width: 100%; text-align: inherit; transition: all 0.25s ease;
     }
-    .nav-btn:hover, .nav-btn.active { background: #0284c7; color: #fff; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4); }
-    .nav-btn i { width: 18px; text-align: center; }
+    .nav-btn:hover, .nav-btn.active { background: rgba(56, 189, 248, 0.12); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.2); box-shadow: 0 0 20px var(--accent-glow); }
+    .nav-btn i { width: 20px; text-align: center; }
 
-    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); z-index: 190; }
-    .main-viewport { margin-right: 230px; padding: 22px 26px; min-height: 100vh; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border-color); }
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(5px); z-index: 190; }
+    .main-viewport { margin-right: 250px; padding: 28px 32px; min-height: 100vh; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); }
 
-    .theme-switcher { display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 10px; border: 1px solid var(--border-color); }
-    .theme-btn { padding: 5px 10px; font-size: 10px; font-weight: 700; border-radius: 8px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; }
-    .theme-btn.active { background: var(--accent); color: #000; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 22px; }
+    .stat-card {
+      background: var(--bg-card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-radius: 20px; padding: 20px; color: #fff; display: flex; flex-direction: column; justify-content: space-between;
+      border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.4); transition: transform 0.3s ease;
+    }
+    .stat-card:hover { transform: translateY(-3px); border-color: rgba(56, 189, 248, 0.3); }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-    .stat-card { border-radius: 16px; padding: 18px; color: #fff; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-    .bg-g1 { background: linear-gradient(135deg, #047857, #10b981); }
-    .bg-g2 { background: linear-gradient(135deg, #0369a1, #38bdf8); }
-    .bg-g3 { background: linear-gradient(135deg, #4f46e5, #8b5cf6); }
-    .bg-g4 { background: linear-gradient(135deg, #0e7490, #06b6d4); }
+    .panel-box {
+      background: var(--bg-card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color); border-radius: 22px; padding: 22px; margin-bottom: 22px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .table-toolbar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+    .search-box { flex: 1; min-width: 240px; position: relative; }
+    .search-box input {
+      width: 100%; padding: 11px 16px 11px 40px; background: rgba(0,0,0,0.35); border: 1px solid var(--border-color);
+      border-radius: 14px; color: var(--text-main); font-size: 13px; outline: none; transition: border-color 0.2s;
+    }
+    .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
+    .search-box i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 
-    .panel-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 20px; margin-bottom: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); backdrop-filter: blur(15px); }
-    .table-toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
-    .search-box { flex: 1; min-width: 220px; position: relative; }
-    .search-box input { width: 100%; padding: 10px 14px 10px 36px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-main); font-size: 12.5px; outline: none; }
-    .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-
-    .filter-pills { display: flex; gap: 5px; }
-    .filter-pill { padding: 6px 12px; font-size: 11px; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; }
-    .filter-pill.active { background: var(--accent); color: #000; border-color: var(--accent); }
+    .filter-pills { display: flex; gap: 6px; }
+    .filter-pill { padding: 7px 14px; font-size: 11.5px; font-weight: 700; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.2); color: var(--text-muted); cursor: pointer; transition: 0.2s; }
+    .filter-pill.active { background: var(--accent); color: #070c1b; border-color: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
 
     .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .ui-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; white-space: nowrap; }
-    .ui-table th { padding: 13px 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-weight: 700; }
-    .ui-table td { padding: 13px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+    .ui-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13.5px; white-space: nowrap; }
+    .ui-table th { padding: 14px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-weight: 700; }
+    .ui-table td { padding: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.03); }
     .ui-table tr:hover td { background: rgba(56, 189, 248, 0.04); }
 
-    .badge-status { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; }
-    .badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-    .badge-pending { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
-    .badge-expired { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .badge-status { padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; }
+    .badge-active { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-pending { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 
-    .tag-pill { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; margin-right: 5px; display: inline-block; }
-    .tag-vip { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
-    .tag-gaming { background: rgba(139, 92, 246, 0.2); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.4); }
-    .tag-normal { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
-
-    .traffic-chip { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-top: 2px; display: inline-block; }
+    .tag-pill { font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 8px; margin-right: 6px; display: inline-block; }
+    .tag-vip { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .tag-gaming { background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .tag-normal { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 
     .btn-main {
-      padding: 8px 14px; background: var(--accent); border: none; border-radius: 10px;
-      color: #000; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
-      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3); transition: 0.2s;
+      padding: 9px 16px; background: var(--accent); border: none; border-radius: 12px;
+      color: #070c1b; font-size: 12.5px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;
+      box-shadow: 0 4px 15px var(--accent-glow); transition: all 0.2s;
     }
-    .btn-main:hover { filter: brightness(1.1); }
-    .btn-del { background: rgba(239, 68, 68, 0.2); color: #f87171; box-shadow: none; }
-    .btn-renew { background: rgba(16, 185, 129, 0.2); color: #34d399; box-shadow: none; }
-    .btn-reset { background: rgba(245, 158, 11, 0.2); color: #fbbf24; box-shadow: none; }
-    .btn-qr { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; box-shadow: none; }
+    .btn-main:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-del { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); box-shadow: none; }
+    .btn-renew { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); box-shadow: none; }
+    .btn-reset { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); box-shadow: none; }
+    .btn-qr { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); box-shadow: none; }
 
-    .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 250; }
+    .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 250; }
     .user-drawer {
-      position: fixed; top: 0; bottom: 0; left: -400px; width: 100%; max-width: 380px;
-      background: var(--bg-card); border-right: 1px solid var(--border-color); z-index: 260;
-      box-shadow: -10px 0 30px rgba(0,0,0,0.8); transition: left 0.3s ease; padding: 24px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto;
+      position: fixed; top: 0; bottom: 0; left: -420px; width: 100%; max-width: 400px;
+      background: var(--bg-sidebar); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+      border-right: 1px solid var(--border-color); z-index: 260;
+      box-shadow: -15px 0 40px rgba(0,0,0,0.8); transition: left 0.35s ease; padding: 26px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto;
     }
     .user-drawer.open { left: 0; }
 
     .bottom-bar {
-      display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
-      background: var(--bg-sidebar); backdrop-filter: blur(20px);
+      display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+      background: var(--bg-sidebar); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
       border-top: 1px solid var(--border-color); z-index: 150; justify-content: space-around; align-items: center;
     }
-    .bottom-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); font-size: 10px; background: none; border: none; cursor: pointer; }
+    .bottom-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); font-size: 10.5px; background: none; border: none; cursor: pointer; }
     .bottom-btn.active, .bottom-btn:hover { color: var(--accent); }
     .bottom-btn i { font-size: 18px; }
 
-    .modal-wrap { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(8px); z-index: 300; align-items: center; justify-content: center; padding: 14px; }
-    .modal-box { width: 100%; max-width: 460px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9); border-radius: 24px; padding: 24px; }
-    .input-field { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 12px; color: var(--text-main); font-size: 13.5px; margin-bottom: 12px; outline: none; }
-    .input-field:focus { border-color: var(--accent); }
+    .modal-wrap { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); z-index: 300; align-items: center; justify-content: center; padding: 16px; }
+    .modal-box { width: 100%; max-width: 480px; background: var(--bg-card); backdrop-filter: blur(30px); border: 1px solid var(--border-color); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9); border-radius: 26px; padding: 26px; }
+    .input-field { width: 100%; padding: 13px 16px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); border-radius: 14px; color: var(--text-main); font-size: 14px; margin-bottom: 14px; outline: none; transition: 0.2s; }
+    .input-field:focus { border-color: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
 
     .view-section { display: none; }
     .view-section.active-view { display: block; }
 
-    .log-terminal { background: #020409; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; font-family: monospace; font-size: 12px; color: #38bdf8; height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 0 15px rgba(0,0,0,0.8); }
-    .log-item { display: flex; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px; }
-    .log-time { color: var(--text-muted); font-size: 11px; min-width: 70px; }
+    .log-terminal { background: #020409; border: 1px solid var(--border-color); border-radius: 14px; padding: 18px; font-family: monospace; font-size: 12px; color: #38bdf8; height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 0 20px rgba(0,0,0,0.9); }
+    .log-item { display: flex; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 6px; }
+    .log-time { color: var(--text-muted); font-size: 11px; min-width: 75px; }
     .log-msg.info { color: #38bdf8; }
     .log-msg.success { color: #34d399; }
     .log-msg.error { color: #f87171; font-weight: bold; }
 
-    /* استایل دکمه‌های پرچم لوکیشن */
-    .flag-btn { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: var(--text-main); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s; }
-    .flag-btn.active, .flag-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+    .flag-btn { padding: 9px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: var(--text-main); font-size: 12.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
+    .flag-btn.active, .flag-btn:hover { background: var(--accent); color: #070c1b; border-color: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
 
     @media (max-width: 850px) {
-      body { padding-bottom: 75px; }
+      body { padding-bottom: 80px; }
       .mobile-header { display: flex; }
       .topbar { display: none; }
-      .main-viewport { margin-right: 0 !important; padding: 14px; }
+      .main-viewport { margin-right: 0 !important; padding: 16px; }
       .sidebar { transform: translateX(100%); }
       .sidebar.open { transform: translateX(0); }
       .sidebar-overlay.active { display: block; }
       .bottom-bar { display: flex; }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     }
   </style>
 </head>
@@ -153,11 +163,6 @@
     <div style="display: flex; align-items: center; gap: 10px;">
       <button class="btn-toggle-menu" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
       <span style="font-size: 17px; font-weight: 900; color: var(--accent);"><i class="fa-solid fa-bolt"></i> ONEX</span>
-    </div>
-    <div class="theme-switcher">
-      <button class="theme-btn active" onclick="setTheme('cyberpunk')">CYBER</button>
-      <button class="theme-btn" onclick="setTheme('oled')">OLED</button>
-      <button class="theme-btn" onclick="setTheme('glass')">GLASS</button>
     </div>
   </div>
 
@@ -172,7 +177,7 @@
       <ul class="nav-list">
         <li><button class="nav-btn active" onclick="switchView('dashboard')"><i class="fa-solid fa-house"></i><span>داشبورد ابری</span></button></li>
         <li><button class="nav-btn" onclick="openModal();"><i class="fa-solid fa-circle-plus"></i><span>ساخت گروهی کانفیگ</span></button></li>
-        <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>اسکنر هوشمند Clean IP</span></button></li>
+        <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>اسکنر لوکیشن‌محور IP</span></button></li>
         <li><button class="nav-btn" onclick="switchView('broadcast')"><i class="fa-solid fa-bullhorn"></i><span>ارسال اطلاعیه همگانی</span></button></li>
         <li><button class="nav-btn" onclick="switchView('logs')"><i class="fa-solid fa-terminal"></i><span>مانیتورینگ و لاگ</span></button></li>
         <li><button class="nav-btn" onclick="switchView('backup')"><i class="fa-solid fa-database"></i><span>پشتیبان‌گیری</span></button></li>
@@ -180,14 +185,7 @@
       </ul>
     </div>
     <div>
-      <div style="padding-bottom: 12px; display: flex; justify-content: center;">
-        <div class="theme-switcher">
-          <button class="theme-btn active" onclick="setTheme('cyberpunk')">CYBER</button>
-          <button class="theme-btn" onclick="setTheme('oled')">OLED</button>
-          <button class="theme-btn" onclick="setTheme('glass')">GLASS</button>
-        </div>
-      </div>
-      <a href="/logout" class="nav-btn" style="color:#ef4444; text-decoration:none; border-top:1px solid var(--border-color); padding-top:12px;">
+      <a href="/logout" class="nav-btn" style="color:#ef4444; text-decoration:none; border-top:1px solid var(--border-color); padding-top:14px;">
         <i class="fa-solid fa-power-off"></i><span>خروج از پنل</span>
       </a>
     </div>
@@ -198,17 +196,29 @@
     <div id="view-dashboard" class="view-section active-view">
       <header class="topbar">
         <div>
-          <h3 style="font-size: 18px; font-weight: 900; color: var(--accent);">داشبورد مانیتورینگ ابری ONEX</h3>
-          <small style="color: var(--text-muted); font-size: 11.5px;">مدیر: <b style="color:var(--accent);" id="activeUserTitle">admin</b> | توسعه: @Mehtif</small>
+          <h3 style="font-size: 19px; font-weight: 900; color: var(--accent);">داشبورد مانیتورینگ ابری ONEX</h3>
+          <small style="color: var(--text-muted); font-size: 12px;">مدیر: <b style="color:var(--accent);" id="activeUserTitle">admin</b> | توسعه: @Mehtif</small>
         </div>
         <button class="btn-main" onclick="openModal()"><i class="fa-solid fa-plus-circle"></i> ساخت دسته‌جمعی کانفیگ</button>
       </header>
 
       <div class="stats-grid">
-        <div class="stat-card bg-g1"><span style="font-size: 11px; font-weight: 700;">پردازنده سرور (CPU)</span><h2 style="font-size: 22px; font-weight: 900; margin-top: 4px;" id="st-cpu">0%</h2></div>
-        <div class="stat-card bg-g2"><span style="font-size: 11px; font-weight: 700;">حافظه رم (RAM)</span><h2 style="font-size: 22px; font-weight: 900; margin-top: 4px;" id="st-ram">0%</h2></div>
-        <div class="stat-card bg-g3"><span style="font-size: 11px; font-weight: 700;">کل ترافیک مصرفی</span><h2 style="font-size: 22px; font-weight: 900; margin-top: 4px;" id="st-used">0 GB</h2></div>
-        <div class="stat-card bg-g4"><span style="font-size: 11px; font-weight: 700;">تعداد کل اشتراک‌ها</span><h2 style="font-size: 22px; font-weight: 900; margin-top: 4px;" id="st-count">0</h2></div>
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(4,120,87,0.3), rgba(16,185,129,0.1)); border-color: rgba(16,185,129,0.3);">
+          <span style="font-size: 11.5px; font-weight: 700; color: #34d399;">پردازنده سرور (CPU)</span>
+          <h2 style="font-size: 24px; font-weight: 900; margin-top: 6px;" id="st-cpu">0%</h2>
+        </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(3,105,161,0.3), rgba(56,189,248,0.1)); border-color: rgba(56,189,248,0.3);">
+          <span style="font-size: 11.5px; font-weight: 700; color: #38bdf8;">حافظه رم (RAM)</span>
+          <h2 style="font-size: 24px; font-weight: 900; margin-top: 6px;" id="st-ram">0%</h2>
+        </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(79,70,229,0.3), rgba(139,92,246,0.1)); border-color: rgba(139,92,246,0.3);">
+          <span style="font-size: 11.5px; font-weight: 700; color: #c084fc;">کل ترافیک مصرفی</span>
+          <h2 style="font-size: 24px; font-weight: 900; margin-top: 6px;" id="st-used">0 GB</h2>
+        </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(14,116,144,0.3), rgba(6,182,212,0.1)); border-color: rgba(6,182,212,0.3);">
+          <span style="font-size: 11.5px; font-weight: 700; color: #22d3ee;">تعداد کل اشتراک‌ها</span>
+          <h2 style="font-size: 24px; font-weight: 900; margin-top: 6px;" id="st-count">0</h2>
+        </div>
       </div>
 
       <div class="panel-box">
@@ -244,23 +254,22 @@
       </div>
     </div>
 
-    <!-- بخش اسکنر هوشمند Clean IP با فیلتر لوکیشن (پرچم کشورها) و کپی دسته‌جمعی -->
+    <!-- بخش اسکنر هوشمند Clean IP با پرچم کشورها -->
     <div id="view-cleanip" class="view-section">
-      <div class="panel-box" style="max-width: 750px; margin: 0 auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+      <div class="panel-box" style="max-width: 780px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 4px;"><i class="fa-solid fa-network-wired"></i> اسکنر هوشمند لوکیشن‌محور Clean IP</h3>
+            <h3 style="font-size: 17px; color:var(--accent); margin-bottom: 4px;"><i class="fa-solid fa-network-wired"></i> اسکنر هوشمند لوکیشن‌محور Clean IP</h3>
             <small style="color: var(--text-muted);">انتخاب لوکیشن (پرچم) و تست پینگ واقعی TCP</small>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn-main" onclick="copyAllIps()" style="background:#6366f1; color:#fff; padding: 9px 14px;"><i class="fa-solid fa-copy"></i> کپی همه آی‌پی‌ها</button>
-            <button class="btn-main" onclick="startIpScan()" id="scanBtn" style="background:#10b981; color:#fff; padding: 9px 16px;"><i class="fa-solid fa-radar"></i> شروع اسکن</button>
+            <button class="btn-main" onclick="copyAllIps()" style="background:#6366f1; color:#fff;"><i class="fa-solid fa-copy"></i> کپی همه</button>
+            <button class="btn-main" onclick="startIpScan()" id="scanBtn" style="background:#10b981; color:#fff;"><i class="fa-solid fa-radar"></i> شروع اسکن</button>
           </div>
         </div>
 
-        <!-- انتخاب پرچم کشورها -->
-        <div style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-          <span style="font-size: 12px; color: var(--text-muted);">انتخاب لوکیشن:</span>
+        <div style="margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <span style="font-size: 12.5px; color: var(--text-muted);">لوکیشن:</span>
           <button class="flag-btn active" onclick="setCountryFilter('ALL', this)"><i class="fa-solid fa-globe"></i> همه دنیا</button>
           <button class="flag-btn" onclick="setCountryFilter('DE', this)">🇩🇪 آلمان</button>
           <button class="flag-btn" onclick="setCountryFilter('US', this)">🇺🇸 آمریکا</button>
@@ -268,19 +277,19 @@
           <button class="flag-btn" onclick="setCountryFilter('FR', this)">🇫🇷 فرانسه</button>
         </div>
 
-        <form id="cleanIpForm" style="margin-bottom: 20px;">
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">آی‌پی فعال فعلی روی لینک‌های ساب‌اسکریپشن:</label>
-          <div style="display: flex; gap: 8px;">
+        <form id="cleanIpForm" style="margin-bottom: 22px;">
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">آی‌پی فعال فعلی روی لینک‌ها:</label>
+          <div style="display: flex; gap: 10px;">
             <input type="text" id="w-clean-ip" class="input-field" placeholder="104.16.132.229" style="margin-bottom:0;">
-            <button type="submit" class="btn-main" style="padding: 0 20px;">ذخیره دستی</button>
+            <button type="submit" class="btn-main" style="padding: 0 22px;">ذخیره دستی</button>
           </div>
         </form>
 
         <hr style="border-color: var(--border-color); margin: 20px 0;">
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
           <h4 style="font-size: 14px; color: var(--text-main);"><i class="fa-solid fa-list-check"></i> نتایج تست پینگ زنده</h4>
-          <span style="font-size: 11.5px; color: var(--text-muted);" id="scanCountInfo">تعداد: 0 آی‌پی سالم</span>
+          <span style="font-size: 12px; color: var(--text-muted);" id="scanCountInfo">تعداد: 0 آی‌پی سالم</span>
         </div>
 
         <div class="table-responsive">
@@ -291,12 +300,12 @@
                 <th>آدرس IP</th>
                 <th>پینگ واقعی (TCP)</th>
                 <th>کیفیت</th>
-                <th>عملیات (کپی / ست کردن)</th>
+                <th>عملیات</th>
               </tr>
             </thead>
             <tbody id="scanResultsBody">
               <tr>
-                <td colspan="5" style="text-align: center; color: var(--text-muted);">روی دکمه «شروع اسکن» کلیک کنید تا آی‌پی‌ها تست شوند.</td>
+                <td colspan="5" style="text-align: center; color: var(--text-muted);">روی دکمه «شروع اسکن» کلیک کنید.</td>
               </tr>
             </tbody>
           </table>
@@ -304,63 +313,63 @@
       </div>
     </div>
 
-    <!-- بخش مانیتورینگ و لاگ حرفه‌ای (Logs Terminal) -->
+    <!-- مانیتورینگ و لاگ -->
     <div id="view-logs" class="view-section">
       <div class="panel-box">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
           <div>
-            <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 4px;"><i class="fa-solid fa-terminal"></i> مرکز مانیتورینگ و لاگ هسته Xray</h3>
-            <small style="color: var(--text-muted);">گزارش زنده رویدادها، خطاهای شبکه و وضعیت پورت‌های پروکسی</small>
+            <h3 style="font-size: 17px; color:var(--accent); margin-bottom: 4px;"><i class="fa-solid fa-terminal"></i> مانیتورینگ زنده هسته Xray</h3>
+            <small style="color: var(--text-muted);">گزارش رویدادها و وضعیت اتصالات</small>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn-main" onclick="restartCore()" style="background:#10b981; color:#fff; padding: 7px 12px; font-size: 11.5px;"><i class="fa-solid fa-rotate"></i> ری‌استارت هسته Xray</button>
-            <button class="btn-main btn-del" onclick="clearTerminal()" style="padding: 7px 12px; font-size: 11.5px;"><i class="fa-solid fa-trash-can"></i> پاکسازی ترمینال</button>
+            <button class="btn-main" onclick="restartCore()" style="background:#10b981; color:#fff; padding: 8px 14px;"><i class="fa-solid fa-rotate"></i> ری‌استارت هسته</button>
+            <button class="btn-main btn-del" onclick="clearTerminal()" style="padding: 8px 14px;"><i class="fa-solid fa-trash-can"></i> پاکسازی</button>
           </div>
         </div>
         <div class="log-terminal" id="logBox">
-          <div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">در حال اتصال به جریان لاگ سرور...</span></div>
+          <div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">در حال دریافت لاگ‌های سرور...</span></div>
         </div>
       </div>
     </div>
 
-    <!-- بخش ارسال پیام همگانی -->
+    <!-- ارسال پیام همگانی -->
     <div id="view-broadcast" class="view-section">
-      <div class="panel-box" style="max-width: 520px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 8px;"><i class="fa-solid fa-bullhorn"></i> ارسال اطلاعیه همگانی</h3>
-        <p style="font-size: 11.5px; color:var(--text-muted); margin-bottom: 12px;">این پیام در پورتال ساب تمام کاربران نمایش داده می‌شود.</p>
+      <div class="panel-box" style="max-width: 540px; margin: 0 auto;">
+        <h3 style="font-size: 17px; color:var(--accent); margin-bottom: 8px;"><i class="fa-solid fa-bullhorn"></i> ارسال اطلاعیه همگانی</h3>
+        <p style="font-size: 12px; color:var(--text-muted); margin-bottom: 14px;">این پیام در پورتال ساب تمام کاربران نمایش داده می‌شود.</p>
         <form id="broadcastForm">
           <textarea id="bc-message" class="input-field" rows="4" placeholder="متن اطلاعیه..."></textarea>
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px; background: #f59e0b; color:#000;"><i class="fa-solid fa-paper-plane"></i> انتشار پیام</button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 12px; background: #f59e0b; color:#070c1b;"><i class="fa-solid fa-paper-plane"></i> انتشار پیام</button>
         </form>
       </div>
     </div>
 
-    <div id="view-backup" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><a href="/api/backup/download" class="btn-main" style="background:#10b981; color:#fff; width:100%; justify-content:center;">دانلود دیتابیس</a></div></div>
+    <div id="view-backup" class="view-section"><div class="panel-box" style="max-width:520px; margin:0 auto;"><a href="/api/backup/download" class="btn-main" style="background:#10b981; color:#fff; width:100%; justify-content:center; padding:14px;">دانلود فایل پشتیبان دیتابیس</a></div></div>
     
-    <!-- بخش تنظیمات کامل حساب و سیستم -->
+    <!-- تنظیمات -->
     <div id="view-settings" class="view-section">
-      <div class="panel-box" style="max-width: 550px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 14px;"><i class="fa-solid fa-gear"></i> تنظیمات جامع سیستم</h3>
+      <div class="panel-box" style="max-width: 580px; margin: 0 auto;">
+        <h3 style="font-size: 17px; color:var(--accent); margin-bottom: 16px;"><i class="fa-solid fa-gear"></i> تنظیمات جامع سیستم</h3>
         
-        <form id="accountSettingsForm" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
-          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">امنیت و مشخصات حساب مدیریت</h4>
+        <form id="accountSettingsForm" style="margin-bottom: 22px; border-bottom: 1px solid var(--border-color); padding-bottom: 18px;">
+          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">امنیت و مشخصات حساب مدیریت</h4>
           <input type="text" id="set-username" class="input-field" placeholder="نام کاربری جدید">
           <input type="password" id="set-new-pass" class="input-field" placeholder="رمز عبور جدید">
           <input type="password" id="set-cur-pass" class="input-field" placeholder="رمز عبور فعلی (جهت تایید)" required>
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">بروزرسانی حساب</button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 12px;">بروزرسانی حساب</button>
         </form>
 
-        <form id="domainSettingsForm" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
-          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">دامنه اتصال کلاینت‌ها</h4>
+        <form id="domainSettingsForm" style="margin-bottom: 22px; border-bottom: 1px solid var(--border-color); padding-bottom: 18px;">
+          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">دامنه اتصال کلاینت‌ها</h4>
           <input type="text" id="set-custom-domain" class="input-field" placeholder="sub.yourdomain.com">
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px; background: #10b981; color:#fff;">ذخیره دامنه</button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 12px; background: #10b981; color:#fff;">ذخیره دامنه</button>
         </form>
 
         <form id="telegramSettingsForm">
-          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">اتصال به ربات تلگرام</h4>
+          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">اتصال به ربات تلگرام</h4>
           <input type="text" id="set-bot-token" class="input-field" placeholder="توکن ربات تلگرام (Bot Token)">
           <input type="text" id="set-admin-tg" class="input-field" placeholder="شناسه عددی تلگرام ادمین (Admin ID)">
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px; background: #0284c7; color:#fff;">ذخیره تنظیمات تلگرام</button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 12px; background: #0284c7; color:#fff;">ذخیره تنظیمات تلگرام</button>
         </form>
       </div>
     </div>
@@ -376,42 +385,40 @@
   <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
   <div class="user-drawer" id="userDrawer">
     <div>
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 18px;">
         <h3 style="font-size: 16px; color: var(--accent);" id="drawerTitle">ویرایش کلاینت</h3>
         <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 18px;" onclick="closeDrawer()"></i>
       </div>
-      <div id="drawerContent" style="display: flex; flex-direction: column; gap: 10px; font-size: 13px;"></div>
+      <div id="drawerContent" style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;"></div>
     </div>
-    <div id="drawerActions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 15px;"></div>
+    <div id="drawerActions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 18px;"></div>
   </div>
 
   <div class="modal-wrap" id="createModal">
     <div class="modal-box">
-      <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 14px; font-weight: 800;">ساخت کانفیگ</h3>
+      <h3 style="font-size: 17px; color:var(--accent); margin-bottom: 16px; font-weight: 800;">ساخت کانفیگ جدید</h3>
       <form id="addForm">
-        <input type="text" id="m-name" class="input-field" placeholder="نام پیشوند" required>
-        <div style="display:flex; gap:8px;">
+        <input type="text" id="m-name" class="input-field" placeholder="نام پیشوند کلاینت" required>
+        <div style="display:flex; gap:10px;">
           <input type="number" id="m-count" class="input-field" value="1" min="1" max="20" required>
           <select id="m-tag" class="input-field">
-            <option value="normal">عادی</option>
-            <option value="vip">VIP</option>
-            <option value="gaming">گیمینگ</option>
+            <option value="normal">عادی (Normal)</option>
+            <option value="vip">وی‌آی‌پی (VIP)</option>
+            <option value="gaming">گیمینگ (Gaming)</option>
           </select>
         </div>
         <select id="m-protocol" class="input-field" style="color: var(--accent); font-weight: 700;">
-          <option value="all">⚡ تمام پروتکل‌ها</option>
-          <option value="ws">WebSocket</option>
-          <option value="reality">REALITY</option>
-          <option value="xhttp">XHTTP</option>
-          <option value="grpc">gRPC</option>
+          <option value="all">⚡ تمام پروتکل‌ها (WebSocket)</option>
+          <option value="reality">VLESS REALITY</option>
+          <option value="grpc">gRPC Tunnel</option>
         </select>
-        <div style="display: flex; gap: 8px;">
-          <input type="number" id="m-gb" class="input-field" value="20" required>
-          <input type="number" id="m-days" class="input-field" value="30" required>
+        <div style="display: flex; gap: 10px;">
+          <input type="number" id="m-gb" class="input-field" value="20" placeholder="حجم (GB)" required>
+          <input type="number" id="m-days" class="input-field" value="30" placeholder="مدت (روز)" required>
         </div>
-        <div style="display:flex; gap:8px; margin-top:8px;">
-          <button type="submit" class="btn-main" style="flex:1; justify-content:center; padding: 12px;">ساخت</button>
-          <button type="button" class="btn-main btn-del" style="padding: 12px;" onclick="closeModal()">انصراف</button>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button type="submit" class="btn-main" style="flex:1; justify-content:center; padding: 13px;">ساخت اشتراک</button>
+          <button type="button" class="btn-main btn-del" style="padding: 13px;" onclick="closeModal()">انصراف</button>
         </div>
       </form>
     </div>
@@ -419,10 +426,10 @@
 
   <div class="modal-wrap" id="qrModal">
     <div class="modal-box" style="text-align: center;">
-      <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 10px; font-weight: 800;" id="qrTitle">QR Code</h3>
-      <div style="background:#fff; padding:12px; border-radius:14px; display:inline-block; margin-bottom: 14px;"><div id="modalQrBox"></div></div>
+      <h3 style="font-size: 17px; color:var(--accent); margin-bottom: 12px; font-weight: 800;" id="qrTitle">QR Code</h3>
+      <div style="background:#fff; padding:14px; border-radius:16px; display:inline-block; margin-bottom: 16px;"><div id="modalQrBox"></div></div>
       <input type="text" id="modalSubInput" class="input-field" readonly style="text-align: center;">
-      <button class="btn-main" style="width:100%; justify-content:center;" onclick="copyModalSub()"><i class="fa-solid fa-copy"></i> کپی لینک</button>
+      <button class="btn-main" style="width:100%; justify-content:center; padding: 12px;" onclick="copyModalSub()"><i class="fa-solid fa-copy"></i> کپی لینک ساب‌اسکریپشن</button>
     </div>
   </div>
 
@@ -431,26 +438,6 @@
     let currentFilter = 'all';
     let selectedCountry = 'ALL';
     let latestScannedIps = [];
-
-    function checkAutoTheme() {
-      const currentHour = new Date().getHours();
-      const isNightTime = currentHour >= 19 || currentHour < 6;
-      if (!localStorage.getItem('manual_theme_set')) {
-        setTheme(isNightTime ? 'oled' : 'glass');
-      }
-    }
-
-    function setTheme(themeName) {
-      document.documentElement.setAttribute('data-theme', themeName);
-      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.theme-btn').forEach(b => {
-        if (b.innerText.toLowerCase().includes(themeName.substring(0, 3))) {
-          b.classList.add('active');
-        }
-      });
-      localStorage.setItem('manual_theme_set', 'true');
-      localStorage.setItem('preferred_theme', themeName);
-    }
 
     function setCountryFilter(country, btn) {
       selectedCountry = country;
@@ -480,19 +467,19 @@
       const subLink = `https://${host}/sub/${c.id}`;
 
       document.getElementById('drawerContent').innerHTML = `
-        <div><b>نام:</b> <input type="text" id="editName" class="input-field" value="${c.name}" style="margin-top:4px;"></div>
-        <div style="display:flex; gap:6px;">
-          <div style="flex:1;"><b>حجم (GB):</b> <input type="number" id="editGb" class="input-field" value="${c.total_gb}" style="margin-top:4px;"></div>
-          <div style="flex:1;"><b>روز:</b> <input type="number" id="editDays" class="input-field" value="${c.expire_days || 30}" style="margin-top:4px;"></div>
+        <div><b>نام کلاینت:</b> <input type="text" id="editName" class="input-field" value="${c.name}" style="margin-top:6px;"></div>
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1;"><b>حجم (GB):</b> <input type="number" id="editGb" class="input-field" value="${c.total_gb}" style="margin-top:6px;"></div>
+          <div style="flex:1;"><b>اعتبار (روز):</b> <input type="number" id="editDays" class="input-field" value="${c.expire_days || 30}" style="margin-top:6px;"></div>
         </div>
-        <button class="btn-main" style="width:100%; justify-content:center; padding:10px;" onclick="saveConfigEdit('${c.id}')">ذخیره تغییرات</button>
+        <button class="btn-main" style="width:100%; justify-content:center; padding:11px;" onclick="saveConfigEdit('${c.id}')">ذخیره تغییرات</button>
       `;
 
       document.getElementById('drawerActions').innerHTML = `
         <button class="btn-main btn-qr" onclick="showQuickQr('${c.name}', '${subLink}')"><i class="fa-solid fa-qrcode"></i> QR Code</button>
-        <button class="btn-main btn-renew" onclick="renewCfg('${c.id}')"><i class="fa-solid fa-rotate-right"></i> تمدید</button>
-        <button class="btn-main btn-reset" onclick="resetTraffic('${c.id}')"><i class="fa-solid fa-arrows-rotate"></i> ریست ترافیک</button>
-        <button class="btn-main btn-del" onclick="delCfg('${c.id}')"><i class="fa-solid fa-trash"></i> حذف</button>
+        <button class="btn-main btn-renew" onclick="renewCfg('${c.id}')"><i class="fa-solid fa-rotate-right"></i> تمدید تاریخ</button>
+        <button class="btn-main btn-reset" onclick="resetTraffic('${c.id}')"><i class="fa-solid fa-arrows-rotate"></i> ریست ترافیک مصرفی</button>
+        <button class="btn-main btn-del" onclick="delCfg('${c.id}')"><i class="fa-solid fa-trash"></i> حذف اشتراک</button>
       `;
       document.getElementById('userDrawer').classList.add('open');
       document.getElementById('drawerOverlay').style.display = 'block';
@@ -506,7 +493,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, total_gb, expire_days })
       }).then(r => r.json());
-      if (res.success) { alert('ذخیره شد.'); closeDrawer(); loadData(); }
+      if (res.success) { alert('تغییرات ذخیره شد.'); closeDrawer(); loadData(); }
     }
 
     function showQuickQr(name, subUrl) {
@@ -517,7 +504,7 @@
       document.getElementById('qrModal').style.display = 'flex';
     }
 
-    function copyModalSub() { navigator.clipboard.writeText(document.getElementById('modalSubInput').value); alert('کپی شد!'); }
+    function copyModalSub() { navigator.clipboard.writeText(document.getElementById('modalSubInput').value); alert('لینک کپی شد!'); }
     function setFilter(filter, btn) { currentFilter = filter; document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active')); btn.classList.add('active'); renderConfigs(); }
     function filterConfigs() { renderConfigs(); }
 
@@ -547,10 +534,10 @@
             <td><span style="color:#34d399;">↓ ${formatBytes(c.downlink_bytes)}</span> <span style="color:var(--accent);">↑ ${formatBytes(c.uplink_bytes)}</span></td>
             <td><span class="badge-status ${c.status === 'active' ? 'badge-active' : 'badge-pending'}">${c.status}</span></td>
             <td>
-              <div style="display: flex; gap: 4px;">
-                <button class="btn-main" onclick='openUserDrawer(${JSON.stringify(c)})' style="background:#0284c7; color:#fff; padding: 5px 8px; font-size: 10px;">ویرایش</button>
-                <a href="${portalLink}" target="_blank" class="btn-main" style="background:#6366f1; color:#fff; padding: 5px 8px; font-size: 10px; text-decoration:none;">پورتال</a>
-                <button class="btn-main btn-qr" onclick="showQuickQr('${c.name}', '${subLink}')" style="padding: 5px 8px; font-size: 10px;">QR</button>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-main" onclick='openUserDrawer(${JSON.stringify(c)})' style="background:#0284c7; color:#fff; padding: 6px 10px; font-size: 11px;">مدیریت</button>
+                <a href="${portalLink}" target="_blank" class="btn-main" style="background:#6366f1; color:#fff; padding: 6px 10px; font-size: 11px; text-decoration:none;">پورتال</a>
+                <button class="btn-main btn-qr" onclick="showQuickQr('${c.name}', '${subLink}')" style="padding: 6px 10px; font-size: 11px;">QR</button>
               </div>
             </td>
           </tr>
@@ -589,7 +576,7 @@
       const tbody = document.getElementById('scanResultsBody');
       btn.disabled = true;
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> در حال تست پینگ...';
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--accent);">در حال اتصال سوکت TCP و سنجش سرعت لوکیشن ${selectedCountry}...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--accent);">در حال تست سوکت TCP لوکیشن ${selectedCountry}...</td></tr>`;
 
       try {
         const response = await fetch('/api/cleanip/scan', {
@@ -612,9 +599,9 @@
                 <td><span style="color:${color}; font-weight:bold;">${item.latency} ms</span></td>
                 <td>${score}</td>
                 <td>
-                  <div style="display:flex; gap:4px;">
-                    <button class="btn-main" onclick="copySingleIp('${item.ip}')" style="padding: 4px 8px; font-size: 10.5px; background:#6366f1; color:#fff;">کپی</button>
-                    <button class="btn-main" onclick="applyScannedIp('${item.ip}')" style="padding: 4px 8px; font-size: 10.5px; background:#10b981; color:#fff;">ست روی سیستم</button>
+                  <div style="display:flex; gap:6px;">
+                    <button class="btn-main" onclick="copySingleIp('${item.ip}')" style="padding: 5px 10px; font-size: 11px; background:#6366f1; color:#fff;">کپی</button>
+                    <button class="btn-main" onclick="applyScannedIp('${item.ip}')" style="padding: 5px 10px; font-size: 11px; background:#10b981; color:#fff;">ست روی سیستم</button>
                   </div>
                 </td>
               </tr>
@@ -631,19 +618,11 @@
       }
     }
 
-    function copySingleIp(ip) {
-      navigator.clipboard.writeText(ip);
-      alert(`✅ آی‌پی ${ip} کپی شد!`);
-    }
-
+    function copySingleIp(ip) { navigator.clipboard.writeText(ip); alert(`آی‌پی ${ip} کپی شد!`); }
     function copyAllIps() {
-      if (!latestScannedIps || latestScannedIps.length === 0) {
-        alert('❌ ابتدا اسکن را انجام دهید تا لیستی برای کپی وجود داشته باشد.');
-        return;
-      }
-      const allStr = latestScannedIps.map(i => i.ip).join('\n');
-      navigator.clipboard.writeText(allStr);
-      alert(`✅ ${latestScannedIps.length} آی‌پی به صورت یکجا کپی شد!`);
+      if (!latestScannedIps || latestScannedIps.length === 0) { alert('ابتدا اسکن را انجام دهید.'); return; }
+      navigator.clipboard.writeText(latestScannedIps.map(i => i.ip).join('\n'));
+      alert(`${latestScannedIps.length} آی‌پی کپی شد!`);
     }
 
     async function applyScannedIp(ip) {
@@ -652,19 +631,17 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cleanIp: ip })
       });
-      alert(`✅ آی‌پی ${ip} روی تمامی لینک‌های ساب‌اسکریپشن کلاینت‌ها ست شد!`);
+      alert(`آی‌پی ${ip} با موفقیت روی سیستم ست شد!`);
     }
 
     async function restartCore() {
       if (confirm('هسته Xray مجدداً راه‌اندازی شود؟')) {
         const res = await fetch('/api/core/restart', { method: 'POST' }).then(r => r.json());
-        if (res.success) alert('✅ هسته با موفقیت ری‌استارت شد.');
+        if (res.success) alert('هسته ری‌استارت شد.');
       }
     }
 
-    function clearTerminal() {
-      document.getElementById('logBox').innerHTML = '<div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">ترمینال پاکسازی شد.</span></div>';
-    }
+    function clearTerminal() { document.getElementById('logBox').innerHTML = '<div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">پاکسازی شد.</span></div>'; }
 
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -690,7 +667,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cleanIp: document.getElementById('w-clean-ip').value })
       });
-      alert('Clean IP دستی ذخیره شد.');
+      alert('ذخیره شد.');
     });
 
     document.getElementById('broadcastForm').addEventListener('submit', async (e) => {
@@ -699,7 +676,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: document.getElementById('bc-message').value })
       });
-      alert('پیام همگانی منتشر شد.');
+      alert('منتشر شد.');
     });
 
     document.getElementById('accountSettingsForm').addEventListener('submit', async (e) => {
@@ -713,47 +690,30 @@
         body: JSON.stringify({ newUsername, newPassword, currentPassword })
       }).then(r => r.json());
 
-      if (res.success) {
-        alert('✅ حساب کاربری بروز شد.');
-        location.reload();
-      } else {
-        alert('❌ خطا: ' + (res.error || 'رمز عبور فعلی اشتباه است.'));
-      }
+      if (res.success) { alert('بروز شد.'); location.reload(); } else { alert('خطا: ' + res.error); }
     });
 
     document.getElementById('domainSettingsForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const customDomain = document.getElementById('set-custom-domain').value;
       await fetch('/api/settings/general', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customDomain })
+        body: JSON.stringify({ customDomain: document.getElementById('set-custom-domain').value })
       });
-      alert('✅ دامنه ذخیره شد.');
+      alert('دامنه ذخیره شد.');
     });
 
     document.getElementById('telegramSettingsForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const botToken = document.getElementById('set-bot-token').value;
-      const adminTgId = document.getElementById('set-admin-tg').value;
       await fetch('/api/settings/general', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botToken, adminTgId })
+        body: JSON.stringify({ botToken: document.getElementById('set-bot-token').value, adminTgId: document.getElementById('set-admin-tg').value })
       });
-      alert('✅ تنظیمات تلگرام ذخیره شد.');
+      alert('تنظیمات تلگرام ذخیره شد.');
     });
 
     async function renewCfg(id) { await fetch(`/api/configs/${id}/renew`, { method: 'POST' }); closeDrawer(); loadData(); }
     async function resetTraffic(id) { await fetch(`/api/configs/${id}/reset-traffic`, { method: 'POST' }); closeDrawer(); loadData(); }
     async function delCfg(id) { if (confirm('حذف شود؟')) { await fetch('/api/configs/' + id, { method: 'DELETE' }); closeDrawer(); loadData(); } }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedTheme = localStorage.getItem('preferred_theme');
-      if (savedTheme) {
-        setTheme(savedTheme);
-      } else {
-        checkAutoTheme();
-      }
-    });
 
     setInterval(loadData, 10000);
     loadData();

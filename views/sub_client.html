@@ -2,218 +2,284 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>مرورگر ساب لینک | ONEX</title>
+  <title>پورتال اشتراک ONEX</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: #060913; color: #f1f5f9; min-height: 100vh; padding: 12px; display: flex; justify-content: center; align-items: flex-start; }
-    .container { width: 100%; max-width: 580px; margin: 0 auto; }
-
-    .client-header {
-      background: #0c1222; border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    body {
+      min-height: 100vh;
+      background-color: #030a16;
+      background: 
+        linear-gradient(to bottom, rgba(3, 10, 22, 0.5) 0%, rgba(2, 6, 17, 0.88) 60%, #01040a 100%),
+        url('https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1400&auto=format&fit=crop') no-repeat center top / cover;
+      color: #f1f5f9;
+      padding: 16px 12px 40px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
     }
-    .brand-glow { font-size: 16px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
-    .badge-status { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
-    .badge-active { background: rgba(16, 185, 129, 0.15); color: #10b981; }
-    .badge-pending { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-    .badge-expired { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
-    .card-dark { background: #0b1120; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 16px; padding: 18px 16px; margin-bottom: 12px; }
-    .circle-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    .container { width: 100%; max-width: 480px; margin: 0 auto; z-index: 10; }
+
+    /* هدر پورتال */
+    .portal-header {
+      background: rgba(12, 22, 40, 0.82);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .brand-title { font-size: 17px; font-weight: 900; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+    
+    .status-badge {
+      padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+    .badge-expired { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); }
+
+    /* کارت اصلی وضعیت */
+    .glass-card {
+      background: rgba(10, 22, 42, 0.82);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      border-radius: 22px;
+      padding: 20px 16px;
+      margin-bottom: 14px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+    }
+
+    .circle-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
     .circle-progress {
-      width: 125px; height: 125px; border-radius: 50%;
-      background: conic-gradient(#10b981 var(--prog, 20%), rgba(255, 255, 255, 0.08) 0);
-      display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(16, 185, 129, 0.15);
+      width: 120px; height: 120px; border-radius: 50%;
+      background: conic-gradient(#38bdf8 var(--prog, 20%), rgba(255, 255, 255, 0.08) 0);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.25);
     }
-    .circle-inner { width: 100px; height: 100px; border-radius: 50%; background: #0b1120; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .circle-inner { width: 98px; height: 98px; border-radius: 50%; background: #071124; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 
-    .stat-list { width: 100%; display: flex; flex-direction: column; gap: 10px; background: rgba(0, 0, 0, 0.2); padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.04); }
-    .stat-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 6px; }
-    .stat-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .stats-table { width: 100%; display: flex; flex-direction: column; gap: 8px; background: rgba(3, 11, 24, 0.7); padding: 12px; border-radius: 14px; border: 1px solid rgba(56, 189, 248, 0.15); }
+    .stats-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 6px; }
+    .stats-row:last-child { border-bottom: none; padding-bottom: 0; }
 
-    .sub-field-group { display: flex; gap: 8px; margin-top: 14px; }
-    .sub-input { flex: 1; padding: 11px 12px; background: #060913; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; color: #94a3b8; font-size: 11px; outline: none; text-overflow: ellipsis; }
-    .btn-action {
-      padding: 11px 16px; background: #0284c7; border: none; border-radius: 10px;
-      color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; text-decoration: none;
+    .sub-link-box { display: flex; gap: 8px; margin-top: 14px; }
+    .sub-url-input {
+      flex: 1; padding: 12px; background: #030a16; border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 12px; color: #38bdf8; font-size: 11px; outline: none; text-overflow: ellipsis;
     }
+    
+    .btn-neon {
+      padding: 12px 18px; background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+      border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 12px; color: #fff; font-size: 12px;
+      font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.5);
+    }
+    .btn-neon:hover { filter: brightness(1.1); }
 
-    .qr-box { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 16px; }
-    .qr-frame { background: white; padding: 10px; border-radius: 12px; display: inline-block; }
+    /* دکمه‌های ایمپورت سریع */
+    .import-buttons-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
 
-    .configs-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-    .cfg-tile { background: #0b1120; border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-    .cfg-tile-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-    .proto-badge { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 6px; }
+    /* لیست پروتکل‌ها */
+    .protocols-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+    .proto-card {
+      background: rgba(10, 22, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.22);
+      border-radius: 14px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .proto-info { display: flex; flex-direction: column; gap: 2px; }
+    .proto-name { font-size: 13px; font-weight: 800; color: #e2e8f0; }
+    .proto-tag { font-size: 10px; color: #38bdf8; }
 
-    .footer-note { text-align: center; font-size: 11px; color: #64748b; margin-top: 14px; padding-bottom: 20px; }
+    .btn-copy-sm {
+      padding: 8px 14px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 10px; color: #38bdf8; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 5px;
+    }
+    .btn-copy-sm:hover { background: #0284c7; color: #fff; }
+
+    /* QR Code */
+    .qr-container { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14px; }
+    .qr-frame { background: #ffffff; padding: 10px; border-radius: 14px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.2); }
+
+    .footer-brand { text-align: center; font-size: 11px; color: #64748b; margin-top: 18px; }
   </style>
 </head>
 <body>
 
   <div class="container">
     
-    <header class="client-header">
+    <!-- هدر -->
+    <header class="portal-header">
+      <div class="brand-title"><i class="fa-solid fa-bolt"></i><span>ONEX PORTAL</span></div>
       <div>
-        <div class="brand-glow"><i class="fa-solid fa-bolt"></i><span>ONEX Portal</span></div>
-        <small style="color: #64748b; font-size: 10px; margin-top: 2px; display: block;">
-          سازنده: @Mehtif | <a href="https://t.me/V2rayTun0" target="_blank" style="color: #38bdf8; text-decoration: none;">@V2rayTun0</a>
-        </small>
-      </div>
-      <div style="text-align: left;">
-        <span class="badge-status badge-active" id="c-badge"><i class="fa-solid fa-circle-check"></i> فعال</span>
-        <small style="display: block; font-size: 10px; color: #64748b; margin-top: 2px;" id="c-server-tag">🇩🇪 Germany</small>
+        <span class="status-badge badge-active" id="c-badge"><i class="fa-solid fa-circle-check"></i> فعال</span>
       </div>
     </header>
 
-    <div class="card-dark">
-      <h4 style="font-size: 13px; color: #94a3b8; margin-bottom: 14px; text-align: center;">وضعیت اشتراک و حجم باقیمانده</h4>
+    <!-- کارت وضعیت مصرف -->
+    <div class="glass-card">
+      <h4 style="font-size: 12px; color: #94a3b8; margin-bottom: 12px; text-align: center; font-weight: 700;">وضعیت مصرف و اعتبار اشتراک</h4>
       
       <div class="circle-wrap">
         <div class="circle-progress" id="circProg">
           <div class="circle-inner">
-            <span style="font-size: 10px; color: #64748b;">باقیمانده</span>
-            <b style="font-size: 15px; color: #10b981; margin: 2px 0;" id="c-remain">-- GB</b>
-            <small style="font-size: 9px; color: #94a3b8;" id="c-total">از -- GB</small>
+            <span style="font-size: 9px; color: #94a3b8;">باقیمانده</span>
+            <b style="font-size: 14px; color: #38bdf8; margin: 2px 0;" id="c-remain">-- GB</b>
+            <small style="font-size: 8.5px; color: #64748b;" id="c-total">از -- GB</small>
           </div>
         </div>
         
-        <div class="stat-list">
-          <div class="stat-row">
-            <span style="color: #64748b;">نوع پروتکل:</span>
-            <b style="color: #38bdf8;" id="c-proto">--</b>
+        <div class="stats-table">
+          <div class="stats-row">
+            <span style="color: #94a3b8;">لوکیشن سرور:</span>
+            <b style="color: #38bdf8;" id="c-server">--</b>
           </div>
-          <div class="stat-row">
-            <span style="color: #64748b;">حجم مصرف شده:</span>
+          <div class="stats-row">
+            <span style="color: #94a3b8;">حجم مصرف شده:</span>
             <b style="color: #f59e0b;" id="c-used">-- GB</b>
           </div>
-          <div class="stat-row">
-            <span style="color: #64748b;">تاریخ پایان اشتراک:</span>
-            <b id="c-exp">--</b>
+          <div class="stats-row">
+            <span style="color: #94a3b8;">اعتبار زمانی:</span>
+            <b style="color: #10b981;" id="c-days">-- روز</b>
           </div>
         </div>
       </div>
 
-      <div class="sub-field-group">
-        <input type="text" id="subUrlIn" class="sub-input" readonly>
-        <button class="btn-action" onclick="copySub()"><i class="fa-solid fa-copy"></i> کپی ساب</button>
+      <!-- لینک ساب و دکمه کپی -->
+      <div class="sub-link-box">
+        <input type="text" id="subUrlIn" class="sub-url-input" readonly>
+        <button class="btn-neon" onclick="copySub()"><i class="fa-solid fa-copy"></i> کپی ساب</button>
       </div>
 
-      <div style="margin-top: 10px; display: flex; gap: 6px;">
-        <a id="btnImportV2ray" class="btn-action" style="justify-content:center; background:#10b981; flex:1; padding: 10px 4px; font-size: 11px;">
-          <i class="fa-solid fa-bolt"></i> v2rayNG
+      <!-- دکمه‌های ایمپورت مستقیم -->
+      <div class="import-buttons-grid">
+        <a id="btnV2rayNg" class="btn-neon" style="justify-content:center; background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+          <i class="fa-solid fa-bolt"></i> ایمپورت در v2rayNG
+        </a>
+        <a id="btnClashImport" class="btn-neon" style="justify-content:center; background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);" onclick="copyClash()">
+          <i class="fa-solid fa-cat"></i> کپی لینک Clash
         </a>
       </div>
     </div>
 
-    <div class="card-dark qr-box">
-      <h4 style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">اسکن سریع لینک ساب (QR Code)</h4>
+    <!-- بارکد QR -->
+    <div class="glass-card qr-container">
+      <h4 style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">اسکن سریع لینک ساب‌اسکریپشن</h4>
       <div class="qr-frame">
         <div id="subQrCode"></div>
       </div>
     </div>
 
-    <h4 style="font-size: 13px; margin: 14px 4px 8px; color: #94a3b8;">پروتکل‌های اختصاصی این اشتراک</h4>
-    <div class="configs-list">
+    <!-- لیست پروتکل‌های اختصاصی -->
+    <h4 style="font-size: 12px; margin: 16px 4px 8px; color: #94a3b8; font-weight: 700;">دریافت تکی پروتکل‌ها</h4>
+    <div class="protocols-stack">
       
-      <div class="cfg-tile">
-        <div class="cfg-tile-header">
-          <b>VLESS WebSocket</b>
-          <span class="proto-badge" style="background:rgba(56, 189, 248, 0.15); color:#38bdf8;">WS</span>
+      <div class="proto-card">
+        <div class="proto-info">
+          <span class="proto-name">VLESS WebSocket</span>
+          <span class="proto-tag">Standard / TLS / WS</span>
         </div>
-        <button class="btn-action" style="justify-content:center; width:100%;" id="btnVlessWs"><i class="fa-solid fa-copy"></i> کپی VLESS WS</button>
+        <button class="btn-copy-sm" onclick="copyConfig('vlessWs', 'VLESS WS')"><i class="fa-solid fa-copy"></i> کپی</button>
       </div>
 
-      <div class="cfg-tile">
-        <div class="cfg-tile-header">
-          <b>VLESS REALITY (ضد فیلتر)</b>
-          <span class="proto-badge" style="background:rgba(16, 185, 129, 0.15); color:#10b981;">REALITY</span>
+      <div class="proto-card">
+        <div class="proto-info">
+          <span class="proto-name">VLESS REALITY</span>
+          <span class="proto-tag">Anti-Filter / Vision</span>
         </div>
-        <button class="btn-action" style="justify-content:center; width:100%; background:#059669;" id="btnReality"><i class="fa-solid fa-copy"></i> کپی REALITY</button>
+        <button class="btn-copy-sm" onclick="copyConfig('vlessReality', 'REALITY')"><i class="fa-solid fa-copy"></i> کپی</button>
       </div>
 
-      <div class="cfg-tile">
-        <div class="cfg-tile-header">
-          <b>XHTTP / SplitHTTP</b>
-          <span class="proto-badge" style="background:rgba(245, 158, 11, 0.15); color:#f59e0b;">XHTTP</span>
+      <div class="proto-card">
+        <div class="proto-info">
+          <span class="proto-name">XHTTP / SplitHTTP</span>
+          <span class="proto-tag">Next-Gen Core Protocol</span>
         </div>
-        <button class="btn-action" style="justify-content:center; width:100%; background:#d97706;" id="btnXhttp"><i class="fa-solid fa-copy"></i> کپی XHTTP</button>
+        <button class="btn-copy-sm" onclick="copyConfig('vlessXhttp', 'XHTTP')"><i class="fa-solid fa-copy"></i> کپی</button>
       </div>
 
-      <div class="cfg-tile">
-        <div class="cfg-tile-header">
-          <b>gRPC (گیمینگ)</b>
-          <span class="proto-badge" style="background:rgba(168, 85, 247, 0.15); color:#a855f7;">gRPC</span>
+      <div class="proto-card">
+        <div class="proto-info">
+          <span class="proto-name">gRPC Gaming</span>
+          <span class="proto-tag">Low Latency / Multiplex</span>
         </div>
-        <button class="btn-action" style="justify-content:center; width:100%; background:#7c3aed;" id="btnGrpc"><i class="fa-solid fa-copy"></i> کپی gRPC</button>
+        <button class="btn-copy-sm" onclick="copyConfig('vlessGrpc', 'gRPC')"><i class="fa-solid fa-copy"></i> کپی</button>
       </div>
 
-      <div class="cfg-tile">
-        <div class="cfg-tile-header">
-          <b>Shadowsocks 2022</b>
-          <span class="proto-badge" style="background:rgba(239, 68, 68, 0.15); color:#ef4444;">SS</span>
+      <div class="proto-card">
+        <div class="proto-info">
+          <span class="proto-name">VMess WebSocket</span>
+          <span class="proto-tag">Classic / Secure</span>
         </div>
-        <button class="btn-action" style="justify-content:center; width:100%; background:#dc2626;" id="btnSs"><i class="fa-solid fa-copy"></i> کپی Shadowsocks</button>
+        <button class="btn-copy-sm" onclick="copyConfig('vmessWs', 'VMess')"><i class="fa-solid fa-copy"></i> کپی</button>
+      </div>
+
+      <div class="proto-card">
+        <div class="proto-info">
+          <span class="proto-name">Trojan WebSocket</span>
+          <span class="proto-tag">Encrypted TLS Tunnel</span>
+        </div>
+        <button class="btn-copy-sm" onclick="copyConfig('trojanWs', 'Trojan')"><i class="fa-solid fa-copy"></i> کپی</button>
       </div>
 
     </div>
 
-    <div class="footer-note">
-      سامانه ابری ONEX • کانال تلگرام: <a href="https://t.me/V2rayTun0" target="_blank" style="color:#38bdf8; text-decoration:none;">@V2rayTun0</a>
+    <div class="footer-brand">
+      ONEX Cloud Core • کانال: <a href="https://t.me/V2rayTun0" target="_blank" style="color: #38bdf8; text-decoration: none;">@V2rayTun0</a>
     </div>
 
   </div>
 
   <script>
+    let subData = {};
     const cfgId = window.location.pathname.split('/').pop();
 
-    async function loadClientSub() {
+    async function loadPortalData() {
       const res = await fetch('/api/subinfo/' + cfgId).then(r => r.json());
       if (res.error) {
-        document.body.innerHTML = '<h4 style="text-align:center; margin-top:50px; color:#ef4444;">لینک اشتراک نامعتبر است یا منقضی شده است.</h4>';
+        document.body.innerHTML = '<h4 style="text-align:center; margin-top:80px; color:#ef4444;">لینک اشتراک نامعتبر است یا منقضی شده است.</h4>';
         return;
       }
-
-      const badge = document.getElementById('c-badge');
-      if (res.isExpired) {
-        badge.className = 'badge-status badge-expired';
-        badge.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> منقضی شده';
-      } else if (res.isPending) {
-        badge.className = 'badge-status badge-pending';
-        badge.innerHTML = '<i class="fa-solid fa-clock"></i> آماده اتصال';
-      }
+      subData = res;
 
       document.getElementById('c-remain').innerText = res.remainingGb + ' GB';
       document.getElementById('c-total').innerText = 'از ' + res.config.total_gb + ' GB';
-      document.getElementById('c-proto').innerText = (res.config.protocol || 'all').toUpperCase();
       document.getElementById('c-used').innerText = res.config.used_gb.toFixed(2) + ' GB';
-      document.getElementById('c-exp').innerText = res.config.expire_date ? res.config.expire_date.split('T')[0] : 'پس از اتصال';
-      document.getElementById('c-server-tag').innerText = res.config.server;
-      
+      document.getElementById('c-days').innerText = res.config.expire_days + ' روز';
+      document.getElementById('c-server').innerText = res.config.server;
+
       document.getElementById('subUrlIn').value = res.subUrl;
-      document.getElementById('btnImportV2ray').href = `v2rayng://install-config?url=${encodeURIComponent(res.subUrl)}`;
-      
+      document.getElementById('btnV2rayNg').href = `v2rayng://install-config?url=${encodeURIComponent(res.subUrl)}`;
+
       document.getElementById('circProg').style.setProperty('--prog', (100 - res.usagePercent) + '%');
 
       document.getElementById('subQrCode').innerHTML = '';
-      new QRCode(document.getElementById('subQrCode'), { text: res.subUrl, width: 140, height: 140 });
-
-      document.getElementById('btnVlessWs').onclick = () => { navigator.clipboard.writeText(res.vlessWs); alert('کانفیگ VLESS WS کپی شد!'); };
-      document.getElementById('btnReality').onclick = () => { navigator.clipboard.writeText(res.vlessReality); alert('کانفیگ REALITY کپی شد!'); };
-      document.getElementById('btnXhttp').onclick = () => { navigator.clipboard.writeText(res.vlessXhttp); alert('کانفیگ XHTTP کپی شد!'); };
-      document.getElementById('btnGrpc').onclick = () => { navigator.clipboard.writeText(res.vlessGrpc); alert('کانفیگ gRPC کپی شد!'); };
-      document.getElementById('btnSs').onclick = () => { navigator.clipboard.writeText(res.ssLink); alert('کانفیگ Shadowsocks کپی شد!'); };
+      new QRCode(document.getElementById('subQrCode'), { text: res.subUrl, width: 130, height: 130 });
     }
 
     function copySub() {
       navigator.clipboard.writeText(document.getElementById('subUrlIn').value);
-      alert('لینک ساب‌اسکریپشن کپی شد!');
+      alert('🔗 لینک ساب‌اسکریپشن با موفقیت کپی شد!');
     }
 
-    loadClientSub();
+    function copyClash() {
+      navigator.clipboard.writeText(subData.subUrl);
+      alert('📋 لینک ساب جهت ایمپورت در Clash کپی شد!');
+    }
+
+    function copyConfig(key, title) {
+      if (subData[key]) {
+        navigator.clipboard.writeText(subData[key]);
+        alert(`✅ کانفیگ ${title} با موفقیت کپی شد!`);
+      } else {
+        alert('❌ اطلاعات این پروتکل موجود نیست.');
+      }
+    }
+
+    loadPortalData();
   </script>
 </body>
 </html>

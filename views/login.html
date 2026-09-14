@@ -1,175 +1,412 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<meta name="viewport"
+      content="width=device-width,
+               initial-scale=1,
+               maximum-scale=1,
+               viewport-fit=cover">
+
 <meta name="theme-color" content="#020914">
+
 <title>ONEX • Login</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet">
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+      rel="stylesheet">
+
 
 <style>
+
+/* =========================================================
+   RESET
+========================================================= */
+
 *{
     box-sizing:border-box;
     margin:0;
     padding:0;
+    font-family:"Vazirmatn",Tahoma,Arial,sans-serif;
     -webkit-tap-highlight-color:transparent;
-    font-family:"Vazirmatn",Tahoma,sans-serif;
 }
 
-:root{
-    --blue:#08aaff;
-    --blue2:#007cff;
-    --cyan:#38d9ff;
-    --dark:#020914;
-    --panel:rgba(3,18,38,.78);
-}
-
-html,body{
+html{
     width:100%;
     min-height:100%;
+    background:#020914;
 }
 
 body{
-    min-height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    padding:25px 15px 35px;
+    width:100%;
+    min-height:100svh;
+
     color:#fff;
+
     overflow-x:hidden;
+    overflow-y:auto;
+
     position:relative;
-    background:
+
+    background-color:#020914;
+
+    background-image:
         linear-gradient(
             to bottom,
-            rgba(0,9,23,.30),
-            rgba(1,8,20,.70) 52%,
-            rgba(0,3,10,.98)
+            rgba(2,10,25,.20) 0%,
+            rgba(2,10,25,.52) 45%,
+            rgba(0,3,10,.94) 100%
         ),
-        url("https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=1800&auto=format&fit=crop")
-        center center / cover fixed no-repeat;
+        url("https://images.unsplash.com/photo-1519681393784-d120267933ba?q=85&w=1600&auto=format&fit=crop");
+
+    background-repeat:no-repeat;
+    background-position:center center;
+    background-size:cover;
+
+    -webkit-overflow-scrolling:touch;
 }
 
-/* لایه تاریک سینمایی */
-body:before{
-    content:"";
+
+/* =========================================================
+   BACKGROUND LIGHT
+========================================================= */
+
+.background-light{
     position:fixed;
     inset:0;
+
     pointer-events:none;
+
     background:
         radial-gradient(
             circle at 50% 18%,
-            rgba(0,174,255,.28),
-            transparent 28%
+            rgba(0,180,255,.25),
+            transparent 30%
         ),
-        linear-gradient(
-            90deg,
-            rgba(0,0,0,.38),
-            transparent 50%,
-            rgba(0,0,0,.38)
+        radial-gradient(
+            circle at 15% 55%,
+            rgba(0,100,255,.10),
+            transparent 30%
         );
+
     z-index:0;
 }
 
-/* ذرات نور */
-body:after{
-    content:"";
-    position:fixed;
-    inset:0;
-    pointer-events:none;
-    opacity:.45;
-    background-image:
-        radial-gradient(circle,rgba(255,255,255,.8) 1px,transparent 1px);
-    background-size:130px 130px;
-    animation:stars 12s linear infinite;
-    z-index:1;
-}
 
-@keyframes stars{
-    from{transform:translateY(0)}
-    to{transform:translateY(130px)}
-}
-
-/* =========================================
-   MAIN
-========================================= */
+/* =========================================================
+   MAIN WRAPPER
+========================================================= */
 
 .page{
+
+    position:relative;
+
+    z-index:5;
+
     width:100%;
     max-width:430px;
-    position:relative;
-    z-index:5;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-}
 
-/* =========================================
-   3D LOGO
-========================================= */
+    min-height:100svh;
 
-.logo-area{
-    width:100%;
-    height:205px;
+    margin:0 auto;
+
+    padding:
+        max(18px, env(safe-area-inset-top))
+        15px
+        max(25px, env(safe-area-inset-bottom))
+        15px;
+
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    position:relative;
+
 }
+
+
+/* =========================================================
+   LOGO AREA
+========================================================= */
+
+.logo-area{
+
+    width:100%;
+    height:210px;
+
+    flex-shrink:0;
+
+    display:flex;
+    flex-direction:column;
+
+    justify-content:center;
+    align-items:center;
+
+    position:relative;
+
+    margin-bottom:8px;
+}
+
+
+/* glow */
 
 .logo-glow{
+
     position:absolute;
+
     width:220px;
     height:170px;
-    top:12px;
+
+    top:10px;
+
     border-radius:50%;
-    background:radial-gradient(
-        ellipse,
-        rgba(0,179,255,.42),
-        rgba(0,95,255,.15) 45%,
-        transparent 72%
-    );
-    filter:blur(22px);
-    animation:glow 3s ease-in-out infinite alternate;
+
+    background:
+        radial-gradient(
+            ellipse,
+            rgba(0,190,255,.42),
+            rgba(0,110,255,.16) 45%,
+            transparent 72%
+        );
+
+    filter:blur(25px);
+
+    animation:
+        logoGlow 3s ease-in-out infinite alternate;
 }
 
-@keyframes glow{
+
+@keyframes logoGlow{
+
     from{
-        transform:scale(.90);
-        opacity:.65;
+        transform:scale(.88);
+        opacity:.55;
     }
+
     to{
         transform:scale(1.08);
         opacity:1;
     }
+
 }
+
+
+/* =========================================================
+   ORBITS
+========================================================= */
 
 .logo-orbit{
+
     position:absolute;
-    width:210px;
-    height:78px;
-    border:3px solid rgba(28,190,255,.9);
+
+    width:205px;
+    height:72px;
+
     border-radius:50%;
-    transform:rotate(-17deg) rotateX(63deg);
+
+    border:2px solid rgba(45,201,255,.9);
+
     box-shadow:
-        0 0 10px #00bfff,
-        0 0 25px rgba(0,174,255,.8),
-        inset 0 0 10px rgba(0,174,255,.5);
-    animation:orbit 7s linear infinite;
+        0 0 12px #00bfff,
+        0 0 28px rgba(0,170,255,.65);
+
+    transform:
+        rotate(-18deg)
+        rotateX(64deg);
+
+    animation:
+        orbit 8s linear infinite;
 }
 
+
 .logo-orbit:after{
+
     content:"";
+
     position:absolute;
-    width:9px;
-    height:9px;
+
+    width:8px;
+    height:8px;
+
     border-radius:50%;
+
     background:#fff;
+
     box-shadow:
         0 0 8px #fff,
-        0 0 20px #00c8ff,
-        0 0 35px #
+        0 0 20px #00c8ff;
+
+    left:25px;
+    top:-5px;
+}
+
+
+.logo-orbit.second{
+
+    width:185px;
+    height:60px;
+
+    border:
+        1px dashed
+        rgba(150,235,255,.75);
+
+    transform:
+        rotate(24deg)
+        rotateX(64deg);
+
+    animation:
+        orbitReverse 9s linear infinite reverse;
+
+    opacity:.75;
+}
+
+
+@keyframes orbit{
+
+    from{
+        transform:
+            rotate(-18deg)
+            rotateX(64deg)
+            rotateZ(0deg);
+    }
+
+    to{
+        transform:
+            rotate(-18deg)
+            rotateX(64deg)
+            rotateZ(360deg);
+    }
+
+}
+
+
+@keyframes orbitReverse{
+
+    from{
+        transform:
+            rotate(24deg)
+            rotateX(64deg)
+            rotateZ(0deg);
+    }
+
+    to{
+        transform:
+            rotate(24deg)
+            rotateX(64deg)
+            rotateZ(360deg);
+    }
+
+}
+
+
+/* =========================================================
+   3D BALL
+========================================================= */
+
+.logo-ball{
+
+    position:relative;
+
+    z-index:4;
+
+    width:112px;
+    height:112px;
+
+    border-radius:50%;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    background:
+        radial-gradient(
+            circle at 30% 20%,
+            #ffffff 0%,
+            #baf3ff 8%,
+            #36d2ff 25%,
+            #079ce8 48%,
+            #00579e 72%,
+            #011c38 100%
+        );
+
+    border:
+        2px solid
+        rgba(255,255,255,.85);
+
+    box-shadow:
+
+        inset -18px -20px 32px
+        rgba(0,0,0,.62),
+
+        inset 12px 9px 20px
+        rgba(255,255,255,.48),
+
+        0 8px 35px
+        rgba(0,130,255,.9),
+
+        0 0 65px
+        rgba(0,190,255,.65);
+
+    animation:
+        ballFloat 3s ease-in-out infinite alternate;
+}
+
+
+.logo-ball:before{
+
+    content:"";
+
+    position:absolute;
+
+    width:55px;
+    height:24px;
+
+    top:9px;
+    left:17px;
+
+    border-radius:50%;
+
+    background:
+        rgba(255,255,255,.28);
+
+    filter:blur(7px);
+
+    transform:rotate(-25deg);
+}
+
+
+@keyframes ballFloat{
+
+    from{
+        transform:translateY(2px) scale(.98);
+    }
+
+    to{
+        transform:translateY(-7px) scale(1.02);
+    }
+
+}
+
+
+/* bolt */
+
+.bolt{
+
+    position:relative;
+
+    z-index:6;
+
+    color:#fff;
+
+    font-size:53px;
+
+    filter:
+        drop-shadow(0 0 5px #fff)
+        drop-shadow(0 0 14px #00c8ff)
+        drop-shadow(0 0 28

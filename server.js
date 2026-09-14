@@ -441,4 +441,19 @@ server.on('upgrade', (req, socket, head) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[ONEX Stable Cloud Engine] Running on port ${PORT}`);
+// ویرایش مشخصات کانفیگ (نام، حجم کل، اعتبار)
+app.post('/api/configs/:id/edit', auth, (req, res) => {
+  const { name, total_gb, expire_days } = req.body;
+  db.run(
+    'UPDATE configs SET name = ?, total_gb = ?, expire_days = ? WHERE id = ?',
+    [name, parseFloat(total_gb) || 20, parseInt(expire_days) || 30, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: 'خطا در ویرایش' });
+      addLog(`کانفیگ ${req.params.id} ویرایش شد.`);
+      res.json({ success: true });
+    }
+  );
+});
+
+  
 });

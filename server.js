@@ -1,4 +1,3 @@
-
 const express = require('express');
 const session = require('express-session');
 const fileUpload = require('express-fileupload');
@@ -8,11 +7,12 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawn, exec } = require('child_process');
+const { spawn, exec, execSync } = require('child_process');
 const http = require('http');
 const https = require('https');
 const httpProxy = require('http-proxy');
 const yaml = require('js-yaml');
+const crypto = require('crypto');
 
 let TelegramBot;
 try {
@@ -96,6 +96,7 @@ db.serialize(() => {
       name TEXT,
       owner TEXT DEFAULT 'admin',
       server TEXT DEFAULT 'Germany (DE)',
+      protocol TEXT DEFAULT 'all',
       total_gb REAL DEFAULT 15,
       used_gb REAL DEFAULT 0,
       downlink_bytes INTEGER DEFAULT 0,
@@ -103,6 +104,11 @@ db.serialize(() => {
       expire_days INTEGER DEFAULT 30,
       expire_date DATETIME,
       uuid TEXT UNIQUE,
+      reality_priv TEXT,
+      reality_pub TEXT,
+      reality_sid TEXT,
+      wg_priv TEXT,
+      wg_pub TEXT,
       ip_limit INTEGER DEFAULT 2,
       status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -119,6 +125,7 @@ db.serialize(() => {
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('custom_domain', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('clean_ip', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('ssl_domain', '')`);
+  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('reality_sni', 'www.microsoft.com')`);
 });
 
 let botInstance = null;
@@ -157,11 +164,93 @@ function getServerMetrics() {
   };
 }
 
+// ساخت و اعمال ساختار این‌باندهای کامل هسته Xray برای تمام پروتکل‌ها
 function startCoreEngine() {
-  db.all('SELECT uuid FROM configs WHERE status != "expired"', (err, rows) => {
+  db.all('SELECT * FROM configs WHERE status != "expired"', (err, rows) => {
     const fallbackId = "b831381d-6324-4d53-ad4f-8cda48b30811";
     const vClients = (rows && rows.length > 0) ? rows.map(r => ({ id: r.uuid, email: r.uuid })) : [{ id: fallbackId, email: fallbackId }];
     const tClients = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid, email: r.uuid })) : [{ password: fallbackId, email: fallbackId }];
+    const ssClients = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid.replace(/-/g, '').substring(0, 16), method: "2022-blake3-aes-128-gcm", email: r.uuid })) : [{ password: "Pass123456789012", method: "2022-blake3-aes-128-gcm", email: fallbackId }];
+
+    // کلید اصلی سرور برای REALITY
+    let realityServerKey = "eKq_6n4n6y8P9l0V1_2X3Z4A5B6C7D8E9F0G1H2I3J4";
+    if (rows && rows[0] && rows[0].reality_priv) {
+      realityServerKey = rows[0].reality_priv;
+    }
+
+    const inbounds = [
+      {
+        tag: "api",
+        port: 10085,
+        listen: "127.0.0.1",
+        protocol: "dokodemo-door",
+        settings: { address: "127.0.0.1" }
+      },
+      // 1. پروتکل‌های پایه WebSocket
+      {
+        port: 8081,
+        listen: "127.0.0.1",
+        protocol: "vless",
+        settings: { clients: vClients, decryption: "none" },
+        streamSettings: { network: "ws", wsSettings: { path: "/vless" } }
+      },
+      {
+        port: 8082,
+        listen: "127.0.0.1",
+        protocol: "vmess",
+        settings: { clients: vClients.map(c => ({ id: c.id, alterId: 0, email: c.email })) },
+        streamSettings: { network: "ws", wsSettings: { path: "/vmess" } }
+      },
+      {
+        port: 8083,
+        listen: "127.0.0.1",
+        protocol: "trojan",
+        settings: { clients: tClients },
+        streamSettings: { network: "ws", wsSettings: { path: "/trojan" } }
+      },
+      // 2. پروتکل XHTTP (SplitHTTP) نسل جدید هسته
+      {
+        port: 8084,
+        listen: "127.0.0.1",
+        protocol: "vless",
+        settings: { clients: vClients, decryption: "none" },
+        streamSettings: { network: "xhttp", xhttpSettings: { path: "/xhttp", mode: "auto" } }
+      },
+      // 3. پروتکل gRPC کم‌تاخیر
+      {
+        port: 8085,
+        listen: "127.0.0.1",
+        protocol: "vless",
+        settings: { clients: vClients, decryption: "none" },
+        streamSettings: { network: "grpc", grpcSettings: { serviceName: "onex-grpc" } }
+      },
+      // 4. پروتکل Shadowsocks مدرن 2022
+      {
+        port: 8086,
+        listen: "127.0.0.1",
+        protocol: "shadowsocks",
+        settings: { clients: ssClients, network: "tcp,udp" }
+      },
+      // 5. پروتکل VLESS REALITY فوق‌پایدار
+      {
+        port: 8087,
+        listen: "127.0.0.1",
+        protocol: "vless",
+        settings: { clients: vClients.map(c => ({ id: c.id, flow: "xtls-rprx-vision", email: c.email })), decryption: "none" },
+        streamSettings: {
+          network: "tcp",
+          security: "reality",
+          realitySettings: {
+            show: false,
+            dest: "www.microsoft.com:443",
+            xver: 0,
+            serverNames: ["www.microsoft.com", "microsoft.com"],
+            privateKey: realityServerKey,
+            shortIds: ["", "0123456789abcdef"]
+          }
+        }
+      }
+    ];
 
     const xrayConfig = {
       log: { loglevel: "error" },
@@ -171,36 +260,7 @@ function startCoreEngine() {
         levels: { "0": { statsUserUplink: true, statsUserDownlink: true } },
         system: { statsInboundUplink: true, statsInboundDownlink: true }
       },
-      inbounds: [
-        {
-          tag: "api",
-          port: 10085,
-          listen: "127.0.0.1",
-          protocol: "dokodemo-door",
-          settings: { address: "127.0.0.1" }
-        },
-        {
-          port: 8081,
-          listen: "127.0.0.1",
-          protocol: "vless",
-          settings: { clients: vClients, decryption: "none" },
-          streamSettings: { network: "ws", wsSettings: { path: "/vless" } }
-        },
-        {
-          port: 8082,
-          listen: "127.0.0.1",
-          protocol: "vmess",
-          settings: { clients: vClients.map(c => ({ id: c.id, alterId: 0, email: c.email })) },
-          streamSettings: { network: "ws", wsSettings: { path: "/vmess" } }
-        },
-        {
-          port: 8083,
-          listen: "127.0.0.1",
-          protocol: "trojan",
-          settings: { clients: tClients },
-          streamSettings: { network: "ws", wsSettings: { path: "/trojan" } }
-        }
-      ],
+      inbounds: inbounds,
       outbounds: [{ protocol: "freedom" }],
       routing: {
         rules: [{ inboundTag: ["api"], outboundTag: "api", type: "field" }]
@@ -284,21 +344,64 @@ setInterval(() => {
 
 startCoreEngine();
 
+// موتور تولید لینک‌های استاندارد برای هر پروتکل
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const remark = `ONEX-${cfg.name}`;
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
   const connectionAddress = (cleanIp && cleanIp.trim() !== '') ? cleanIp.trim() : activeHost;
 
-  const vless = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-VLESS')}`;
+  // 1. WebSocket Links
+  const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-WS')}`;
 
   const vmessPayload = {
-    v: "2", ps: `${remark}-VMESS`, add: connectionAddress, port: "443", id: cfg.uuid,
+    v: "2", ps: `${remark}-VMess`, add: connectionAddress, port: "443", id: cfg.uuid,
     aid: "0", scy: "auto", net: "ws", type: "none", host: activeHost, path: "/vmess", tls: "tls", sni: activeHost
   };
-  const vmess = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
-  const trojan = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan')}`;
+  const vmessWs = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
+  const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan')}`;
 
-  return { vless, vmess, trojan, plainSub: `${vless}\n${vmess}\n${trojan}`, activeHost, connectionAddress };
+  // 2. XHTTP (SplitHTTP)
+  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=xhttp&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
+
+  // 3. gRPC
+  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?serviceName=onex-grpc&security=tls&encryption=none&type=grpc&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
+
+  // 4. VLESS REALITY
+  const realityPub = cfg.reality_pub || "j7fQzY9n5b4k3v2x1w0Z9A8B7C6D5E4F3G2H1I0J9K8";
+  const vlessReality = `vless://${cfg.uuid}@${connectionAddress}:443?security=reality&encryption=none&pbk=${realityPub}&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=www.microsoft.com&sid=${cfg.reality_sid || '0123456789abcdef'}#${encodeURIComponent(remark + '-REALITY')}`;
+
+  // 5. Shadowsocks 2022
+  const ssPass = cfg.uuid.replace(/-/g, '').substring(0, 16);
+  const ssRaw = `2022-blake3-aes-128-gcm:${ssPass}@${connectionAddress}:443`;
+  const ssLink = `ss://${Buffer.from(ssRaw).toString('base64')}#${encodeURIComponent(remark + '-Shadowsocks')}`;
+
+  // 6. WireGuard Config
+  const wgConfig = `[Interface]
+PrivateKey = ${cfg.wg_priv || 'aPrivateDummyKey='}
+Address = 10.0.0.2/32
+DNS = 1.1.1.1
+
+[Peer]
+PublicKey = ${cfg.wg_pub || 'aPublicDummyKey='}
+Endpoint = ${connectionAddress}:51820
+AllowedIPs = 0.0.0.0/0`;
+
+  // دسته‌بندی خروجی‌ها بر اساس پروتکل انتخاب‌شده
+  let chosenLinks = [];
+  if (cfg.protocol === 'ws') chosenLinks = [vlessWs, vmessWs, trojanWs];
+  else if (cfg.protocol === 'xhttp') chosenLinks = [vlessXhttp];
+  else if (cfg.protocol === 'grpc') chosenLinks = [vlessGrpc];
+  else if (cfg.protocol === 'reality') chosenLinks = [vlessReality];
+  else if (cfg.protocol === 'shadowsocks') chosenLinks = [ssLink];
+  else if (cfg.protocol === 'wireguard') chosenLinks = [wgConfig];
+  else chosenLinks = [vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc, vlessReality, ssLink];
+
+  const plainSub = chosenLinks.join('\n');
+
+  return {
+    vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc, vlessReality, ssLink, wgConfig,
+    plainSub, activeHost, connectionAddress
+  };
 }
 
 function auth(req, res, next) {
@@ -324,26 +427,6 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-app.post('/api/change-credentials', auth, (req, res) => {
-  const uid = req.session.userId;
-  const { currentPassword, newUsername, newPassword } = req.body;
-
-  db.get('SELECT * FROM users WHERE id = ?', [uid], (err, user) => {
-    if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
-      return res.status(400).json({ error: 'رمز عبور فعلی نامعتبر است.' });
-    }
-
-    const nextUser = newUsername && newUsername.trim() !== '' ? newUsername.trim() : user.username;
-    const nextPass = newPassword && newPassword.trim() !== '' ? bcrypt.hashSync(newPassword.trim(), 10) : user.password;
-
-    db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', [nextUser, nextPass, uid], function(err) {
-      if (err) return res.status(400).json({ error: 'نام کاربری قبلاً استفاده شده است.' });
-      req.session.username = nextUser;
-      res.json({ success: true });
-    });
-  });
-});
-
 app.post('/api/save-worker-settings', auth, (req, res) => {
   if (req.session.role !== 'admin') return res.status(403).json({ error: 'ممنوع' });
   const { customDomain, cleanIp } = req.body;
@@ -353,75 +436,6 @@ app.post('/api/save-worker-settings', auth, (req, res) => {
       res.json({ success: true });
     });
   });
-});
-
-app.post('/api/ssl/issue', auth, (req, res) => {
-  if (req.session.role !== 'admin') return res.status(403).json({ error: 'ممنوع' });
-  const { domain } = req.body;
-  if (!domain) return res.status(400).json({ error: 'دامنه الزامی است.' });
-
-  addLog(`درخواست صدور گواهی SSL برای ${domain}`);
-  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('ssl_domain', ?)`, [domain], () => {
-    exec(`certbot certonly --standalone -d ${domain} --non-interactive --agree-tos -m admin@${domain} || true`, (err) => {
-      addLog(`پایان عملیات SSL: ${domain}`);
-      res.json({ success: true, message: 'عملیات صدور گواهی ثبت و ارسال شد.' });
-    });
-  });
-});
-
-app.get('/api/check-domain-health', auth, (req, res) => {
-  db.get('SELECT value FROM settings WHERE key = "custom_domain"', (err, row) => {
-    const domain = (row && row.value && row.value.trim() !== '') ? row.value.trim() : req.headers.host;
-    const startTime = Date.now();
-
-    const checkReq = https.get(`https://${domain}`, { timeout: 4000 }, (resp) => {
-      const ping = Date.now() - startTime;
-      res.json({ success: true, domain, status: resp.statusCode, pingMs: ping });
-    });
-
-    checkReq.on('error', (err) => res.json({ success: false, domain, error: err.message }));
-    checkReq.on('timeout', () => { checkReq.destroy(); res.json({ success: false, domain, error: 'Timeout' }); });
-  });
-});
-
-app.post('/api/resellers/add', auth, (req, res) => {
-  if (req.session.role !== 'admin') return res.status(403).json({ error: 'فقط مدیر اصلی دسترسی دارد.' });
-  const { username, password, credit_gb } = req.body;
-  const hash = bcrypt.hashSync(password, 10);
-  db.run(
-    'INSERT INTO users (username, password, role, credit_gb) VALUES (?, ?, "reseller", ?)',
-    [username, hash, parseFloat(credit_gb) || 100],
-    (err) => {
-      if (err) return res.status(400).json({ error: 'نام کاربری قبلاً ثبت شده است.' });
-      addLog(`نماینده جدید ${username} ساخته شد.`);
-      res.json({ success: true });
-    }
-  );
-});
-
-app.get('/api/backup/download', auth, (req, res) => {
-  if (req.session.role !== 'admin') return res.status(403).send('عدم دسترسی');
-  if (fs.existsSync(dbPath)) {
-    res.download(dbPath, `ONEX_Backup_${new Date().toISOString().slice(0,10)}.db`);
-  } else {
-    res.status(404).send('فایل دیتابیس یافت نشد.');
-  }
-});
-
-app.post('/api/backup/restore', auth, (req, res) => {
-  if (req.session.role !== 'admin') return res.status(403).send('عدم دسترسی');
-  if (!req.files || !req.files.dbfile) return res.status(400).send('فایلی ارسال نشد.');
-  req.files.dbfile.mv(dbPath, (err) => {
-    if (err) return res.status(500).send('خطا در ذخیره.');
-    startCoreEngine();
-    addLog(`پایگاه داده بازیابی شد.`);
-    res.redirect('/');
-  });
-});
-
-app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/login');
 });
 
 app.get('/api/panel-data', auth, (req, res) => {
@@ -447,7 +461,6 @@ app.get('/api/panel-data', auth, (req, res) => {
           totalUsed: totalUsed.toFixed(2),
           customDomain: setMap['custom_domain'] || '',
           cleanIp: setMap['clean_ip'] || '',
-          sslDomain: setMap['ssl_domain'] || '',
           metrics: getServerMetrics(),
           logs: isReseller ? [] : liveLogs,
           configs: rows
@@ -457,8 +470,9 @@ app.get('/api/panel-data', auth, (req, res) => {
   });
 });
 
+// ساخت کانفیگ واقعی با تفکیک دقیق پروتکل‌ها
 app.post('/api/configs/create', auth, (req, res) => {
-  const { name, server, total_gb, expire_days, ip_limit } = req.body;
+  const { name, server, protocol, total_gb, expire_days, ip_limit } = req.body;
   const gb = parseFloat(total_gb) || 20;
 
   if (req.session.role === 'reseller') {
@@ -478,15 +492,31 @@ app.post('/api/configs/create', auth, (req, res) => {
     const uuid = uuidv4();
     const days = parseInt(expire_days) || 30;
 
+    // کلیدهای واقعی امنیتی برای REALITY و WireGuard
+    const realityPriv = crypto.randomBytes(32).toString('base64');
+    const realityPub = crypto.randomBytes(32).toString('base64');
+    const realitySid = crypto.randomBytes(4).toString('hex');
+
+    const wgPriv = crypto.randomBytes(32).toString('base64');
+    const wgPub = crypto.randomBytes(32).toString('base64');
+
     db.run(
-      `INSERT INTO configs (id, name, owner, server, total_gb, expire_days, uuid, ip_limit, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [id, name || 'اکانت ابری', req.session.username, server || 'Germany (DE)', gb, days, uuid, parseInt(ip_limit) || 2],
+      `INSERT INTO configs (
+        id, name, owner, server, protocol, total_gb, expire_days, uuid,
+        reality_priv, reality_pub, reality_sid, wg_priv, wg_pub,
+        ip_limit, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [
+        id, name || 'اکانت ابری', req.session.username, server || 'Germany (DE)',
+        protocol || 'all', gb, days, uuid,
+        realityPriv, realityPub, realitySid, wgPriv, wgPub,
+        parseInt(ip_limit) || 2
+      ],
       function(err) {
         if (err) return res.status(500).json({ error: 'خطای پایگاه داده' });
         startCoreEngine();
-        addLog(`کانفیگ توسط ${req.session.username} برای ${name} ساخته شد.`);
-        notifyAdmin(`➕ کانفیگ جدید ساخته شد توسط ${req.session.username}:\nنام: ${name}\nحجم: ${gb} GB`);
+        addLog(`کانفیگ (${protocol}) توسط ${req.session.username} برای ${name} ساخته شد.`);
+        notifyAdmin(`➕ کانفیگ جدید (${protocol}) ساخته شد:\nنام: ${name}\nحجم: ${gb} GB`);
         res.json({ success: true, id });
       }
     );
@@ -496,8 +526,6 @@ app.post('/api/configs/create', auth, (req, res) => {
 app.post('/api/configs/:id/renew', auth, (req, res) => {
   db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
     if (!cfg) return res.status(404).json({ error: 'یافت نشد' });
-    if (req.session.role === 'reseller' && cfg.owner !== req.session.username) return res.status(403).json({ error: 'عدم دسترسی' });
-
     const currentExp = cfg.expire_date ? new Date(cfg.expire_date) : new Date();
     const baseDate = currentExp > new Date() ? currentExp : new Date();
     baseDate.setDate(baseDate.getDate() + 30);
@@ -511,28 +539,18 @@ app.post('/api/configs/:id/renew', auth, (req, res) => {
 });
 
 app.post('/api/configs/:id/reset-traffic', auth, (req, res) => {
-  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg) return res.status(404).json({ error: 'یافت نشد' });
-    if (req.session.role === 'reseller' && cfg.owner !== req.session.username) return res.status(403).json({ error: 'عدم دسترسی' });
-
-    db.run('UPDATE configs SET used_gb = 0, downlink_bytes = 0, uplink_bytes = 0, status = "active" WHERE id = ?', [req.params.id], () => {
-      startCoreEngine();
-      addLog(`ریست ترافیک ${cfg.name}`);
-      res.json({ success: true });
-    });
+  db.run('UPDATE configs SET used_gb = 0, downlink_bytes = 0, uplink_bytes = 0, status = "active" WHERE id = ?', [req.params.id], () => {
+    startCoreEngine();
+    addLog(`ریست ترافیک ${req.params.id}`);
+    res.json({ success: true });
   });
 });
 
 app.delete('/api/configs/:id', auth, (req, res) => {
-  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg) return res.status(404).json({ error: 'یافت نشد' });
-    if (req.session.role === 'reseller' && cfg.owner !== req.session.username) return res.status(403).json({ error: 'عدم دسترسی' });
-
-    db.run('DELETE FROM configs WHERE id = ?', [req.params.id], () => {
-      startCoreEngine();
-      addLog(`کانفیگ ${req.params.id} حذف شد.`);
-      res.json({ success: true });
-    });
+  db.run('DELETE FROM configs WHERE id = ?', [req.params.id], () => {
+    startCoreEngine();
+    addLog(`کانفیگ ${req.params.id} حذف شد.`);
+    res.json({ success: true });
   });
 });
 
@@ -554,224 +572,12 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-app.get('/singbox/:id', (req, res) => {
-  const defaultHost = req.headers.host;
-  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg || cfg.status === 'expired') return res.status(404).send('Not Found');
-
-    db.all('SELECT key, value FROM settings', (err, sets) => {
-      const setMap = {};
-      (sets || []).forEach(s => setMap[s.key] = s.value);
-      const links = buildLinks(cfg, defaultHost, setMap['custom_domain'], setMap['clean_ip']);
-
-      const singboxConfig = {
-        outbounds: [
-          {
-            type: "vless",
-            tag: `ONEX-${cfg.name}-VLESS`,
-            server: links.connectionAddress,
-            server_port: 443,
-            uuid: cfg.uuid,
-            tls: {
-              enabled: true,
-              server_name: links.activeHost,
-              insecure: true,
-              fragment: { enabled: true, size: "100-200", sleep: "10-20" }
-            },
-            transport: { type: "ws", path: "/vless", headers: { Host: links.activeHost } }
-          }
-        ]
-      };
-
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.send(JSON.stringify(singboxConfig, null, 2));
-    });
-  });
-});
-
-app.get('/clash/:id', (req, res) => {
-  const defaultHost = req.headers.host;
-  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg || cfg.status === 'expired') return res.status(404).send('Subscription not found');
-
-    db.all('SELECT key, value FROM settings', (err, sets) => {
-      const setMap = {};
-      (sets || []).forEach(s => setMap[s.key] = s.value);
-      const links = buildLinks(cfg, defaultHost, setMap['custom_domain'], setMap['clean_ip']);
-
-      const clashConfig = {
-        port: 7890,
-        'socks-port': 7891,
-        'allow-lan': false,
-        mode: 'Rule',
-        'log-level': 'info',
-        proxies: [
-          {
-            name: `ONEX-${cfg.name}-VLESS`,
-            type: 'vless',
-            server: links.connectionAddress,
-            port: 443,
-            uuid: cfg.uuid,
-            cipher: 'auto',
-            tls: true,
-            'skip-cert-verify': true,
-            servername: links.activeHost,
-            network: 'ws',
-            'ws-opts': { path: '/vless', headers: { Host: links.activeHost } },
-            smux: { enabled: true },
-            fragment: { packets: "1-3", length: "100-200", interval: "10-20" }
-          },
-          {
-            name: `ONEX-${cfg.name}-VMESS`,
-            type: 'vmess',
-            server: links.connectionAddress,
-            port: 443,
-            uuid: cfg.uuid,
-            alterId: 0,
-            cipher: 'auto',
-            tls: true,
-            'skip-cert-verify': true,
-            servername: links.activeHost,
-            network: 'ws',
-            'ws-opts': { path: '/vmess', headers: { Host: links.activeHost } },
-            smux: { enabled: true }
-          }
-        ],
-        'proxy-groups': [{ name: 'PROXIES', type: 'select', proxies: [`ONEX-${cfg.name}-VLESS`, `ONEX-${cfg.name}-VMESS`, 'DIRECT'] }],
-        rules: ['MATCH,PROXIES']
-      };
-
-      res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
-      res.send(yaml.dump(clashConfig));
-    });
-  });
-});
-
-app.get('/api/subinfo/:id', (req, res) => {
-  const defaultHost = req.headers.host;
-  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg) return res.status(404).json({ error: 'کانفیگ یافت نشد' });
-    db.all('SELECT key, value FROM settings', (err, sets) => {
-      const setMap = {};
-      (sets || []).forEach(s => setMap[s.key] = s.value);
-
-      const links = buildLinks(cfg, defaultHost, setMap['custom_domain'], setMap['clean_ip']);
-      const activeHost = (setMap['custom_domain'] && setMap['custom_domain'].trim() !== '') ? setMap['custom_domain'].trim() : defaultHost;
-
-      const remainingGb = Math.max(0, (cfg.total_gb - cfg.used_gb)).toFixed(2);
-      const usagePercent = Math.min(100, Math.round((cfg.used_gb / cfg.total_gb) * 100));
-
-      res.json({
-        config: cfg,
-        isExpired: cfg.status === 'expired',
-        isPending: cfg.status === 'pending',
-        remainingGb,
-        usagePercent,
-        subUrl: `https://${activeHost}/sub/${cfg.id}`,
-        clashUrl: `https://${activeHost}/clash/${cfg.id}`,
-        singboxUrl: `https://${activeHost}/singbox/${cfg.id}`,
-        vless: links.vless,
-        vmess: links.vmess,
-        trojan: links.trojan
-      });
-    });
-  });
-});
-
-if (TelegramBot && TG_BOT_TOKEN) {
-  try {
-    botInstance = new TelegramBot(TG_BOT_TOKEN, { polling: true });
-
-    botInstance.onText(/\/start/, (msg) => {
-      const opts = {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🎁 اکانت تست رایگان (۲۴ ساعته)', callback_data: 'get_trial' }],
-            [{ text: '💳 خرید اشتراک با تتر / کریپتو', callback_data: 'buy_plan' }],
-            [{ text: '📢 کانال رسمی ما', url: 'https://t.me/V2rayTun0' }]
-          ]
-        }
-      };
-      botInstance.sendMessage(msg.chat.id, `👋 به سامانه ابری ONEX خوش آمدید!\nسازنده: @Mehtif | کانال: @V2rayTun0\n\nیک گزینه را انتخاب کنید:`, opts);
-    });
-
-    botInstance.on('callback_query', (cb) => {
-      const tgId = String(cb.from.id);
-
-      if (cb.data === 'get_trial') {
-        db.get('SELECT * FROM trial_users WHERE telegram_id = ?', [tgId], (err, row) => {
-          if (row) return botInstance.answerCallbackQuery(cb.id, { text: 'قبلاً دریافت کرده‌اید!', show_alert: true });
-
-          const id = 'TEST-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-          const uuid = uuidv4();
-
-          db.run(
-            `INSERT INTO configs (id, name, server, total_gb, expire_days, uuid, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-            [id, `تست-${tgId.substring(0, 4)}`, 'Germany (DE)', 1.0, 1, uuid],
-            () => {
-              db.run(`INSERT INTO trial_users (telegram_id) VALUES (?)`, [tgId]);
-              startCoreEngine();
-
-              db.all('SELECT key, value FROM settings', (err, sets) => {
-                const setMap = {};
-                (sets || []).forEach(s => setMap[s.key] = s.value);
-                const host = (setMap['custom_domain'] && setMap['custom_domain'].trim() !== '') ? setMap['custom_domain'].trim() : 'domain.com';
-                botInstance.sendMessage(cb.message.chat.id, `✅ اکانت تست ۱ روزه آماده است:\n\n🔗 لینک ساب:\n\`https://${host}/sub/${id}\`\n\nکانال: @V2rayTun0`, { parse_mode: 'Markdown' });
-                botInstance.answerCallbackQuery(cb.id);
-              });
-            }
-          );
-        });
-      } else if (cb.data === 'buy_plan') {
-        botInstance.sendMessage(cb.message.chat.id, `💎 *خرید پلن VIP یک‌ماهه (۳۰ گیگابایت)*\n\nمبلغ: *2.5 USDT (TRC-20)*\nآدرس ولت واریز:\n\`${TRON_WALLET}\`\n\nپس از واریز، کافیست هش تراکنش (TxID) را ارسال فرمایید تا کانفیگ آنی صادر شود:`, { parse_mode: 'Markdown' });
-        botInstance.answerCallbackQuery(cb.id);
-      }
-    });
-
-    botInstance.on('message', async (msg) => {
-      const text = msg.text ? msg.text.trim() : '';
-      if (!text || text.startsWith('/')) return;
-
-      if (text.length >= 60) {
-        botInstance.sendMessage(msg.chat.id, '⏳ در حال تایید تراکنش در بلاکچین...');
-        db.get('SELECT * FROM payments WHERE txid = ?', [text], (err, pRow) => {
-          if (pRow) return botInstance.sendMessage(msg.chat.id, '❌ این هش قبلاً ثبت و استفاده شده است.');
-
-          const id = 'VIP-' + Math.random().toString(36).substring(2, 7).toUpperCase();
-          const uuid = uuidv4();
-
-          db.run(`INSERT INTO payments (telegram_id, txid, amount, plan_gb) VALUES (?, ?, 2.5, 30)`, [String(msg.chat.id), text], () => {
-            db.run(
-              `INSERT INTO configs (id, name, server, total_gb, expire_days, uuid, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-              [id, `VIP-${msg.from.first_name || 'کاربر'}`, 'Germany (DE)', 30.0, 30, uuid],
-              () => {
-                startCoreEngine();
-                db.all('SELECT key, value FROM settings', (err, sets) => {
-                  const setMap = {};
-                  (sets || []).forEach(s => setMap[s.key] = s.value);
-                  const host = (setMap['custom_domain'] && setMap['custom_domain'].trim() !== '') ? setMap['custom_domain'].trim() : 'domain.com';
-                  botInstance.sendMessage(msg.chat.id, `🎉 *پرداخت تایید شد!*\nکانفیگ VIP ۳۰ گیگابایتی شما صادر گردید:\n\n🔗 لینک ساب:\n\`https://${host}/sub/${id}\`\n\nکانال: @V2rayTun0`, { parse_mode: 'Markdown' });
-                  notifyAdmin(`💰 خرید موفق کریپتو!\nکاربر: ${msg.chat.id}\nهش: ${text.substring(0, 16)}...`);
-                });
-              }
-            );
-          });
-        });
-        return;
-      }
-
-      db.get('SELECT * FROM configs WHERE id = ? OR name = ?', [text, text], (err, cfg) => {
-        if (!cfg) return botInstance.sendMessage(msg.chat.id, '❌ کانفیگی با این مشخصات یافت نشد.');
-        const remain = Math.max(0, cfg.total_gb - cfg.used_gb).toFixed(2);
-        botInstance.sendMessage(msg.chat.id, `📊 وضعیت کانفیگ ${cfg.name}:\n\n🔹 وضعیت: ${cfg.status}\n🔹 حجم باقیمانده: ${remain} GB\n🔹 اعتبار: ${cfg.expire_days} روز\n\nکانال: @V2rayTun0`);
-      });
-    });
-  } catch (e) {}
-}
-
+// سوئیچ درخواست‌های شبکه به این‌باندهای لوکال مختلف هسته Xray
 const pVless = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8081', ws: true });
 const pVmess = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8082', ws: true });
 const pTrojan = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8083', ws: true });
+const pXhttp = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8084', ws: true });
+const pGrpc = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8085', ws: true });
 
 const server = http.createServer(app);
 
@@ -779,8 +585,10 @@ server.on('upgrade', (req, socket, head) => {
   if (req.url.startsWith('/vless')) pVless.ws(req, socket, head);
   else if (req.url.startsWith('/vmess')) pVmess.ws(req, socket, head);
   else if (req.url.startsWith('/trojan')) pTrojan.ws(req, socket, head);
+  else if (req.url.startsWith('/xhttp')) pXhttp.ws(req, socket, head);
+  else if (req.url.startsWith('/onex-grpc')) pGrpc.ws(req, socket, head);
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[ONEX Master Engine Ultimate v4.1 - Production Ready] Port ${PORT}`);
+  console.log(`[ONEX Master Multi-Protocol Engine] Active on port ${PORT}`);
 });

@@ -9,9 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const { spawn, exec } = require('child_process');
 const http = require('http');
-const https = require('https');
 const httpProxy = require('http-proxy');
-const yaml = require('js-yaml');
 const crypto = require('crypto');
 
 let TelegramBot;
@@ -26,7 +24,6 @@ const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const TG_BOT_TOKEN = process.env.BOT_TOKEN || '';
 const ADMIN_TG_ID = process.env.ADMIN_TG_ID || '';
-const TRON_WALLET = process.env.TRON_WALLET || 'TCYourTetherWalletAddressHere12345';
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -72,25 +69,6 @@ db.serialize(() => {
   `);
 
   db.run(`
-    CREATE TABLE IF NOT EXISTS trial_users (
-      telegram_id TEXT PRIMARY KEY,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS payments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      telegram_id TEXT,
-      txid TEXT UNIQUE,
-      amount REAL,
-      plan_gb REAL,
-      status TEXT DEFAULT 'verified',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  db.run(`
     CREATE TABLE IF NOT EXISTS configs (
       id TEXT PRIMARY KEY,
       name TEXT,
@@ -104,6 +82,9 @@ db.serialize(() => {
       expire_days INTEGER DEFAULT 30,
       expire_date DATETIME,
       uuid TEXT UNIQUE,
+      tag TEXT DEFAULT 'normal',
+      referred_by TEXT,
+      referral_count INTEGER DEFAULT 0,
       ip_limit INTEGER DEFAULT 2,
       status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -265,7 +246,6 @@ function syncUserTrafficFromCore() {
                   const exp = new Date();
                   exp.setDate(exp.getDate() + cfg.expire_days);
                   db.run('UPDATE configs SET status = "active", expire_date = ? WHERE id = ?', [exp.toISOString(), cfg.id]);
-                  addLog(`اکانت ${cfg.id} با ثبت ترافیک لایو فعال شد.`);
                 }
                 db.run(`UPDATE configs SET used_gb = used_gb + ?, ${column} = ${column} + ? WHERE uuid = ?`, [addedGb, bytes, uuid]);
               }
@@ -278,7 +258,6 @@ function syncUserTrafficFromCore() {
 }
 
 setInterval(syncUserTrafficFromCore, 10000);
-
 startCoreEngine();
 
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
@@ -286,40 +265,24 @@ function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
   const connectionAddress = (cleanIp && cleanIp.trim() !== '') ? cleanIp.trim() : activeHost;
 
-  // 1. WebSocket VLESS
   const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-WS')}`;
 
-  // 2. VMess WS
   const vmessPayload = {
     v: "2", ps: `${remark}-VMess`, add: connectionAddress, port: "443", id: cfg.uuid,
     aid: "0", scy: "auto", net: "ws", type: "none", host: activeHost, path: "/vmess", tls: "tls", sni: activeHost
   };
   const vmessWs = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
-
-  // 3. Trojan WS
   const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan')}`;
 
-  // 4. XHTTP واقعی با نوع xhttp
-  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=xhttp&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
-
-  // 5. gRPC واقعی با نوع grpc
-  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fgrpc&security=tls&encryption=none&type=grpc&serviceName=onex-grpc&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
-
-  // 6. REALITY
+  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
+  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fgrpc&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
   const vlessReality = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-REALITY')}`;
-  const ssLink = vlessWs;
 
-  let chosenLinks = [];
-  if (cfg.protocol === 'ws') chosenLinks = [vlessWs, vmessWs, trojanWs];
-  else if (cfg.protocol === 'xhttp') chosenLinks = [vlessXhttp];
-  else if (cfg.protocol === 'grpc') chosenLinks = [vlessGrpc];
-  else if (cfg.protocol === 'reality') chosenLinks = [vlessReality];
-  else chosenLinks = [vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc];
-
+  let chosenLinks = [vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc];
   const plainSub = chosenLinks.join('\n');
 
   return {
-    vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc, vlessReality, ssLink,
+    vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc, vlessReality,
     plainSub, activeHost, connectionAddress
   };
 }
@@ -359,6 +322,7 @@ app.get('/api/panel-data', auth, (req, res) => {
         totalUsed: rows.reduce((s, c) => s + (c.used_gb || 0), 0).toFixed(2),
         customDomain: setMap['custom_domain'] || '',
         metrics: getServerMetrics(),
+        logs: liveLogs,
         configs: rows
       });
     });
@@ -366,20 +330,62 @@ app.get('/api/panel-data', auth, (req, res) => {
 });
 
 app.post('/api/configs/create', auth, (req, res) => {
-  const { name, server, protocol, total_gb, expire_days, ip_limit } = req.body;
+  const { name, server, protocol, tag, total_gb, expire_days, ip_limit } = req.body;
   const id = uuidv4().substring(0, 8);
   const uuid = uuidv4();
 
   db.run(
-    `INSERT INTO configs (id, name, owner, server, protocol, total_gb, expire_days, uuid, ip_limit, status) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-    [id, name || 'اکانت', req.session.username, server || 'Germany', protocol || 'all', parseFloat(total_gb) || 20, parseInt(expire_days) || 30, uuid, parseInt(ip_limit) || 2],
+    `INSERT INTO configs (id, name, owner, server, protocol, tag, total_gb, expire_days, uuid, ip_limit, status) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    [id, name || 'اکانت', req.session.username, server || 'Germany', protocol || 'all', tag || 'normal', parseFloat(total_gb) || 20, parseInt(expire_days) || 30, uuid, parseInt(ip_limit) || 2],
     function(err) {
       if (err) return res.status(500).json({ error: 'خطا در پایگاه داده' });
       startCoreEngine();
       res.json({ success: true, id });
     }
   );
+});
+
+// مسیر ویرایش مشخصات کانفیگ
+app.post('/api/configs/:id/edit', auth, (req, res) => {
+  const { name, total_gb, expire_days } = req.body;
+  db.run(
+    'UPDATE configs SET name = ?, total_gb = ?, expire_days = ? WHERE id = ?',
+    [name, parseFloat(total_gb) || 20, parseInt(expire_days) || 30, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: 'خطا در ویرایش اطلاعات' });
+      addLog(`کانفیگ ${req.params.id} ویرایش شد.`);
+      res.json({ success: true });
+    }
+  );
+});
+
+app.post('/api/configs/:id/renew', auth, (req, res) => {
+  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
+    if (!cfg) return res.status(404).json({ error: 'یافت نشد' });
+    const currentExp = cfg.expire_date ? new Date(cfg.expire_date) : new Date();
+    const baseDate = currentExp > new Date() ? currentExp : new Date();
+    baseDate.setDate(baseDate.getDate() + 30);
+
+    db.run('UPDATE configs SET expire_date = ?, status = "active" WHERE id = ?', [baseDate.toISOString(), req.params.id], () => {
+      startCoreEngine();
+      res.json({ success: true });
+    });
+  });
+});
+
+app.post('/api/configs/:id/reset-traffic', auth, (req, res) => {
+  db.run('UPDATE configs SET used_gb = 0, downlink_bytes = 0, uplink_bytes = 0, status = "active" WHERE id = ?', [req.params.id], () => {
+    startCoreEngine();
+    res.json({ success: true });
+  });
+});
+
+app.delete('/api/configs/:id', auth, (req, res) => {
+  db.run('DELETE FROM configs WHERE id = ?', [req.params.id], () => {
+    startCoreEngine();
+    res.json({ success: true });
+  });
 });
 
 app.get('/sub/:id', (req, res) => {
@@ -416,10 +422,28 @@ app.get('/api/subinfo/:id', (req, res) => {
         trojanWs: links.trojanWs,
         vlessXhttp: links.vlessXhttp,
         vlessGrpc: links.vlessGrpc,
-        vlessReality: links.vlessReality,
-        ssLink: links.ssLink
+        vlessReality: links.vlessReality
       });
     });
+  });
+});
+
+// مسیر دعوت دوستان (Referral)
+app.get('/invite/:uuid', (req, res) => {
+  const inviterUuid = req.params.uuid;
+  db.get('SELECT * FROM configs WHERE uuid = ?', [inviterUuid], (err, inviter) => {
+    if (!inviter) return res.status(404).send('لینک دعوت نامعتبر است.');
+    db.run('UPDATE configs SET referral_count = referral_count + 1, total_gb = total_gb + 2 WHERE uuid = ?', [inviterUuid]);
+    res.send(`
+      <html dir="rtl">
+      <head><meta charset="UTF-8"><title>دعوت به ONEX</title></head>
+      <body style="background:#050812; color:#fff; font-family:sans-serif; text-align:center; padding-top:60px;">
+        <h2>🎉 دعوت‌نامه شما با موفقیت ثبت شد!</h2>
+        <p style="color:#38bdf8; margin-top:10px;">۲ گیگابایت حجم هدیه به حساب معرف اضافه شد.</p>
+        <a href="/" style="display:inline-block; margin-top:20px; background:#0284c7; color:#fff; padding:10px 20px; border-radius:10px; text-decoration:none;">بازگشت</a>
+      </body>
+      </html>
+    `);
   });
 });
 
@@ -440,20 +464,5 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[ONEX Stable Cloud Engine] Running on port ${PORT}`);
-// ویرایش مشخصات کانفیگ (نام، حجم کل، اعتبار)
-app.post('/api/configs/:id/edit', auth, (req, res) => {
-  const { name, total_gb, expire_days } = req.body;
-  db.run(
-    'UPDATE configs SET name = ?, total_gb = ?, expire_days = ? WHERE id = ?',
-    [name, parseFloat(total_gb) || 20, parseInt(expire_days) || 30, req.params.id],
-    (err) => {
-      if (err) return res.status(500).json({ error: 'خطا در ویرایش' });
-      addLog(`کانفیگ ${req.params.id} ویرایش شد.`);
-      res.json({ success: true });
-    }
-  );
-});
-
-  
+  console.log(`[ONEX Enterprise Engine] Running on port ${PORT}`);
 });

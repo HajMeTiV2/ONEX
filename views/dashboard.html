@@ -264,7 +264,34 @@
     <div id="view-reseller" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">نمایندگان</h3></div></div>
     <div id="view-logs" class="view-section"><div class="panel-box"><h3 style="color:var(--accent)">لاگ</h3><div class="log-terminal" id="logBox"></div></div></div>
     <div id="view-backup" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><a href="/api/backup/download" class="btn-main" style="background:#10b981; color:#fff; width:100%; justify-content:center;">دانلود دیتابیس</a></div></div>
-    <div id="view-settings" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">تنظیمات حساب</h3></div></div>
+    
+    <!-- بخش تنظیمات کامل حساب و سیستم -->
+    <div id="view-settings" class="view-section">
+      <div class="panel-box" style="max-width: 550px; margin: 0 auto;">
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 14px;"><i class="fa-solid fa-gear"></i> تنظیمات جامع سیستم</h3>
+        
+        <form id="accountSettingsForm" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">امنیت و مشخصات حساب مدیریت</h4>
+          <input type="text" id="set-username" class="input-field" placeholder="نام کاربری جدید">
+          <input type="password" id="set-new-pass" class="input-field" placeholder="رمز عبور جدید">
+          <input type="password" id="set-cur-pass" class="input-field" placeholder="رمز عبور فعلی (جهت تایید)" required>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">بروزرسانی حساب</button>
+        </form>
+
+        <form id="domainSettingsForm" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 15px;">
+          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">دامنه اتصال کلاینت‌ها</h4>
+          <input type="text" id="set-custom-domain" class="input-field" placeholder="sub.yourdomain.com">
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px; background: #10b981; color:#fff;">ذخیره دامنه</button>
+        </form>
+
+        <form id="telegramSettingsForm">
+          <h4 style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">اتصال به ربات تلگرام</h4>
+          <input type="text" id="set-bot-token" class="input-field" placeholder="توکن ربات تلگرام (Bot Token)">
+          <input type="text" id="set-admin-tg" class="input-field" placeholder="شناسه عددی تلگرام ادمین (Admin ID)">
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px; background: #0284c7; color:#fff;">ذخیره تنظیمات تلگرام</button>
+        </form>
+      </div>
+    </div>
 
   </main>
 
@@ -334,7 +361,7 @@
     // سیستم هوشمند تغییر تم خودکار بر اساس ساعت شبانه‌روز
     function checkAutoTheme() {
       const currentHour = new Date().getHours();
-      const isNightTime = currentHour >= 19 || currentHour < 6; // از ۱۹ تا ۶ صبح تم تیره مطلق/سایبرپانک
+      const isNightTime = currentHour >= 19 || currentHour < 6;
       if (!localStorage.getItem('manual_theme_set')) {
         setTheme(isNightTime ? 'oled' : 'glass');
       }
@@ -462,6 +489,7 @@
         document.getElementById('st-ram').innerText = `${res.metrics.ram}%`;
       }
       if (res.cleanIp) document.getElementById('w-clean-ip').value = res.cleanIp;
+      if (res.customDomain) document.getElementById('set-custom-domain').value = res.customDomain;
       globalConfigs = res.configs || [];
       renderConfigs();
     }
@@ -502,11 +530,51 @@
       alert('پیام همگانی منتشر شد.');
     });
 
+    // مدیریت فرم‌های تنظیمات حساب، دامنه و تلگرام
+    document.getElementById('accountSettingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newUsername = document.getElementById('set-username').value;
+      const newPassword = document.getElementById('set-new-pass').value;
+      const currentPassword = document.getElementById('set-cur-pass').value;
+
+      const res = await fetch('/api/settings/account', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newUsername, newPassword, currentPassword })
+      }).then(r => r.json());
+
+      if (res.success) {
+        alert('✅ حساب کاربری با موفقیت بروز شد. لطفاً مجدداً وارد شوید.');
+        location.reload();
+      } else {
+        alert('❌ خطا: ' + (res.error || 'رمز عبور فعلی اشتباه است.'));
+      }
+    });
+
+    document.getElementById('domainSettingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const customDomain = document.getElementById('set-custom-domain').value;
+      await fetch('/api/settings/general', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customDomain })
+      });
+      alert('✅ دامنه ذخیره شد.');
+    });
+
+    document.getElementById('telegramSettingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const botToken = document.getElementById('set-bot-token').value;
+      const adminTgId = document.getElementById('set-admin-tg').value;
+      await fetch('/api/settings/general', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ botToken, adminTgId })
+      });
+      alert('✅ تنظیمات تلگرام ذخیره شد.');
+    });
+
     async function renewCfg(id) { await fetch(`/api/configs/${id}/renew`, { method: 'POST' }); closeDrawer(); loadData(); }
     async function resetTraffic(id) { await fetch(`/api/configs/${id}/reset-traffic`, { method: 'POST' }); closeDrawer(); loadData(); }
     async function delCfg(id) { if (confirm('حذف شود؟')) { await fetch('/api/configs/' + id, { method: 'DELETE' }); closeDrawer(); loadData(); } }
 
-    // تنظیم تم اولیه هنگام لود صفحه
     window.addEventListener('DOMContentLoaded', () => {
       const savedTheme = localStorage.getItem('preferred_theme');
       if (savedTheme) {

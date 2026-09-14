@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="cyberpunk">
 <head>
   <meta charset="UTF-8">
   <title>ONEX Enterprise • Ultimate Dashboard</title>
@@ -7,26 +7,55 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
+    /* تعریف تم‌های رنگی پویا */
+    :root[data-theme="cyberpunk"] {
+      --bg-main: #050812;
+      --bg-sidebar: #0a1020;
+      --bg-card: #0c152a;
+      --border-color: rgba(56, 189, 248, 0.25);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+    }
+    :root[data-theme="oled"] {
+      --bg-main: #000000;
+      --bg-sidebar: #050505;
+      --bg-card: #0a0a0a;
+      --border-color: rgba(255, 255, 255, 0.15);
+      --text-main: #ffffff;
+      --text-muted: #a3a3a3;
+      --accent: #00ffff;
+    }
+    :root[data-theme="glass"] {
+      --bg-main: #0b1329;
+      --bg-sidebar: rgba(12, 20, 38, 0.85);
+      --bg-card: rgba(16, 26, 48, 0.75);
+      --border-color: rgba(255, 255, 255, 0.12);
+      --text-main: #f1f5f9;
+      --text-muted: #cbd5e1;
+      --accent: #60a5fa;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: #050812; color: #f8fafc; min-height: 100vh; overflow-x: hidden; }
+    body { background: var(--bg-main); color: var(--text-main); min-height: 100vh; overflow-x: hidden; transition: background 0.3s ease; }
 
     .mobile-header {
       display: none; position: sticky; top: 0; z-index: 120;
-      background: rgba(10, 16, 28, 0.95); backdrop-filter: blur(15px);
-      border-bottom: 1px solid rgba(56, 189, 248, 0.15); padding: 12px 16px; justify-content: space-between; align-items: center;
+      background: var(--bg-sidebar); backdrop-filter: blur(15px);
+      border-bottom: 1px solid var(--border-color); padding: 12px 16px; justify-content: space-between; align-items: center;
     }
-    .btn-toggle-menu { background: none; border: none; color: #38bdf8; font-size: 20px; cursor: pointer; }
+    .btn-toggle-menu { background: none; border: none; color: var(--accent); font-size: 20px; cursor: pointer; }
 
     .sidebar {
-      width: 230px; background: #0a1020; border-left: 1px solid rgba(56, 189, 248, 0.1);
+      width: 230px; background: var(--bg-sidebar); border-left: 1px solid var(--border-color);
       display: flex; flex-direction: column; justify-content: space-between; padding: 20px 14px;
       position: fixed; top: 0; bottom: 0; right: 0; z-index: 200; transition: transform 0.3s ease;
     }
-    .brand { font-size: 19px; font-weight: 900; color: #38bdf8; display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.1); }
+    .brand { font-size: 18px; font-weight: 900; color: var(--accent); display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); }
     .nav-list { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 5px; }
     .nav-btn {
       display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 12px;
-      color: #94a3b8; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; width: 100%; text-align: inherit; transition: 0.2s;
+      color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: transparent; width: 100%; text-align: inherit; transition: 0.2s;
     }
     .nav-btn:hover, .nav-btn.active { background: #0284c7; color: #fff; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4); }
     .nav-btn i { width: 18px; text-align: center; }
@@ -34,28 +63,44 @@
     .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); z-index: 190; }
 
     .main-viewport { margin-right: 230px; padding: 22px 26px; min-height: 100vh; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid rgba(56, 189, 248, 0.1); }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border-color); }
+
+    /* سوییچ تم */
+    .theme-switcher { display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 3px; border-radius: 10px; border: 1px solid var(--border-color); }
+    .theme-btn { padding: 5px 10px; font-size: 10px; font-weight: 700; border-radius: 8px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; }
+    .theme-btn.active { background: var(--accent); color: #000; }
 
     /* کارت‌های آماری */
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
     .stat-card { border-radius: 16px; padding: 18px; color: #fff; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
     .bg-g1 { background: linear-gradient(135deg, #047857, #10b981); }
     .bg-g2 { background: linear-gradient(135deg, #0369a1, #38bdf8); }
     .bg-g3 { background: linear-gradient(135deg, #4f46e5, #8b5cf6); }
     .bg-g4 { background: linear-gradient(135deg, #0e7490, #06b6d4); }
 
-    .panel-box { background: #0c152a; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 18px; padding: 20px; margin-bottom: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); }
+    .panel-box { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 20px; margin-bottom: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); backdrop-filter: blur(15px); }
+    
+    /* ابزار جستجو و فیلتر سریع جدول */
+    .table-toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+    .search-box { flex: 1; min-width: 220px; position: relative; }
+    .search-box input { width: 100%; padding: 10px 14px 10px 36px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 10px; color: var(--text-main); font-size: 12.5px; outline: none; }
+    .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+    .filter-pills { display: flex; gap: 5px; }
+    .filter-pill { padding: 6px 12px; font-size: 11px; font-weight: 700; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted); cursor: pointer; }
+    .filter-pill.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
     .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .ui-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; white-space: nowrap; }
-    .ui-table th { padding: 13px 12px; color: #94a3b8; border-bottom: 1px solid rgba(56, 189, 248, 0.2); font-weight: 700; }
-    .ui-table td { padding: 13px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+    .ui-table th { padding: 13px 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-weight: 700; }
+    .ui-table td { padding: 13px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; }
+    .ui-table tr:hover td { background: rgba(56, 189, 248, 0.04); }
 
     .badge-status { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; }
     .badge-active { background: rgba(16, 185, 129, 0.2); color: #34d399; }
     .badge-pending { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
     .badge-expired { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 
-    /* برچسب‌های رنگی VIP / گیمینگ / اداری */
     .tag-pill { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; margin-right: 5px; display: inline-block; }
     .tag-vip { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
     .tag-gaming { background: rgba(139, 92, 246, 0.2); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.4); }
@@ -64,9 +109,9 @@
     .traffic-chip { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.06); margin-top: 2px; display: inline-block; }
 
     .btn-main {
-      padding: 8px 14px; background: #0284c7; border: none; border-radius: 10px;
-      color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
-      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); transition: 0.2s;
+      padding: 8px 14px; background: var(--accent); border: none; border-radius: 10px;
+      color: #000; font-size: 12px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3); transition: 0.2s;
     }
     .btn-main:hover { filter: brightness(1.1); }
     .btn-del { background: rgba(239, 68, 68, 0.2); color: #f87171; box-shadow: none; }
@@ -74,14 +119,23 @@
     .btn-reset { background: rgba(245, 158, 11, 0.2); color: #fbbf24; box-shadow: none; }
     .btn-qr { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; box-shadow: none; }
 
+    /* کشوی جزئیات کاربر (Slide-Over Drawer) */
+    .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 250; }
+    .user-drawer {
+      position: fixed; top: 0; bottom: 0; left: -400px; width: 100%; max-width: 380px;
+      background: var(--bg-card); border-right: 1px solid var(--border-color); z-index: 260;
+      box-shadow: -10px 0 30px rgba(0,0,0,0.8); transition: left 0.3s ease; padding: 24px; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .user-drawer.open { left: 0; }
+
     /* داک پایین موبایل */
     .bottom-bar {
       display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
-      background: rgba(10, 16, 28, 0.95); backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(56, 189, 248, 0.15); z-index: 150; justify-content: space-around; align-items: center;
+      background: var(--bg-sidebar); backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border-color); z-index: 150; justify-content: space-around; align-items: center;
     }
-    .bottom-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; color: #94a3b8; font-size: 10px; background: none; border: none; cursor: pointer; }
-    .bottom-btn.active, .bottom-btn:hover { color: #38bdf8; }
+    .bottom-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); font-size: 10px; background: none; border: none; cursor: pointer; }
+    .bottom-btn.active, .bottom-btn:hover { color: var(--accent); }
     .bottom-btn i { font-size: 18px; }
 
     /* مودال‌ها */
@@ -90,24 +144,18 @@
       z-index: 300; align-items: center; justify-content: center; padding: 14px;
     }
     .modal-box {
-      width: 100%; max-width: 460px; background: #0a1124; border: 1px solid rgba(56, 189, 248, 0.35);
-      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(2, 132, 199, 0.25);
-      border-radius: 24px; padding: 24px;
+      width: 100%; max-width: 460px; background: var(--bg-card); border: 1px solid var(--border-color);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9); border-radius: 24px; padding: 24px;
     }
     .input-field {
-      width: 100%; padding: 12px 14px; background: #040914; border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 12px; color: #fff; font-size: 13.5px; margin-bottom: 12px; outline: none;
+      width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color);
+      border-radius: 12px; color: var(--text-main); font-size: 13.5px; margin-bottom: 12px; outline: none;
     }
-    .input-field:focus { border-color: #38bdf8; box-shadow: 0 0 12px rgba(56, 189, 248, 0.3); }
+    .input-field:focus { border-color: var(--accent); }
 
     .view-section { display: none; }
     .view-section.active-view { display: block; }
-
-    .log-terminal {
-      background: #03060f; border: 1px solid rgba(56, 189, 248, 0.2);
-      border-radius: 12px; padding: 14px; font-family: monospace; font-size: 11.5px; color: #38bdf8;
-      max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
-    }
+    .log-terminal { background: #03060f; border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; font-family: monospace; font-size: 11.5px; color: var(--accent); max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 
     @media (max-width: 850px) {
       body { padding-bottom: 75px; }
@@ -127,15 +175,18 @@
   <div class="mobile-header">
     <div style="display: flex; align-items: center; gap: 10px;">
       <button class="btn-toggle-menu" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
-      <span style="font-size: 17px; font-weight: 900; color: #38bdf8;"><i class="fa-solid fa-bolt"></i> ONEX</span>
+      <span style="font-size: 17px; font-weight: 900; color: var(--accent);"><i class="fa-solid fa-bolt"></i> ONEX</span>
     </div>
-    <a href="https://t.me/V2rayTun0" target="_blank" style="color: #38bdf8; font-size: 18px; text-decoration: none;">
-      <i class="fa-brands fa-telegram"></i>
-    </a>
+    <div class="theme-switcher">
+      <button class="theme-btn active" onclick="setTheme('cyberpunk')">CYBER</button>
+      <button class="theme-btn" onclick="setTheme('oled')">OLED</button>
+      <button class="theme-btn" onclick="setTheme('glass')">GLASS</button>
+    </div>
   </div>
 
   <div class="sidebar-overlay" id="sideOverlay" onclick="toggleSidebar()"></div>
 
+  <!-- سایدبار مدیریت -->
   <aside class="sidebar" id="mainSidebar">
     <div>
       <div class="brand">
@@ -156,8 +207,15 @@
         <li><button class="nav-btn" onclick="switchView('settings')"><i class="fa-solid fa-gear"></i><span>تنظیمات حساب</span></button></li>
       </ul>
     </div>
-    <div style="padding-top: 12px; border-top: 1px solid rgba(56, 189, 248, 0.1);">
-      <a href="/logout" class="nav-btn" style="color:#ef4444; text-decoration:none;">
+    <div>
+      <div style="padding-bottom: 12px; display: flex; justify-content: center;">
+        <div class="theme-switcher">
+          <button class="theme-btn active" onclick="setTheme('cyberpunk')">CYBER</button>
+          <button class="theme-btn" onclick="setTheme('oled')">OLED</button>
+          <button class="theme-btn" onclick="setTheme('glass')">GLASS</button>
+        </div>
+      </div>
+      <a href="/logout" class="nav-btn" style="color:#ef4444; text-decoration:none; border-top:1px solid var(--border-color); padding-top:12px;">
         <i class="fa-solid fa-power-off"></i><span>خروج از پنل</span>
       </a>
     </div>
@@ -165,17 +223,16 @@
 
   <main class="main-viewport">
     
-    <!-- داشبورد اصلی -->
     <div id="view-dashboard" class="view-section active-view">
       <header class="topbar">
         <div>
-          <h3 style="font-size: 18px; font-weight: 900; color: #38bdf8;">داشبورد مانیتورینگ ابری ONEX</h3>
-          <small style="color: #94a3b8; font-size: 11.5px;">مدیر: <b style="color:#38bdf8;" id="activeUserTitle">admin</b> | توسعه: @Mehtif | کانال: <a href="https://t.me/V2rayTun0" target="_blank" style="color:#38bdf8; text-decoration:none;">@V2rayTun0</a></small>
+          <h3 style="font-size: 18px; font-weight: 900; color: var(--accent);">داشبورد مانیتورینگ ابری ONEX</h3>
+          <small style="color: var(--text-muted); font-size: 11.5px;">مدیر: <b style="color:var(--accent);" id="activeUserTitle">admin</b> | توسعه: @Mehtif | کانال: <a href="https://t.me/V2rayTun0" target="_blank" style="color:var(--accent); text-decoration:none;">@V2rayTun0</a></small>
         </div>
         <button class="btn-main" onclick="openModal()"><i class="fa-solid fa-plus-circle"></i> ساخت دسته‌جمعی کانفیگ</button>
       </header>
 
-      <!-- کارت‌های گرافیکی وضعیت سرور -->
+      <!-- کارت‌های آماری -->
       <div class="stats-grid">
         <div class="stat-card bg-g1">
           <span style="font-size: 11px; font-weight: 700;">پردازنده سرور (CPU)</span>
@@ -195,12 +252,21 @@
         </div>
       </div>
 
-      <!-- جدول مدیریت کلاینت‌ها با امکان پیش‌نمایش سریع QR -->
+      <!-- جدول مدیریت و جستجوی زنده -->
       <div class="panel-box">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-          <h4 style="font-size: 14px; font-weight: 800; color: #e2e8f0;">مدیریت هوشمند کلاینت‌ها و ترافیک لایو</h4>
-          <button class="btn-main" style="padding: 6px 12px; font-size: 11px;" onclick="openModal()"><i class="fa-solid fa-plus"></i> جدید</button>
+        <div class="table-toolbar">
+          <div class="search-box">
+            <i class="fa-solid fa-search"></i>
+            <input type="text" id="searchInput" placeholder="جستجوی سریع نام کلاینت..." oninput="filterConfigs()">
+          </div>
+          <div class="filter-pills">
+            <button class="filter-pill active" onclick="setFilter('all', this)">همه</button>
+            <button class="filter-pill" onclick="setFilter('active', this)">فعال</button>
+            <button class="filter-pill" onclick="setFilter('vip', this)">VIP</button>
+            <button class="filter-pill" onclick="setFilter('gaming', this)">گیمینگ</button>
+          </div>
         </div>
+
         <div class="table-responsive">
           <table class="ui-table">
             <thead>
@@ -211,8 +277,7 @@
                 <th>مصرف کل / سقف</th>
                 <th>تفکیک DL / UL</th>
                 <th>وضعیت</th>
-                <th>پیش‌نمایش و QR</th>
-                <th>عملیات مدیریت</th>
+                <th>پیش‌نمایش</th>
               </tr>
             </thead>
             <tbody id="cfgBody"></tbody>
@@ -221,27 +286,23 @@
       </div>
     </div>
 
-    <!-- سایر بخش‌ها (ورکر، SSL، نمایندگان، لاگ، پشتیبان‌گیری، تنظیمات) -->
+    <!-- سایر بخش‌ها -->
     <div id="view-ssl" class="view-section">
       <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 6px;"><i class="fa-solid fa-shield"></i> صدور خودکار گواهی امنیتی SSL</h3>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-shield"></i> گواهی SSL</h3>
         <form id="sslForm">
-          <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">دامنه سرور:</label>
           <input type="text" id="ssl-domain" class="input-field" placeholder="vpn.yourdomain.com" required>
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">دریافت و نصب SSL</button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">نصب SSL</button>
         </form>
       </div>
     </div>
 
     <div id="view-reseller" class="view-section">
       <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 6px;"><i class="fa-solid fa-users"></i> ایجاد حساب نماینده</h3>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-users"></i> نمایندگان</h3>
         <form id="resellerForm">
-          <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">نام کاربری:</label>
-          <input type="text" id="r-user" class="input-field" required>
-          <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">رمز عبور:</label>
-          <input type="password" id="r-pass" class="input-field" required>
-          <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">سهمیه حجم (GB):</label>
+          <input type="text" id="r-user" class="input-field" placeholder="نام کاربری" required>
+          <input type="password" id="r-pass" class="input-field" placeholder="رمز عبور" required>
           <input type="number" id="r-credit" class="input-field" value="200" required>
           <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">ثبت نماینده</button>
         </form>
@@ -250,45 +311,37 @@
 
     <div id="view-logs" class="view-section">
       <div class="panel-box">
-        <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 6px;"><i class="fa-solid fa-terminal"></i> لاگ زنده سیستم و اتصالات</h3>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-terminal"></i> لاگ زنده</h3>
         <div class="log-terminal" id="logBox"><div>در حال دریافت...</div></div>
       </div>
     </div>
 
     <div id="view-worker" class="view-section">
       <div class="panel-box" style="max-width: 540px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 6px;"><i class="fa-solid fa-cloud"></i> تنظیمات دامنه و ورکر کلودفلر</h3>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-cloud"></i> ورکر کلودفلر</h3>
         <form id="workerForm">
-          <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">دامنه ورکر:</label>
           <input type="text" id="w-domain" class="input-field" placeholder="worker.sub.workers.dev">
-          <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">آی‌پی تمیز (Clean IP):</label>
           <input type="text" id="w-clean-ip" class="input-field" placeholder="104.16.132.229">
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">ذخیره تنظیمات</button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">ذخیره</button>
         </form>
       </div>
     </div>
 
     <div id="view-backup" class="view-section">
       <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 6px;"><i class="fa-solid fa-database"></i> پشتیبان‌گیری دیتابیس</h3>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <a href="/api/backup/download" class="btn-main" style="justify-content: center; padding: 12px; background: #10b981;"><i class="fa-solid fa-download"></i> دانلود فایل دیتابیس</a>
-          <form action="/api/backup/restore" method="POST" enctype="multipart/form-data">
-            <input type="file" name="dbfile" accept=".db" class="input-field" required>
-            <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px; background: #f59e0b;"><i class="fa-solid fa-upload"></i> بازیابی اطلاعات</button>
-          </form>
-        </div>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-database"></i> پشتیبان‌گیری</h3>
+        <a href="/api/backup/download" class="btn-main" style="justify-content: center; padding: 12px; background: #10b981; color:#fff; width:100%; margin-bottom:10px;"><i class="fa-solid fa-download"></i> دانلود دیتابیس</a>
       </div>
     </div>
 
     <div id="view-settings" class="view-section">
       <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 6px;"><i class="fa-solid fa-gear"></i> تغییر مشخصات ادمین</h3>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-gear"></i> تنظیمات</h3>
         <form id="credForm">
           <input type="text" id="set-username" class="input-field" placeholder="نام کاربری جدید">
           <input type="password" id="set-new-pass" class="input-field" placeholder="رمز عبور جدید">
-          <input type="password" id="set-cur-pass" class="input-field" placeholder="رمز عبور فعلی (اجباری)" required>
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">بروزرسانی حساب</button>
+          <input type="password" id="set-cur-pass" class="input-field" placeholder="رمز عبور فعلی" required>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">بروزرسانی</button>
         </form>
       </div>
     </div>
@@ -297,77 +350,78 @@
 
   <nav class="bottom-bar">
     <button class="bottom-btn active" onclick="switchView('dashboard')"><i class="fa-solid fa-house"></i><span>داشبورد</span></button>
-    <button class="bottom-btn" onclick="openModal()"><i class="fa-solid fa-circle-plus"></i><span>ساخت کانفیگ</span></button>
+    <button class="bottom-btn" onclick="openModal()"><i class="fa-solid fa-circle-plus"></i><span>کانفیگ</span></button>
     <button class="bottom-btn" onclick="switchView('settings')"><i class="fa-solid fa-gear"></i><span>تنظیمات</span></button>
   </nav>
 
-  <!-- مودال پیشرفته ساخت گروهی و برچسب‌گذاری -->
+  <!-- کشوی جزئیات کاربر (Slide-Over Drawer) -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+  <div class="user-drawer" id="userDrawer">
+    <div>
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 style="font-size: 16px; color: var(--accent);" id="drawerTitle">جزئیات کلاینت</h3>
+        <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 18px;" onclick="closeDrawer()"></i>
+      </div>
+      <div id="drawerContent" style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;"></div>
+    </div>
+    <div id="drawerActions" style="display: flex; flex-direction: column; gap: 8px;"></div>
+  </div>
+
+  <!-- مودال ساخت گروهی -->
   <div class="modal-wrap" id="createModal">
     <div class="modal-box">
-      <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 14px; font-weight: 800;">ساخت هوشمند و دسته‌جمعی کانفیگ</h3>
+      <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 14px; font-weight: 800;">ساخت گروهی کانفیگ</h3>
       <form id="addForm">
-        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">پیشوند نام کاربر:</label>
-        <input type="text" id="m-name" class="input-field" placeholder="مثال: Client" required>
-        
+        <input type="text" id="m-name" class="input-field" placeholder="پیشوند نام (مثال: Client)" required>
         <div style="display:flex; gap:8px;">
-          <div style="flex:1;">
-            <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">تعداد ساخت (گروهی):</label>
-            <input type="number" id="m-count" class="input-field" value="1" min="1" max="20" required>
-          </div>
-          <div style="flex:1;">
-            <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">برچسب (Tag):</label>
-            <select id="m-tag" class="input-field">
-              <option value="normal">عادی (Normal)</option>
-              <option value="vip">ویژه (VIP)</option>
-              <option value="gaming">گیمینگ (Gaming)</option>
-            </select>
-          </div>
+          <input type="number" id="m-count" class="input-field" value="1" min="1" max="20" required>
+          <select id="m-tag" class="input-field">
+            <option value="normal">عادی</option>
+            <option value="vip">ویژه (VIP)</option>
+            <option value="gaming">گیمینگ</option>
+          </select>
         </div>
-
-        <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">پروتکل و هسته:</label>
-        <select id="m-protocol" class="input-field" style="color: #38bdf8; font-weight: 700;">
+        <select id="m-protocol" class="input-field" style="color: var(--accent); font-weight: 700;">
           <option value="all">⚡ تمام پروتکل‌ها (فول پک)</option>
-          <option value="ws">🌐 WebSocket (VLESS / VMess / Trojan)</option>
-          <option value="reality">🛡️ VLESS REALITY (ضد فیلتر)</option>
-          <option value="xhttp">🚀 XHTTP / SplitHTTP</option>
-          <option value="grpc">📶 gRPC (گیمینگ کم‌تاخیر)</option>
+          <option value="ws">🌐 WebSocket</option>
+          <option value="reality">🛡️ VLESS REALITY</option>
+          <option value="xhttp">🚀 XHTTP</option>
+          <option value="grpc">📶 gRPC</option>
         </select>
-
         <div style="display: flex; gap: 8px;">
-          <div style="flex: 1;">
-            <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">حجم هر کدام (GB):</label>
-            <input type="number" id="m-gb" class="input-field" value="20" required>
-          </div>
-          <div style="flex: 1;">
-            <label style="font-size: 11px; color:#94a3b8; display:block; margin-bottom:4px;">اعتبار (روز):</label>
-            <input type="number" id="m-days" class="input-field" value="30" required>
-          </div>
+          <input type="number" id="m-gb" class="input-field" value="20" required>
+          <input type="number" id="m-days" class="input-field" value="30" required>
         </div>
-
         <div style="display:flex; gap:8px; margin-top:8px;">
-          <button type="submit" class="btn-main" style="flex:1; justify-content:center; padding: 12px;">تولید گروهی کانفیگ‌ها</button>
+          <button type="submit" class="btn-main" style="flex:1; justify-content:center; padding: 12px;">ساخت کانفیگ</button>
           <button type="button" class="btn-main btn-del" style="padding: 12px;" onclick="closeModal()">انصراف</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- مودال پیش‌نمایش سریع QR و اطلاعات کانفیگ -->
+  <!-- مودال پیش‌نمایش QR -->
   <div class="modal-wrap" id="qrModal">
     <div class="modal-box" style="text-align: center;">
-      <h3 style="font-size: 16px; color:#38bdf8; margin-bottom: 10px; font-weight: 800;" id="qrTitle">پیش‌نمایش اشتراک</h3>
+      <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 10px; font-weight: 800;" id="qrTitle">پیش‌نمایش اشتراک</h3>
       <div style="background:#fff; padding:12px; border-radius:14px; display:inline-block; margin-bottom: 14px;">
         <div id="modalQrBox"></div>
       </div>
       <input type="text" id="modalSubInput" class="input-field" readonly style="text-align: center;">
-      <div style="display:flex; gap:8px;">
-        <button class="btn-main" style="flex:1; justify-content:center;" onclick="copyModalSub()"><i class="fa-solid fa-copy"></i> کپی لینک ساب</button>
-        <button class="btn-main btn-del" style="padding: 10px 16px;" onclick="closeQrModal()">بستن</button>
-      </div>
+      <button class="btn-main" style="width:100%; justify-content:center;" onclick="copyModalSub()"><i class="fa-solid fa-copy"></i> کپی لینک ساب</button>
     </div>
   </div>
 
   <script>
+    let globalConfigs = [];
+    let currentFilter = 'all';
+
+    function setTheme(themeName) {
+      document.documentElement.setAttribute('data-theme', themeName);
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
     function toggleSidebar() {
       document.getElementById('mainSidebar').classList.toggle('open');
       document.getElementById('sideOverlay').classList.toggle('active');
@@ -383,6 +437,10 @@
     function openModal() { document.getElementById('createModal').style.display = 'flex'; }
     function closeModal() { document.getElementById('createModal').style.display = 'none'; }
     function closeQrModal() { document.getElementById('qrModal').style.display = 'none'; }
+    function closeDrawer() {
+      document.getElementById('userDrawer').classList.remove('open');
+      document.getElementById('drawerOverlay').style.display = 'none';
+    }
 
     function formatBytes(bytes) {
       if (!bytes || bytes === 0) return '0 MB';
@@ -391,7 +449,30 @@
       return mbs.toFixed(1) + ' MB';
     }
 
-    // باز کردن پاپ‌آپ پیش‌نمایش سریع QR Code
+    // باز کردن کشوی پیشرفته جزئیات کاربر
+    function openUserDrawer(c) {
+      document.getElementById('drawerTitle').innerText = c.name;
+      const host = window.location.host;
+      const subLink = `https://${host}/sub/${c.id}`;
+
+      document.getElementById('drawerContent').innerHTML = `
+        <div><b>شناسه یکتا:</b> <span style="color:var(--text-muted);">${c.uuid}</span></div>
+        <div><b>پروتکل:</b> <span style="color:var(--accent);">${c.protocol.toUpperCase()}</span></div>
+        <div><b>تعداد دعوت‌های موفق:</b> <span style="color:#10b981;">${c.referral_count || 0} نفر</span></div>
+        <div><b>تاریخ ایجاد:</b> ${c.created_at ? c.created_at.split('T')[0] : 'امروز'}</div>
+      `;
+
+      document.getElementById('drawerActions').innerHTML = `
+        <button class="btn-main btn-qr" onclick="showQuickQr('${c.name}', '${subLink}')"><i class="fa-solid fa-qrcode"></i> نمایش QR Code</button>
+        <button class="btn-main btn-renew" onclick="renewCfg('${c.id}')"><i class="fa-solid fa-rotate-right"></i> تمدید ۳۰ روزه</button>
+        <button class="btn-main btn-reset" onclick="resetTraffic('${c.id}')"><i class="fa-solid fa-arrows-rotate"></i> ریست ترافیک</button>
+        <button class="btn-main btn-del" onclick="delCfg('${c.id}')"><i class="fa-solid fa-trash"></i> حذف کانفیگ</button>
+      `;
+
+      document.getElementById('userDrawer').classList.add('open');
+      document.getElementById('drawerOverlay').style.display = 'block';
+    }
+
     function showQuickQr(name, subUrl) {
       document.getElementById('qrTitle').innerText = `اشتراک: ${name}`;
       document.getElementById('modalSubInput').value = subUrl;
@@ -405,6 +486,63 @@
       alert('🔗 لینک ساب کپی شد!');
     }
 
+    function setFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      renderConfigs();
+    }
+
+    function filterConfigs() {
+      renderConfigs();
+    }
+
+    function renderConfigs() {
+      const searchTxt = document.getElementById('searchInput').value.toLowerCase();
+      const host = window.location.host;
+      const tbody = document.getElementById('cfgBody');
+
+      const filtered = globalConfigs.filter(c => {
+        const matchesSearch = c.name.toLowerCase().includes(searchTxt);
+        if (currentFilter === 'active') return matchesSearch && c.status === 'active';
+        if (currentFilter === 'vip') return matchesSearch && c.tag === 'vip';
+        if (currentFilter === 'gaming') return matchesSearch && c.tag === 'gaming';
+        return matchesSearch;
+      });
+
+      tbody.innerHTML = filtered.map(c => {
+        const subLink = `https://${host}/sub/${c.id}`;
+        const tagClass = c.tag === 'vip' ? 'tag-vip' : (c.tag === 'gaming' ? 'tag-gaming' : 'tag-normal');
+        const tagName = c.tag ? c.tag.toUpperCase() : 'NORMAL';
+
+        return `
+          <tr onclick='openUserDrawer(${JSON.stringify(c)})'>
+            <td>
+              <span class="tag-pill ${tagClass}">${tagName}</span>
+              <b>${c.name}</b>
+            </td>
+            <td><small style="color:var(--text-muted);">${c.owner || 'admin'}</small></td>
+            <td><span style="color:var(--accent); font-weight:800;">${(c.protocol || 'all').toUpperCase()}</span></td>
+            <td>${c.used_gb.toFixed(2)} / ${c.total_gb} GB</td>
+            <td>
+              <span class="traffic-chip" style="color:#34d399;">↓ ${formatBytes(c.downlink_bytes)}</span>
+              <span class="traffic-chip" style="color:var(--accent);">↑ ${formatBytes(c.uplink_bytes)}</span>
+            </td>
+            <td>
+              <span class="badge-status ${c.status === 'active' ? 'badge-active' : (c.status === 'pending' ? 'badge-pending' : 'badge-expired')}">
+                ${c.status === 'active' ? 'فعال' : (c.status === 'pending' ? 'آماده' : 'منقضی')}
+              </span>
+            </td>
+            <td>
+              <button class="btn-main btn-qr" onclick="event.stopPropagation(); showQuickQr('${c.name}', '${subLink}')">
+                <i class="fa-solid fa-qrcode"></i> ساب
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
     async function loadData() {
       const res = await fetch('/api/panel-data').then(r => r.json());
       document.getElementById('activeUserTitle').innerText = res.currentUser;
@@ -416,65 +554,16 @@
         document.getElementById('st-ram').innerText = `${res.metrics.ram}% (${res.metrics.ramUsedGb}GB)`;
       }
 
-      document.getElementById('w-domain').value = res.customDomain || '';
-      document.getElementById('w-clean-ip').value = res.cleanIp || '';
-
-      const logBox = document.getElementById('logBox');
-      if (res.logs && res.logs.length > 0) {
-        logBox.innerHTML = res.logs.map(l => `<div>${l}</div>`).join('');
-      }
-
-      const host = (res.customDomain && res.customDomain.trim() !== '') ? res.customDomain.trim() : window.location.host;
-      const tbody = document.getElementById('cfgBody');
-      tbody.innerHTML = res.configs.map(c => {
-        const subLink = `https://${host}/sub/${c.id}`;
-        const tagClass = c.tag === 'vip' ? 'tag-vip' : (c.tag === 'gaming' ? 'tag-gaming' : 'tag-normal');
-        const tagName = c.tag ? c.tag.toUpperCase() : 'NORMAL';
-
-        return `
-          <tr>
-            <td>
-              <span class="tag-pill ${tagClass}">${tagName}</span>
-              <b>${c.name}</b>
-            </td>
-            <td><small style="color:#94a3b8;">${c.owner || 'admin'}</small></td>
-            <td><span style="color:#38bdf8; font-weight:800;">${(c.protocol || 'all').toUpperCase()}</span></td>
-            <td>${c.used_gb.toFixed(2)} / ${c.total_gb} GB</td>
-            <td>
-              <span class="traffic-chip" style="color:#34d399;">↓ ${formatBytes(c.downlink_bytes)}</span>
-              <span class="traffic-chip" style="color:#38bdf8;">↑ ${formatBytes(c.uplink_bytes)}</span>
-            </td>
-            <td>
-              <span class="badge-status ${c.status === 'active' ? 'badge-active' : (c.status === 'pending' ? 'badge-pending' : 'badge-expired')}">
-                ${c.status === 'active' ? 'فعال' : (c.status === 'pending' ? 'آماده' : 'منقضی')}
-              </span>
-            </td>
-            <td>
-              <button class="btn-main btn-qr" onclick="showQuickQr('${c.name}', '${subLink}')">
-                <i class="fa-solid fa-qrcode"></i> QR & ساب
-              </button>
-            </td>
-            <td>
-              <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                <a href="/subpage/${c.id}" target="_blank" class="btn-main" style="background:#6366f1; padding: 6px 10px;"><i class="fa-solid fa-eye"></i> پورتال</a>
-                <button class="btn-main btn-renew" onclick="renewCfg('${c.id}')"><i class="fa-solid fa-rotate-right"></i> تمدید</button>
-                <button class="btn-main btn-reset" onclick="resetTraffic('${c.id}')"><i class="fa-solid fa-arrows-rotate"></i> ریست</button>
-                <button class="btn-main btn-del" onclick="delCfg('${c.id}')"><i class="fa-solid fa-trash"></i></button>
-              </div>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      globalConfigs = res.configs || [];
+      renderConfigs();
     }
 
-    // ارسال درخواست ساخت گروهی کانفیگ
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const count = parseInt(document.getElementById('m-count').value) || 1;
       const baseName = document.getElementById('m-name').value;
       const tag = document.getElementById('m-tag').value;
       const protocol = document.getElementById('m-protocol').value;
-      const server = 'Germany (DE)';
       const total_gb = document.getElementById('m-gb').value;
       const expire_days = document.getElementById('m-days').value;
 
@@ -483,7 +572,7 @@
         await fetch('/api/configs/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, server, protocol, tag, total_gb, expire_days, ip_limit: 2 })
+          body: JSON.stringify({ name, server: 'Germany', protocol, tag, total_gb, expire_days, ip_limit: 2 })
         });
       }
 
@@ -494,6 +583,7 @@
     async function renewCfg(id) {
       if (confirm('اشتراک ۳۰ روز تمدید شود؟')) {
         await fetch(`/api/configs/${id}/renew`, { method: 'POST' });
+        closeDrawer();
         loadData();
       }
     }
@@ -501,6 +591,7 @@
     async function resetTraffic(id) {
       if (confirm('حجم مصرفی صفر شود؟')) {
         await fetch(`/api/configs/${id}/reset-traffic`, { method: 'POST' });
+        closeDrawer();
         loadData();
       }
     }
@@ -508,75 +599,10 @@
     async function delCfg(id) {
       if (confirm('کانفیگ حذف شود؟')) {
         await fetch('/api/configs/' + id, { method: 'DELETE' });
+        closeDrawer();
         loadData();
       }
     }
-
-    document.getElementById('workerForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await fetch('/api/save-worker-settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customDomain: document.getElementById('w-domain').value,
-          cleanIp: document.getElementById('w-clean-ip').value
-        })
-      });
-      alert('تنظیمات ورکر ذخیره شد.');
-      loadData();
-    });
-
-    document.getElementById('sslForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const res = await fetch('/api/ssl/issue', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domain: document.getElementById('ssl-domain').value })
-      });
-      const data = await res.json();
-      alert(data.message || 'درخواست ثبت شد.');
-    });
-
-    document.getElementById('resellerForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const res = await fetch('/api/resellers/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: document.getElementById('r-user').value,
-          password: document.getElementById('r-pass').value,
-          credit_gb: document.getElementById('r-credit').value
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('نماینده ساخته شد.');
-        document.getElementById('resellerForm').reset();
-      } else {
-        alert(data.error);
-      }
-    });
-
-    document.getElementById('credForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const res = await fetch('/api/change-credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentPassword: document.getElementById('set-cur-pass').value,
-          newUsername: document.getElementById('set-username').value,
-          newPassword: document.getElementById('set-new-pass').value
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('مشخصات بروز شد.');
-        document.getElementById('credForm').reset();
-        loadData();
-      } else {
-        alert(data.error);
-      }
-    });
 
     setInterval(loadData, 15000);
     loadData();

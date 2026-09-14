@@ -130,6 +130,10 @@
     .log-msg.success { color: #34d399; }
     .log-msg.error { color: #f87171; font-weight: bold; }
 
+    /* استایل دکمه‌های پرچم لوکیشن */
+    .flag-btn { padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: var(--text-main); font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s; }
+    .flag-btn.active, .flag-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+
     @media (max-width: 850px) {
       body { padding-bottom: 75px; }
       .mobile-header { display: flex; }
@@ -168,7 +172,7 @@
       <ul class="nav-list">
         <li><button class="nav-btn active" onclick="switchView('dashboard')"><i class="fa-solid fa-house"></i><span>داشبورد ابری</span></button></li>
         <li><button class="nav-btn" onclick="openModal();"><i class="fa-solid fa-circle-plus"></i><span>ساخت گروهی کانفیگ</span></button></li>
-        <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>اسکنر Clean IP</span></button></li>
+        <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>اسکنر هوشمند Clean IP</span></button></li>
         <li><button class="nav-btn" onclick="switchView('broadcast')"><i class="fa-solid fa-bullhorn"></i><span>ارسال اطلاعیه همگانی</span></button></li>
         <li><button class="nav-btn" onclick="switchView('logs')"><i class="fa-solid fa-terminal"></i><span>مانیتورینگ و لاگ</span></button></li>
         <li><button class="nav-btn" onclick="switchView('backup')"><i class="fa-solid fa-database"></i><span>پشتیبان‌گیری</span></button></li>
@@ -240,19 +244,32 @@
       </div>
     </div>
 
-    <!-- بخش اسکنر هوشمند Clean IP -->
+    <!-- بخش اسکنر هوشمند Clean IP با فیلتر لوکیشن (پرچم کشورها) و کپی دسته‌جمعی -->
     <div id="view-cleanip" class="view-section">
-      <div class="panel-box" style="max-width: 700px; margin: 0 auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <div class="panel-box" style="max-width: 750px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
           <div>
-            <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 4px;"><i class="fa-solid fa-network-wired"></i> اسکنر هوشمند Clean IP کلودفلر</h3>
-            <small style="color: var(--text-muted);">پیدا کردن سریع‌ترین و پایدارترین آی‌پی‌های بدون فیلتر</small>
+            <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 4px;"><i class="fa-solid fa-network-wired"></i> اسکنر هوشمند لوکیشن‌محور Clean IP</h3>
+            <small style="color: var(--text-muted);">انتخاب لوکیشن (پرچم) و تست پینگ واقعی TCP</small>
           </div>
-          <button class="btn-main" onclick="startIpScan()" id="scanBtn" style="background:#10b981; color:#fff; padding: 10px 16px;"><i class="fa-solid fa-radar"></i> شروع اسکن خودکار</button>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-main" onclick="copyAllIps()" style="background:#6366f1; color:#fff; padding: 9px 14px;"><i class="fa-solid fa-copy"></i> کپی همه آی‌پی‌ها</button>
+            <button class="btn-main" onclick="startIpScan()" id="scanBtn" style="background:#10b981; color:#fff; padding: 9px 16px;"><i class="fa-solid fa-radar"></i> شروع اسکن</button>
+          </div>
+        </div>
+
+        <!-- انتخاب پرچم کشورها -->
+        <div style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <span style="font-size: 12px; color: var(--text-muted);">انتخاب لوکیشن:</span>
+          <button class="flag-btn active" onclick="setCountryFilter('ALL', this)"><i class="fa-solid fa-globe"></i> همه دنیا</button>
+          <button class="flag-btn" onclick="setCountryFilter('DE', this)">🇩🇪 آلمان</button>
+          <button class="flag-btn" onclick="setCountryFilter('US', this)">🇺🇸 آمریکا</button>
+          <button class="flag-btn" onclick="setCountryFilter('NL', this)">🇳🇱 هلند</button>
+          <button class="flag-btn" onclick="setCountryFilter('FR', this)">🇫🇷 فرانسه</button>
         </div>
 
         <form id="cleanIpForm" style="margin-bottom: 20px;">
-          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">آی‌پی فعال فعلی (قابل ویرایش دستی):</label>
+          <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">آی‌پی فعال فعلی روی لینک‌های ساب‌اسکریپشن:</label>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="w-clean-ip" class="input-field" placeholder="104.16.132.229" style="margin-bottom:0;">
             <button type="submit" class="btn-main" style="padding: 0 20px;">ذخیره دستی</button>
@@ -261,21 +278,25 @@
 
         <hr style="border-color: var(--border-color); margin: 20px 0;">
 
-        <h4 style="font-size: 14px; color: var(--text-main); margin-bottom: 10px;"><i class="fa-solid fa-list-check"></i> نتایج اسکن زنده (بهترین گزینه‌ها)</h4>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="font-size: 14px; color: var(--text-main);"><i class="fa-solid fa-list-check"></i> نتایج تست پینگ زنده</h4>
+          <span style="font-size: 11.5px; color: var(--text-muted);" id="scanCountInfo">تعداد: 0 آی‌پی سالم</span>
+        </div>
+
         <div class="table-responsive">
           <table class="ui-table">
             <thead>
               <tr>
-                <th>رتبه و وضعیت</th>
+                <th>رتبه</th>
                 <th>آدرس IP</th>
-                <th>پینگ (Latency)</th>
-                <th>امتیاز کیفیت</th>
-                <th>عملیات</th>
+                <th>پینگ واقعی (TCP)</th>
+                <th>کیفیت</th>
+                <th>عملیات (کپی / ست کردن)</th>
               </tr>
             </thead>
             <tbody id="scanResultsBody">
               <tr>
-                <td colspan="5" style="text-align: center; color: var(--text-muted);">هنوز اسکن انجام نشده است. روی دکمه شروع اسکن کلیک کنید.</td>
+                <td colspan="5" style="text-align: center; color: var(--text-muted);">روی دکمه «شروع اسکن» کلیک کنید تا آی‌پی‌ها تست شوند.</td>
               </tr>
             </tbody>
           </table>
@@ -408,6 +429,8 @@
   <script>
     let globalConfigs = [];
     let currentFilter = 'all';
+    let selectedCountry = 'ALL';
+    let latestScannedIps = [];
 
     function checkAutoTheme() {
       const currentHour = new Date().getHours();
@@ -427,6 +450,12 @@
       });
       localStorage.setItem('manual_theme_set', 'true');
       localStorage.setItem('preferred_theme', themeName);
+    }
+
+    function setCountryFilter(country, btn) {
+      selectedCountry = country;
+      document.querySelectorAll('.flag-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
     }
 
     function toggleSidebar() { document.getElementById('mainSidebar').classList.toggle('open'); document.getElementById('sideOverlay').classList.toggle('active'); }
@@ -559,15 +588,23 @@
       const btn = document.getElementById('scanBtn');
       const tbody = document.getElementById('scanResultsBody');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> در حال اسکن رنج‌ها...';
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--accent);">در حال بررسی و تست پینگ آی‌پی‌های کلودفلر، لطفاً چند لحظه صبر کنید...</td></tr>';
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> در حال تست پینگ...';
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--accent);">در حال اتصال سوکت TCP و سنجش سرعت لوکیشن ${selectedCountry}...</td></tr>`;
 
       try {
-        const res = await fetch('/api/cleanip/scan', { method: 'POST' }).then(r => r.json());
-        if (res.success && res.results && res.results.length > 0) {
-          tbody.innerHTML = res.results.map((item, index) => {
-            const score = item.latency < 150 ? '⭐⭐⭐⭐⭐ عالی' : (item.latency < 300 ? '⭐⭐⭐⭐ خوب' : '⭐⭐⭐ متوسط');
-            const color = item.latency < 150 ? '#34d399' : (item.latency < 300 ? '#38bdf8' : '#fbbf24');
+        const response = await fetch('/api/cleanip/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ country: selectedCountry })
+        }).then(r => r.json());
+
+        if (response.success && response.results && response.results.length > 0) {
+          latestScannedIps = response.results;
+          document.getElementById('scanCountInfo').innerText = `تعداد: ${latestScannedIps.length} آی‌پی سالم`;
+          
+          tbody.innerHTML = latestScannedIps.map((item, index) => {
+            const score = item.latency < 120 ? '⭐⭐⭐⭐⭐ عالی' : (item.latency < 250 ? '⭐⭐⭐⭐ خوب' : '⭐⭐⭐ متوسط');
+            const color = item.latency < 120 ? '#34d399' : (item.latency < 250 ? '#38bdf8' : '#fbbf24');
             return `
               <tr>
                 <td><b>#${index + 1}</b></td>
@@ -575,22 +612,38 @@
                 <td><span style="color:${color}; font-weight:bold;">${item.latency} ms</span></td>
                 <td>${score}</td>
                 <td>
-                  <button class="btn-main" onclick="applyScannedIp('${item.ip}')" style="padding: 4px 10px; font-size: 11px; background:#10b981; color:#fff;">
-                    <i class="fa-solid fa-check"></i> اعمال این آی‌پی
-                  </button>
+                  <div style="display:flex; gap:4px;">
+                    <button class="btn-main" onclick="copySingleIp('${item.ip}')" style="padding: 4px 8px; font-size: 10.5px; background:#6366f1; color:#fff;">کپی</button>
+                    <button class="btn-main" onclick="applyScannedIp('${item.ip}')" style="padding: 4px 8px; font-size: 10.5px; background:#10b981; color:#fff;">ست روی سیستم</button>
+                  </div>
                 </td>
               </tr>
             `;
           }).join('');
         } else {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #f87171;">هیچ آی‌پی فعالی در این دور از اسکن یافت نشد. مجدداً تلاش کنید.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #f87171;">هیچ آی‌پی فعالی پیدا نشد.</td></tr>';
         }
       } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #f87171;">خطا در ارتباط با اسکنر سرور.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #f87171;">خطا در ارتباط با سرور.</td></tr>';
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-radar"></i> شروع اسکن خودکار';
+        btn.innerHTML = '<i class="fa-solid fa-radar"></i> شروع اسکن';
       }
+    }
+
+    function copySingleIp(ip) {
+      navigator.clipboard.writeText(ip);
+      alert(`✅ آی‌پی ${ip} کپی شد!`);
+    }
+
+    function copyAllIps() {
+      if (!latestScannedIps || latestScannedIps.length === 0) {
+        alert('❌ ابتدا اسکن را انجام دهید تا لیستی برای کپی وجود داشته باشد.');
+        return;
+      }
+      const allStr = latestScannedIps.map(i => i.ip).join('\n');
+      navigator.clipboard.writeText(allStr);
+      alert(`✅ ${latestScannedIps.length} آی‌پی به صورت یکجا کپی شد!`);
     }
 
     async function applyScannedIp(ip) {
@@ -599,7 +652,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cleanIp: ip })
       });
-      alert(`✅ آی‌پی ${ip} با موفقیت به عنوان Clean IP اصلی ذخیره شد!`);
+      alert(`✅ آی‌پی ${ip} روی تمامی لینک‌های ساب‌اسکریپشن کلاینت‌ها ست شد!`);
     }
 
     async function restartCore() {

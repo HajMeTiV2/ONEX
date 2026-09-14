@@ -122,7 +122,14 @@
 
     .view-section { display: none; }
     .view-section.active-view { display: block; }
-    .log-terminal { background: #03060f; border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; font-family: monospace; font-size: 11.5px; color: var(--accent); max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+
+    /* طراحی حرفه‌ای بخش ترمینال و مانیتورینگ لاگ */
+    .log-terminal { background: #020409; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; font-family: monospace; font-size: 12px; color: #38bdf8; height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 0 15px rgba(0,0,0,0.8); }
+    .log-item { display: flex; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 4px; }
+    .log-time { color: var(--text-muted); font-size: 11px; min-width: 70px; }
+    .log-msg.info { color: #38bdf8; }
+    .log-msg.success { color: #34d399; }
+    .log-msg.error { color: #f87171; font-weight: bold; }
 
     @media (max-width: 850px) {
       body { padding-bottom: 75px; }
@@ -164,8 +171,6 @@
         <li><button class="nav-btn" onclick="openModal();"><i class="fa-solid fa-circle-plus"></i><span>ساخت گروهی کانفیگ</span></button></li>
         <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>مدیریت Clean IPs</span></button></li>
         <li><button class="nav-btn" onclick="switchView('broadcast')"><i class="fa-solid fa-bullhorn"></i><span>ارسال اطلاعیه همگانی</span></button></li>
-        <li class="admin-only"><button class="nav-btn" onclick="switchView('ssl')"><i class="fa-solid fa-shield"></i><span>گواهینامه SSL</span></button></li>
-        <li class="admin-only"><button class="nav-btn" onclick="switchView('reseller')"><i class="fa-solid fa-users"></i><span>نمایندگان</span></button></li>
         <li class="admin-only"><button class="nav-btn" onclick="switchView('logs')"><i class="fa-solid fa-terminal"></i><span>مانیتورینگ و لاگ</span></button></li>
         <li class="admin-only"><button class="nav-btn" onclick="switchView('backup')"><i class="fa-solid fa-database"></i><span>پشتیبان‌گیری</span></button></li>
         <li><button class="nav-btn" onclick="switchView('settings')"><i class="fa-solid fa-gear"></i><span>تنظیمات حساب</span></button></li>
@@ -236,6 +241,26 @@
       </div>
     </div>
 
+    <!-- بخش مانیتورینگ و لاگ حرفه‌ای (Logs Terminal) -->
+    <div id="view-logs" class="view-section">
+      <div class="panel-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 4px;"><i class="fa-solid fa-terminal"></i> مرکز مانیتورینگ و لاگ هسته Xray</h3>
+            <small style="color: var(--text-muted);">گزارش زنده رویدادها، خطاهای شبکه و وضعیت پورت‌های پروکسی</small>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-main" onclick="restartCore()" style="background:#10b981; color:#fff; padding: 7px 12px; font-size: 11.5px;"><i class="fa-solid fa-rotate"></i> ری‌استارت هسته Xray</button>
+            <button class="btn-main btn-del" onclick="clearTerminal()" style="padding: 7px 12px; font-size: 11.5px;"><i class="fa-solid fa-trash-can"></i> پاکسازی ترمینال</button>
+          </div>
+        </div>
+
+        <div class="log-terminal" id="logBox">
+          <div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">در حال اتصال به جریان لاگ سرور...</span></div>
+        </div>
+      </div>
+    </div>
+
     <!-- بخش مدیریت Clean IP -->
     <div id="view-cleanip" class="view-section">
       <div class="panel-box" style="max-width: 520px; margin: 0 auto;">
@@ -260,9 +285,6 @@
       </div>
     </div>
 
-    <div id="view-ssl" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">SSL</h3></div></div>
-    <div id="view-reseller" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">نمایندگان</h3></div></div>
-    <div id="view-logs" class="view-section"><div class="panel-box"><h3 style="color:var(--accent)">لاگ</h3><div class="log-terminal" id="logBox"></div></div></div>
     <div id="view-backup" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><a href="/api/backup/download" class="btn-main" style="background:#10b981; color:#fff; width:100%; justify-content:center;">دانلود دیتابیس</a></div></div>
     
     <!-- بخش تنظیمات کامل حساب و سیستم -->
@@ -358,7 +380,6 @@
     let globalConfigs = [];
     let currentFilter = 'all';
 
-    // سیستم هوشمند تغییر تم خودکار بر اساس ساعت شبانه‌روز
     function checkAutoTheme() {
       const currentHour = new Date().getHours();
       const isNightTime = currentHour >= 19 || currentHour < 6;
@@ -490,8 +511,31 @@
       }
       if (res.cleanIp) document.getElementById('w-clean-ip').value = res.cleanIp;
       if (res.customDomain) document.getElementById('set-custom-domain').value = res.customDomain;
+      
+      // رندر ترمینال لاگ پیشرفته
+      if (res.logs && Array.isArray(res.logs)) {
+        const logBox = document.getElementById('logBox');
+        logBox.innerHTML = res.logs.map(l => `
+          <div class="log-item">
+            <span class="log-time">[${l.time}]</span>
+            <span class="log-msg ${l.type || 'info'}">${l.msg}</span>
+          </div>
+        `).join('');
+      }
+
       globalConfigs = res.configs || [];
       renderConfigs();
+    }
+
+    async function restartCore() {
+      if (confirm('هسته Xray مجدداً راه‌اندازی شود؟')) {
+        const res = await fetch('/api/core/restart', { method: 'POST' }).then(r => r.json());
+        if (res.success) alert('✅ هسته با موفقیت ری‌استارت شد.');
+      }
+    }
+
+    function clearTerminal() {
+      document.getElementById('logBox.innerHTML = \'<div class="log-item"><span class="log-time">--:--:--</span><span class="log-msg info">ترمینال پاکسازی شد.</span></div>\';');
     }
 
     document.getElementById('addForm').addEventListener('submit', async (e) => {
@@ -530,7 +574,6 @@
       alert('پیام همگانی منتشر شد.');
     });
 
-    // مدیریت فرم‌های تنظیمات حساب، دامنه و تلگرام
     document.getElementById('accountSettingsForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const newUsername = document.getElementById('set-username').value;
@@ -584,7 +627,7 @@
       }
     });
 
-    setInterval(loadData, 15000);
+    setInterval(loadData, 10000);
     loadData();
   </script>
 </body>

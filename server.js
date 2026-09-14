@@ -23,27 +23,23 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 } }));
 
-// تنظیمات سشن با رفع هشدار MemoryStore و سازگاری ابری
 app.use(session({
   secret: process.env.SESSION_SECRET || 'onex-master-vault-2026',
   resave: false,
   saveUninitialized: false,
   proxy: true,
-  cookie: { 
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-    secure: false 
-  }
+  cookie: { maxAge: 30 * 24 * 60 * 60 * 1000, secure: false }
 }));
 
 const dbPath = path.join(DATA_DIR, 'onex_vault.db');
 const db = new sqlite3.Database(dbPath);
 
 const liveLogs = [];
-function addLog(msg) {
+function addLog(msg, type = 'info') {
   const time = new Date().toLocaleTimeString('fa-IR');
-  liveLogs.unshift(`[${time}] ${msg}`);
-  if (liveLogs.length > 50) liveLogs.pop();
-  console.log(`[ONEX LOG]: ${msg}`);
+  liveLogs.unshift({ time, msg, type });
+  if (liveLogs.length > 100) liveLogs.pop();
+  console.log(`[ONEX ${type.toUpperCase()}]: ${msg}`);
 }
 
 db.serialize(() => {
@@ -96,7 +92,6 @@ function getServerMetrics() {
   };
 }
 
-// راه‌اندازی هسته Xray-core
 function startCoreEngine() {
   db.all('SELECT * FROM configs WHERE status != "expired"', (err, rows) => {
     const fallbackId = "b831381d-6324-4d53-ad4f-8cda48b30811";
@@ -112,21 +107,9 @@ function startCoreEngine() {
       },
       inbounds: [
         { tag: "api", port: 10085, listen: "127.0.0.1", protocol: "dokodemo-door", settings: { address: "127.0.0.1" } },
-        {
-          port: 8081, listen: "0.0.0.0", protocol: "vless",
-          settings: { clients: clients, decryption: "none" },
-          streamSettings: { network: "ws", wsSettings: { path: "/vless" } }
-        },
-        {
-          port: 8082, listen: "0.0.0.0", protocol: "vmess",
-          settings: { clients: clients.map(c => ({ id: c.id, alterId: 0, email: c.email })) },
-          streamSettings: { network: "ws", wsSettings: { path: "/vmess" } }
-        },
-        {
-          port: 8083, listen: "0.0.0.0", protocol: "trojan",
-          settings: { clients: clients.map(c => ({ password: c.id, email: c.email })) },
-          streamSettings: { network: "ws", wsSettings: { path: "/trojan" } }
-        }
+        { port: 8081, listen: "0.0.0.0", protocol: "vless", settings: { clients: clients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/vless" } } },
+        { port: 8082, listen: "0.0.0.0", protocol: "vmess", settings: { clients: clients.map(c => ({ id: c.id, alterId: 0, email: c.email })) }, streamSettings: { network: "ws", wsSettings: { path: "/vmess" } } },
+        { port: 8083, listen: "0.0.0.0", protocol: "trojan", settings: { clients: clients.map(c => ({ password: c.id, email: c.email })) }, streamSettings: { network: "ws", wsSettings: { path: "/trojan" } } }
       ],
       outbounds: [{ protocol: "freedom" }],
       routing: { rules: [{ inboundTag: ["api"], outboundTag: "api", type: "field" }] }
@@ -141,12 +124,12 @@ function startCoreEngine() {
       spawn('pkill', ['-f', 'xray']);
       setTimeout(() => {
         const proc = spawn(binPath, ['run', '-c', cfgPath]);
-        proc.stdout.on('data', d => addLog(`XRAY: ${d.toString().trim()}`));
-        proc.stderr.on('data', d => addLog(`XRAY ERR: ${d.toString().trim()}`));
-        addLog('هسته Xray با موفقیت راه‌اندازی شد.');
+        proc.stdout.on('data', d => addLog(`XRAY: ${d.toString().trim()}`, 'info'));
+        proc.stderr.on('data', d => addLog(`XRAY ERR: ${d.toString().trim()}`, 'error'));
+        addLog('هسته Xray با موفقیت راه‌اندازی شد.', 'success');
       }, 500);
     } else {
-      addLog('هشدار: فایل باینری xray در پوشه xray-bin یافت نشد!');
+      addLog('هشدار: فایل باینری xray یافت نشد!', 'error');
     }
   });
 }
@@ -218,7 +201,7 @@ app.post('/api/configs/create', auth, (req, res) => {
     [id, name || 'اکانت', req.session.username, protocol || 'all', tag || 'normal', parseFloat(total_gb) || 20, parseInt(expire_days) || 30, uuid],
     function(err) {
       if (err) return res.status(500).json({ error: 'خطا در دیتابیس' });
-      addLog(`کانفیگ جدید با نام ${name} ساخته شد.`);
+      addLog(`کانفیگ جدید با نام ${name} ساخته شد.`, 'success');
       startCoreEngine();
       res.json({ success: true, id });
     }
@@ -253,43 +236,42 @@ app.get('/api/announcement', (req, res) => {
   });
 });
 
-// آپدیت نام کاربری و رمز عبور مدیریت
+// مسیر ری‌استارت دستی هسته Xray از پنل
+app.post('/api/core/restart', auth, (req, res) => {
+  addLog('درخواست ری‌استارت دستی هسته Xray صادر شد.', 'info');
+  startCoreEngine();
+  res.json({ success: true });
+});
+
 app.post('/api/settings/account', auth, (req, res) => {
   const { newUsername, newPassword, currentPassword } = req.body;
-  
   db.get('SELECT * FROM users WHERE id = ?', [req.session.userId], (err, user) => {
     if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
       return res.status(401).json({ error: 'رمز عبور فعلی اشتباه است.' });
     }
-
     const updatedUsername = (newUsername && newUsername.trim() !== '') ? newUsername.trim() : user.username;
-    
     if (newPassword && newPassword.trim() !== '') {
       const hashedPassword = bcrypt.hashSync(newPassword, 10);
-      db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', [updatedUsername, hashedPassword, user.id], (err) => {
-        if (err) return res.status(500).json({ error: 'نام کاربری تکراری است.' });
+      db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', [updatedUsername, hashedPassword, user.id], () => {
         req.session.username = updatedUsername;
-        addLog('مشخصات حساب مدیریت به‌روز شد.');
+        addLog('مشخصات حساب مدیریت به‌روز شد.', 'success');
         res.json({ success: true });
       });
     } else {
-      db.run('UPDATE users SET username = ? WHERE id = ?', [updatedUsername, user.id], (err) => {
-        if (err) return res.status(500).json({ error: 'نام کاربری تکراری است.' });
+      db.run('UPDATE users SET username = ? WHERE id = ?', [updatedUsername, user.id], () => {
         req.session.username = updatedUsername;
-        addLog('نام کاربری مدیریت به‌روز شد.');
+        addLog('نام کاربری مدیریت به‌روز شد.', 'success');
         res.json({ success: true });
       });
     }
   });
 });
 
-// آپدیت تنظیمات دامنه و تلگرام
 app.post('/api/settings/general', auth, (req, res) => {
   const { customDomain, botToken, adminTgId } = req.body;
   db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('custom_domain', ?)`, [customDomain || ''], () => {
     db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('bot_token', ?)`, [botToken || ''], () => {
       db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_tg_id', ?)`, [adminTgId || ''], () => {
-        addLog('تنظیمات عمومی و تلگرام به‌روز شد.');
         res.json({ success: true });
       });
     });
@@ -355,5 +337,5 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  addLog(`سیستم روی پورت ${PORT} مستقر شد.`);
+  addLog(`سیستم روی پورت ${PORT} مستقر شد.`, 'success');
 });

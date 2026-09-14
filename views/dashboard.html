@@ -36,7 +36,7 @@
       position: fixed; top: 0; bottom: 0; right: 0; z-index: 200; transition: transform 0.3s ease;
     }
     
-    /* لوگوی ۳بعدی حرفه‌ای ONEX در سایدبار */
+    /* لوگوی ۳بعدی خفن ONEX */
     .brand-3d-box {
       display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color);
     }
@@ -65,7 +65,7 @@
 
     /* هدر شیشه‌ای خفن بالا در سمت راست */
     .topbar {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
       background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 16px 20px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.4); backdrop-filter: blur(15px);
     }
@@ -192,7 +192,6 @@
 
   <aside class="sidebar" id="mainSidebar">
     <div>
-      <!-- لوگوی ۳بعدی حرفه‌ای در سایدبار -->
       <div class="brand-3d-box">
         <div class="logo-3d"><i class="fa-solid fa-bolt"></i></div>
         <div class="brand-text">
@@ -229,7 +228,6 @@
   <main class="main-viewport">
     
     <div id="view-dashboard" class="view-section active-view">
-      <!-- هدر شیشه‌ای خفن بالا در سمت راست با کارت سازنده و لینک‌های تلگرام و گیت‌هاب -->
       <header class="topbar">
         <div>
           <h3 style="font-size: 16px; font-weight: 900; color: var(--accent);">⚡ مدیریت هوشمند و مانیتورینگ</h3>
@@ -237,7 +235,6 @@
         </div>
         
         <div style="display: flex; align-items: center; gap: 12px;">
-          <!-- قالب شیشه‌ای سازنده همراه با آیکون‌های تلگرام و گیت‌هاب -->
           <div class="author-badge-glass">
             <div style="display: flex; flex-direction: column; text-align: left;">
               <span style="font-size: 10px; color: var(--text-muted); font-weight: 700;">Developer</span>
@@ -245,7 +242,7 @@
             </div>
             <div class="social-icons-group">
               <a href="https://t.me/V2rayTun0" target="_blank" class="social-btn tg-btn" title="کانال تلگرام"><i class="fa-brands fa-telegram"></i></a>
-              <a href="https://github.com/YOUR_GITHUB_USERNAME" target="_blank" class="social-btn gh-btn" title="مخزن گیت‌هاب"><i class="fa-brands fa-github"></i></a>
+              <a href="https://github.com/MehTif/ONEX" target="_blank" class="social-btn gh-btn" title="مخزن گیت‌هاب"><i class="fa-brands fa-github"></i></a>
             </div>
           </div>
 
@@ -317,11 +314,54 @@
       </div>
     </div>
 
-    <div id="view-ssl" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">SSL</h3></div></div>
-    <div id="view-reseller" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">نمایندگان</h3></div></div>
-    <div id="view-logs" class="view-section"><div class="panel-box"><h3 style="color:var(--accent)">لاگ</h3><div class="log-terminal" id="logBox"></div></div></div>
-    <div id="view-backup" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><a href="/api/backup/download" class="btn-main" style="background:#10b981; color:#fff; width:100%; justify-content:center;">دانلود دیتابیس</a></div></div>
-    <div id="view-settings" class="view-section"><div class="panel-box" style="max-width:500px; margin:0 auto;"><h3 style="color:var(--accent)">تنظیمات حساب</h3></div></div>
+    <!-- سایر بخش‌ها و تب‌ها -->
+    <div id="view-ssl" class="view-section">
+      <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-shield"></i> گواهی SSL</h3>
+        <form id="sslForm">
+          <input type="text" id="ssl-domain" class="input-field" placeholder="vpn.yourdomain.com" required>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">نصب SSL</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="view-reseller" class="view-section">
+      <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-users"></i> نمایندگان</h3>
+        <form id="resellerForm">
+          <input type="text" id="r-user" class="input-field" placeholder="نام کاربری" required>
+          <input type="password" id="r-pass" class="input-field" placeholder="رمز عبور" required>
+          <input type="number" id="r-credit" class="input-field" value="200" required>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">ثبت نماینده</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="view-logs" class="view-section">
+      <div class="panel-box">
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-terminal"></i> لاگ زنده</h3>
+        <div class="log-terminal" id="logBox"><div>در حال دریافت...</div></div>
+      </div>
+    </div>
+
+    <div id="view-backup" class="view-section">
+      <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-database"></i> پشتیبان‌گیری</h3>
+        <a href="/api/backup/download" class="btn-main" style="justify-content: center; padding: 12px; background: #10b981; color:#fff; width:100%; margin-bottom:10px;"><i class="fa-solid fa-download"></i> دانلود دیتابیس</a>
+      </div>
+    </div>
+
+    <div id="view-settings" class="view-section">
+      <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-gear"></i> تنظیمات</h3>
+        <form id="credForm">
+          <input type="text" id="set-username" class="input-field" placeholder="نام کاربری جدید">
+          <input type="password" id="set-new-pass" class="input-field" placeholder="رمز عبور جدید">
+          <input type="password" id="set-cur-pass" class="input-field" placeholder="رمز عبور فعلی" required>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">بروزرسانی</button>
+        </form>
+      </div>
+    </div>
 
   </main>
 

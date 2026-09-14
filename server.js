@@ -553,7 +553,6 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-// ارسال اطلاعات کامل تکی و لینک‌ها به صفحه ساب کلاینت
 app.get('/api/subinfo/:id', (req, res) => {
   const defaultHost = req.headers.host;
   db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {

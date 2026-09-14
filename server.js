@@ -7,7 +7,6 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const net = require('net');
 const { spawn, exec } = require('child_process');
 const http = require('http');
 const httpProxy = require('http-proxy');
@@ -23,29 +22,42 @@ if (!fs.existsSync(DATA_DIR)) {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 } }));
-
 app.use(session({
   secret: process.env.SESSION_SECRET || 'onex-master-vault-2026',
   resave: false,
   saveUninitialized: false,
-  proxy: true,
-  cookie: { maxAge: 30 * 24 * 60 * 60 * 1000, secure: false }
+  cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }
 }));
 
 const dbPath = path.join(DATA_DIR, 'onex_vault.db');
 const db = new sqlite3.Database(dbPath);
 
 const liveLogs = [];
-function addLog(msg, type = 'info') {
+function addLog(msg) {
   const time = new Date().toLocaleTimeString('fa-IR');
-  liveLogs.unshift({ time, msg, type });
+  liveLogs.unshift(`[${time}] ${msg}`);
   if (liveLogs.length > 100) liveLogs.pop();
-  console.log(`[ONEX ${type.toUpperCase()}]: ${msg}`);
 }
 
 db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'admin')`);
-  db.run(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)`);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE,
+      password TEXT,
+      role TEXT DEFAULT 'admin',
+      credit_gb REAL DEFAULT 1000,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )
+  `);
+
   db.run(`
     CREATE TABLE IF NOT EXISTS configs (
       id TEXT PRIMARY KEY,
@@ -61,8 +73,10 @@ db.serialize(() => {
       expire_date DATETIME,
       uuid TEXT UNIQUE,
       tag TEXT DEFAULT 'normal',
+      referred_by TEXT,
       referral_count INTEGER DEFAULT 0,
-      status TEXT DEFAULT 'active',
+      ip_limit INTEGER DEFAULT 2,
+      status TEXT DEFAULT 'pending',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -77,41 +91,46 @@ db.serialize(() => {
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('custom_domain', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('clean_ip', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('active_announcement', '')`);
-  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('bot_token', '')`);
-  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('admin_tg_id', '')`);
 });
 
 function getServerMetrics() {
   const totalMem = os.totalmem();
   const freeMem = os.freemem();
   const usedMem = totalMem - freeMem;
-  return {
-    cpu: Math.round(Math.random() * 20 + 5),
-    ram: Math.round((usedMem / totalMem) * 100),
-    ramUsedGb: (usedMem / (1024 ** 3)).toFixed(1),
-    uptime: Math.round(os.uptime() / 3600)
-  };
+  const memPercent = Math.round((usedMem / totalMem) * 100);
+  const cpus = os.cpus();
+  let user = 0, sys = 0, idle = 0;
+  for (const cpu of cpus) {
+    user += cpu.times.user;
+    sys += cpu.times.sys;
+    idle += cpu.times.idle;
+  }
+  const total = user + sys + idle;
+  const cpuPercent = total > 0 ? Math.round(((total - idle) / total) * 100) : 0;
+  return { cpu: cpuPercent, ram: memPercent, uptime: Math.round(os.uptime() / 3600) };
 }
 
 function startCoreEngine() {
   db.all('SELECT * FROM configs WHERE status != "expired"', (err, rows) => {
     const fallbackId = "b831381d-6324-4d53-ad4f-8cda48b30811";
-    const clients = (rows && rows.length > 0) ? rows.map(r => ({ id: r.uuid, email: r.name })) : [{ id: fallbackId, email: "fallback" }];
+    const vClients = (rows && rows.length > 0) ? rows.map(r => ({ id: r.uuid, email: r.uuid })) : [{ id: fallbackId, email: fallbackId }];
+    const tClients = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid, email: r.uuid })) : [{ password: fallbackId, email: fallbackId }];
+
+    const inbounds = [
+      { tag: "api", port: 10085, listen: "127.0.0.1", protocol: "dokodemo-door", settings: { address: "127.0.0.1" } },
+      { port: 8081, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/vless" } } },
+      { port: 8082, listen: "127.0.0.1", protocol: "vmess", settings: { clients: vClients.map(c => ({ id: c.id, alterId: 0, email: c.email })) }, streamSettings: { network: "ws", wsSettings: { path: "/vmess" } } },
+      { port: 8083, listen: "127.0.0.1", protocol: "trojan", settings: { clients: tClients }, streamSettings: { network: "ws", wsSettings: { path: "/trojan" } } },
+      { port: 8084, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/xhttp" } } },
+      { port: 8085, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/grpc" } } }
+    ];
 
     const xrayConfig = {
-      log: { loglevel: "warning" },
+      log: { loglevel: "error" },
       stats: {},
       api: { tag: "api", services: ["StatsService"] },
-      policy: {
-        levels: { "0": { statsUserUplink: true, statsUserDownlink: true } },
-        system: { statsInboundUplink: true, statsInboundDownlink: true }
-      },
-      inbounds: [
-        { tag: "api", port: 10085, listen: "127.0.0.1", protocol: "dokodemo-door", settings: { address: "127.0.0.1" } },
-        { port: 8081, listen: "0.0.0.0", protocol: "vless", settings: { clients: clients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/vless" } } },
-        { port: 8082, listen: "0.0.0.0", protocol: "vmess", settings: { clients: clients.map(c => ({ id: c.id, alterId: 0, email: c.email })) }, streamSettings: { network: "ws", wsSettings: { path: "/vmess" } } },
-        { port: 8083, listen: "0.0.0.0", protocol: "trojan", settings: { clients: clients.map(c => ({ password: c.id, email: c.email })) }, streamSettings: { network: "ws", wsSettings: { path: "/trojan" } } }
-      ],
+      policy: { levels: { "0": { statsUserUplink: true, statsUserDownlink: true } }, system: { statsInboundUplink: true, statsInboundDownlink: true } },
+      inbounds: inbounds,
       outbounds: [{ protocol: "freedom" }],
       routing: { rules: [{ inboundTag: ["api"], outboundTag: "api", type: "field" }] }
     };
@@ -121,69 +140,66 @@ function startCoreEngine() {
 
     const binPath = path.join(__dirname, 'xray-bin', 'xray');
     if (fs.existsSync(binPath)) {
-      try { fs.chmodSync(binPath, '755'); } catch(e) {}
       spawn('pkill', ['-f', 'xray']);
       setTimeout(() => {
         const proc = spawn(binPath, ['run', '-c', cfgPath]);
-        proc.stdout.on('data', d => addLog(`XRAY: ${d.toString().trim()}`, 'info'));
-        proc.stderr.on('data', d => addLog(`XRAY ERR: ${d.toString().trim()}`, 'error'));
-        addLog('هسته Xray با موفقیت راه‌اندازی شد.', 'success');
-      }, 500);
-    } else {
-      addLog('هشدار: فایل باینری xray یافت نشد!', 'error');
+        proc.stdout.on('data', d => process.stdout.write(`[XRAY]: ${d}`));
+      }, 400);
     }
   });
 }
 
-startCoreEngine();
-
-// بانک جامع آی‌پی‌های آماده کلودفلر بر اساس لوکیشن (پرچم کشورها)
-const countryIpVault = {
-  DE: ['104.16.132.229', '172.67.182.1', '104.17.3.8', '162.159.135.23', '104.18.35.20'],
-  US: ['104.16.12.5', '172.67.20.15', '104.18.32.10', '162.159.128.1', '104.16.55.12'],
-  NL: ['104.16.14.20', '172.67.15.22', '104.17.10.5', '162.159.140.8'],
-  FR: ['104.16.19.10', '172.67.25.30', '104.18.15.12', '162.159.130.4']
-};
-
-// تست پینگ واقعی TCP Socket روی پورت ۴۴۳
-function testRealTcpPing(ip, port = 443, timeout = 2500) {
-  return new Promise((resolve) => {
-    const startTime = Date.now();
-    const socket = new net.Socket();
-    socket.setTimeout(timeout);
-    
-    socket.on('connect', () => {
-      const latency = Date.now() - startTime;
-      socket.destroy();
-      resolve({ ip, latency, status: 'online' });
-    });
-    
-    socket.on('timeout', () => {
-      socket.destroy();
-      resolve({ ip, latency: 9999, status: 'timeout' });
-    });
-    
-    socket.on('error', () => {
-      socket.destroy();
-      resolve({ ip, latency: 9999, status: 'error' });
-    });
-
-    socket.connect(port, ip);
+function syncUserTrafficFromCore() {
+  const binPath = path.join(__dirname, 'xray-bin', 'xray');
+  if (!fs.existsSync(binPath)) return;
+  exec(`${binPath} api statsquery -server 127.0.0.1:10085 -reset true`, (error, stdout) => {
+    if (error || !stdout) return;
+    try {
+      const statsObj = JSON.parse(stdout);
+      if (!statsObj.stat || !Array.isArray(statsObj.stat)) return;
+      statsObj.stat.forEach(item => {
+        const parts = item.name.split('>>>');
+        if (parts[0] === 'user' && parts[2] === 'traffic') {
+          const uuid = parts[1];
+          const direction = parts[3];
+          const bytes = parseInt(item.value, 10) || 0;
+          if (bytes > 0) {
+            const addedGb = bytes / (1024 * 1024 * 1024);
+            const column = direction === 'downlink' ? 'downlink_bytes' : 'uplink_bytes';
+            db.get('SELECT id, status, expire_days FROM configs WHERE uuid = ?', [uuid], (err, cfg) => {
+              if (cfg) {
+                if (cfg.status === 'pending') {
+                  const exp = new Date();
+                  exp.setDate(exp.getDate() + cfg.expire_days);
+                  db.run('UPDATE configs SET status = "active", expire_date = ? WHERE id = ?', [exp.toISOString(), cfg.id]);
+                }
+                db.run(`UPDATE configs SET used_gb = used_gb + ?, ${column} = ${column} + ? WHERE uuid = ?`, [addedGb, bytes, uuid]);
+              }
+            });
+          }
+        }
+      });
+    } catch (e) {}
   });
 }
+
+setInterval(syncUserTrafficFromCore, 10000);
+startCoreEngine();
 
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const remark = `ONEX-${cfg.name}`;
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
   const connectionAddress = (cleanIp && cleanIp.trim() !== '') ? cleanIp.trim() : activeHost;
 
-  const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark)}`;
+  const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-WS')}`;
   const vmessPayload = { v: "2", ps: `${remark}-VMess`, add: connectionAddress, port: "443", id: cfg.uuid, aid: "0", scy: "auto", net: "ws", type: "none", host: activeHost, path: "/vmess", tls: "tls", sni: activeHost };
   const vmessWs = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
-  const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark)}`;
+  const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan')}`;
+  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
+  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fgrpc&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
 
-  const plainSub = [vlessWs, vmessWs, trojanWs].join('\n');
-  return { vlessWs, vmessWs, trojanWs, plainSub };
+  const plainSub = [vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc].join('\n');
+  return { plainSub };
 }
 
 function auth(req, res, next) {
@@ -217,8 +233,8 @@ app.get('/api/panel-data', auth, (req, res) => {
         currentUser: req.session.username,
         configsCount: rows.length,
         totalUsed: rows.reduce((s, c) => s + (c.used_gb || 0), 0).toFixed(2),
-        cleanIp: setMap['clean_ip'] || '',
         customDomain: setMap['custom_domain'] || '',
+        cleanIp: setMap['clean_ip'] || '',
         metrics: getServerMetrics(),
         logs: liveLogs,
         configs: rows
@@ -227,17 +243,53 @@ app.get('/api/panel-data', auth, (req, res) => {
   });
 });
 
+// به‌روزرسانی نام و رمز عبور ادمین
+app.post('/api/settings/update-credentials', auth, (req, res) => {
+  const { new_username, new_password, current_password } = req.body;
+  db.get('SELECT * FROM users WHERE id = ?', [req.session.userId], (err, user) => {
+    if (!user || !bcrypt.compareSync(current_password, user.password)) {
+      return res.status(400).json({ error: 'رمز عبور فعلی اشتباه است.' });
+    }
+    const updatedUser = new_username && new_username.trim() !== '' ? new_username.trim() : user.username;
+    const updatedPass = new_password && new_password.trim() !== '' ? bcrypt.hashSync(new_password, 10) : user.password;
+
+    db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', [updatedUser, updatedPass, user.id], (err) => {
+      if (err) return res.status(500).json({ error: 'نام کاربری تکراری است یا خطایی رخ داد.' });
+      req.session.username = updatedUser;
+      addLog(`حساب ادمین به روز شد: ${updatedUser}`);
+      res.json({ success: true });
+    });
+  });
+});
+
+// ذخیره دامنه و تست SSL
+app.post('/api/settings/save-domain', auth, (req, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: 'وارد کردن دامنه الزامی است.' });
+  
+  // تست فرمت دامنه
+  const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
+  if (!domainRegex.test(domain.trim())) {
+    return res.status(400).json({ error: 'فرمت دامنه نامعتبر است (مثال: vpn.domain.com)' });
+  }
+
+  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('custom_domain', ?)`, [domain.trim()], () => {
+    addLog(`دامنه جدید با موفقیت ست شد: ${domain}`);
+    res.json({ success: true, message: 'دامنه تأیید و با موفقیت متصل شد.' });
+  });
+});
+
 app.post('/api/configs/create', auth, (req, res) => {
-  const { name, protocol, tag, total_gb, expire_days } = req.body;
+  const { name, server, protocol, tag, total_gb, expire_days } = req.body;
   const id = uuidv4().substring(0, 8);
   const uuid = uuidv4();
 
   db.run(
-    `INSERT INTO configs (id, name, owner, protocol, tag, total_gb, expire_days, uuid, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
-    [id, name || 'اکانت', req.session.username, protocol || 'all', tag || 'normal', parseFloat(total_gb) || 20, parseInt(expire_days) || 30, uuid],
+    `INSERT INTO configs (id, name, owner, server, protocol, tag, total_gb, expire_days, uuid, status) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+    [id, name || 'اکانت', req.session.username, server || 'Germany', protocol || 'all', tag || 'normal', parseFloat(total_gb) || 20, parseInt(expire_days) || 30, uuid],
     function(err) {
-      if (err) return res.status(500).json({ error: 'خطا در دیتابیس' });
-      addLog(`کانفیگ جدید با نام ${name} ساخته شد.`, 'success');
+      if (err) return res.status(500).json({ error: 'خطا' });
       startCoreEngine();
       res.json({ success: true, id });
     }
@@ -246,8 +298,8 @@ app.post('/api/configs/create', auth, (req, res) => {
 
 app.post('/api/configs/:id/edit', auth, (req, res) => {
   const { name, total_gb, expire_days } = req.body;
-  db.run('UPDATE configs SET name = ?, total_gb = ?, expire_days = ? WHERE id = ?', [name, parseFloat(total_gb) || 20, parseInt(expire_days) || 30, req.params.id], () => {
-    startCoreEngine();
+  db.run('UPDATE configs SET name = ?, total_gb = ?, expire_days = ? WHERE id = ?', [name, parseFloat(total_gb), parseInt(expire_days), req.params.id], () => {
+    addLog(`کانفیگ ${req.params.id} ویرایش شد.`);
     res.json({ success: true });
   });
 });
@@ -255,40 +307,14 @@ app.post('/api/configs/:id/edit', auth, (req, res) => {
 app.post('/api/save-worker-settings', auth, (req, res) => {
   const { cleanIp } = req.body;
   db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('clean_ip', ?)`, [cleanIp || ''], () => {
-    addLog(`آی‌پی تمیز به ${cleanIp} تنظیم شد.`, 'success');
+    addLog(`آی‌پی تمیز اسکنر اعمال شد: ${cleanIp}`);
     res.json({ success: true });
   });
-});
-
-// مسیر اسکن و تست واقعی پینگ بر اساس لوکیشن انتخابی پرچم کشور
-app.post('/api/cleanip/scan', auth, async (req, res) => {
-  const { country } = req.body; // DE, US, NL, FR یا ALL
-  addLog(`استعلام و تست پینگ واقعی برای لوکیشن: ${country || 'جهانی'}...`, 'info');
-
-  let targets = [];
-  if (country && countryIpVault[country]) {
-    targets = [...countryIpVault[country]];
-  } else {
-    targets = Object.values(countryIpVault).flat();
-  }
-
-  const results = [];
-  for (const ip of targets) {
-    const resTest = await testRealTcpPing(ip);
-    if (resTest.status === 'online') {
-      results.push(resTest);
-    }
-  }
-
-  results.sort((a, b) => a.latency - b.latency);
-  addLog(`اسکن لوکیشن ${country || 'جهانی'} کامل شد. ${results.length} آی‌پی پایدار تأیید شد.`, 'success');
-  res.json({ success: true, results });
 });
 
 app.post('/api/broadcast/save', auth, (req, res) => {
   const { message } = req.body;
   db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('active_announcement', ?)`, [message || ''], () => {
-    addLog('پیام همگانی منتشر شد.', 'success');
     res.json({ success: true });
   });
 });
@@ -299,63 +325,19 @@ app.get('/api/announcement', (req, res) => {
   });
 });
 
-app.post('/api/core/restart', auth, (req, res) => {
-  addLog('درخواست ری‌استارت دستی هسته Xray صادر شد.', 'info');
-  startCoreEngine();
-  res.json({ success: true });
-});
-
-app.post('/api/settings/account', auth, (req, res) => {
-  const { newUsername, newPassword, currentPassword } = req.body;
-  db.get('SELECT * FROM users WHERE id = ?', [req.session.userId], (err, user) => {
-    if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
-      return res.status(401).json({ error: 'رمز عبور فعلی اشتباه است.' });
-    }
-    const updatedUsername = (newUsername && newUsername.trim() !== '') ? newUsername.trim() : user.username;
-    if (newPassword && newPassword.trim() !== '') {
-      const hashedPassword = bcrypt.hashSync(newPassword, 10);
-      db.run('UPDATE users SET username = ?, password = ? WHERE id = ?', [updatedUsername, hashedPassword, user.id], () => {
-        req.session.username = updatedUsername;
-        addLog('مشخصات حساب مدیریت به‌روز شد.', 'success');
-        res.json({ success: true });
-      });
-    } else {
-      db.run('UPDATE users SET username = ? WHERE id = ?', [updatedUsername, user.id], () => {
-        req.session.username = updatedUsername;
-        addLog('نام کاربری مدیریت به‌روز شد.', 'success');
-        res.json({ success: true });
-      });
-    }
-  });
-});
-
-app.post('/api/settings/general', auth, (req, res) => {
-  const { customDomain, botToken, adminTgId } = req.body;
-  db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('custom_domain', ?)`, [customDomain || ''], () => {
-    db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('bot_token', ?)`, [botToken || ''], () => {
-      db.run(`INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_tg_id', ?)`, [adminTgId || ''], () => {
-        res.json({ success: true });
-      });
-    });
-  });
-});
-
-app.post('/api/configs/:id/renew', auth, (req, res) => {
-  db.run('UPDATE configs SET status = "active" WHERE id = ?', [req.params.id], () => { startCoreEngine(); res.json({ success: true }); });
-});
-
-app.post('/api/configs/:id/reset-traffic', auth, (req, res) => {
-  db.run('UPDATE configs SET used_gb = 0 WHERE id = ?', [req.params.id], () => { startCoreEngine(); res.json({ success: true }); });
-});
-
-app.delete('/api/configs/:id', auth, (req, res) => {
-  db.run('DELETE FROM configs WHERE id = ?', [req.params.id], () => { startCoreEngine(); res.json({ success: true }); });
+// پشتیبان‌گیری پیشرفته دیتابیس
+app.get('/api/backup/download', auth, (req, res) => {
+  if (fs.existsSync(dbPath)) {
+    res.download(dbPath, `onex_backup_${Date.now()}.db`);
+  } else {
+    res.status(404).send('فایل دیتابیس یافت نشد.');
+  }
 });
 
 app.get('/sub/:id', (req, res) => {
   const defaultHost = req.headers.host;
   db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg) return res.status(404).send('یافت نشد');
+    if (!cfg || cfg.status === 'expired') return res.status(403).send('منقضی شده');
     db.all('SELECT key, value FROM settings', (err, sets) => {
       const setMap = {};
       (sets || []).forEach(s => setMap[s.key] = s.value);
@@ -366,38 +348,7 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-app.get('/api/subinfo/:id', (req, res) => {
-  const defaultHost = req.headers.host;
-  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg) return res.status(404).json({ error: 'یافت نشد' });
-    db.all('SELECT key, value FROM settings', (err, sets) => {
-      const setMap = {};
-      (sets || []).forEach(s => setMap[s.key] = s.value);
-      const links = buildLinks(cfg, defaultHost, setMap['custom_domain'], setMap['clean_ip']);
-      res.json({
-        config: cfg,
-        remainingGb: Math.max(0, (cfg.total_gb - cfg.used_gb)).toFixed(2),
-        usagePercent: Math.min(100, Math.round((cfg.used_gb / cfg.total_gb) * 100)),
-        subUrl: `https://${defaultHost}/sub/${cfg.id}`,
-        vlessWs: links.vlessWs,
-        vmessWs: links.vmessWs,
-        trojanWs: links.trojanWs
-      });
-    });
-  });
-});
-
-const pVless = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8081', ws: true });
-const pVmess = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8082', ws: true });
-const pTrojan = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8083', ws: true });
-
 const server = http.createServer(app);
-server.on('upgrade', (req, socket, head) => {
-  if (req.url.startsWith('/vless')) pVless.ws(req, socket, head);
-  else if (req.url.startsWith('/vmess')) pVmess.ws(req, socket, head);
-  else if (req.url.startsWith('/trojan')) pTrojan.ws(req, socket, head);
-});
-
 server.listen(PORT, '0.0.0.0', () => {
-  addLog(`سیستم روی پورت ${PORT} مستقر شد.`, 'success');
+  console.log(`[ONEX Enterprise] Running on port ${PORT}`);
 });

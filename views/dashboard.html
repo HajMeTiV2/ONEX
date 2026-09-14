@@ -93,7 +93,7 @@
     .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .ui-table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; white-space: nowrap; }
     .ui-table th { padding: 13px 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-weight: 700; }
-    .ui-table td { padding: 13px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; }
+    .ui-table td { padding: 13px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
     .ui-table tr:hover td { background: rgba(56, 189, 248, 0.04); }
 
     .badge-status { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; }
@@ -119,7 +119,7 @@
     .btn-reset { background: rgba(245, 158, 11, 0.2); color: #fbbf24; box-shadow: none; }
     .btn-qr { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; box-shadow: none; }
 
-    /* کشوی جزئیات کاربر همراه با فرم ویرایش */
+    /* کشوی جزئیات و ویرایش کلاینت (Slide-Over Drawer) */
     .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 250; }
     .user-drawer {
       position: fixed; top: 0; bottom: 0; left: -400px; width: 100%; max-width: 380px;
@@ -277,7 +277,7 @@
                 <th>مصرف کل / سقف</th>
                 <th>تفکیک DL / UL</th>
                 <th>وضعیت</th>
-                <th>پیش‌نمایش</th>
+                <th>عملیات و پورتال</th>
               </tr>
             </thead>
             <tbody id="cfgBody"></tbody>
@@ -354,12 +354,12 @@
     <button class="bottom-btn" onclick="switchView('settings')"><i class="fa-solid fa-gear"></i><span>تنظیمات</span></button>
   </nav>
 
-  <!-- کشوی جزئیات کاربر همراه با فرم ویرایش -->
+  <!-- کشوی ویرایش و جزئیات کلاینت (Slide-Over Drawer) -->
   <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
   <div class="user-drawer" id="userDrawer">
     <div>
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
-        <h3 style="font-size: 16px; color: var(--accent);" id="drawerTitle">جزئیات و ویرایش کلاینت</h3>
+        <h3 style="font-size: 16px; color: var(--accent);" id="drawerTitle">ویرایش و مدیریت کلاینت</h3>
         <i class="fa-solid fa-xmark" style="cursor: pointer; font-size: 18px;" onclick="closeDrawer()"></i>
       </div>
       <div id="drawerContent" style="display: flex; flex-direction: column; gap: 10px; font-size: 13px;"></div>
@@ -449,7 +449,7 @@
       return mbs.toFixed(1) + ' MB';
     }
 
-    // باز کردن کشوی پیشرفته جزئیات و ویرایش کلاینت
+    // باز کردن کشوی پیشرفته همراه با قابلیت ویرایش نام، حجم و روز
     function openUserDrawer(c) {
       document.getElementById('drawerTitle').innerText = `مدیریت: ${c.name}`;
       const host = window.location.host;
@@ -461,7 +461,7 @@
           <div style="flex:1;"><b>حجم کل (GB):</b> <input type="number" id="editGb" class="input-field" value="${c.total_gb}" style="margin-top:4px; margin-bottom:8px;"></div>
           <div style="flex:1;"><b>اعتبار (روز):</b> <input type="number" id="editDays" class="input-field" value="${c.expire_days || 30}" style="margin-top:4px; margin-bottom:8px;"></div>
         </div>
-        <button class="btn-main" style="width:100%; justify-content:center; padding:10px; margin-bottom:6px;" onclick="saveConfigEdit('${c.id}')"><i class="fa-solid fa-save"></i> ذخیره تغییرات ویرایش</button>
+        <button class="btn-main" style="width:100%; justify-content:center; padding:10px; margin-bottom:6px;" onclick="saveConfigEdit('${c.id}')"><i class="fa-solid fa-save"></i> ذخیره تغییرات</button>
         <hr style="border-color:var(--border-color); margin: 6px 0;">
         <div style="font-size:11.5px; color:var(--text-muted);">
           <div><b>شناسه:</b> ${c.uuid}</div>
@@ -540,12 +540,13 @@
 
       tbody.innerHTML = filtered.map(c => {
         const subLink = `https://${host}/sub/${c.id}`;
+        const portalLink = `/subpage/${c.id}`;
         const tagClass = c.tag === 'vip' ? 'tag-vip' : (c.tag === 'gaming' ? 'tag-gaming' : 'tag-normal');
         const tagName = c.tag ? c.tag.toUpperCase() : 'NORMAL';
 
         return `
-          <tr onclick='openUserDrawer(${JSON.stringify(c)})'>
-            <td>
+          <tr>
+            <td onclick='openUserDrawer(${JSON.stringify(c)})' style="cursor: pointer;">
               <span class="tag-pill ${tagClass}">${tagName}</span>
               <b>${c.name}</b>
             </td>
@@ -562,9 +563,14 @@
               </span>
             </td>
             <td>
-              <button class="btn-main btn-qr" onclick="event.stopPropagation(); showQuickQr('${c.name}', '${subLink}')">
-                <i class="fa-solid fa-qrcode"></i> ساب
-              </button>
+              <div style="display: flex; gap: 6px;">
+                <a href="${portalLink}" target="_blank" class="btn-main" style="background:#6366f1; color:#fff; padding: 5px 10px; font-size: 11px; text-decoration: none;">
+                  <i class="fa-solid fa-eye"></i> پورتال
+                </a>
+                <button class="btn-main btn-qr" onclick="event.stopPropagation(); showQuickQr('${c.name}', '${subLink}')" style="padding: 5px 10px; font-size: 11px;">
+                  <i class="fa-solid fa-qrcode"></i> QR
+                </button>
+              </div>
             </td>
           </tr>
         `;

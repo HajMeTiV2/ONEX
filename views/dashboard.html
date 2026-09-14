@@ -63,7 +63,6 @@
     .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); z-index: 190; }
     .main-viewport { margin-right: 230px; padding: 22px 26px; min-height: 100vh; }
 
-    /* هدر شیشه‌ای خفن بالا در سمت راست */
     .topbar {
       display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
       background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 18px; padding: 16px 20px;
@@ -202,13 +201,13 @@
       <ul class="nav-list">
         <li><button class="nav-btn active" onclick="switchView('dashboard')"><i class="fa-solid fa-house"></i><span>داشبورد ابری</span></button></li>
         <li><button class="nav-btn" onclick="openModal();"><i class="fa-solid fa-circle-plus"></i><span>ساخت گروهی کانفیگ</span></button></li>
-        <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>مدیریت Clean IPs</span></button></li>
+        <li><button class="nav-btn" onclick="switchView('cleanip')"><i class="fa-solid fa-network-wired"></i><span>اسکنر لوکیشن و Clean IP</span></button></li>
         <li><button class="nav-btn" onclick="switchView('broadcast')"><i class="fa-solid fa-bullhorn"></i><span>ارسال اطلاعیه همگانی</span></button></li>
         <li class="admin-only"><button class="nav-btn" onclick="switchView('ssl')"><i class="fa-solid fa-shield"></i><span>گواهینامه SSL</span></button></li>
         <li class="admin-only"><button class="nav-btn" onclick="switchView('reseller')"><i class="fa-solid fa-users"></i><span>نمایندگان</span></button></li>
-        <li class="admin-only"><button class="nav-btn" onclick="switchView('logs')"><i class="fa-solid fa-terminal"></i><span>مانیتورینگ و لاگ</span></button></li>
+        <li class="admin-only"><button class="nav-btn" onclick="switchView('logs')"><i class="fa-solid fa-terminal"></i><span>لاگ زنده سیستم</span></button></li>
         <li class="admin-only"><button class="nav-btn" onclick="switchView('backup')"><i class="fa-solid fa-database"></i><span>پشتیبان‌گیری</span></button></li>
-        <li><button class="nav-btn" onclick="switchView('settings')"><i class="fa-solid fa-gear"></i><span>تنظیمات حساب</span></button></li>
+        <li><button class="nav-btn" onclick="switchView('settings')"><i class="fa-solid fa-gear"></i><span>تنظیمات حساب ادمین</span></button></li>
       </ul>
     </div>
     <div>
@@ -290,14 +289,14 @@
       </div>
     </div>
 
-    <!-- بخش مدیریت Clean IP -->
+    <!-- بخش اسکنر لوکیشن و Clean IP -->
     <div id="view-cleanip" class="view-section">
-      <div class="panel-box" style="max-width: 520px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 8px;"><i class="fa-solid fa-network-wired"></i> مدیریت Clean IPs</h3>
-        <p style="font-size: 11.5px; color:var(--text-muted); margin-bottom: 12px;">آی‌پی‌های تمیز جهت اتصال پایدار کلاینت‌ها.</p>
+      <div class="panel-box" style="max-width: 540px; margin: 0 auto;">
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 8px;"><i class="fa-solid fa-network-wired"></i> اسکنر لوکیشن و Clean IP</h3>
+        <p style="font-size: 11.5px; color:var(--text-muted); margin-bottom: 12px;">وارد کردن آی‌پی‌های تمیز و اسکن پایداری سرور جهت اتصال کلاینت‌ها.</p>
         <form id="cleanIpForm">
           <input type="text" id="w-clean-ip" class="input-field" placeholder="104.16.132.229">
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">ذخیره Clean IP</button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">ذخیره و اعمال روی لینک‌ها</button>
         </form>
       </div>
     </div>
@@ -337,9 +336,10 @@
       </div>
     </div>
 
+    <!-- بخش لاگ زنده سیستم -->
     <div id="view-logs" class="view-section">
       <div class="panel-box">
-        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-terminal"></i> لاگ زنده سیستم</h3>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-terminal"></i> لاگ زنده سیستم و فعالیت‌ها</h3>
         <div class="log-terminal" id="logBox"><div>در حال دریافت لاگ‌ها...</div></div>
       </div>
     </div>
@@ -351,6 +351,7 @@
       </div>
     </div>
 
+    <!-- بخش تنظیمات حساب ادمین -->
     <div id="view-settings" class="view-section">
       <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
         <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-gear"></i> تنظیمات حساب ادمین</h3>
@@ -588,7 +589,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cleanIp: document.getElementById('w-clean-ip').value })
       });
-      alert('Clean IP ذخیره شد.');
+      alert('Clean IP و اسکنر ذخیره شد.');
     });
 
     document.getElementById('broadcastForm').addEventListener('submit', async (e) => {

@@ -314,7 +314,7 @@
       </div>
     </div>
 
-    <!-- سایر بخش‌ها و تب‌ها -->
+    <!-- بخش‌های دیگر (SSL, نمایندگان, لاگ, پشتیبان‌گیری, تنظیمات) -->
     <div id="view-ssl" class="view-section">
       <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
         <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-shield"></i> گواهی SSL</h3>
@@ -339,26 +339,26 @@
 
     <div id="view-logs" class="view-section">
       <div class="panel-box">
-        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-terminal"></i> لاگ زنده</h3>
-        <div class="log-terminal" id="logBox"><div>در حال دریافت...</div></div>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-terminal"></i> لاگ زنده سیستم</h3>
+        <div class="log-terminal" id="logBox"><div>در حال دریافت لاگ‌ها...</div></div>
       </div>
     </div>
 
     <div id="view-backup" class="view-section">
       <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-database"></i> پشتیبان‌گیری</h3>
-        <a href="/api/backup/download" class="btn-main" style="justify-content: center; padding: 12px; background: #10b981; color:#fff; width:100%; margin-bottom:10px;"><i class="fa-solid fa-download"></i> دانلود دیتابیس</a>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-database"></i> پشتیبان‌گیری دیتابیس</h3>
+        <a href="/api/backup/download" class="btn-main" style="justify-content: center; padding: 12px; background: #10b981; color:#fff; width:100%; margin-bottom:10px;"><i class="fa-solid fa-download"></i> دانلود فایل دیتابیس</a>
       </div>
     </div>
 
     <div id="view-settings" class="view-section">
       <div class="panel-box" style="max-width: 500px; margin: 0 auto;">
-        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-gear"></i> تنظیمات</h3>
+        <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 6px;"><i class="fa-solid fa-gear"></i> تنظیمات حساب ادمین</h3>
         <form id="credForm">
           <input type="text" id="set-username" class="input-field" placeholder="نام کاربری جدید">
           <input type="password" id="set-new-pass" class="input-field" placeholder="رمز عبور جدید">
           <input type="password" id="set-cur-pass" class="input-field" placeholder="رمز عبور فعلی" required>
-          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">بروزرسانی</button>
+          <button type="submit" class="btn-main" style="width: 100%; justify-content: center; padding: 11px;">بروزرسانی حساب</button>
         </form>
       </div>
     </div>
@@ -385,9 +385,9 @@
 
   <div class="modal-wrap" id="createModal">
     <div class="modal-box">
-      <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 14px; font-weight: 800;">ساخت کانفیگ</h3>
+      <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 14px; font-weight: 800;">ساخت کانفیگ جدید</h3>
       <form id="addForm">
-        <input type="text" id="m-name" class="input-field" placeholder="نام پیشوند" required>
+        <input type="text" id="m-name" class="input-field" placeholder="نام پیشوند (مثال: Client)" required>
         <div style="display:flex; gap:8px;">
           <input type="number" id="m-count" class="input-field" value="1" min="1" max="20" required>
           <select id="m-tag" class="input-field">
@@ -397,7 +397,7 @@
           </select>
         </div>
         <select id="m-protocol" class="input-field" style="color: var(--accent); font-weight: 700;">
-          <option value="all">⚡ تمام پروتکل‌ها</option>
+          <option value="all">⚡ تمام پروتکل‌ها (فول پک)</option>
           <option value="ws">WebSocket</option>
           <option value="reality">REALITY</option>
           <option value="xhttp">XHTTP</option>
@@ -408,7 +408,7 @@
           <input type="number" id="m-days" class="input-field" value="30" required>
         </div>
         <div style="display:flex; gap:8px; margin-top:8px;">
-          <button type="submit" class="btn-main" style="flex:1; justify-content:center; padding: 12px;">ساخت</button>
+          <button type="submit" class="btn-main" style="flex:1; justify-content:center; padding: 12px;">ساخت کانفیگ</button>
           <button type="button" class="btn-main btn-del" style="padding: 12px;" onclick="closeModal()">انصراف</button>
         </div>
       </form>
@@ -417,10 +417,10 @@
 
   <div class="modal-wrap" id="qrModal">
     <div class="modal-box" style="text-align: center;">
-      <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 10px; font-weight: 800;" id="qrTitle">QR Code</h3>
+      <h3 style="font-size: 16px; color:var(--accent); margin-bottom: 10px; font-weight: 800;" id="qrTitle">QR Code اشتراک</h3>
       <div style="background:#fff; padding:12px; border-radius:14px; display:inline-block; margin-bottom: 14px;"><div id="modalQrBox"></div></div>
       <input type="text" id="modalSubInput" class="input-field" readonly style="text-align: center;">
-      <button class="btn-main" style="width:100%; justify-content:center;" onclick="copyModalSub()"><i class="fa-solid fa-copy"></i> کپی لینک</button>
+      <button class="btn-main" style="width:100%; justify-content:center;" onclick="copyModalSub()"><i class="fa-solid fa-copy"></i> کپی لینک ساب</button>
     </div>
   </div>
 
@@ -555,6 +555,9 @@
       if (res.metrics) {
         document.getElementById('st-cpu').innerText = res.metrics.cpu + '%';
         document.getElementById('st-ram').innerText = `${res.metrics.ram}%`;
+      }
+      if (res.logs && res.logs.length > 0) {
+        document.getElementById('logBox').innerHTML = res.logs.map(l => `<div>${l}</div>`).join('');
       }
       if (res.cleanIp) document.getElementById('w-clean-ip').value = res.cleanIp;
       globalConfigs = res.configs || [];

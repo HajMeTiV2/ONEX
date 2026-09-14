@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawn, exec, execSync } = require('child_process');
+const { spawn, exec } = require('child_process');
 const http = require('http');
 const https = require('https');
 const httpProxy = require('http-proxy');
@@ -125,7 +125,6 @@ db.serialize(() => {
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('custom_domain', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('clean_ip', '')`);
   db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('ssl_domain', '')`);
-  db.run(`INSERT OR IGNORE INTO settings (key, value) VALUES ('reality_sni', 'www.microsoft.com')`);
 });
 
 let botInstance = null;
@@ -164,7 +163,6 @@ function getServerMetrics() {
   };
 }
 
-// ساخت و اعمال ساختار این‌باندهای کامل هسته Xray برای تمام پروتکل‌ها
 function startCoreEngine() {
   db.all('SELECT * FROM configs WHERE status != "expired"', (err, rows) => {
     const fallbackId = "b831381d-6324-4d53-ad4f-8cda48b30811";
@@ -172,7 +170,6 @@ function startCoreEngine() {
     const tClients = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid, email: r.uuid })) : [{ password: fallbackId, email: fallbackId }];
     const ssClients = (rows && rows.length > 0) ? rows.map(r => ({ password: r.uuid.replace(/-/g, '').substring(0, 16), method: "2022-blake3-aes-128-gcm", email: r.uuid })) : [{ password: "Pass123456789012", method: "2022-blake3-aes-128-gcm", email: fallbackId }];
 
-    // کلید اصلی سرور برای REALITY
     let realityServerKey = "eKq_6n4n6y8P9l0V1_2X3Z4A5B6C7D8E9F0G1H2I3J4";
     if (rows && rows[0] && rows[0].reality_priv) {
       realityServerKey = rows[0].reality_priv;
@@ -186,7 +183,6 @@ function startCoreEngine() {
         protocol: "dokodemo-door",
         settings: { address: "127.0.0.1" }
       },
-      // 1. پروتکل‌های پایه WebSocket
       {
         port: 8081,
         listen: "127.0.0.1",
@@ -208,7 +204,6 @@ function startCoreEngine() {
         settings: { clients: tClients },
         streamSettings: { network: "ws", wsSettings: { path: "/trojan" } }
       },
-      // 2. پروتکل XHTTP (SplitHTTP) نسل جدید هسته
       {
         port: 8084,
         listen: "127.0.0.1",
@@ -216,7 +211,6 @@ function startCoreEngine() {
         settings: { clients: vClients, decryption: "none" },
         streamSettings: { network: "xhttp", xhttpSettings: { path: "/xhttp", mode: "auto" } }
       },
-      // 3. پروتکل gRPC کم‌تاخیر
       {
         port: 8085,
         listen: "127.0.0.1",
@@ -224,14 +218,12 @@ function startCoreEngine() {
         settings: { clients: vClients, decryption: "none" },
         streamSettings: { network: "grpc", grpcSettings: { serviceName: "onex-grpc" } }
       },
-      // 4. پروتکل Shadowsocks مدرن 2022
       {
         port: 8086,
         listen: "127.0.0.1",
         protocol: "shadowsocks",
         settings: { clients: ssClients, network: "tcp,udp" }
       },
-      // 5. پروتکل VLESS REALITY فوق‌پایدار
       {
         port: 8087,
         listen: "127.0.0.1",
@@ -344,13 +336,11 @@ setInterval(() => {
 
 startCoreEngine();
 
-// موتور تولید لینک‌های استاندارد برای هر پروتکل
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const remark = `ONEX-${cfg.name}`;
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
   const connectionAddress = (cleanIp && cleanIp.trim() !== '') ? cleanIp.trim() : activeHost;
 
-  // 1. WebSocket Links
   const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-WS')}`;
 
   const vmessPayload = {
@@ -360,22 +350,16 @@ function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const vmessWs = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
   const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan')}`;
 
-  // 2. XHTTP (SplitHTTP)
   const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=xhttp&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-XHTTP')}`;
-
-  // 3. gRPC
   const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?serviceName=onex-grpc&security=tls&encryption=none&type=grpc&sni=${activeHost}#${encodeURIComponent(remark + '-gRPC')}`;
 
-  // 4. VLESS REALITY
   const realityPub = cfg.reality_pub || "j7fQzY9n5b4k3v2x1w0Z9A8B7C6D5E4F3G2H1I0J9K8";
   const vlessReality = `vless://${cfg.uuid}@${connectionAddress}:443?security=reality&encryption=none&pbk=${realityPub}&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=www.microsoft.com&sid=${cfg.reality_sid || '0123456789abcdef'}#${encodeURIComponent(remark + '-REALITY')}`;
 
-  // 5. Shadowsocks 2022
   const ssPass = cfg.uuid.replace(/-/g, '').substring(0, 16);
   const ssRaw = `2022-blake3-aes-128-gcm:${ssPass}@${connectionAddress}:443`;
   const ssLink = `ss://${Buffer.from(ssRaw).toString('base64')}#${encodeURIComponent(remark + '-Shadowsocks')}`;
 
-  // 6. WireGuard Config
   const wgConfig = `[Interface]
 PrivateKey = ${cfg.wg_priv || 'aPrivateDummyKey='}
 Address = 10.0.0.2/32
@@ -386,7 +370,6 @@ PublicKey = ${cfg.wg_pub || 'aPublicDummyKey='}
 Endpoint = ${connectionAddress}:51820
 AllowedIPs = 0.0.0.0/0`;
 
-  // دسته‌بندی خروجی‌ها بر اساس پروتکل انتخاب‌شده
   let chosenLinks = [];
   if (cfg.protocol === 'ws') chosenLinks = [vlessWs, vmessWs, trojanWs];
   else if (cfg.protocol === 'xhttp') chosenLinks = [vlessXhttp];
@@ -470,7 +453,6 @@ app.get('/api/panel-data', auth, (req, res) => {
   });
 });
 
-// ساخت کانفیگ واقعی با تفکیک دقیق پروتکل‌ها
 app.post('/api/configs/create', auth, (req, res) => {
   const { name, server, protocol, total_gb, expire_days, ip_limit } = req.body;
   const gb = parseFloat(total_gb) || 20;
@@ -492,7 +474,6 @@ app.post('/api/configs/create', auth, (req, res) => {
     const uuid = uuidv4();
     const days = parseInt(expire_days) || 30;
 
-    // کلیدهای واقعی امنیتی برای REALITY و WireGuard
     const realityPriv = crypto.randomBytes(32).toString('base64');
     const realityPub = crypto.randomBytes(32).toString('base64');
     const realitySid = crypto.randomBytes(4).toString('hex');
@@ -515,7 +496,7 @@ app.post('/api/configs/create', auth, (req, res) => {
       function(err) {
         if (err) return res.status(500).json({ error: 'خطای پایگاه داده' });
         startCoreEngine();
-        addLog(`کانفیگ (${protocol}) توسط ${req.session.username} برای ${name} ساخته شد.`);
+        addLog(`کانفیگ (${protocol}) توسط ${req.session.username} ساخته شد.`);
         notifyAdmin(`➕ کانفیگ جدید (${protocol}) ساخته شد:\nنام: ${name}\nحجم: ${gb} GB`);
         res.json({ success: true, id });
       }
@@ -572,7 +553,41 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-// سوئیچ درخواست‌های شبکه به این‌باندهای لوکال مختلف هسته Xray
+// ارسال اطلاعات کامل تکی و لینک‌ها به صفحه ساب کلاینت
+app.get('/api/subinfo/:id', (req, res) => {
+  const defaultHost = req.headers.host;
+  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
+    if (!cfg) return res.status(404).json({ error: 'کانفیگ یافت نشد' });
+    db.all('SELECT key, value FROM settings', (err, sets) => {
+      const setMap = {};
+      (sets || []).forEach(s => setMap[s.key] = s.value);
+
+      const links = buildLinks(cfg, defaultHost, setMap['custom_domain'], setMap['clean_ip']);
+      const activeHost = (setMap['custom_domain'] && setMap['custom_domain'].trim() !== '') ? setMap['custom_domain'].trim() : defaultHost;
+
+      const remainingGb = Math.max(0, (cfg.total_gb - cfg.used_gb)).toFixed(2);
+      const usagePercent = Math.min(100, Math.round((cfg.used_gb / cfg.total_gb) * 100));
+
+      res.json({
+        config: cfg,
+        isExpired: cfg.status === 'expired',
+        isPending: cfg.status === 'pending',
+        remainingGb,
+        usagePercent,
+        subUrl: `https://${activeHost}/sub/${cfg.id}`,
+        vlessWs: links.vlessWs,
+        vmessWs: links.vmessWs,
+        trojanWs: links.trojanWs,
+        vlessXhttp: links.vlessXhttp,
+        vlessGrpc: links.vlessGrpc,
+        vlessReality: links.vlessReality,
+        ssLink: links.ssLink,
+        wgConfig: links.wgConfig
+      });
+    });
+  });
+});
+
 const pVless = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8081', ws: true });
 const pVmess = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8082', ws: true });
 const pTrojan = httpProxy.createProxyServer({ target: 'http://127.0.0.1:8083', ws: true });
@@ -590,5 +605,5 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[ONEX Master Multi-Protocol Engine] Active on port ${PORT}`);
+  console.log(`[ONEX Master Multi-Protocol Engine v4.2] Active on port ${PORT}`);
 });

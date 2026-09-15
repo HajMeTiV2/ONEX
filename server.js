@@ -11,75 +11,72 @@ app.use(express.static(path.join(__dirname, 'views')));
 // دیتابیس موقت در حافظه برای نگهداری کانفیگ‌ها
 global.userConfigs = global.userConfigs || {};
 
-// تابع دریافت کانفیگ‌ها بر اساس شناسه اشتراک
-async function getConfigsBySubscriptionId(subId) {
-    return global.userConfigs[subId] || [];
-}
-
-// 1. روت صفحه اصلی برای باز شدن پنل
+// روت صفحه اصلی (داشبورد)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
 });
 
-// 2. مسیر جدید برای اضافه کردن و ساخت کانفیگ جدید
-app.post('/api/configs/add', (req, res) => {
+// ۱. مسیر ساخت و ذخیره کانفیگ جدید (پشتیبانی از پروتکل‌های مختلف و تگ‌های دلخواه)
+app.post('/api/create', (req, res) => {
     try {
-        const { subId, configLink } = req.body;
+        // دریافت اطلاعات از فرم داشبورد (با فرض اینکه نام کاربری یا شناسه ساب ارسال میشه)
+        const { subId = 'default', remark, type = 'vless' } = req.body;
         
-        if (!subId || !configLink) {
-            return res.status(400).json({ success: false, error: 'اطلاعات ناقص است' });
-        }
-
         if (!global.userConfigs[subId]) {
             global.userConfigs[subId] = [];
         }
 
-        // اضافه کردن کانفیگ جدید (با تگ‌های مدنظر مثل NEXO و @V2rayTun0)
-        global.userConfigs[subId].push(configLink);
+        // ساخت لینک نمونه بر اساس پروتکل با تگ‌های مد نظر شما (مثل NEXO و کانال)
+        const configName = remark || `NEXO-${Math.random().toString(36).substring(7)}`;
+        let generatedLink = '';
 
-        res.json({ success: true, message: 'کانفیگ با موفقیت ساخته و ذخیره شد' });
+        if (type === 'vless') {
+            // ساختار استاندارد VLESS
+            generatedLink = `vless://uuid-example@server-ip:443?encryption=none&security=tls&type=ws&path=%2F#${encodeURIComponent(configName + ' | @V2rayTun0')}`;
+        } else if (type === 'vmess') {
+            const vmessObj = { v: "2", ps: configName + " | @V2rayTun0", add: "server-ip", port: "443", id: "uuid-example", aid: "0", net: "ws", type: "none", host: "", path: "/", tls: "tls" };
+            generatedLink = `vmess://${Buffer.from(JSON.stringify(vmessObj)).toString('base64')}`;
+        } else {
+            generatedLink = `trojan://password-example@server-ip:443#${encodeURIComponent(configName + ' | @V2rayTun0')}`;
+        }
+
+        // ذخیره در لیست کانفیگ‌های کاربر
+        global.userConfigs[subId].push(generatedLink);
+
+        res.json({ success: true, message: 'کانفیگ با موفقیت ساخته شد', link: generatedLink });
     } catch (error) {
-        console.error('Error adding config:', error);
-        res.status(500).json({ success: false, error: 'خطای سرور در ساخت کانفیگ' });
+        console.error('Error creating config:', error);
+        res.status(500).json({ success: false, error: 'خطا در ساخت کانفیگ' });
     }
 });
 
-// 3. مسیر API برای دریافت اطلاعات کانفیگ‌ها به صورت JSON (استفاده در فرانت‌اند)
-app.get('/api/subscription/:id/json', async (req, res) => {
-    try {
-        const subId = req.params.id;
-        const configs = await getConfigsBySubscriptionId(subId);
-
-        if (!configs || configs.length === 0) {
-            return res.status(404).json({ success: false, error: 'کانفیگ‌ها موجود نیستند' });
-        }
-
-        res.json({ success: true, data: configs });
-    } catch (error) {
-        console.error('Error fetching subscription json:', error);
-        res.status(500).json({ success: false, error: 'خطای سرور داخلی' });
-    }
+// ۲. مسیر دریافت لیست کانفیگ‌ها برای نمایش در جدول داشبورد
+app.get('/api/configs/:id', (req, res) => {
+    const subId = req.params.id;
+    const configs = global.userConfigs[subId] || [];
+    res.json({ success: true, configs: configs });
 });
 
-// 4. مسیر اصلی ساب‌کریپشن برای کلاینت‌ها (مثل V2RayNG)
-app.get('/sub/:id', async (req, res) => {
-    try {
-        const subId = req.params.id;
-        const configs = await getConfigsBySubscriptionId(subId);
-
-        if (!configs || configs.length === 0) {
-            return res.status(404).send('Configs not found or empty');
-        }
-
-        // تبدیل کانفیگ‌ها به متن خط به خط و انکود Base64
-        const rawConfigsText = configs.join('\n');
-        const base64Configs = Buffer.from(rawConfigsText).toString('base64');
-
-        res.send(base64Configs);
-    } catch (error) {
-        console.error('Error generating subscription:', error);
-        res.status(500).send('Internal Server Error');
+// ۳. مسیر API برای بررسی ساب در فرانت‌اند
+app.get('/api/subscription/:id/json', (req, res) => {
+    const subId = req.params.id;
+    const configs = global.userConfigs[subId] || [];
+    if (configs.length === 0) {
+        return res.status(404).json({ success: false, error: 'کانفیگ‌ها موجود نیستند' });
     }
+    res.json({ success: true, data: configs });
+});
+
+// ۴. مسیر اصلی ساب‌کریپشن برای کلاینت‌ها (Base64)
+app.get('/sub/:id', (req, res) => {
+    const subId = req.params.id;
+    const configs = global.userConfigs[subId] || [];
+    if (configs.length === 0) {
+        return res.status(404).send('Configs not found or empty');
+    }
+    const rawConfigsText = configs.join('\n');
+    const base64Configs = Buffer.from(rawConfigsText).toString('base64');
+    res.send(base64Configs);
 });
 
 const PORT = process.env.PORT || 3000;

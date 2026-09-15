@@ -82,10 +82,22 @@ app.post('/api/save-worker-settings', (req, res) => {
     res.json({ success: true });
 });
 
-// ۵. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با اعمال Clean IP و تگ‌های دلخواه
+// ۵. مسیر جدید و اصلاح‌شده برای دریافت اطلاعات کانفیگ در پورتال ساب (برطرف‌کننده خطای موجود نبودن کانفیگ)
+app.get('/api/subscription/:id/json', (req, res) => {
+    const subId = req.params.id;
+    const config = global.panelData.configs.find(c => c.id === subId || c.id.startsWith(subId) || subId.startsWith(c.id));
+
+    if (!config) {
+        return res.status(404).json({ success: false, error: 'کانفیگ مورد نظر یافت نشد' });
+    }
+
+    res.json({ success: true, data: config });
+});
+
+// ۶. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با اعمال Clean IP و تگ‌های دلخواه
 app.get('/sub/:id', (req, res) => {
     const subId = req.params.id;
-    const config = global.panelData.configs.find(c => c.id === subId);
+    const config = global.panelData.configs.find(c => c.id === subId || c.id.startsWith(subId) || subId.startsWith(c.id));
 
     if (!config) {
         return res.status(404).send('Configs not found or empty');
@@ -95,7 +107,7 @@ app.get('/sub/:id', (req, res) => {
     
     // ساخت لینک‌های پروکسی با پشتیبانی از پروتکل‌های مختلف و تگ‌های مد نظر شما
     const links = [
-        `vless://example-uuid-${config.id}@${ip}:443?encryption=none&security=tls&type=ws&path=%2F#${encodeURIComponent(config.name + ' | V2rayTun0')}`,
+        `vless://example-uuid-${config.id}@${ip}:443?encryption=none&security=tls&type=ws&path=%2F#${encodeURIComponent(config.name + ' | @V2rayTun0')}`,
         `trojan://example-pass-${config.id}@${ip}:443#${encodeURIComponent(config.name + ' | @V2rayTun0')}`
     ];
 
@@ -105,7 +117,7 @@ app.get('/sub/:id', (req, res) => {
     res.send(base64Configs);
 });
 
-// ۶. پورتال اختصاصی هر کاربر
+// ۷. پورتال اختصاصی هر کاربر
 app.get('/subpage/:id', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'sub_client.html'));
 });

@@ -1,229 +1,130 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>ONEX • پورتال هوشمند اشتراک</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <style>
-    :root {
-      --bg-main: #040812;
-      --bg-card: rgba(13, 22, 41, 0.75);
-      --border-color: rgba(56, 189, 248, 0.3);
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent: #38bdf8;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body {
-      background: radial-gradient(circle at 50% 10%, #0d1b3a 0%, #040812 80%);
-      color: var(--text-main); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; overflow-x: hidden;
-    }
-
-    .portal-container {
-      width: 100%; max-width: 440px; background: var(--bg-card);
-      border: 1px solid var(--border-color); border-radius: 28px; padding: 26px;
-      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(25px); transform: perspective(1000px) rotateX(1deg);
-      transition: transform 0.3s ease;
-    }
-    .portal-container:hover { transform: perspective(1000px) rotateX(0deg); }
-
-    /* هدر سه بعدی شیشه‌ای */
-    .portal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; border-bottom: 1px solid var(--border-color); padding-bottom: 16px; }
-    .brand-box { display: flex; align-items: center; gap: 12px; }
-    .logo-3d {
-      width: 46px; height: 46px; border-radius: 14px;
-      background: linear-gradient(135deg, #0284c7 0%, #38bdf8 50%, #0369a1 100%);
-      display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff;
-      box-shadow: 0 10px 25px rgba(56, 189, 248, 0.5), inset 0 2px 3px rgba(255,255,255,0.4);
-      transform: perspective(500px) rotateX(12deg) rotateY(-12deg);
-    }
-    
-    .status-badge {
-      padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .status-online { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); }
-    .status-offline { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.5); }
-
-    /* اطلاعیه همگانی */
-    #announcementBox {
-      display: none; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.12);
-      border-radius: 14px; padding: 12px; margin-bottom: 18px; text-align: center;
-    }
-
-    /* کارت حجم شیشه‌ای سه‌بعدی */
-    .usage-card {
-      background: rgba(0, 0, 0, 0.45); border: 1px solid var(--border-color);
-      border-radius: 18px; padding: 18px; margin-bottom: 18px;
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-    }
-    .progress-bar-bg { width: 100%; height: 10px; background: rgba(255,255,255,0.08); border-radius: 6px; overflow: hidden; margin: 12px 0; }
-    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #0284c7, #38bdf8); border-radius: 6px; width: 0%; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(56,189,248,0.5); }
-
-    /* دکمه‌های اکشن */
-    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
-    .btn-action {
-      padding: 13px; border-radius: 14px; border: none; font-size: 12.5px; font-weight: 800; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; transition: 0.25s;
-    }
-    .btn-primary { background: var(--accent); color: #000; box-shadow: 0 6px 20px rgba(56, 189, 248, 0.4); }
-    .btn-secondary { background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid var(--border-color); }
-    .btn-full { grid-column: span 2; background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4); }
-    .btn-action:hover { filter: brightness(1.15); transform: translateY(-2px); }
-
-    /* فوتر */
-    .portal-footer {
-      display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color);
-      padding-top: 16px; margin-top: 18px; font-size: 12px; color: var(--text-muted);
-    }
-    .channel-link { color: var(--accent); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
-    .channel-link:hover { text-decoration: underline; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیریت اشتراک - NEXO</title>
+    <!-- استایل‌های شیشه‌ای (Glassmorphism) -->
+    <style>
+        body {
+            font-family: Tahoma, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            text-align: center;
+        }
+        h2 { margin-bottom: 20px; color: #38bdf8; }
+        .status-box {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.5);
+            font-size: 14px;
+        }
+        button {
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: opacity 0.3s;
+            margin-top: 10px;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #475569; cursor: not-allowed; }
+    </style>
 </head>
 <body>
 
-  <div class="portal-container">
-    
-    <!-- هدر -->
-    <div class="portal-header">
-      <div class="brand-box">
-        <div class="logo-3d"><i class="fa-solid fa-bolt"></i></div>
-        <div>
-          <h3 style="font-size: 16px; font-weight: 900; color: var(--accent);" id="clientNameTitle">بارگذاری...</h3>
-          <small style="font-size: 11px; color: var(--text-muted);" id="clientProtocolTitle">مختص اشتراک ابری</small>
-        </div>
-      </div>
-      <div id="statusBadgeContainer">
-        <span class="status-badge status-offline"><i class="fa-solid fa-circle"></i> بررسی...</span>
-      </div>
+    <div class="card">
+        <h2>اشتراک NEXO</h2>
+        <div id="loading-status" class="status-box">در حال بارگذاری اطلاعات اشتراک...</div>
+        
+        <button id="copy-btn" onclick="copyConfigs()" disabled>کپی کردن کانفیگ‌ها</button>
     </div>
 
-    <!-- اطلاعیه همگانی -->
-    <div id="announcementBox">
-      <h4 style="font-size: 12px; color: #fbbf24; margin-bottom: 3px;"><i class="fa-solid fa-bullhorn"></i> اطلاعیه مهم</h4>
-      <p style="font-size: 11.5px; color: #fef3c7;" id="announcementText">--</p>
-    </div>
+    <script>
+        // استخراج شناسه اشتراک از آدرس URL فعلی
+        const pathSegments = window.location.pathname.split('/');
+        const subId = pathSegments[pathSegments.length - 1] || pathSegments[pathSegments.length - 2];
 
-    <!-- کارت حجم و ترافیک -->
-    <div class="usage-card">
-      <div style="display: flex; justify-content: space-between; font-size: 12.5px; margin-bottom: 6px;">
-        <span style="color: var(--text-muted);">مصرف کل ترافیک:</span>
-        <b id="usedTrafficText" style="color: #fff;">0 GB / 0 GB</b>
-      </div>
-      <div class="progress-bar-bg">
-        <div class="progress-bar-fill" id="usageProgressBar"></div>
-      </div>
-      <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); margin-top: 8px;">
-        <span>باقی‌مانده: <b id="remainingTrafficText" style="color: #34d399;">0 GB</b></span>
-        <span>اعتبار: <b id="expireDaysText" style="color: var(--accent);">30 روز</b></span>
-      </div>
-    </div>
+        async function loadSubscriptionData() {
+            const statusBox = document.getElementById('loading-status');
+            const copyBtn = document.getElementById('copy-btn');
 
-    <!-- دکمه‌های اکشن -->
-    <div class="action-grid">
-      <button class="btn-action btn-primary" onclick="copyAllConfigs()"><i class="fa-solid fa-copy"></i> کپی همه کانفیگ‌ها</button>
-      <button class="btn-action btn-secondary" onclick="copySubLink()"><i class="fa-solid fa-link"></i> کپی لینک ساب</button>
-      <button class="btn-action btn-full" onclick="openQrModal()"><i class="fa-solid fa-qrcode"></i> نمایش QR Code اشتراک</button>
-    </div>
+            try {
+                // درخواست به مسیر JSON برای چک کردن وجود کانفیگ‌ها
+                const response = await fetch(`/api/subscription/${subId}/json`);
+                const result = await response.json();
 
-    <!-- فوتر -->
-    <div class="portal-footer">
-      <div>Developer: <b style="color: var(--text-main);">@MehTif</b></div>
-      <a href="https://t.me/V2rayTun0" target="_blank" class="channel-link">
-        <i class="fa-brands fa-telegram" style="font-size: 16px;"></i> @V2rayTun0
-      </a>
-    </div>
-
-  </div>
-
-  <!-- مودال QR Code -->
-  <div style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 300; align-items: center; justify-content: center; padding: 16px;" id="qrModal">
-    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 24px; padding: 26px; text-align: center; max-width: 340px; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.8);">
-      <h3 style="font-size: 16px; color: var(--accent); margin-bottom: 14px; font-weight: 800;">QR Code اشتراک</h3>
-      <div style="background: #fff; padding: 12px; border-radius: 14px; display: inline-block; margin-bottom: 16px;" id="qrcodeBox"></div>
-      <button class="btn-action btn-primary" style="width: 100%; justify-content: center;" onclick="closeQrModal()">بستن</button>
-    </div>
-  </div>
-
-  <script>
-    let rawSubText = '';
-    let currentSubUrl = '';
-
-    const pathSegments = window.location.pathname.split('/');
-    const configId = pathSegments[pathSegments.length - 1];
-
-    async function loadPortalData() {
-      try {
-        const res = await fetch(`/api/subinfo/${configId}`).then(r => r.json());
-        if (res.config) {
-          const c = res.config;
-          document.getElementById('clientNameTitle').innerText = c.name;
-          document.getElementById('clientProtocolTitle').innerText = `پروتکل: ${(c.protocol || 'all').toUpperCase()}`;
-          
-          const badgeContainer = document.getElementById('statusBadgeContainer');
-          if (c.status === 'active') {
-            badgeContainer.innerHTML = `<span class="status-badge status-online"><i class="fa-solid fa-circle"></i> آنلاین</span>`;
-          } else if (c.status === 'pending') {
-            badgeContainer.innerHTML = `<span class="status-badge status-online" style="background:rgba(56,189,248,0.2); color:#38bdf8;"><i class="fa-solid fa-circle"></i> آماده</span>`;
-          } else {
-            badgeContainer.innerHTML = `<span class="status-badge status-offline"><i class="fa-solid fa-circle"></i> آفلاین</span>`;
-          }
-
-          const used = c.used_gb || 0;
-          const total = c.total_gb || 20;
-          const percent = res.usagePercent || Math.min(100, Math.round((used / total) * 100));
-
-          document.getElementById('usedTrafficText').innerText = `${used.toFixed(2)} GB / ${total} GB`;
-          document.getElementById('remainingTrafficText').innerText = `${res.remainingGb} GB`;
-          document.getElementById('usageProgressBar').style.width = `${percent}%`;
-          document.getElementById('expireDaysText').innerText = `${c.expire_days || 30} روز`;
-
-          currentSubUrl = res.subUrl;
-
-          const subTextRes = await fetch(`/sub/${configId}`).then(r => r.text());
-          rawSubText = atob(subTextRes);
+                if (response.ok && result.success) {
+                    statusBox.innerText = 'کانفیگ‌ها با موفقیت بارگذاری شدند و آماده استفاده هستند.';
+                    statusBox.style.color = '#4ade80';
+                    copyBtn.disabled = false;
+                } else {
+                    throw new Error(result.error || 'کانفیگ‌ها موجود نیستند');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                statusBox.innerText = 'خطا: کانفیگ‌ها موجود نیستند یا اشتراک معتبر نیست.';
+                statusBox.style.color = '#f87171';
+                copyBtn.disabled = true;
+            }
         }
-      } catch (e) {
-        document.getElementById('clientNameTitle').innerText = 'خطا در بارگذاری';
-      }
 
-      try {
-        const annRes = await fetch('/api/announcement').then(r => r.json());
-        if (annRes.message && annRes.message.trim() !== '') {
-          document.getElementById('announcementText').innerText = annRes.message;
-          document.getElementById('announcementBox').style.display = 'block';
+        async function copyConfigs() {
+            const copyBtn = document.getElementById('copy-btn');
+            const originalText = copyBtn.innerText;
+
+            try {
+                copyBtn.innerText = 'در حال بروز رسانی...';
+                copyBtn.disabled = true;
+
+                // دریافت محتوای نهایی ساب‌کریپشن (Base64) مستقیم از سرور
+                const response = await fetch(`/sub/${subId}`);
+                if (!response.ok) throw new Error('خطا در دریافت لینک اشتراک');
+                
+                const textContent = await response.text();
+
+                // کپی کردن در کلیپ‌بورد
+                await navigator.clipboard.writeText(textContent);
+
+                copyBtn.innerText = 'با موفقیت کپی شد!';
+                setTimeout(() => {
+                    copyBtn.innerText = originalText;
+                    copyBtn.disabled = false;
+                }, 2000);
+
+            } catch (err) {
+                console.error('Failed to copy:', err);
+                copyBtn.innerText = 'خطا در کپی کردن';
+                setTimeout(() => {
+                    copyBtn.innerText = originalText;
+                    copyBtn.disabled = false;
+                }, 2000);
+            }
         }
-      } catch (e) {}
-    }
 
-    function copyAllConfigs() {
-      if (!rawSubText) { alert('اطلاعات در حال بارگذاری است...'); return; }
-      navigator.clipboard.writeText(rawSubText);
-      alert('📋 تمام کانفیگ‌های تمام پروتکل‌ها کپی شدند!');
-    }
-
-    function copySubLink() {
-      if (!currentSubUrl) { alert('لینک در دسترس نیست.'); return; }
-      navigator.clipboard.writeText(currentSubUrl);
-      alert('🔗 لینک اشتراک (Subscription) کپی شد!');
-    }
-
-    function openQrModal() {
-      if (!currentSubUrl) return;
-      document.getElementById('qrcodeBox').innerHTML = '';
-      new QRCode(document.getElementById('qrcodeBox'), { text: currentSubUrl, width: 150, height: 150 });
-      document.getElementById('qrModal').style.display = 'flex';
-    }
-
-    function closeQrModal() {
-      document.getElementById('qrModal').style.display = 'none';
-    }
-
-    loadPortalData();
-  </script>
+        // اجرای تابع بارگذاری پس از لود کامل صفحه
+        window.onload = loadSubscriptionData;
+    </script>
 </body>
 </html>

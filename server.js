@@ -8,75 +8,106 @@ app.use(express.urlencoded({ extended: true }));
 // سرو کردن فایل‌های استاتیک پوشه views
 app.use(express.static(path.join(__dirname, 'views')));
 
-// دیتابیس موقت در حافظه برای نگهداری کانفیگ‌ها
-global.userConfigs = global.userConfigs || {};
+// دیتابیس موقت در حافظه برای نگهداری کانفیگ‌ها و تنظیمات
+global.panelData = global.panelData || {
+    configs: [],
+    cleanIp: '104.18.32.10',
+    customDomain: '',
+    broadcastMessage: '',
+    logs: ['[INFO] پنل با موفقیت راه‌اندازی شد.']
+};
 
-// روت صفحه اصلی (داشبورد)
+// ۱. روت صفحه اصلی (داشبورد)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
 });
 
-// ۱. مسیر ساخت و ذخیره کانفیگ جدید (پشتیبانی از پروتکل‌های مختلف و تگ‌های دلخواه)
-app.post('/api/create', (req, res) => {
+// ۲. مسیر دریافت اطلاعات کامل پنل برای رندر در داشبورد
+app.get('/api/panel-data', (req, res) => {
+    const totalUsedBytes = global.panelData.configs.reduce((acc, c) => acc + (c.used_bytes || 0), 0);
+    const totalUsedGb = (totalUsedBytes / (1024 * 1024 * 1024)).toFixed(2);
+
+    res.json({
+        configsCount: global.panelData.configs.length,
+        totalUsed: totalUsedGb,
+        metrics: {
+            cpu: Math.floor(Math.random() * 20) + 10,
+            ram: Math.floor(Math.random() * 30) + 40
+        },
+        logs: global.panelData.logs,
+        cleanIp: global.panelData.cleanIp,
+        customDomain: global.panelData.customDomain,
+        configs: global.panelData.configs
+    });
+});
+
+// ۳. مسیر ساخت و ذخیره کانفیگ جدید (مطابق با درخواست داشبورد)
+app.post('/api/configs/create', (req, res) => {
     try {
-        // دریافت اطلاعات از فرم داشبورد (با فرض اینکه نام کاربری یا شناسه ساب ارسال میشه)
-        const { subId = 'default', remark, type = 'vless' } = req.body;
+        const { name, protocol = 'all', tag = 'normal', total_gb = 20, expire_days = 30 } = req.body;
         
-        if (!global.userConfigs[subId]) {
-            global.userConfigs[subId] = [];
-        }
+        const newConfig = {
+            id: Math.random().toString(36).substring(2, 10),
+            name: name || 'Client',
+            protocol: protocol,
+            tag: tag,
+            total_gb: parseFloat(total_gb),
+            expire_days: parseInt(expire_days),
+            used_gb: 0,
+            used_bytes: 0,
+            downlink_bytes: 1024 * 1024 * 50, // مقدار نمونه
+            uplink_bytes: 1024 * 1024 * 20,   // مقدار نمونه
+            status: 'active',
+            owner: 'admin',
+            createdAt: new Date().toISOString()
+        };
 
-        // ساخت لینک نمونه بر اساس پروتکل با تگ‌های مد نظر شما (مثل NEXO و کانال)
-        const configName = remark || `NEXO-${Math.random().toString(36).substring(7)}`;
-        let generatedLink = '';
+        global.panelData.configs.push(newConfig);
+        global.panelData.logs.unshift(`[${new Date().toLocaleTimeString()}] کانفیگ جدید با نام "${newConfig.name}" ساخته شد.`);
 
-        if (type === 'vless') {
-            // ساختار استاندارد VLESS
-            generatedLink = `vless://uuid-example@server-ip:443?encryption=none&security=tls&type=ws&path=%2F#${encodeURIComponent(configName + ' | @V2rayTun0')}`;
-        } else if (type === 'vmess') {
-            const vmessObj = { v: "2", ps: configName + " | @V2rayTun0", add: "server-ip", port: "443", id: "uuid-example", aid: "0", net: "ws", type: "none", host: "", path: "/", tls: "tls" };
-            generatedLink = `vmess://${Buffer.from(JSON.stringify(vmessObj)).toString('base64')}`;
-        } else {
-            generatedLink = `trojan://password-example@server-ip:443#${encodeURIComponent(configName + ' | @V2rayTun0')}`;
-        }
-
-        // ذخیره در لیست کانفیگ‌های کاربر
-        global.userConfigs[subId].push(generatedLink);
-
-        res.json({ success: true, message: 'کانفیگ با موفقیت ساخته شد', link: generatedLink });
+        res.json({ success: true, message: 'کانفیگ با موفقیت ساخته شد', config: newConfig });
     } catch (error) {
         console.error('Error creating config:', error);
         res.status(500).json({ success: false, error: 'خطا در ساخت کانفیگ' });
     }
 });
 
-// ۲. مسیر دریافت لیست کانفیگ‌ها برای نمایش در جدول داشبورد
-app.get('/api/configs/:id', (req, res) => {
-    const subId = req.params.id;
-    const configs = global.userConfigs[subId] || [];
-    res.json({ success: true, configs: configs });
-});
-
-// ۳. مسیر API برای بررسی ساب در فرانت‌اند
-app.get('/api/subscription/:id/json', (req, res) => {
-    const subId = req.params.id;
-    const configs = global.userConfigs[subId] || [];
-    if (configs.length === 0) {
-        return res.status(404).json({ success: false, error: 'کانفیگ‌ها موجود نیستند' });
+// ۴. مسیر ذخیره تنظیمات Clean IP
+app.post('/api/save-worker-settings', (req, res) => {
+    const { cleanIp } = req.body;
+    if (cleanIp) {
+        global.panelData.cleanIp = cleanIp;
+        global.panelData.logs.unshift(`[${new Date().toLocaleTimeString()}] آی‌پی تمیز به "${cleanIp}" تغییر یافت.`);
     }
-    res.json({ success: true, data: configs });
+    res.json({ success: true });
 });
 
-// ۴. مسیر اصلی ساب‌کریپشن برای کلاینت‌ها (Base64)
+// ۵. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با اعمال Clean IP و تگ‌های دلخواه
 app.get('/sub/:id', (req, res) => {
     const subId = req.params.id;
-    const configs = global.userConfigs[subId] || [];
-    if (configs.length === 0) {
+    const config = global.panelData.configs.find(c => c.id === subId);
+
+    if (!config) {
         return res.status(404).send('Configs not found or empty');
     }
-    const rawConfigsText = configs.join('\n');
-    const base64Configs = Buffer.from(rawConfigsText).toString('base64');
+
+    const ip = global.panelData.cleanIp || '104.18.32.10';
+    
+    // ساخت لینک‌های پروکسی با پشتیبانی از پروتکل‌های مختلف و تگ‌های مد نظر شما
+    const links = [
+        `vless://example-uuid-${config.id}@${ip}:443?encryption=none&security=tls&type=ws&path=%2F#${encodeURIComponent(config.name + ' | V2rayTun0')}`,
+        `trojan://example-pass-${config.id}@${ip}:443#${encodeURIComponent(config.name + ' | @V2rayTun0')}`
+    ];
+
+    const rawText = links.join('\n');
+    const base64Configs = Buffer.from(rawText).toString('base64');
+
     res.send(base64Configs);
+});
+
+// ۶. پورتال اختصاصی هر کاربر
+app.get('/subpage/:id', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'sub_client.html'));
 });
 
 const PORT = process.env.PORT || 3000;

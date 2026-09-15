@@ -1,8 +1,12 @@
 const express = require('express');
+const path = require('path');
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// سرو کردن فایل‌های استاتیک پوشه views برای دسترسی به قالب‌ها و استایل‌ها
+app.use(express.static(path.join(__dirname, 'views')));
 
 // تابع نمونه برای دریافت کانفیگ‌ها (این بخش را به دیتابیس یا منطق ذخیره‌سازی خود متصل کنید)
 async function getConfigsBySubscriptionId(subId) {
@@ -10,6 +14,11 @@ async function getConfigsBySubscriptionId(subId) {
     // مطمئن شوید نام پروژه NEXO و تگ‌های دلخواه در کانفیگ‌ها لحاظ شده‌اند
     return global.userConfigs && global.userConfigs[subId] ? global.userConfigs[subId] : [];
 }
+
+// روت صفحه اصلی برای رفع خطای Cannot GET / و باز شدن صحیح پنل
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
+});
 
 // مسیر API برای دریافت اطلاعات کانفیگ‌ها به صورت JSON (استفاده در فرانت‌اند)
 app.get('/api/subscription/:id/json', async (req, res) => {

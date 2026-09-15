@@ -103,7 +103,7 @@ app.get('/api/subscription/:id/json', (req, res) => {
     res.json({ success: true, data: config });
 });
 
-// ۶. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با دامنه رایلی، SNI، Host و UUID واقعی
+// ۶. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با دامنه رایلی، پورت 443 و بستر وب‌سکت سازگار با Railway
 app.get('/sub/:id', (req, res) => {
     const subId = req.params.id;
     const config = global.panelData.configs.find(c => c.id === subId || c.id.startsWith(subId) || subId.startsWith(c.id));
@@ -112,14 +112,14 @@ app.get('/sub/:id', (req, res) => {
         return res.status(404).send('Configs not found or empty');
     }
 
-    // دریافت دامنه رایلی به عنوان آدرس سرور
+    // دریافت دامنه رایلی به عنوان هاست سرور
     const hostDomain = req.get('host');
     const clientUuid = config.uuid || generateUUID();
     
-    // ساخت لینک‌های پروکسی با اعمال دقیق SNI و Host برای برقراری پینگ و اتصال صحیح
+    // ساخت لینک‌های پروکسی روی بستر WebSocket و پورت 443 رایلی با تگ اختصاصی شما
     const links = [
         `vless://${clientUuid}@${hostDomain}:443?encryption=none&security=tls&sni=${hostDomain}&type=ws&path=%2F&host=${hostDomain}#${encodeURIComponent(config.name + ' | @V2rayTun0')}`,
-        `trojan://${clientUuid}@${hostDomain}:443?security=tls&sni=${hostDomain}&type=tcp#${encodeURIComponent(config.name + ' | @V2rayTun0')}`
+        `trojan://${clientUuid}@${hostDomain}:443?security=tls&sni=${hostDomain}&type=ws&path=%2F&host=${hostDomain}#${encodeURIComponent(config.name + ' | @V2rayTun0')}`
     ];
 
     const rawText = links.join('\n');

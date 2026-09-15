@@ -14,7 +14,7 @@ global.panelData = global.panelData || {
     cleanIp: '104.18.32.10',
     customDomain: '',
     broadcastMessage: '',
-    logs: ['[INFO] پنل با موفقیت راه‌اندازی شد.']
+    logs: ['[INFO] پنل ONEX با موفقیت راه‌اندازی شد.']
 };
 
 // ۱. روت صفحه اصلی (داشبورد)
@@ -41,7 +41,7 @@ app.get('/api/panel-data', (req, res) => {
     });
 });
 
-// ۳. مسیر ساخت و ذخیره کانفیگ جدید (مطابق با درخواست داشبورد)
+// ۳. مسیر ساخت و ذخیره کانفیگ جدید
 app.post('/api/configs/create', (req, res) => {
     try {
         const { name, protocol = 'all', tag = 'normal', total_gb = 20, expire_days = 30 } = req.body;
@@ -55,8 +55,8 @@ app.post('/api/configs/create', (req, res) => {
             expire_days: parseInt(expire_days),
             used_gb: 0,
             used_bytes: 0,
-            downlink_bytes: 1024 * 1024 * 50, // مقدار نمونه
-            uplink_bytes: 1024 * 1024 * 20,   // مقدار نمونه
+            downlink_bytes: 1024 * 1024 * 50,
+            uplink_bytes: 1024 * 1024 * 20,
             status: 'active',
             owner: 'admin',
             createdAt: new Date().toISOString()
@@ -82,7 +82,7 @@ app.post('/api/save-worker-settings', (req, res) => {
     res.json({ success: true });
 });
 
-// ۵. مسیر جدید و اصلاح‌شده برای دریافت اطلاعات کانفیگ در پورتال ساب (برطرف‌کننده خطای موجود نبودن کانفیگ)
+// ۵. مسیر دریافت اطلاعات یک کانفیگ خاص جهت نمایش در پورتال ساب
 app.get('/api/subscription/:id/json', (req, res) => {
     const subId = req.params.id;
     const config = global.panelData.configs.find(c => c.id === subId || c.id.startsWith(subId) || subId.startsWith(c.id));
@@ -94,7 +94,7 @@ app.get('/api/subscription/:id/json', (req, res) => {
     res.json({ success: true, data: config });
 });
 
-// ۶. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با اعمال Clean IP و تگ‌های دلخواه
+// ۶. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با استفاده از دامنه رایلی و تگ‌های مد نظر شما
 app.get('/sub/:id', (req, res) => {
     const subId = req.params.id;
     const config = global.panelData.configs.find(c => c.id === subId || c.id.startsWith(subId) || subId.startsWith(c.id));
@@ -103,12 +103,13 @@ app.get('/sub/:id', (req, res) => {
         return res.status(404).send('Configs not found or empty');
     }
 
-    const ip = global.panelData.cleanIp || '104.18.32.10';
+    // استفاده از دامنه رایلی (Host) به جای آی‌پی
+    const hostDomain = req.get('host');
     
-    // ساخت لینک‌های پروکسی با پشتیبانی از پروتکل‌های مختلف و تگ‌های مد نظر شما
+    // ساخت لینک‌های پروکسی با دامنه رایلی و تگ اختصاصی شما (@V2rayTun0 و NEXO)
     const links = [
-        `vless://example-uuid-${config.id}@${ip}:443?encryption=none&security=tls&type=ws&path=%2F#${encodeURIComponent(config.name + ' | @V2rayTun0')}`,
-        `trojan://example-pass-${config.id}@${ip}:443#${encodeURIComponent(config.name + ' | @V2rayTun0')}`
+        `vless://nexus-uuid-${config.id}@${hostDomain}:443?encryption=none&security=tls&type=ws&path=%2F#${encodeURIComponent(config.name + ' | @V2rayTun0')}`,
+        `trojan://nexus-pass-${config.id}@${hostDomain}:443#${encodeURIComponent(config.name + ' | @V2rayTun0')}`
     ];
 
     const rawText = links.join('\n');
@@ -117,7 +118,7 @@ app.get('/sub/:id', (req, res) => {
     res.send(base64Configs);
 });
 
-// ۷. پورتال اختصاصی هر کاربر
+// ۷. پورتال اختصاصی هر کاربر (لود کردن قالب اصلی پروژه یعنی sub_client.html)
 app.get('/subpage/:id', (req, res) => {
     res.sendFile(path.join(__dirname, 'views', 'sub_client.html'));
 });

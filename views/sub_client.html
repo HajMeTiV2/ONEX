@@ -62,13 +62,19 @@
     </div>
 
     <script>
-        // استخراج شناسه اشتراک از آدرس URL فعلی
-        const pathSegments = window.location.pathname.split('/');
-        const subId = pathSegments[pathSegments.length - 1] || pathSegments[pathSegments.length - 2];
+        // استخراج هوشمند شناسه اشتراک از آدرس URL
+        const pathSegments = window.location.pathname.split('/').filter(Boolean);
+        const subId = pathSegments[pathSegments.length - 1];
 
         async function loadSubscriptionData() {
             const statusBox = document.getElementById('loading-status');
             const copyBtn = document.getElementById('copy-btn');
+
+            if (!subId) {
+                statusBox.innerText = 'خطا: شناسه اشتراک معتبر نیست.';
+                statusBox.style.color = '#f87171';
+                return;
+            }
 
             try {
                 // درخواست به مسیر JSON برای چک کردن وجود کانفیگ‌ها

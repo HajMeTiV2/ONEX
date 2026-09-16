@@ -7631,83 +7631,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
 .field input,.field select,.field textarea,.table-wrap,.quick-item,.onex-topbar,.onex-control-dock{
   transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease !important;
 }
-\n/* ============================================================\n   ONEX THEME ENFORCER — SECONDARY PAGES + NESTED COMPONENTS\n   This block intentionally comes last so old hard-coded dashboard\n   colors cannot win over the selected global theme.\n   ============================================================ */\n\n/* DARK: login glass recipe applied to every structural surface. */\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric,\nhtml:not(.light) .page .table-wrap,\nhtml:not(.light) .page .support-tile,\nhtml:not(.light) .page .link-box,\nhtml:not(.light) .page .sub-box,\nhtml:not(.light) .page .quick-item,\nhtml:not(.light) .page .range-tabs,\nhtml:not(.light) .page .range-mini,\nhtml:not(.light) .page .mini-action,\nhtml:not(.light) .page .chart-badge,\nhtml:not(.light) .page .health-track,\nhtml:not(.light) .page .xray-state,\nhtml:not(.light) .page .recent-table,\nhtml:not(.light) .page .recent-table th,\nhtml:not(.light) .page .recent-table td,\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n  border-color:rgba(88,180,255,.18) !important;\n  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 32px rgba(22,140,255,.035),0 14px 38px rgba(0,0,0,.18) !important;\n  backdrop-filter:blur(25px) saturate(120%) !important;\n  -webkit-backdrop-filter:blur(25px) saturate(120%) !important;\n}\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric{\n  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(22,140,255,.045) !important;\n}\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(2,11,24,.68),rgba(4,14,29,.52)) !important;\n  color:#f8fbff !important;\n}\nhtml:not(.light) .page .page-title,\nhtml:not(.light) .page .card-title,\nhtml:not(.light) .page .metric-val,\nhtml:not(.light) .page .quick-name{color:#f8fbff !important}\nhtml:not(.light) .page .page-sub,\nhtml:not(.light) .page .field label,\nhtml:not(.light) .page .metric-label,\nhtml:not(.light) .page .quick-desc{color:rgba(248,250,252,.55) !important}\n\n/* Preserve intentional accent controls/badges in dark mode. */\nhtml:not(.light) .page .btn-p,\nhtml:not(.light) .page .btn-d,\nhtml:not(.light) .page .range-tab.on,\nhtml:not(.light) .page .conn-badge,\nhtml:not(.light) .page .support-icon,\nhtml:not(.light) .page .quick-icon,\nhtml:not(.light) .page .metric-icon{\n  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\n\n/* LIGHT: every structural panel becomes pure white, not gray. */\nhtml.light .page,\nhtml.light .page.on{color:#0f172a !important}\nhtml.light .page .card,\nhtml.light .page .metric,\nhtml.light .page .table-wrap,\nhtml.light .page .support-tile,\nhtml.light .page .link-box,\nhtml.light .page .sub-box,\nhtml.light .page .quick-item,\nhtml.light .page .range-tabs,\nhtml.light .page .range-mini,\nhtml.light .page .mini-action,\nhtml.light .page .chart-badge,\nhtml.light .page .health-track,\nhtml.light .page .xray-state,\nhtml.light .page .recent-table,\nhtml.light .page .recent-table th,\nhtml.light .page .recent-table td,\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea,\nhtml.light .page .onex-topbar,\nhtml.light .page .onex-control-dock,\nhtml.light .page .onex-card,\nhtml.light .page .onex-metric{\n  background:#fff !important;\n  color:#0f172a !important;\n  border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 10px 30px rgba(15,23,42,.07),inset 0 1px rgba(255,255,255,.98) !important;\n  backdrop-filter:none !important;\n  -webkit-backdrop-filter:none !important;\n}\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.14) !important;\n}\nhtml.light .page .page-title,\nhtml.light .page .card-title,\nhtml.light .page .metric-val,\nhtml.light .page .quick-name,\nhtml.light .page .support-val{color:#0f172a !important}\nhtml.light .page .page-sub,\nhtml.light .page .field label,\nhtml.light .page .metric-label,\nhtml.light .page .quick-desc,\nhtml.light .page .support-label,\nhtml.light .page .log-time,\nhtml.light .page .health-name,\nhtml.light .page .health-pct{color:#64748b !important}\nhtml.light .page .log-msg{color:#334155 !important}\nhtml.light .page .onex-card-head,\nhtml.light .page .sb-foot{border-color:rgba(15,23,42,.08) !important}\nhtml.light .page th{background:#fff !important;color:#64748b !important}\nhtml.light .page td{background:#fff !important;color:#334155 !important;border-color:rgba(15,23,42,.08) !important}\nhtml.light .page tr:hover td{background:#f8fafc !important}\n\n/* Inline background declarations on secondary pages: normalize containers\n   while leaving action buttons, badges and icons untouched. */\nhtml.light .page div[style*="background:"],\nhtml.light .page section[style*="background:"],\nhtml.light .page article[style*="background:"],\nhtml.light .page aside[style*="background:"]{\n  background:#fff !important;\n  color:inherit;\n}\nhtml:not(.light) .page div[style*="background:"],\nhtml:not(.light) .page section[style*="background:"],\nhtml:not(.light) .page article[style*="background:"],\nhtml:not(.light) .page aside[style*="background:"]{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n/* Re-apply accent colors to controls after the broad inline rule. */\nhtml.light .page .btn-p{background:linear-gradient(135deg,#3b82f6,#6366f1) !important;color:#fff !important;border-color:transparent !important}\nhtml.light .page .btn-d{background:rgba(239,68,68,.08) !important;color:#dc2626 !important;border-color:rgba(239,68,68,.20) !important}\nhtml.light .page .range-tab.on{background:#2563eb !important;color:#fff !important}\nhtml.light .page .switch .slider{background:rgba(148,163,184,.35) !important}\nhtml.light .page .switch input:checked + .slider{background:#16a34a !important}\nhtml.light .page .quick-icon,\nhtml.light .page .support-icon,\nhtml.light .page .metric-icon{background:#f1f5f9 !important}\n\n/* Drawer and mobile top bar use exactly the same theme surfaces. */\nhtml.light .sidebar,html.light .mob-bar{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 18px 50px rgba(15,23,42,.12) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\nhtml:not(.light) .sidebar,html:not(.light) .mob-bar{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n\n/* Theme switch itself is instant enough that pages never look half-painted. */\nhtml,body,.sidebar,.mob-bar,.main,.page,.page .card,.page .metric,.page .onex-card,.page .onex-metric,\n.page .field input,.page .field select,.page .field textarea,.page .table-wrap,.page .link-box,.page .sub-box{\n  transition:background-color .12s ease,background .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease !important;\n}\n/* ============================================================
-   3D GLASS PROTOCOL PICKER
-   Native select stays in DOM for compatibility; the visible UI is
-   a fast custom picker shared by manual + auto create sections.
-   ============================================================ */
-#page-create select.protocol-native,#page-create .protocol-field select{display:none!important;position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important}
-#page-create .protocol-trigger{isolation:isolate}
-#page-create .protocol-trigger:after{content:'⌄';position:absolute;inset-inline-end:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#60a5fa;opacity:.9;pointer-events:none}
-#page-create .protocol-trigger .protocol-trigger-arrow{display:none}
-#page-create .protocol-trigger{width:100%;min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-radius:13px;border:1px solid rgba(96,165,250,.22);background:linear-gradient(145deg,rgba(18,31,58,.88),rgba(7,14,29,.94));color:var(--t1);cursor:pointer;position:relative;overflow:hidden;transition:.2s ease;box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.16)}
-#page-create .protocol-trigger:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(96,165,250,.10) 50%,transparent 75%);transform:translateX(-120%);transition:.45s ease;pointer-events:none}
-#page-create .protocol-trigger:hover{border-color:rgba(96,165,250,.55);transform:translateY(-1px);box-shadow:0 10px 28px rgba(37,99,235,.18),inset 0 1px rgba(255,255,255,.08)}
-#page-create .protocol-trigger:hover:before{transform:translateX(120%)}
-#page-create .protocol-trigger-main{display:flex;align-items:center;gap:10px;min-width:0;text-align:right}
-#page-create .protocol-trigger-icon{width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(145deg,rgba(59,130,246,.25),rgba(124,58,237,.20));border:1px solid rgba(147,197,253,.20);font-size:17px;box-shadow:inset 0 1px rgba(255,255,255,.12),0 5px 14px rgba(37,99,235,.18);flex:0 0 auto}
-#page-create .protocol-trigger-text{min-width:0;display:flex;flex-direction:column;gap:1px}
-#page-create .protocol-trigger-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#page-create .protocol-trigger-sub{font-size:9px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#page-create .protocol-trigger-arrow{font-size:14px;color:var(--accent2);transition:transform .2s;flex:0 0 auto}
-.protocol-picker-bg{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(1,5,14,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
-.protocol-picker-bg.open{display:flex}
-.protocol-picker{width:min(620px,calc(100vw - 24px));max-height:min(88vh,760px);overflow:hidden;border-radius:24px;border:1px solid rgba(96,165,250,.35);background:linear-gradient(145deg,rgba(7,19,39,.98),rgba(5,11,24,.985));box-shadow:0 30px 90px rgba(0,0,0,.55),0 0 55px rgba(37,99,235,.13),inset 0 1px rgba(255,255,255,.09);color:var(--t1);transform:translateY(8px) scale(.985);opacity:0;transition:.22s ease;display:flex;flex-direction:column}
-.protocol-picker-bg.open .protocol-picker{transform:none;opacity:1}
-.protocol-picker-head{padding:17px 18px 15px;border-bottom:1px solid rgba(148,163,184,.12);display:flex;align-items:center;gap:12px;flex:0 0 auto;background:linear-gradient(180deg,rgba(255,255,255,.045),transparent)}
-.protocol-picker-head-icon{width:45px;height:45px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:linear-gradient(145deg,#0ea5e9,#2563eb 55%,#7c3aed);box-shadow:0 10px 26px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.2)}
-.protocol-picker-head-text{flex:1;min-width:0}.protocol-picker-title{font-size:17px;font-weight:900}.protocol-picker-subtitle{font-size:10px;color:var(--t3);margin-top:3px}.protocol-picker-close{width:34px;height:34px;border:1px solid rgba(148,163,184,.16);border-radius:10px;background:rgba(255,255,255,.035);color:var(--t2);cursor:pointer;font-size:20px;line-height:1;display:grid;place-items:center;transition:.15s}.protocol-picker-close:hover{background:rgba(59,130,246,.14);color:#fff;border-color:rgba(96,165,250,.45)}
-.protocol-picker-scroll{overflow:auto;padding:14px 16px 16px;scrollbar-width:thin}.protocol-picker-scroll::-webkit-scrollbar{width:4px}.protocol-picker-scroll::-webkit-scrollbar-thumb{background:rgba(96,165,250,.28);border-radius:99px}
-.protocol-section{margin-bottom:17px}.protocol-section:last-child{margin-bottom:0}.protocol-section-title{display:flex;align-items:center;gap:9px;margin:0 2px 9px;color:#93c5fd;font-size:11px;font-weight:900}.protocol-section-title:before{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(59,130,246,.05),rgba(59,130,246,.38));order:2}.protocol-section-title span{order:1}.protocol-section-title b{font-size:13px;order:3;font-weight:500}
-.protocol-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.protocol-option{position:relative;min-height:91px;border-radius:16px;border:1px solid rgba(96,165,250,.16);background:linear-gradient(145deg,rgba(17,34,62,.74),rgba(7,16,32,.82));padding:11px 10px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden;transition:.18s ease;box-shadow:inset 0 1px rgba(255,255,255,.045)}.protocol-option:before{content:"";position:absolute;inset:-30%;background:radial-gradient(circle,rgba(59,130,246,.15),transparent 55%);opacity:0;transition:.18s}.protocol-option:hover{transform:translateY(-2px);border-color:rgba(96,165,250,.48);box-shadow:0 10px 24px rgba(37,99,235,.14),inset 0 1px rgba(255,255,255,.07)}.protocol-option:hover:before{opacity:1}.protocol-option.selected{border-color:#38bdf8;box-shadow:0 0 0 1px rgba(56,189,248,.18),0 0 24px rgba(37,99,235,.24),inset 0 1px rgba(255,255,255,.12);background:linear-gradient(145deg,rgba(18,53,91,.88),rgba(22,18,63,.86))}.protocol-option.selected:after{content:"✓";position:absolute;top:7px;right:7px;width:21px;height:21px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#38bdf8,#6366f1);color:#fff;font-size:12px;font-weight:900;box-shadow:0 5px 13px rgba(59,130,246,.38)}
-.protocol-option-radio{position:absolute;top:10px;left:10px;width:16px;height:16px;border-radius:50%;border:2px solid rgba(191,219,254,.65);background:transparent}.protocol-option.selected .protocol-option-radio{border-color:#22d3ee;box-shadow:0 0 0 3px rgba(34,211,238,.10)}.protocol-option-icon{font-size:27px;line-height:1;margin-bottom:7px;filter:drop-shadow(0 5px 8px rgba(59,130,246,.24));position:relative;z-index:1}.protocol-option-name{font-size:11px;font-weight:900;position:relative;z-index:1}.protocol-option-desc{font-size:8.5px;color:var(--t3);margin-top:2px;position:relative;z-index:1}.protocol-picker-foot{padding:11px 16px 15px;border-top:1px solid rgba(148,163,184,.12);background:linear-gradient(180deg,transparent,rgba(255,255,255,.025));flex:0 0 auto}.protocol-selected-info{height:35px;border-radius:10px;border:1px solid rgba(59,130,246,.18);background:rgba(59,130,246,.07);display:flex;align-items:center;justify-content:center;color:#93c5fd;font-size:9px;margin-bottom:8px}.protocol-picker-confirm{width:100%;height:43px;border:0;border-radius:12px;background:linear-gradient(135deg,#2196f3,#6366f1 55%,#8b5cf6);color:#fff;font-family:inherit;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 8px 22px rgba(59,130,246,.28);transition:.18s}.protocol-picker-confirm:hover{filter:brightness(1.08);transform:translateY(-1px)}
-html.light .protocol-picker-bg{background:rgba(15,23,42,.28);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
-html.light .protocol-picker{background:linear-gradient(145deg,#fff,#f7fbff);border-color:rgba(37,99,235,.18);box-shadow:0 28px 80px rgba(15,23,42,.18),0 0 35px rgba(37,99,235,.08);color:#0f172a}.light .protocol-picker-head{border-color:rgba(15,23,42,.08);background:linear-gradient(180deg,#fff,#f8fbff)}.light .protocol-picker-close{background:#f8fafc;color:#475569;border-color:#e2e8f0}.light .protocol-section-title{color:#2563eb}.light .protocol-section-title:before{background:linear-gradient(90deg,rgba(37,99,235,.03),rgba(37,99,235,.22))}.light .protocol-option{background:linear-gradient(145deg,#fff,#f7faff);border-color:rgba(37,99,235,.13);box-shadow:0 5px 18px rgba(15,23,42,.05),inset 0 1px #fff}.light .protocol-option:hover{border-color:rgba(37,99,235,.38);box-shadow:0 9px 22px rgba(37,99,235,.10)}.light .protocol-option.selected{background:linear-gradient(145deg,#eff8ff,#f4f0ff);border-color:#3b82f6;box-shadow:0 0 0 1px rgba(59,130,246,.10),0 10px 25px rgba(37,99,235,.12)}.light .protocol-option-radio{border-color:#94a3b8}.light .protocol-option-desc,.light .protocol-picker-subtitle{color:#64748b}.light .protocol-selected-info{background:#eff6ff;border-color:#bfdbfe;color:#2563eb}
-@media(max-width:560px){.protocol-picker-bg{padding:8px}.protocol-picker{width:calc(100vw - 16px);max-height:90vh;border-radius:20px}.protocol-picker-head{padding:13px 14px 12px}.protocol-picker-head-icon{width:40px;height:40px;font-size:21px;border-radius:12px}.protocol-picker-title{font-size:15px}.protocol-picker-scroll{padding:11px 11px 12px}.protocol-grid{gap:7px}.protocol-option{min-height:82px;padding:9px 7px}.protocol-option-icon{font-size:23px;margin-bottom:5px}.protocol-option-name{font-size:10px}.protocol-option-desc{font-size:7.5px}.protocol-picker-foot{padding:9px 11px 11px}.protocol-selected-info{height:32px;font-size:8px}.protocol-picker-confirm{height:40px;font-size:11px}}
-@media(max-width:360px){.protocol-grid{grid-template-columns:1fr}.protocol-option{min-height:72px}.protocol-option-icon{font-size:21px;margin-bottom:3px}}
-#page-create .field label[data-i18n="label_proto"]:before{content:"✦ ";}
-/* Hard guarantee: the two protocol controls are custom buttons, never native selects. */
-#page-create .protocol-field{position:relative}
-#page-create .protocol-field > .protocol-trigger{display:flex!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:20!important;width:100%!important;min-height:46px!important}
-#page-create .protocol-field > select.protocol-native{display:none!important;pointer-events:none!important}
-@media(max-width:560px){#page-create .protocol-field > .protocol-trigger{min-height:48px!important;border-radius:14px!important}.protocol-picker{width:calc(100vw - 20px)!important;max-height:88vh!important}.protocol-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
-
-/* Final protocol-picker visibility guard */
-#page-create .field:has(> select.protocol-native) { position:relative; }
-#page-create .field > select.protocol-native + .protocol-trigger { display:flex!important; visibility:visible!important; opacity:1!important; position:relative!important; z-index:5!important; }
-.protocol-picker-bg.open { display:flex!important; }
-.protocol-picker { pointer-events:auto; }
-@media (max-width:560px){
-  .protocol-picker-bg{padding:7px!important;align-items:center!important}
-  .protocol-picker{width:min(94vw,620px)!important;max-height:92vh!important;border-radius:22px!important}
-  .protocol-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
-  .protocol-option{min-height:88px!important}
-}
-
-
-
-/* FINAL OVERRIDE - protocol fields are NEVER native dropdowns */
-#page-create .protocol-field > select#cProto,
-#page-create .protocol-field > select#aProto {
-  display:none !important;
-  visibility:hidden !important;
-  width:0 !important; height:0 !important;
-  opacity:0 !important; pointer-events:none !important;
-}
-#page-create .protocol-field > button.protocol-trigger {
-  display:flex !important;
-  visibility:visible !important;
-  opacity:1 !important;
-  width:100% !important;
-  min-height:46px !important;
-  position:relative !important;
-  z-index:30 !important;
-  cursor:pointer !important;
-}
-.protocol-picker-bg { z-index:99999 !important; }
-.protocol-picker-bg.open { display:flex !important; visibility:visible !important; opacity:1 !important; }
-
-</style>
+\n/* ============================================================\n   ONEX THEME ENFORCER — SECONDARY PAGES + NESTED COMPONENTS\n   This block intentionally comes last so old hard-coded dashboard\n   colors cannot win over the selected global theme.\n   ============================================================ */\n\n/* DARK: login glass recipe applied to every structural surface. */\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric,\nhtml:not(.light) .page .table-wrap,\nhtml:not(.light) .page .support-tile,\nhtml:not(.light) .page .link-box,\nhtml:not(.light) .page .sub-box,\nhtml:not(.light) .page .quick-item,\nhtml:not(.light) .page .range-tabs,\nhtml:not(.light) .page .range-mini,\nhtml:not(.light) .page .mini-action,\nhtml:not(.light) .page .chart-badge,\nhtml:not(.light) .page .health-track,\nhtml:not(.light) .page .xray-state,\nhtml:not(.light) .page .recent-table,\nhtml:not(.light) .page .recent-table th,\nhtml:not(.light) .page .recent-table td,\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n  border-color:rgba(88,180,255,.18) !important;\n  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 32px rgba(22,140,255,.035),0 14px 38px rgba(0,0,0,.18) !important;\n  backdrop-filter:blur(25px) saturate(120%) !important;\n  -webkit-backdrop-filter:blur(25px) saturate(120%) !important;\n}\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric{\n  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(22,140,255,.045) !important;\n}\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(2,11,24,.68),rgba(4,14,29,.52)) !important;\n  color:#f8fbff !important;\n}\nhtml:not(.light) .page .page-title,\nhtml:not(.light) .page .card-title,\nhtml:not(.light) .page .metric-val,\nhtml:not(.light) .page .quick-name{color:#f8fbff !important}\nhtml:not(.light) .page .page-sub,\nhtml:not(.light) .page .field label,\nhtml:not(.light) .page .metric-label,\nhtml:not(.light) .page .quick-desc{color:rgba(248,250,252,.55) !important}\n\n/* Preserve intentional accent controls/badges in dark mode. */\nhtml:not(.light) .page .btn-p,\nhtml:not(.light) .page .btn-d,\nhtml:not(.light) .page .range-tab.on,\nhtml:not(.light) .page .conn-badge,\nhtml:not(.light) .page .support-icon,\nhtml:not(.light) .page .quick-icon,\nhtml:not(.light) .page .metric-icon{\n  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\n\n/* LIGHT: every structural panel becomes pure white, not gray. */\nhtml.light .page,\nhtml.light .page.on{color:#0f172a !important}\nhtml.light .page .card,\nhtml.light .page .metric,\nhtml.light .page .table-wrap,\nhtml.light .page .support-tile,\nhtml.light .page .link-box,\nhtml.light .page .sub-box,\nhtml.light .page .quick-item,\nhtml.light .page .range-tabs,\nhtml.light .page .range-mini,\nhtml.light .page .mini-action,\nhtml.light .page .chart-badge,\nhtml.light .page .health-track,\nhtml.light .page .xray-state,\nhtml.light .page .recent-table,\nhtml.light .page .recent-table th,\nhtml.light .page .recent-table td,\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea,\nhtml.light .page .onex-topbar,\nhtml.light .page .onex-control-dock,\nhtml.light .page .onex-card,\nhtml.light .page .onex-metric{\n  background:#fff !important;\n  color:#0f172a !important;\n  border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 10px 30px rgba(15,23,42,.07),inset 0 1px rgba(255,255,255,.98) !important;\n  backdrop-filter:none !important;\n  -webkit-backdrop-filter:none !important;\n}\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.14) !important;\n}\nhtml.light .page .page-title,\nhtml.light .page .card-title,\nhtml.light .page .metric-val,\nhtml.light .page .quick-name,\nhtml.light .page .support-val{color:#0f172a !important}\nhtml.light .page .page-sub,\nhtml.light .page .field label,\nhtml.light .page .metric-label,\nhtml.light .page .quick-desc,\nhtml.light .page .support-label,\nhtml.light .page .log-time,\nhtml.light .page .health-name,\nhtml.light .page .health-pct{color:#64748b !important}\nhtml.light .page .log-msg{color:#334155 !important}\nhtml.light .page .onex-card-head,\nhtml.light .page .sb-foot{border-color:rgba(15,23,42,.08) !important}\nhtml.light .page th{background:#fff !important;color:#64748b !important}\nhtml.light .page td{background:#fff !important;color:#334155 !important;border-color:rgba(15,23,42,.08) !important}\nhtml.light .page tr:hover td{background:#f8fafc !important}\n\n/* Inline background declarations on secondary pages: normalize containers\n   while leaving action buttons, badges and icons untouched. */\nhtml.light .page div[style*="background:"],\nhtml.light .page section[style*="background:"],\nhtml.light .page article[style*="background:"],\nhtml.light .page aside[style*="background:"]{\n  background:#fff !important;\n  color:inherit;\n}\nhtml:not(.light) .page div[style*="background:"],\nhtml:not(.light) .page section[style*="background:"],\nhtml:not(.light) .page article[style*="background:"],\nhtml:not(.light) .page aside[style*="background:"]{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n/* Re-apply accent colors to controls after the broad inline rule. */\nhtml.light .page .btn-p{background:linear-gradient(135deg,#3b82f6,#6366f1) !important;color:#fff !important;border-color:transparent !important}\nhtml.light .page .btn-d{background:rgba(239,68,68,.08) !important;color:#dc2626 !important;border-color:rgba(239,68,68,.20) !important}\nhtml.light .page .range-tab.on{background:#2563eb !important;color:#fff !important}\nhtml.light .page .switch .slider{background:rgba(148,163,184,.35) !important}\nhtml.light .page .switch input:checked + .slider{background:#16a34a !important}\nhtml.light .page .quick-icon,\nhtml.light .page .support-icon,\nhtml.light .page .metric-icon{background:#f1f5f9 !important}\n\n/* Drawer and mobile top bar use exactly the same theme surfaces. */\nhtml.light .sidebar,html.light .mob-bar{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 18px 50px rgba(15,23,42,.12) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\nhtml:not(.light) .sidebar,html:not(.light) .mob-bar{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n\n/* Theme switch itself is instant enough that pages never look half-painted. */\nhtml,body,.sidebar,.mob-bar,.main,.page,.page .card,.page .metric,.page .onex-card,.page .onex-metric,\n.page .field input,.page .field select,.page .field textarea,.page .table-wrap,.page .link-box,.page .sub-box{\n  transition:background-color .12s ease,background .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease !important;\n}\n</style>
 </head>
 <body>
 
@@ -7904,7 +7828,7 @@ html.light .protocol-picker{background:linear-gradient(145deg,#fff,#f7fbff);bord
           </button>
         </div>
       </div>
-            <div class="field protocol-field" data-protocol-picker="cProto"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="cProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('cProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
+            <div class="field"><label data-i18n="label_proto">پروتکـل</label><select id="cProto"></select></div>
       <div class="field"><label>گروه</label><select id="cGroup"></select></div>
 <div class="form-row">
         <div class="field"><label data-i18n="label_count">تعداد کانفیگ در ساب (۱–۴۰)</label><input id="cCount" type="number" value="1" min="1" max="40"></div>
@@ -7926,7 +7850,7 @@ html.light .protocol-picker{background:linear-gradient(145deg,#fff,#f7fbff);bord
     <div class="card" style="border-color:rgba(139,92,246,.35)">
       <div class="card-title" data-i18n="auto_create">ساخت خودکـار (پیشنهــادی)</div>
       <p style="color:var(--t2);font-size:13px;line-height:1.75;margin-bottom:14px" data-i18n="auto_desc">با یک کلیک کانفیگ بهینه ساخته می‌شود. بعد از ساخت لینک VLESS و ساب در اختیار شماست.</p>
-      <div class="field protocol-field" data-protocol-picker="aProto"><label data-i18n="label_proto">پروتکـل</label><select id="aProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="aProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('aProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
+      <div class="field"><label data-i18n="label_proto">پروتکـل</label><select id="aProto"></select></div>
       <div class="field"><label data-i18n="label_count">تعداد کانفیگ در سـاب (1-40)</label><input id="aCount" type="number" value="1" min="1" max="40"></div>
       <button class="btn btn-p" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="doAutoCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2"/></svg>
@@ -8632,7 +8556,6 @@ async function loadProtocols(){
     el.innerHTML=list.map(p=>`<option value="${esc(p.id)}" ${p.id===def?'selected':''}>${esc(p.label||p.id)}</option>`).join('')
       ||'<option value="vless-ws">VLESS WebSocket</option>';
   });
-  setupProtocolPickers();
 }
 let __allLinks=[];
 function filterConfigs(){
@@ -8811,188 +8734,7 @@ async function restoreBot(){
 }
 
 
-/* ============================================================
-   PROTOCOL PICKER UI
-   ============================================================ */
-const PROTOCOL_PICKER_ICONS={
-  'vless-ws':'🚀','xhttp-packet-up':'▰','xhttp-stream-up':'⚡','xhttp-stream-one':'🛡️',
-  'vmess-ws':'🚀','trojan-ws':'🚀','shadowsocks':'◉','socks5':'◉','http':'🛡️',
-  'hysteria2':'🌀','tuic':'🔥','wireguard':'🛡️','highspeed-demo':'⚡','gaming-lite-demo':'🎮'
-};
-const PROTOCOL_PICKER_GROUPS=[
-  {title:'VLESS',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']},
-  {title:'VMess',ids:['vmess-ws']},
-  {title:'Proxy',ids:['trojan-ws','shadowsocks','socks5','http','hysteria2']},
-  {title:'VPN / Tunnel',ids:['tuic','wireguard']},
-  {title:'NEW',ids:['highspeed-demo','gaming-lite-demo']}
-];
-let __protocolPickerTarget='';
-let __protocolPickerOptions=[];
-function protocolPickerEl(id){return document.getElementById(id)}
-function protocolPickerLabel(id){const p=__protocolPickerOptions.find(x=>x.id===id);return p?.label||id||'VLESS WebSocket'}
-function protocolPickerShort(id,label){
-  const map={'vless-ws':'VLESS WebSocket','xhttp-packet-up':'VLESS XHTTP (Packet Up)','xhttp-stream-up':'VLESS XHTTP (Stream Up)','xhttp-stream-one':'VLESS XHTTP (Stream One)','vmess-ws':'VMess WebSocket','trojan-ws':'Trojan WebSocket','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria 2','tuic':'TUIC','wireguard':'WireGuard'};
-  return map[id]||label||id;
-}
-function setupProtocolPickers(){
-  ['cProto','aProto'].forEach(id=>{
-    const sel=document.getElementById(id); if(!sel)return;
-    sel.classList.add('protocol-native'); sel.style.setProperty('display','none','important'); sel.setAttribute('aria-hidden','true');
-    let trigger=document.querySelector(`.protocol-trigger[data-for="${id}"]`);
-    if(!trigger){
-      trigger=document.createElement('button'); trigger.type='button'; trigger.className='protocol-trigger'; trigger.dataset.for=id;
-      trigger.onclick=()=>openProtocolPicker(id);
-      sel.parentNode.insertBefore(trigger,sel.nextSibling);
-    }
-    syncProtocolPicker(id);
-  });
-}
-function syncProtocolPicker(id){
-  const sel=document.getElementById(id), trigger=document.querySelector(`.protocol-trigger[data-for="${id}"]`); if(!sel||!trigger)return;
-  const value=sel.value||'vless-ws', label=protocolPickerShort(value,protocolPickerLabel(value));
-  trigger.innerHTML=`<span class="protocol-trigger-main"><span class="protocol-trigger-icon">${PROTOCOL_PICKER_ICONS[value]||'◉'}</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">${esc(label)}</span><span class="protocol-trigger-sub">${lang==='fa'?'برای تغییر، انتخاب کنید':'Tap to choose another protocol'}</span></span></span><span class="protocol-trigger-arrow">⌄</span>`;
-}
-function ensureProtocolPicker(){
-  if(document.getElementById('protocolPickerBg'))return;
-  const bg=document.createElement('div'); bg.id='protocolPickerBg'; bg.className='protocol-picker-bg';
-  bg.innerHTML=`<div class="protocol-picker" role="dialog" aria-modal="true">
-    <div class="protocol-picker-head"><div class="protocol-picker-head-icon">✦</div><div class="protocol-picker-head-text"><div class="protocol-picker-title">${lang==='fa'?'انتخاب پروتکل':'Select Protocol'}</div><div class="protocol-picker-subtitle">${lang==='fa'?'پروتکل موردنظر را انتخاب کنید':'Choose the protocol you want to use'}</div></div><button type="button" class="protocol-picker-close" onclick="closeProtocolPicker()">×</button></div>
-    <div class="protocol-picker-scroll" id="protocolPickerScroll"></div>
-    <div class="protocol-picker-foot"><div class="protocol-selected-info" id="protocolSelectedInfo">—</div><button type="button" class="protocol-picker-confirm" onclick="confirmProtocolPicker()">${lang==='fa'?'تأیید و ادامه →':'Confirm & Continue →'}</button></div>
-  </div>`;
-  bg.addEventListener('click',e=>{if(e.target===bg)closeProtocolPicker()});
-  document.body.appendChild(bg);
-}
-function openProtocolPicker(targetId){
-  const sel=document.getElementById(targetId); if(!sel)return;
-  ensureProtocolPicker(); __protocolPickerTarget=targetId;
-  const current=sel.value||'vless-ws', scroll=document.getElementById('protocolPickerScroll');
-  const available=new Set(__protocolPickerOptions.map(x=>x.id));
-  scroll.innerHTML=PROTOCOL_PICKER_GROUPS.map(g=>{
-    const items=g.ids.filter(id=>available.has(id)); if(!items.length)return '';
-    return `<section class="protocol-section"><div class="protocol-section-title"><span>${g.title}</span><b>⌁</b></div><div class="protocol-grid">${items.map(id=>{const p=__protocolPickerOptions.find(x=>x.id===id)||{id,label:id}; const name=protocolPickerShort(id,p.label); return `<button type="button" class="protocol-option ${id===current?'selected':''}" data-proto="${esc(id)}" onclick="chooseProtocol('${esc(id)}')"><span class="protocol-option-radio"></span><span class="protocol-option-icon">${PROTOCOL_PICKER_ICONS[id]||'◉'}</span><span class="protocol-option-name">${esc(name)}</span><span class="protocol-option-desc">${esc(p.label||id)}</span></button>`}).join('')}</div></section>`;
-  }).join('');
-  document.getElementById('protocolSelectedInfo').textContent=(lang==='fa'?'پروتکل انتخاب‌شده: ':'Selected: ')+protocolPickerShort(current,protocolPickerLabel(current));
-  document.getElementById('protocolPickerBg').classList.add('open');
-  document.body.style.overflow='hidden';
-}
-function chooseProtocol(id){
-  const sel=document.getElementById(__protocolPickerTarget); if(!sel)return;
-  sel.value=id;
-  document.querySelectorAll('#protocolPickerScroll .protocol-option').forEach(x=>x.classList.toggle('selected',x.dataset.proto===id));
-  document.getElementById('protocolSelectedInfo').textContent=(lang==='fa'?'پروتکل انتخاب‌شده: ':'Selected: ')+protocolPickerShort(id,protocolPickerLabel(id));
-}
-function confirmProtocolPicker(){
-  if(__protocolPickerTarget){const sel=document.getElementById(__protocolPickerTarget); if(sel){sel.dispatchEvent(new Event('change',{bubbles:true}));syncProtocolPicker(__protocolPickerTarget)}}
-  closeProtocolPicker();
-}
-function closeProtocolPicker(){const bg=document.getElementById('protocolPickerBg');if(bg)bg.classList.remove('open');document.body.style.overflow=''}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
-// Direct click fallback: guarantees both protocol fields open the custom picker.
-document.addEventListener('click',function(e){
-  const btn=e.target.closest && e.target.closest('.protocol-trigger[data-for]');
-  if(btn){ e.preventDefault(); e.stopPropagation(); openProtocolPicker(btn.getAttribute('data-for')); }
-},true);
-
-
-
-/* 3D animated protocol icon system */
-.protocol-option-icon{width:48px;height:48px;display:grid;place-items:center;position:relative;margin-bottom:6px;perspective:120px}
-.protocol-3d-icon{width:46px;height:46px;display:grid;place-items:center;position:relative;transform-style:preserve-3d;animation:p3dFloat 3.2s ease-in-out infinite;filter:drop-shadow(0 8px 12px rgba(37,99,235,.30))}
-.protocol-3d-icon svg{width:42px;height:42px;overflow:visible;transform:translateZ(8px);filter:drop-shadow(0 0 7px rgba(34,211,238,.34))}
-.protocol-3d-icon .p3d-orbit{position:absolute;width:40px;height:17px;border:1px solid rgba(56,189,248,.45);border-radius:50%;transform:rotate(-18deg) rotateX(62deg) translateZ(2px);box-shadow:0 0 12px rgba(59,130,246,.25);animation:p3dOrbit 2.8s linear infinite}
-.protocol-3d-icon .p3d-orbit:after{content:'';position:absolute;width:5px;height:5px;border-radius:50%;background:#67e8f9;box-shadow:0 0 10px #22d3ee;left:4px;top:5px}
-.protocol-3d-icon.layers{animation-duration:3.6s}.protocol-3d-icon.layers svg{animation:p3dTilt 2.7s ease-in-out infinite}
-.protocol-3d-icon.bolt{animation:p3dPulse 2.1s ease-in-out infinite}.protocol-3d-icon.shield{animation-duration:3.8s}.protocol-3d-icon.ring svg{animation:p3dSpin 5s linear infinite}.protocol-3d-icon.spiral svg{animation:p3dSpinReverse 5.5s linear infinite}.protocol-3d-icon.flame{animation:p3dFire 1.8s ease-in-out infinite}.protocol-3d-icon.game{animation:p3dGame 2.4s ease-in-out infinite}
-.protocol-3d-icon.pink svg{filter:drop-shadow(0 0 10px rgba(244,114,182,.55))}.protocol-3d-icon.purple svg{filter:drop-shadow(0 0 10px rgba(168,85,247,.55))}.protocol-3d-icon.cyan svg{filter:drop-shadow(0 0 10px rgba(34,211,238,.55))}
-.protocol-option.selected .protocol-3d-icon{filter:drop-shadow(0 0 15px rgba(59,130,246,.72)) drop-shadow(0 8px 10px rgba(0,0,0,.25));animation-duration:2.2s}
-.protocol-section-new .protocol-section-title{color:#c084fc}.protocol-section-title em{font-style:normal;font-size:8px;margin-inline-start:6px;padding:3px 6px;border-radius:999px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;box-shadow:0 0 12px rgba(99,102,241,.35)}
-.selected-mini-icon .protocol-3d-icon{width:22px;height:22px;display:inline-grid;vertical-align:middle}.selected-mini-icon .protocol-3d-icon svg{width:20px;height:20px}.selected-mini-icon .protocol-3d-icon .p3d-orbit{display:none}
-@keyframes p3dFloat{0%,100%{transform:translateY(0) rotateY(-4deg)}50%{transform:translateY(-4px) rotateY(5deg)}}
-@keyframes p3dOrbit{to{transform:rotate(342deg) rotateX(62deg)}}
-@keyframes p3dTilt{0%,100%{transform:translateZ(8px) rotateY(-5deg)}50%{transform:translateZ(8px) rotateY(7deg)}}
-@keyframes p3dPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
-@keyframes p3dSpin{to{transform:rotateZ(360deg)}}
-@keyframes p3dSpinReverse{to{transform:rotateZ(-360deg)}}
-@keyframes p3dFire{0%,100%{transform:translateY(1px) scale(.98)}50%{transform:translateY(-4px) scale(1.04)}}
-@keyframes p3dGame{0%,100%{transform:rotateY(-6deg) translateY(0)}50%{transform:rotateY(6deg) translateY(-3px)}}
-@media(prefers-reduced-motion:reduce){.protocol-3d-icon,.protocol-3d-icon svg,.protocol-3d-icon .p3d-orbit{animation:none!important}}
-
-/* Protocol Picker V4 — 3D animated protocol cards + NEW section. */
-(function(){
-  const ICON={
-    'vless-ws':'<span class="protocol-3d-icon rocket"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="gRocket" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#22d3ee"/><stop offset=".55" stop-color="#3b82f6"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><path fill="url(#gRocket)" d="M45 7C34 9 24 16 19 27l-3 8 13 13 8-3C48 40 55 30 57 19l-2-10-10-2z"/><circle cx="41" cy="23" r="5" fill="#fff" opacity=".9"/><path fill="#ff6b9d" d="M22 39 9 44l7 3-3 8 14-9z"/><path fill="#22d3ee" d="M29 51 24 63l9-6 5 3 1-14z"/></svg></span>',
-    'xhttp-packet-up':'<span class="protocol-3d-icon layers"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gLayer" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d946ef"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path fill="url(#gLayer)" d="m32 8 23 12-23 12L9 20z"/><path fill="#9333ea" d="m9 29 23 12 23-12v9L32 50 9 38z"/><path fill="#c026d3" d="m9 43 23 12 23-12v9L32 64 9 52z"/></svg></span>',
-    'xhttp-stream-up':'<span class="protocol-3d-icon bolt"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gBolt" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#67e8f9"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs><circle cx="32" cy="32" r="22" fill="url(#gBolt)" opacity=".9"/><path fill="#fff" d="m36 8-18 27h12l-3 21 19-29H34z"/></svg></span>',
-    'xhttp-stream-one':'<span class="protocol-3d-icon shield"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gShield" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5eead4"/><stop offset="1" stop-color="#10b981"/></linearGradient></defs><path fill="url(#gShield)" d="M32 5 52 12v17c0 14-9 24-20 30C21 53 12 43 12 29V12z"/><path fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="m22 32 7 7 14-16"/></svg></span>',
-    'vmess-ws':'<span class="protocol-3d-icon rocket cyan"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><path fill="#38bdf8" d="M45 7C34 9 24 16 19 27l-3 8 13 13 8-3C48 40 55 30 57 19l-2-10-10-2z"/><circle cx="41" cy="23" r="5" fill="#fff"/><path fill="#22d3ee" d="M22 39 9 44l7 3-3 8 14-9z"/><path fill="#a855f7" d="M29 51 24 63l9-6 5 3 1-14z"/></svg></span>',
-    'trojan-ws':'<span class="protocol-3d-icon rocket pink"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><path fill="#f472b6" d="M45 7C34 9 24 16 19 27l-3 8 13 13 8-3C48 40 55 30 57 19l-2-10-10-2z"/><circle cx="41" cy="23" r="5" fill="#fff"/><path fill="#fb7185" d="M22 39 9 44l7 3-3 8 14-9z"/><path fill="#c084fc" d="M29 51 24 63l9-6 5 3 1-14z"/></svg></span>',
-    'shadowsocks':'<span class="protocol-3d-icon ring"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gRing" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><circle cx="32" cy="32" r="21" fill="none" stroke="url(#gRing)" stroke-width="8"/><ellipse cx="32" cy="32" rx="12" ry="21" fill="none" stroke="#e9d5ff" stroke-width="3" opacity=".75"/><path d="M10 32h44" stroke="#fff" stroke-width="3" opacity=".55"/></svg></span>',
-    'socks5':'<span class="protocol-3d-icon ring cyan"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="23" fill="#0891b2" opacity=".8"/><path d="M18 32h28M32 18v28" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="32" r="10" fill="none" stroke="#67e8f9" stroke-width="5"/></svg></span>',
-    'http':'<span class="protocol-3d-icon shield blue"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><path fill="#38bdf8" d="M32 6 53 14v16c0 13-9 23-21 28C20 53 11 43 11 30V14z"/><path fill="none" stroke="#fff" stroke-width="5" d="M22 32h20M32 22v20"/></svg></span>',
-    'hysteria2':'<span class="protocol-3d-icon spiral"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gSpiral" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e879f9"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path d="M48 17C37 5 18 9 13 23c-5 15 8 30 24 28 15-2 20-20 10-30-9-9-25-6-28 5-3 10 7 19 17 16 8-2 11-12 5-17" fill="none" stroke="url(#gSpiral)" stroke-width="8" stroke-linecap="round"/></svg></span>',
-    'tuic':'<span class="protocol-3d-icon flame"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gFire" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#5eead4"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><path fill="url(#gFire)" d="M36 5c2 13-8 16-5 25 2 6 8 5 10-1 8 7 10 17 5 25-6 10-25 9-31-2-6-11 2-22 10-29 0 9 5 11 8 6 3-6-1-13 3-24z"/><path fill="#fff" opacity=".65" d="M31 35c-5 5-7 10-4 14 3 4 10 3 12-2 2-4-2-9-8-12z"/></svg></span>',
-    'wireguard':'<span class="protocol-3d-icon shield purple"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gWire" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path fill="url(#gWire)" d="M32 5 52 12v17c0 14-9 24-20 30C21 53 12 43 12 29V12z"/><path fill="none" stroke="#fff" stroke-width="4" d="M22 33h20M32 23v20"/></svg></span>',
-    'highspeed-demo':'<span class="protocol-3d-icon bolt pink"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="23" fill="#8b5cf6" opacity=".82"/><path fill="#fff" d="m37 6-21 30h13l-3 22 22-32H35z"/></svg></span>',
-    'gaming-lite-demo':'<span class="protocol-3d-icon game"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gGame" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><path fill="url(#gGame)" d="M13 22c5-8 15-8 19-3 4-5 14-5 19 3l7 18c3 9-8 15-14 7l-6-8H26l-6 8c-6 8-17 2-14-7z"/><path stroke="#fff" stroke-width="4" stroke-linecap="round" d="M22 28v12M16 34h12"/><circle cx="45" cy="31" r="3" fill="#fff"/><circle cx="51" cy="37" r="3" fill="#fff"/></svg></span>'
-  };
-  const GROUPS=[
-    ['VLESS',['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']],
-    ['VMess',['vmess-ws']],
-    ['Proxy',['trojan-ws','shadowsocks','socks5','http','hysteria2']],
-    ['VPN / Tunnel',['tuic','wireguard']],
-    ['NEW',['highspeed-demo','gaming-lite-demo']]
-  ];
-  let target=null;
-  const labels={'vless-ws':'Gaming Pro','xhttp-packet-up':'XHTTP','xhttp-stream-up':'HIGHSped','xhttp-stream-one':'XHTTP Stream One','vmess-ws':'VMess WebSocket','trojan-ws':'Trojan WebSocket','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria 2','tuic':'TUIC','wireguard':'WireGuard','highspeed-demo':'HIGHSped','gaming-lite-demo':'Gaming Pro'};
-  const desc={'vless-ws':'VLESS WebSocket','xhttp-packet-up':'VLESS XHTTP (Packet Up)','xhttp-stream-up':'VLESS XHTTP (Stream Up)','xhttp-stream-one':'VLESS XHTTP (Stream One)','vmess-ws':'VMess WebSocket','trojan-ws':'Trojan WebSocket','shadowsocks':'Secure Proxy','socks5':'SOCKS5 Proxy','http':'HTTP Proxy','hysteria2':'Hysteria 2','tuic':'TUIC Tunnel','wireguard':'WireGuard VPN','highspeed-demo':'High Speed','gaming-lite-demo':'Gaming Mode'};
-  function ensure(){
-    let bg=document.getElementById('protocolPickerBg');
-    if(bg)return bg;
-    bg=document.createElement('div'); bg.id='protocolPickerBg'; bg.className='protocol-picker-bg';
-    bg.innerHTML='<div class="protocol-picker" role="dialog" aria-modal="true">'+
-      '<div class="protocol-picker-head"><div class="protocol-picker-head-icon">✦</div><div class="protocol-picker-head-text"><div class="protocol-picker-title">انتخاب پروتکل</div><div class="protocol-picker-subtitle">پروتکل موردنظر را انتخاب کنید</div></div><button type="button" class="protocol-picker-close" id="protocolPickerClose">×</button></div>'+
-      '<div class="protocol-picker-scroll" id="protocolPickerScroll"></div>'+
-      '<div class="protocol-picker-foot"><div class="protocol-selected-info" id="protocolSelectedInfo">—</div><button type="button" class="protocol-picker-confirm" id="protocolPickerConfirm">تأیید و ادامه →</button></div></div>';
-    document.body.appendChild(bg);
-    bg.addEventListener('click',e=>{if(e.target===bg)close();});
-    bg.querySelector('#protocolPickerClose').addEventListener('click',close);
-    bg.querySelector('#protocolPickerConfirm').addEventListener('click',()=>{if(target){const s=document.getElementById(target);if(s){s.dispatchEvent(new Event('change',{bubbles:true}));sync(target);}}close();});
-    return bg;
-  }
-  function sync(id){
-    const s=document.getElementById(id), b=document.querySelector('.protocol-trigger[data-for="'+id+'"]'); if(!s||!b)return;
-    const v=s.value||'vless-ws'; const icon=b.querySelector('.protocol-trigger-icon'); const name=b.querySelector('.protocol-trigger-name');
-    if(icon)icon.innerHTML=ICON[v]||'◉'; if(name)name.textContent=labels[v]||v;
-  }
-  window.openProtocolPicker=function(id){
-    const s=document.getElementById(id); if(!s)return;
-    target=id; const bg=ensure(), scroll=bg.querySelector('#protocolPickerScroll'), current=s.value||'vless-ws';
-    const valid=new Set([...s.options].map(o=>o.value)); let html='';
-    GROUPS.forEach(([title,ids],gi)=>{
-      const items=ids.filter(x=>valid.has(x)); if(!items.length)return;
-      html+='<section class="protocol-section '+(gi===4?'protocol-section-new':'')+'"><div class="protocol-section-title"><span>'+title+(gi===4?' <em>NEW</em>':'')+'</span><b>⌁</b></div><div class="protocol-grid">';
-      items.forEach(v=>{html+='<button type="button" class="protocol-option '+(v===current?'selected':'')+'" data-proto="'+v+'"><span class="protocol-option-radio"></span><span class="protocol-option-icon">'+(ICON[v]||'◉')+'</span><span class="protocol-option-name">'+(labels[v]||v)+'</span><span class="protocol-option-desc">'+(desc[v]||v)+'</span></button>';});
-      html+='</div></section>';
-    });
-    scroll.innerHTML=html;
-    scroll.querySelectorAll('.protocol-option').forEach(b=>b.addEventListener('click',()=>{s.value=b.dataset.proto;scroll.querySelectorAll('.protocol-option').forEach(x=>x.classList.toggle('selected',x===b));bg.querySelector('#protocolSelectedInfo').innerHTML='<span class="selected-mini-icon">'+(ICON[s.value]||'◉')+'</span> پروتکل انتخاب‌شده: '+(labels[s.value]||s.value);sync(id);}));
-    bg.querySelector('#protocolSelectedInfo').innerHTML='<span class="selected-mini-icon">'+(ICON[current]||'◉')+'</span> پروتکل انتخاب‌شده: '+(labels[current]||current);
-    bg.classList.add('open'); document.body.style.overflow='hidden';
-  };
-  function close(){const bg=document.getElementById('protocolPickerBg');if(bg)bg.classList.remove('open');document.body.style.overflow='';target=null;}
-  window.closeProtocolPicker=close;
-  function boot(){['cProto','aProto'].forEach(id=>{const s=document.getElementById(id),b=document.querySelector('.protocol-trigger[data-for="'+id+'"]');if(s&&b){b.onclick=e=>{e.preventDefault();window.openProtocolPicker(id);};sync(id);}});}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  setTimeout(boot,100); setTimeout(boot,700);
-})();
-
 applyLang();loadMe();loadProtocols();loadGroups();refreshAll();
-// Protocol picker bootstrap: keep the native select only as the data/control source.
-function bootProtocolPickers(){ try{ setupProtocolPickers(); }catch(e){ console.warn('Protocol picker:',e); } }
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootProtocolPickers); else bootProtocolPickers();
-setTimeout(bootProtocolPickers,300);
-setTimeout(bootProtocolPickers,1000);
 setInterval(refreshAll,1000);
 
 

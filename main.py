@@ -1,5 +1,4 @@
 # ============================================================
-# ONEX Control Center
 # Railway Ready
 # Designed by @Mehtif
 # ============================================================
@@ -6512,7 +6511,7 @@ DASHBOARD_HTML = r"""
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>ONEX Control Center</title>
+<title>پنل مدیریت</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -6992,7 +6991,7 @@ tr:hover td{background:var(--hover)}
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand"><div class="mob-brand-icon">N</div><div class="mob-brand-text"><b>ONEX Control Center</b><span>پنل مدیریت</span></div></div>
+  <div class="mob-brand"><div class="mob-brand-icon">N</div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -7080,7 +7079,6 @@ tr:hover td{background:var(--hover)}
 <section class="page on" id="page-dash">
   <div class="dashboard-hero">
     <div>
-      <div class="hero-kicker">ONEX CONTROL CENTER</div>
       <div class="hero-title">خوش آمدید به <span>ONEX</span></div>
       <div class="hero-sub" id="lastUpd" data-i18n="loading">در حال بارگذاری...</div>
     </div>
@@ -7133,7 +7131,7 @@ tr:hover td{background:var(--hover)}
       <div class="onex-card"><div class="onex-card-head"><div class="onex-card-title">▤ اطلاعات سرور</div></div><div class="onex-card-body"><div class="server-info"><div class="info-row"><span>IP سرور</span><span id="serverIp">—</span></div><div class="info-row"><span>کشور</span><span>—</span></div><div class="info-row"><span>نوع سرور</span><span>VPS</span></div><div class="info-row"><span>شروع سرویس</span><span>ONEX</span></div><div class="info-row"><span>نسخه Xray</span><span>—</span></div></div></div></div>
     </div>
   </div>
-  <div class="onex-footer"><span>ONEX Control Center · <b>Fast · Secure · Stable</b></span><span>Designed by <b>@Mehtif</b> · Telegram <b>@V2rayTun0</b></span></div>
+  <div class="onex-footer"><span><b>Fast · Secure · Stable</b></span><span>Designed by <b>@Mehtif</b> · Telegram <b>@V2rayTun0</b></span></div>
 </section>
 
 <section class="page" id="page-configs">

@@ -2361,6 +2361,99 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
 
 
 
+
+/* ============================================================
+   ONEX LOGIN — PHONE LAYOUT
+   Compact, centered and touch-friendly on mobile screens.
+   ============================================================ */
+@media (max-width:700px){
+  html,body{width:100%;min-width:0;overflow-x:hidden;}
+  .scene{min-height:100svh;display:block;}
+  .hero{display:none!important;}
+  .login-side{
+    min-height:100svh;
+    width:100%;
+    padding:14px 12px 18px;
+    align-items:center;
+    justify-content:center;
+  }
+  .login-card{
+    width:100%;
+    max-width:430px;
+    padding:24px 18px 20px;
+    border-radius:24px;
+    background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68));
+    box-shadow:var(--shadow),0 0 55px rgba(0,119,255,.12);
+    backdrop-filter:blur(25px);
+    -webkit-backdrop-filter:blur(25px);
+  }
+  .login-logo{width:66px;height:66px;border-radius:21px;margin-bottom:10px;}
+  .login-logo span{font-size:48px;}
+  .login-title{font-size:22px;line-height:1.65;}
+  .login-desc{font-size:11px;line-height:1.8;margin-top:3px;margin-bottom:19px;}
+  .field{margin-bottom:12px;}
+  .field input{height:54px;border-radius:15px;font-size:16px;padding-right:47px;padding-left:43px;}
+  .field svg{right:14px;width:20px;height:20px;}
+  .eye{left:9px;padding:7px;}
+  .eye svg{width:20px;height:20px;}
+  .primary{height:55px;border-radius:15px;font-size:15px;margin-top:4px;}
+  .row{margin-top:12px;font-size:10px;gap:8px;}
+  .telegram{margin-top:17px;padding:11px 12px;border-radius:16px;gap:10px;}
+  .telegram-icon{width:42px;height:42px;flex-basis:42px;}
+  .telegram-icon svg{width:22px;}
+  .telegram-text small{font-size:9px;}
+  .telegram-text b{font-size:13px;}
+  .tg-arrow{font-size:21px;}
+  .footer{font-size:9px;margin-top:15px;}
+}
+@media (max-width:380px){
+  .login-side{padding:9px 9px 12px;}
+  .login-card{padding:19px 14px 16px;border-radius:21px;}
+  .login-logo{width:58px;height:58px;border-radius:18px;}
+  .login-logo span{font-size:42px;}
+  .login-title{font-size:19px;}
+  .login-desc{font-size:10px;margin-bottom:15px;}
+  .field input{height:51px;}
+  .primary{height:52px;}
+  .telegram{margin-top:14px;}
+  .telegram-icon{width:38px;height:38px;flex-basis:38px;}
+  .telegram-icon svg{width:20px;}
+  .footer{font-size:8px;margin-top:12px;}
+}
+
+
+/* FINAL MOBILE LOGIN FIT */
+@media (max-width:700px){
+  html,body{width:100%;min-width:0;overflow-x:hidden;}
+  .scene{display:block;min-height:100dvh;width:100%;}
+  .hero{display:none !important;}
+  .login-side{width:100%;min-height:100dvh;height:auto;padding:18px 12px 22px;display:flex;align-items:center;justify-content:center;}
+  .login-card{width:min(100%,440px);max-height:calc(100dvh - 28px);overflow-y:auto;padding:22px 17px 18px;border-radius:23px;
+    background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
+    border:1px solid rgba(88,180,255,.22);
+    box-shadow:0 30px 100px rgba(0,0,0,.55),0 0 55px rgba(0,119,255,.10);
+    backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);
+  }
+  .login-logo{width:62px;height:62px;border-radius:19px;margin-bottom:9px;}
+  .login-logo span{font-size:45px;}
+  .login-title{font-size:21px;line-height:1.5;}
+  .login-desc{font-size:10.5px;line-height:1.7;margin:3px 0 16px;}
+  .field{margin-bottom:11px;}
+  .field input{height:53px;border-radius:14px;font-size:16px;}
+  .primary{height:53px;border-radius:14px;font-size:14px;}
+  .row{margin-top:10px;font-size:9.5px;}
+  .telegram{margin-top:15px;padding:10px 11px;border-radius:15px;}
+  .telegram-icon{width:40px;height:40px;flex-basis:40px;}
+  .telegram-text small{font-size:8.5px}.telegram-text b{font-size:12.5px}.tg-arrow{font-size:20px}
+  .footer{font-size:8.5px;margin-top:12px;}
+}
+@media (max-width:380px){
+  .login-side{padding:10px 8px 14px;}
+  .login-card{padding:18px 13px 15px;border-radius:20px;}
+  .login-logo{width:56px;height:56px;border-radius:17px}.login-logo span{font-size:40px}
+  .login-title{font-size:19px}.login-desc{font-size:10px;margin-bottom:13px}
+  .field input{height:50px}.primary{height:51px}
+}
 </style>
 </head>
 <body>
@@ -7311,6 +7404,54 @@ tr:hover td{background:var(--hover)}
   .sidebar .nav-item .nav-ico{width:22px;height:22px;min-width:22px;min-height:22px;flex-basis:22px}
   .sidebar .nav-item.on .nav-ico{transform:perspective(80px) rotateY(-8deg) rotateX(5deg) scale(1.04)}
   .sidebar .sb-foot a.danger .logout-ico{width:22px!important;height:22px!important}
+}
+
+
+/* ============================================================
+   ONEX MOBILE DRAWER — SAME GLASS AS LOGIN CARD
+   The opened dashboard menu intentionally uses the exact same
+   glass recipe as .login-card for a consistent visual language.
+   ============================================================ */
+.sidebar{
+  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
+  border-left:1px solid rgba(122,180,235,.14) !important;
+  box-shadow:0 18px 55px rgba(0,0,0,.48),0 0 70px rgba(0,119,255,.10) !important;
+  backdrop-filter:blur(25px) !important;
+  -webkit-backdrop-filter:blur(25px) !important;
+  overflow:hidden;
+}
+.sidebar::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(circle at 15% 18%,rgba(36,196,255,.10),transparent 30%),
+    linear-gradient(145deg,rgba(255,255,255,.035),transparent 42%,rgba(30,130,255,.055));
+}
+.sidebar > *{position:relative;z-index:1;}
+@media (max-width:768px){
+  .sidebar{
+    position:fixed !important; top:0 !important; right:0 !important; bottom:0 !important; left:auto !important;
+    width:min(86vw,340px) !important; max-width:340px !important; min-width:0 !important;
+    transform:translateX(105%) !important;
+    transition:transform .24s cubic-bezier(.2,.8,.2,1) !important;
+    background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
+    border-left:1px solid rgba(88,180,255,.22) !important;
+    border-right:0 !important;
+    box-shadow:0 30px 100px rgba(0,0,0,.55),0 0 80px rgba(0,119,255,.10) !important;
+    backdrop-filter:blur(25px) !important;
+    -webkit-backdrop-filter:blur(25px) !important;
+    overflow-y:auto !important;
+  }
+  .sidebar.mobile-open{transform:translateX(0) !important}
+  .sidebar.collapsed{width:min(86vw,340px) !important}
+  .mob-bar{display:flex !important;position:fixed !important;top:0;left:0;right:0;height:58px;z-index:1250;
+    background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
+    border-bottom:1px solid rgba(88,180,255,.22) !important;
+    backdrop-filter:blur(25px) !important;-webkit-backdrop-filter:blur(25px) !important;
+    box-shadow:0 12px 35px rgba(0,0,0,.35),0 0 40px rgba(0,119,255,.08) !important;
+  }
+  .overlay{display:none !important;position:fixed !important;inset:0 !important;background:rgba(1,6,16,.62) !important;backdrop-filter:blur(3px);z-index:1150 !important}
+  .overlay.show{display:block !important}
+  .main,.main.expanded{width:100% !important;max-width:100% !important;margin:0 !important;padding:70px 12px 40px !important}
 }
 
 </style>

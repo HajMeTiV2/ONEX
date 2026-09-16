@@ -14,10 +14,10 @@ global.panelData = global.panelData || {
     cleanIp: '104.18.32.10',
     customDomain: '',
     broadcastMessage: '',
-    logs: ['[INFO] پنل ONEX با موفقیت راه‌اندازی شد.']
+    logs: ['[INFO] پنل با موفقیت راه‌اندازی شد.']
 };
 
-// تابع تولید UUID واقعی و استاندارد برای اتصال کلاینت‌ها (مثل V2RayNG)
+// تابع تولید UUID واقعی و استاندارد
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -49,14 +49,14 @@ app.get('/api/panel-data', (req, res) => {
     });
 });
 
-// ۳. مسیر ساخت و ذخیره کانفیگ جدید با UUID معتبر و اختصاصی
+// ۳. مسیر ساخت و ذخیره کانفیگ جدید با UUID معتبر
 app.post('/api/configs/create', (req, res) => {
     try {
         const { name, protocol = 'all', tag = 'normal', total_gb = 20, expire_days = 30 } = req.body;
         
         const newConfig = {
             id: Math.random().toString(36).substring(2, 10),
-            uuid: generateUUID(), // تولید UUID واقعی جهت کارکرد صحیح کانفیگ در کلاینت
+            uuid: generateUUID(),
             name: name || 'Client',
             protocol: protocol,
             tag: tag,
@@ -72,7 +72,7 @@ app.post('/api/configs/create', (req, res) => {
         };
 
         global.panelData.configs.push(newConfig);
-        global.panelData.logs.unshift(`[${new Date().toLocaleTimeString()}] کانفیگ جدید با نام "${newConfig.name}" و UUID معتبر ساخته شد.`);
+        global.panelData.logs.unshift(`[${new Date().toLocaleTimeString()}] کانفیگ جدید با نام "${newConfig.name}" ساخته شد.`);
 
         res.json({ success: true, message: 'کانفیگ با موفقیت ساخته شد', config: newConfig });
     } catch (error) {
@@ -86,7 +86,6 @@ app.post('/api/save-worker-settings', (req, res) => {
     const { cleanIp } = req.body;
     if (cleanIp) {
         global.panelData.cleanIp = cleanIp;
-        global.panelData.logs.unshift(`[${new Date().toLocaleTimeString()}] تنظیمات بروز شد.`);
     }
     res.json({ success: true });
 });
@@ -103,7 +102,7 @@ app.get('/api/subscription/:id/json', (req, res) => {
     res.json({ success: true, data: config });
 });
 
-// ۶. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با دامنه رایلی، پورت 443 و بستر وب‌سکت سازگار با Railway
+// ۶. مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64) با تنظیمات دقیق مشابه تصویر (Path=/vless و SNI و Host)
 app.get('/sub/:id', (req, res) => {
     const subId = req.params.id;
     const config = global.panelData.configs.find(c => c.id === subId || c.id.startsWith(subId) || subId.startsWith(c.id));
@@ -112,14 +111,12 @@ app.get('/sub/:id', (req, res) => {
         return res.status(404).send('Configs not found or empty');
     }
 
-    // دریافت دامنه رایلی به عنوان هاست سرور
     const hostDomain = req.get('host');
     const clientUuid = config.uuid || generateUUID();
     
-    // ساخت لینک‌های پروکسی روی بستر WebSocket و پورت 443 رایلی با تگ اختصاصی شما
+    // لینک VLESS دقیقاً مطابق با ساختار تایید شده در تصویر (پورت 443، امن TLS، مسیر /vless، هاست و SNI دامنه رایلی)
     const links = [
-        `vless://${clientUuid}@${hostDomain}:443?encryption=none&security=tls&sni=${hostDomain}&type=ws&path=%2F&host=${hostDomain}#${encodeURIComponent(config.name + ' | @V2rayTun0')}`,
-        `trojan://${clientUuid}@${hostDomain}:443?security=tls&sni=${hostDomain}&type=ws&path=%2F&host=${hostDomain}#${encodeURIComponent(config.name + ' | @V2rayTun0')}`
+        `vless://${clientUuid}@${hostDomain}:443?encryption=none&security=tls&sni=${hostDomain}&type=ws&path=%2Fvless&host=${hostDomain}#${encodeURIComponent(config.name + ' | @V2rayTun0')}`
     ];
 
     const rawText = links.join('\n');

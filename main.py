@@ -1,7 +1,7 @@
 # ============================================================
-# ONEX Control Center
+# PXPanel 13.8.0
 # Railway Ready
-# Designed by @Mehtif
+# Created By PIXON
 # ============================================================
 import asyncio
 import base64
@@ -37,11 +37,11 @@ from fastapi.middleware.cors import CORSMiddleware
 # APP
 # ============================================================
 
-APP_NAME = "ONEX"
+APP_NAME = "PXPanel"
 APP_VERSION = "13.10.0"
 
-SUPPORT_USERNAME = "@V2rayTun0"
-SUPPORT_URL = "https://t.me/V2rayTun0"
+SUPPORT_USERNAME = "@logic_sec"
+SUPPORT_URL = "https://t.me/logic_sec"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -705,14 +705,11 @@ def hash_password(
     ).hexdigest()
 
 
-# ONEX default owner credentials. They can be changed later from the panel.
-# ADMIN_PASSWORD, when provided, overrides the default password.
+# No default password — first-run setup required unless ADMIN_PASSWORD env is set
 _env_pw = os.environ.get("ADMIN_PASSWORD", "").strip()
-_default_pw = _env_pw or "admin"
 AUTH = {
-    "username": "admin",
-    "password_hash": hash_password(_default_pw),
-    "password_configured": True,
+    "password_hash": hash_password(_env_pw) if _env_pw else "",
+    "password_configured": bool(_env_pw),
 }
 
 # Sub-admin accounts (panel operators with granular permissions)
@@ -991,7 +988,7 @@ def set_auth_cookie(
 # ============================================================
 
 def generate_vless_link(
-    uuid: str, host: str, remark: str = "ONEX",
+    uuid: str, host: str, remark: str = "PXPanel",
     protocol: str = DEFAULT_PROTOCOL, fingerprint: str | None = None,
     alpn: str | None = None, port: int | None = None,
 ):
@@ -1000,7 +997,7 @@ def generate_vless_link(
     if fp not in FINGERPRINTS: fp = DEFAULT_FINGERPRINT
     port_value = safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT)
     alpn_value = (alpn or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
-    label = quote(str(remark or "ONEX"), safe="")
+    label = quote(str(remark or "PXPanel"), safe="")
     if protocol == "vless-ws":
         q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
@@ -1165,17 +1162,9 @@ async def load_state():
         stored_password = data.get(
             "password_hash"
         )
-        stored_username = str(data.get("owner_username") or "").strip().lower()
 
-        if stored_username:
-            AUTH["username"] = stored_username
-            if stored_password:
-                AUTH["password_hash"] = stored_password
-                AUTH["password_configured"] = True
-        elif stored_password:
-            # Existing PX data had no owner username; initialize the ONEX owner as admin/admin.
-            AUTH["username"] = "admin"
-            AUTH["password_hash"] = hash_password("admin")
+        if stored_password:
+            AUTH["password_hash"] = stored_password
             AUTH["password_configured"] = True
 
         # Compatibility for older records
@@ -1275,10 +1264,6 @@ async def save_state():
                         "password_hash"
                     ],
 
-                "owner_username":
-                    AUTH.get("username", "admin"),
-
-                
                 "saved_at":
                     datetime.now().isoformat(),
             }
@@ -2292,7 +2277,7 @@ async def root(
         )
 
     return HTMLResponse(
-        LOGIN_HTML
+        LANDING_HTML
     )
 
 
@@ -2422,7 +2407,17 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
       <div class="login-title">به پنل <b>ONEX</b> خوش آمدید</div>
       <div class="login-desc">برای ادامه، اطلاعات حساب کاربری خود را وارد کنید</div>
 
-      <div id="loginBox">
+      <div id="setupBox" class="hidden">
+        <div class="setup-title">راه‌اندازی اولیه</div>
+        <div class="setup-desc">رمز عبور مدیر پنل را برای اولین ورود تعیین کنید.</div>
+        <div class="warn">برای نگه‌داشتن داده‌ها روی Railway حتماً Volume با مسیر <code>/data</code> وصل کنید.</div>
+        <div class="err" id="setupErr"></div>
+        <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="setupPw" placeholder="رمز عبور، حداقل ۶ کاراکتر" autocomplete="new-password"></div>
+        <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="setupPw2" placeholder="تکرار رمز عبور" autocomplete="new-password"></div>
+        <button class="primary" type="button" id="setupBtn" onclick="doSetup()"><span>تنظیم رمز و ورود</span></button>
+      </div>
+
+      <div id="loginBox" class="hidden">
         <div class="err" id="loginErr"></div>
         <form id="loginForm">
           <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg><input type="text" id="loginUser" placeholder="نام کاربری ادمین" autocomplete="username"></div>
@@ -2495,7 +2490,7 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
     location.href='/dashboard';
   }catch(e){err.textContent=e.message||'خطا در ورود';err.classList.add('show');btn.disabled=false;}
 });
-// ONEX: first-run setup removed; login is always shown.
+checkSetup();
 </script>
 </body>
 </html>
@@ -2587,6 +2582,10 @@ async def login_page(
 async def login_form(
     request: Request,
 ):
+    if not (AUTH.get("password_configured") and AUTH.get("password_hash")):
+        return HTMLResponse(login_error_html("ابتدا از صفحه ورود، رمز اولیه را تنظیم کنید"))
+
+
     try:
 
         content_type = (
@@ -2608,7 +2607,6 @@ async def login_form(
                     "",
                 )
             ).strip()
-            username = str(body.get("username", "")).strip().lower()
 
         else:
 
@@ -2726,6 +2724,8 @@ async def login_form(
 
 @app.post("/api/login")
 async def api_login(request: Request):
+    if not (AUTH.get("password_configured") and AUTH.get("password_hash")):
+        raise HTTPException(status_code=400, detail="ابتدا رمز پنل را در راه‌اندازی تنظیم کنید")
     try:
         body = await request.json()
     except Exception:
@@ -2741,21 +2741,16 @@ async def api_login(request: Request):
         raise HTTPException(status_code=400, detail="رمز عبور الزامی است")
     meta = {"role": "owner", "admin_id": None, "username": "owner"}
     ok = False
-    if username == str(AUTH.get("username") or "admin").strip().lower():
-        if hash_password(password) == AUTH["password_hash"]:
-            ok = True
-            meta = {"role": "owner", "admin_id": None, "username": username}
-    elif username and username not in ("owner", "admin", "root"):
+    if username and username not in ("owner", "admin", "root"):
         aid, admin = find_admin_by_username(username)
         if admin and admin.get("password_hash") == hash_password(password):
             if not admin_is_valid(admin):
                 raise HTTPException(status_code=403, detail="حساب مسدود یا منقضی شده است")
             ok = True
             meta = {"role": "admin", "admin_id": aid, "username": username}
-    elif hash_password(password) == AUTH["password_hash"]:
-        # Backward compatibility: owner login without a username.
-        ok = True
-        meta = {"role": "owner", "admin_id": None, "username": AUTH.get("username", "admin")}
+    else:
+        if hash_password(password) == AUTH["password_hash"]:
+            ok = True
     if not ok:
         locked, value = register_login_failure(ip)
         if locked:
@@ -2862,13 +2857,6 @@ async def api_change_password(
     ] = hash_password(
         new_password
     )
-    new_username = str(body.get("new_username") or "").strip().lower()
-    if new_username:
-        if not new_username.isalnum() or len(new_username) < 3:
-            raise HTTPException(status_code=400, detail="نام کاربری باید حداقل ۳ کاراکتر و فقط شامل حروف و عدد انگلیسی باشد")
-        if new_username in ("owner", "root"):
-            raise HTTPException(status_code=400, detail="این نام کاربری رزرو شده است")
-        AUTH["username"] = new_username
 
     async with SESSIONS_LOCK:
 
@@ -3161,7 +3149,7 @@ async def create_auto_link(
     uid, link = await make_link(
         label=auto_config_name(), limit_bytes=0, expires_at=None,
         ip_limit=cfg["ip"], speed_limit_bytes=cfg["speed"], connection_limit=cfg["conn"],
-        note=f"Auto generated by ONEX | profile={profile}",
+        note=f"Auto generated by PXPanel | profile={profile}",
         protocol=protocol, fingerprint=cfg["fp"],
         alpn=DEFAULT_ALPN_BY_PROTOCOL.get(protocol, ""), port=443, fragment=cfg["fragment"],
         config_count=config_count,

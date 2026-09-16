@@ -7258,6 +7258,21 @@ tr:hover td{background:var(--hover)}
   }
 }
 
+
+/* ONEX MOBILE REAL FIX v4 */
+@media (max-width: 768px){
+  html,body{max-width:100%!important;overflow-x:hidden!important}
+  .main,.main.expanded{position:relative!important;right:0!important;left:0!important;width:100%!important;min-width:0!important}
+  #sidebar{width:min(92vw,360px)!important}
+  .grid,.dashboard-grid,.row,.flex-row{flex-wrap:wrap!important;max-width:100%!important}
+  [style*="width:"],[style*="min-width:"]{max-width:100%!important}
+  input,select,button,textarea{max-width:100%!important}
+}
+@media(max-width:480px){
+  .main,.main.expanded{padding-left:8px!important;padding-right:8px!important}
+  .metrics,.stats-grid,.cards-grid,.quick-actions,.actions-grid{display:grid!important;grid-template-columns:1fr!important}
+  .panel-card,.card,.metric,.stat-card{border-radius:18px!important}
+}
 </style>
 </head>
 <body>

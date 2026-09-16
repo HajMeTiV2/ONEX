@@ -6843,9 +6843,128 @@ tr:hover td{background:var(--hover)}
   .dashboard-hero{gap:3px}.hero-title{font-size:15px}.hero-actions .btn{padding:5px;font-size:6px}
 }
 
+/* ============================================================
+   ONEX PHONE MODE — FULL WIDTH CONTENT + SLIDE-IN NAV DRAWER
+   Keeps the exact panel/components; only phone layout changes.
+   ============================================================ */
+@media (max-width:768px){
+  html,body{width:100%;min-width:0;overflow-x:hidden}
+  body{display:block;min-height:100vh;padding-top:58px}
+
+  .mob-bar{display:flex!important;position:fixed;top:0;left:0;right:0;height:58px;padding:0 12px;
+    background:rgba(11,11,18,.96);border-bottom:1px solid var(--card-b);
+    backdrop-filter:blur(16px);box-shadow:0 8px 30px rgba(0,0,0,.35);z-index:1000}
+  .mob-menu-btn{width:42px;height:42px;border:1px solid var(--card-b);border-radius:12px;
+    background:var(--bg3);color:var(--t1);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .mob-menu-btn svg{width:22px;height:22px}
+  .mob-brand{display:flex;align-items:center;gap:9px;margin-right:auto;margin-left:auto;min-width:0}
+  .mob-brand-icon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:0 0 36px;
+    background:linear-gradient(145deg,#0ea5e9,#2563eb 50%,#7c3aed);font:900 18px Inter,sans-serif;color:#fff;
+    box-shadow:0 7px 20px rgba(37,99,235,.35)}
+  .mob-brand-text{min-width:0;line-height:1.05}
+  .mob-brand-text b{display:block;font:700 12px Inter,sans-serif;white-space:nowrap}
+  .mob-brand-text span{display:block;font-size:8px;color:var(--t3);margin-top:3px;white-space:nowrap}
+  .mob-status{display:flex;align-items:center;gap:5px;font-size:8px;color:var(--t2);white-space:nowrap}
+  .mob-status i{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 9px #22c55e}
+
+  .sidebar{position:fixed;top:0;right:0;bottom:0;width:min(84vw,320px)!important;
+    max-width:320px;transform:translateX(105%);transition:transform .25s ease;width:min(84vw,320px);
+    z-index:1200;box-shadow:-18px 0 50px rgba(0,0,0,.55);overflow-y:auto}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .sidebar.collapsed{width:min(84vw,320px)!important}
+  .sidebar .sb-toggle{display:none}
+  .sidebar .sb-logo{padding:18px 14px}
+  .sidebar .sb-logo-icon{width:54px;height:54px;border-radius:16px}
+  .sidebar .sb-logo-icon:after{font-size:25px}
+  .sidebar .nav-item{font-size:13px;padding:11px 16px;margin:2px 10px;width:calc(100% - 20px);gap:11px;border-radius:12px}
+  .sidebar .nav-item svg{width:18px;height:18px;min-width:18px}
+  .sidebar .nav-sec{padding:14px 18px 6px;font-size:9px}
+  .sidebar .sb-foot{padding:12px}
+  .sidebar .sb-foot button,.sidebar .sb-foot a.btn{font-size:12px;padding:10px}
+  .sidebar .nav-label,.sidebar .sb-foot span,.sidebar .nav-sec,.sidebar .sb-logo-text{display:block!important}
+  .sidebar.collapsed .nav-label,.sidebar.collapsed .sb-foot span,.sidebar.collapsed .nav-sec,.sidebar.collapsed .sb-logo-text{display:block!important}
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:1100}
+  .overlay.show{display:block!important}
+
+  .main,.main.expanded{width:100%;max-width:100%;min-width:0;margin:0!important;padding:12px 12px 40px}
+  .page{width:100%;max-width:100%;min-width:0;overflow:visible}
+  .page-head{width:100%;max-width:100%;align-items:flex-start}
+  .page-title{font-size:21px;line-height:1.35}
+  .page-sub{font-size:11px;line-height:1.7;max-width:100%}
+
+  .onex-topbar{width:100%;max-width:100%;height:auto;min-height:64px;padding:10px 11px;margin-bottom:10px}
+  .top-server{min-width:0;flex:1}
+  .top-server b{font-size:12px}
+  .top-server small{font-size:8px;max-width:120px}
+  .top-actions{flex:0 0 auto}
+  .top-chip{font-size:8px;padding:6px 7px}
+  .top-avatar{width:34px;height:34px;font-size:10px}
+
+  .onex-control-dock{width:100%;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:7px;margin-bottom:14px}
+  .onex-3d-control{min-height:68px;padding:8px 6px;gap:6px}
+  .onex-3d-control .control-icon{width:31px;height:31px;flex-basis:31px}
+  .onex-3d-control svg{width:16px;height:16px}
+  .onex-3d-control .control-title{font-size:9px}
+  .onex-3d-control .control-sub{font-size:6px}
+
+  .dashboard-hero{width:100%;margin-bottom:14px;gap:10px;align-items:flex-end}
+  .hero-kicker{font-size:9px}.hero-title{font-size:24px}.hero-sub{font-size:9px;white-space:normal;line-height:1.5}
+  .hero-actions{flex-wrap:wrap;justify-content:flex-end}.hero-actions .btn{font-size:9px;padding:8px 10px}
+
+  .onex-metrics,.metrics{width:100%;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .onex-metric{min-height:112px;padding:11px}.onex-metric .metric-label{font-size:9px}.onex-metric .metric-val{font-size:20px}
+  .metric{padding:12px;min-width:0}.metric-label{font-size:9px}.metric-val{font-size:20px}
+
+  .dashboard-grid,.g2{width:100%;grid-template-columns:1fr;gap:10px}
+  .dashboard-grid-right{grid-template-rows:auto}
+  .card,.onex-card,.telegram-card{width:100%;max-width:100%;min-width:0}
+  .card{padding:14px;border-radius:15px}
+  .onex-card-head{padding:12px 13px}.onex-card-body{padding:12px 13px}
+  .onex-card-title{font-size:11px}.chart-wrap{height:190px}
+
+  .form-row{grid-template-columns:1fr!important;gap:0}
+  .field{min-width:0}.field label{font-size:10px}.field input,.field select,.field textarea{width:100%;min-width:0;min-height:46px;padding:10px 12px;font-size:16px;border-radius:11px}
+  .btn{min-height:44px;font-size:10px;padding:9px 12px}.btn-sm{min-height:38px}
+  .support-grid{grid-template-columns:1fr!important}
+  .quick-grid{grid-template-columns:1fr 1fr}
+  .table-wrap{width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:600px;font-size:10px}
+  th,td{padding:10px 9px}
+  .range-tabs{width:100%;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+  .range-tab{width:100%;padding:8px 5px;font-size:9px}
+  .modal-bg{padding:10px}.modal{width:calc(100vw - 20px);max-width:none;max-height:88vh;overflow:auto}
+  .toast{max-width:calc(100vw - 24px);font-size:10px;text-align:center}
+}
+
+@media (max-width:480px){
+  body{padding-top:56px}
+  .mob-bar{height:56px;padding:0 9px}
+  .mob-menu-btn{width:40px;height:40px}
+  .mob-brand-icon{width:32px;height:32px;flex-basis:32px;font-size:16px}
+  .mob-brand-text b{font-size:11px}.mob-brand-text span{font-size:7px}
+  .mob-status{font-size:7px}
+  .main,.main.expanded{padding:10px 9px 34px}
+  .page-title{font-size:20px}.page-sub{font-size:10px}
+  .onex-topbar{min-height:60px;padding:8px}.top-chip{display:none}.top-server b{font-size:11px}.top-server small{font-size:7px;max-width:95px}
+  .onex-control-dock{gap:5px;padding:5px}.onex-3d-control{min-height:61px;padding:7px 4px}.onex-3d-control .control-icon{width:28px;height:28px;flex-basis:28px}.onex-3d-control .control-title{font-size:8px}.onex-3d-control .control-sub{font-size:5px}
+  .hero-title{font-size:22px}.hero-kicker{font-size:8px}.hero-actions{width:100%;justify-content:stretch}.hero-actions .btn{flex:1;font-size:9px}
+  .onex-metric{min-height:100px;padding:9px}.onex-metric .metric-label{font-size:8px}.onex-metric .metric-val{font-size:18px}
+  .card{padding:12px}.card-title{font-size:10px}.quick-grid{grid-template-columns:1fr}
+  .table-wrap table{min-width:560px}
+}
+
 </style>
 </head>
 <body>
+
+<div class="mob-bar" id="mobBar">
+  <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <div class="mob-brand"><div class="mob-brand-icon">N</div><div class="mob-brand-text"><b>ONEX Control Center</b><span>پنل مدیریت</span></div></div>
+  <div class="mob-status"><i></i><span>آنلاین</span></div>
+</div>
+<div class="overlay" id="overlay"></div>
 
 <aside class="sidebar" id="sidebar">
   <button class="sb-toggle" id="sbToggle" title="Toggle">
@@ -7319,6 +7438,12 @@ function toggleTheme(){
 (function(){const th=localStorage.getItem('px_theme')||'dark';setTheme(th)})();
 
 const sb=document.getElementById('sidebar'),main=document.getElementById('main');
+const mobMenuBtn=document.getElementById('mobMenuBtn'),overlay=document.getElementById('overlay');
+function closeMobileNav(){ if(sb) sb.classList.remove('mobile-open'); if(overlay) overlay.classList.remove('show'); }
+function openMobileNav(){ if(sb) sb.classList.add('mobile-open'); if(overlay) overlay.classList.add('show'); }
+if(mobMenuBtn) mobMenuBtn.onclick=()=>{ if(sb.classList.contains('mobile-open')) closeMobileNav(); else openMobileNav(); };
+if(overlay) overlay.onclick=closeMobileNav;
+
 document.getElementById('sbToggle').onclick=()=>{
   sb.classList.toggle('collapsed');
   main.classList.toggle('expanded',sb.classList.contains('collapsed'));
@@ -7326,6 +7451,7 @@ document.getElementById('sbToggle').onclick=()=>{
 };
 if(localStorage.getItem('sb_c')==='1'){sb.classList.add('collapsed');main.classList.add('expanded')}
 function goPage(name){
+  closeMobileNav();
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on',n.dataset.page===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-'+name));
   window.scrollTo({top:0,behavior:'smooth'});

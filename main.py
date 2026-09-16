@@ -6957,6 +6957,27 @@ tr:hover td{background:var(--hover)}
     width:260px!important;
   }
 }
+
+/* ONEX REAL MOBILE DASHBOARD FIX */
+@media (max-width:640px){
+  body{overflow-x:hidden!important}
+  .main,.main.expanded{padding:66px 10px 20px!important;margin:0!important;width:100%!important}
+  .content,.container,.dashboard{width:100%!important;max-width:100%!important}
+  .topbar,.header{height:auto!important;min-height:54px!important;padding:8px 10px!important}
+  .metrics,.stats-grid,.cards-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .metric,.stat-card,.panel-card,.card{min-width:0!important;padding:12px!important}
+  .chart,.chart-card,.graph-card{width:100%!important;overflow:hidden!important}
+  .quick-actions,.actions-grid{grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .quick-actions>*{min-height:58px!important}
+  table{font-size:11px!important}
+  .server-grid,.bottom-grid,.info-grid{grid-template-columns:1fr!important}
+  .panel-title{font-size:16px!important}
+  .card-title{font-size:13px!important}
+}
+@media(max-width:420px){
+  .metrics,.stats-grid,.cards-grid{grid-template-columns:1fr!important}
+  .quick-actions,.actions-grid{grid-template-columns:1fr!important}
+}
 </style>
 </head>
 <body>

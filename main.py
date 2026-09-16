@@ -4408,6 +4408,128 @@ async def info_page(
     .sub-box{{background:linear-gradient(135deg,rgba(26,48,79,.72),rgba(10,18,36,.80)) !important;}}
   }}
 
+  /* ============================================================
+     ONEX GLASS PERFORMANCE PATCH
+     Keep the 3D/glass look, but avoid expensive blur/compositor work.
+     The Telegram hero keeps its richer animation; dashboard cards stay
+     visually rich but render immediately and cheaply on mobile.
+     ============================================================ */
+  .w-full.max-w-4xl.mx-auto.space-y-5::before{{
+    background:
+      radial-gradient(circle at 12% 18%,rgba(0,174,255,.12),transparent 24%),
+      radial-gradient(circle at 88% 35%,rgba(124,58,237,.10),transparent 25%),
+      radial-gradient(circle at 50% 88%,rgba(16,185,129,.07),transparent 22%);
+    filter:none !important;
+    animation:none !important;
+    opacity:.9;
+  }}
+
+  /* Realistic glass without backdrop-filter: much faster to paint. */
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card,
+  .dynamic-card{{
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+    background:
+      linear-gradient(145deg,rgba(40,78,125,.64) 0%,rgba(16,35,65,.72) 42%,rgba(12,17,37,.82) 100%) !important;
+    border:1px solid rgba(107,190,255,.34) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.17),
+      inset 0 -1px 0 rgba(0,0,0,.38),
+      inset 12px 0 38px rgba(40,170,255,.055),
+      inset -12px 0 38px rgba(124,58,237,.045),
+      0 16px 42px rgba(0,0,0,.30),
+      0 0 26px rgba(37,140,255,.07) !important;
+    transform:translateZ(0);
+    contain:paint;
+  }}
+
+  /* Static glossy reflection = no continuous repainting. */
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card::before,
+  .dynamic-card::before{{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    border-radius:inherit;
+    background:
+      linear-gradient(118deg,rgba(255,255,255,.10) 0%,transparent 16%,transparent 68%,rgba(74,170,255,.055) 100%),
+      radial-gradient(80% 80% at 0% 0%,rgba(76,190,255,.10),transparent 55%);
+    opacity:1;
+    animation:none !important;
+  }}
+
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card::after{{
+    animation:none !important;
+    opacity:0 !important;
+  }}
+
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:nth-of-type(2),
+  .dynamic-card:nth-of-type(2n){{
+    background:
+      linear-gradient(145deg,rgba(18,102,123,.60) 0%,rgba(10,48,70,.70) 44%,rgba(7,21,39,.82) 100%) !important;
+    border-color:rgba(46,211,238,.34) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.16),
+      inset 0 0 48px rgba(34,211,238,.07),
+      0 16px 42px rgba(0,0,0,.30),0 0 28px rgba(34,211,238,.07) !important;
+  }}
+
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:nth-of-type(3),
+  .dynamic-card:nth-of-type(3n){{
+    background:
+      linear-gradient(145deg,rgba(61,46,119,.64) 0%,rgba(31,30,72,.70) 46%,rgba(13,15,38,.82) 100%) !important;
+    border-color:rgba(167,139,250,.36) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.16),
+      inset 0 0 48px rgba(139,92,246,.075),
+      0 16px 42px rgba(0,0,0,.30),0 0 28px rgba(139,92,246,.07) !important;
+  }}
+
+  .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box{{
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+    background:
+      linear-gradient(145deg,rgba(35,76,122,.48),rgba(12,27,51,.70)) !important;
+    border:1px solid rgba(103,181,255,.24) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.10),
+      inset 0 -10px 24px rgba(0,0,0,.14),
+      0 8px 24px rgba(0,0,0,.16) !important;
+    contain:paint;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box::before{{
+    animation:none !important;
+    background:linear-gradient(115deg,rgba(255,255,255,.07),transparent 24%,transparent 72%,rgba(96,165,250,.05));
+    transform:none !important;
+    opacity:1 !important;
+  }}
+
+  /* Mobile: no blur, no continuous card animation, same premium glass depth. */
+  @media (max-width:700px){{
+    .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card,
+    .dynamic-card{{
+      -webkit-backdrop-filter:none !important;
+      backdrop-filter:none !important;
+      border-radius:20px !important;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.15),
+        inset 0 -1px 0 rgba(0,0,0,.32),
+        inset 0 0 38px rgba(45,140,255,.065),
+        0 12px 30px rgba(0,0,0,.28) !important;
+    }}
+    .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:hover,
+    .dynamic-card:hover,
+    .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box:hover{{
+      transform:none !important;
+    }}
+  }}
+
+  @media (prefers-reduced-motion:reduce){{
+    .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card::before,
+    .dynamic-card::before,
+    .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box::before{{animation:none!important;}}
+  }}
+
 </style>
 </head>
 <body class="font-vazir text-slate-100 antialiased min-h-screen py-8 px-3 sm:px-4 md:py-14">

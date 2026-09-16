@@ -2277,7 +2277,7 @@ async def root(
         )
 
     return HTMLResponse(
-        LANDING_HTML
+        LOGIN_HTML
     )
 
 
@@ -2306,189 +2306,119 @@ LOGIN_HTML = r"""
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#050b18">
-<title>ONEX | ورود به پنل</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>پی ایکس پنل</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#020712;
-  --panel:rgba(5,13,27,.72);
-  --panel2:rgba(8,19,38,.58);
-  --line:rgba(88,180,255,.22);
-  --text:#f8fbff;
-  --muted:#8fa7c3;
-  --blue:#168cff;
-  --cyan:#29d7ff;
-  --shadow:0 30px 100px rgba(0,0,0,.55);
-}
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{min-height:100%;background:var(--bg)}
 body{
-  min-height:100vh;overflow-x:hidden;color:var(--text);font-family:'Vazirmatn',sans-serif;
-  background:
-    radial-gradient(circle at 18% 22%,rgba(0,126,255,.17),transparent 28%),
-    radial-gradient(circle at 85% 15%,rgba(0,207,255,.12),transparent 24%),
-    linear-gradient(145deg,#020712 0%,#061329 52%,#02050d 100%);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  font-family:Vazirmatn,sans-serif;color:#f1f5f9;background:#0a0a0f;
 }
-body:before,body:after{content:"";position:fixed;inset:0;pointer-events:none}
-body:before{opacity:.38;background-image:radial-gradient(#7bdcff 1px,transparent 1px);background-size:90px 90px;animation:stars 22s linear infinite}
-body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0,.08) 45%,rgba(0,0,0,.52) 100%)}
-@keyframes stars{to{transform:translate3d(90px,90px,0)}}
-.scene{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr);position:relative;z-index:1}
-.hero{position:relative;display:flex;align-items:center;justify-content:center;padding:48px;overflow:hidden;perspective:1200px}
-.hero:before{content:"";position:absolute;left:5%;right:5%;bottom:12%;height:34%;border-radius:50%;background:radial-gradient(ellipse,rgba(13,140,255,.22),transparent 68%);filter:blur(16px)}
-.grid-floor{position:absolute;left:-15%;right:-15%;bottom:-13%;height:44%;transform:perspective(600px) rotateX(65deg);background-image:linear-gradient(rgba(24,143,255,.15) 1px,transparent 1px),linear-gradient(90deg,rgba(24,143,255,.15) 1px,transparent 1px);background-size:55px 55px;mask-image:linear-gradient(to top,black,transparent);animation:gridMove 7s linear infinite}
-@keyframes gridMove{to{background-position:0 55px,55px 0}}
-.hero-content{text-align:center;position:relative;z-index:2;transform-style:preserve-3d;animation:heroFloat 5s ease-in-out infinite}
-@keyframes heroFloat{0%,100%{transform:translateY(0) rotateX(0deg)}50%{transform:translateY(-12px) rotateX(1.5deg)}}
-.logo-orbit{width:330px;height:330px;position:relative;margin:0 auto 10px;transform-style:preserve-3d;animation:logoTilt 8s ease-in-out infinite}
-@keyframes logoTilt{0%,100%{transform:rotateY(-8deg) rotateX(4deg)}50%{transform:rotateY(8deg) rotateX(-3deg)}}
-.orbit{position:absolute;inset:58px;border:2px solid rgba(31,167,255,.78);border-radius:50%;box-shadow:0 0 20px rgba(0,157,255,.55),inset 0 0 18px rgba(0,157,255,.18);transform:rotateX(68deg) rotateZ(-18deg);animation:spin 5s linear infinite}
-.orbit.o2{inset:40px;border-color:rgba(64,223,255,.36);transform:rotateY(68deg) rotateZ(24deg);animation-duration:8s;animation-direction:reverse}
-.orbit:after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:#8ff5ff;box-shadow:0 0 18px 7px #16a8ff;left:8%;top:15%}
-@keyframes spin{to{transform:rotateX(68deg) rotateZ(342deg)}}
-.logo3d{position:absolute;left:50%;top:50%;width:145px;height:145px;transform:translate(-50%,-50%) rotateX(-7deg) rotateY(-14deg);transform-style:preserve-3d;filter:drop-shadow(0 25px 25px rgba(0,112,255,.35))}
-.logo3d .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:38px 52px 38px 52px;font-family:Inter,sans-serif;font-size:108px;font-weight:900;line-height:1;color:white;background:linear-gradient(145deg,#63edff 0%,#0c9cff 42%,#123cf0 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 3px 0 rgba(0,44,150,.7),0 0 28px rgba(16,174,255,.55);animation:facePulse 2.8s ease-in-out infinite}
-.logo3d .depth{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;font-size:108px;font-weight:900;color:#063fa8;transform:translateZ(-18px) translate(9px,10px);opacity:.7;filter:blur(.2px)}
-@keyframes facePulse{50%{filter:brightness(1.22) saturate(1.2)}}
-.brand{font-family:Inter,sans-serif;font-size:78px;font-weight:900;letter-spacing:8px;background:linear-gradient(90deg,#f8fbff 0%,#dbeeff 48%,#22b7ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 10px 35px rgba(0,132,255,.3)}
-.tagline{margin-top:5px;letter-spacing:8px;color:#b4c7df;font-family:Inter,sans-serif;font-size:15px}
-.tagline b{color:#25baff}
-.hero-sub{margin-top:18px;color:#8da9c7;font-size:14px}
-.credits{display:flex;justify-content:center;gap:45px;margin-top:65px;color:#7f98b5;font-size:12px}
-.credits strong{display:block;color:#f3f8ff;margin-top:5px;font-size:13px;direction:ltr}
-.credits a{color:#27c6ff;text-decoration:none}
-.login-side{display:flex;align-items:center;justify-content:center;padding:45px 6vw 45px 35px;position:relative}
-.login-card{width:min(500px,100%);padding:34px;border:1px solid var(--line);border-radius:30px;background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68));box-shadow:var(--shadow),0 0 80px rgba(0,119,255,.10);backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);position:relative;overflow:hidden;transform-style:preserve-3d;transition:transform .25s ease,box-shadow .25s ease}
-.login-card:before{content:"";position:absolute;inset:-2px;background:linear-gradient(120deg,transparent 25%,rgba(43,198,255,.25),transparent 50%);transform:translateX(-100%);animation:sheen 5s ease-in-out infinite;pointer-events:none}
-@keyframes sheen{55%,100%{transform:translateX(120%)}}
-.login-logo{width:76px;height:76px;margin:0 auto 12px;border-radius:24px;display:grid;place-items:center;background:linear-gradient(145deg,#087cff,#21d5ff);box-shadow:0 0 35px rgba(0,153,255,.38);transform-style:preserve-3d;animation:miniLogo 4s ease-in-out infinite}
-.login-logo span{font-family:Inter,sans-serif;font-size:55px;font-weight:900;color:white;text-shadow:4px 5px 0 rgba(0,51,150,.55);transform:translateZ(18px) rotateY(-8deg)}
-@keyframes miniLogo{50%{transform:rotateY(12deg) rotateX(6deg) translateY(-4px)}}
-.login-title{text-align:center;font-size:25px;font-weight:900}.login-title b{color:#24c4ff}.login-desc{text-align:center;color:var(--muted);font-size:12px;margin-top:7px;margin-bottom:27px}
-.field{position:relative;margin-bottom:15px}.field svg{position:absolute;right:15px;top:50%;transform:translateY(-50%);width:21px;height:21px;color:#5f9dd8;pointer-events:none}.field input{width:100%;height:58px;padding:0 50px 0 44px;border-radius:17px;border:1px solid rgba(122,180,235,.14);background:rgba(2,11,24,.62);color:#fff;font-family:inherit;font-size:14px;outline:none;direction:ltr;text-align:left;transition:.25s}.field input::placeholder{color:#617a98}.field input:focus{border-color:#168cff;box-shadow:0 0 0 4px rgba(22,140,255,.10),0 0 30px rgba(22,140,255,.10)}
-.eye{position:absolute;left:12px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#6485a9;cursor:pointer;padding:7px;display:grid;place-items:center}.eye svg{position:static;transform:none;width:20px;height:20px}
-.primary{width:100%;height:58px;margin-top:5px;border:0;border-radius:17px;color:#fff;font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;background:linear-gradient(100deg,#086cff,#12a7ff 55%,#1ad8ff);box-shadow:0 12px 28px rgba(0,115,255,.24);position:relative;overflow:hidden;transition:transform .2s,filter .2s}.primary:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.28),transparent 70%);transform:translateX(-120%);animation:buttonSheen 3.5s infinite}.primary:hover{transform:translateY(-2px);filter:brightness(1.08)}.primary:disabled{opacity:.55;cursor:not-allowed;transform:none}.primary span{position:relative;z-index:1}
-@keyframes buttonSheen{50%,100%{transform:translateX(120%)}}
-.row{display:flex;align-items:center;justify-content:space-between;margin:15px 2px 0;font-size:11px;color:#728ba8}.remember{display:flex;align-items:center;gap:7px}.remember input{accent-color:#129cff}.forgot{color:#19b9ff}
-.telegram{margin-top:23px;padding:14px 15px;border-radius:18px;border:1px solid rgba(43,191,255,.25);background:linear-gradient(120deg,rgba(0,115,255,.08),rgba(20,211,255,.05));display:flex;align-items:center;gap:13px;text-decoration:none;color:#fff;position:relative;overflow:hidden}.telegram:before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent,rgba(37,198,255,.14),transparent);transform:translateX(-120%);animation:telegramSheen 3s infinite}.telegram-icon{width:45px;height:45px;border-radius:50%;display:grid;place-items:center;flex:0 0 45px;background:linear-gradient(145deg,#23aaff,#0878ff);box-shadow:0 0 25px rgba(0,147,255,.35);animation:tgPulse 2.2s ease-in-out infinite;position:relative;z-index:1}.telegram-icon svg{width:24px}.telegram-text{position:relative;z-index:1}.telegram-text small{display:block;color:#7894b2;font-size:10px}.telegram-text b{display:block;color:#23c7ff;font-family:Inter,sans-serif;font-size:14px;margin-top:2px;direction:ltr;text-align:right}.tg-arrow{margin-right:auto;color:#3dbfff;font-size:23px;position:relative;z-index:1;animation:arrowPulse 1.8s ease-in-out infinite}@keyframes telegramSheen{50%,100%{transform:translateX(120%)}}@keyframes tgPulse{50%{transform:translateY(-3px) rotate(-7deg);box-shadow:0 0 34px rgba(0,181,255,.6)}}@keyframes arrowPulse{50%{transform:translateX(-4px)}}
-.err,.error{display:none;margin-bottom:13px;padding:11px 13px;border-radius:13px;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.28);color:#ff9d9d;font-size:12px;line-height:1.7}.err.show,.error.show{display:block}.warn{margin-bottom:16px;padding:12px;border-radius:13px;background:rgba(245,158,11,.09);border:1px solid rgba(245,158,11,.25);color:#fbbf24;font-size:11px;line-height:1.9}.warn code{background:rgba(0,0,0,.35);padding:2px 5px;border-radius:5px;color:#9ed4ff;font-family:ui-monospace,monospace}.hidden{display:none!important}
-.footer{text-align:center;color:#526b88;font-size:10px;margin-top:20px}.footer a{color:#2ac8ff;text-decoration:none}
-.setup-title{font-size:21px;font-weight:900;margin-bottom:5px;text-align:center}.setup-desc{text-align:center;color:#819ab7;font-size:11px;margin-bottom:20px}
-@media(max-width:900px){.scene{grid-template-columns:1fr}.hero{min-height:420px;padding:25px}.login-side{padding:0 20px 35px}.login-card{max-width:520px}.credits{margin-top:35px}.brand{font-size:58px}.logo-orbit{transform:scale(.78);margin-bottom:-25px}.hero-sub{margin-top:0}}
-@media(max-width:520px){.hero{min-height:350px}.logo-orbit{transform:scale(.62);margin-top:-35px;margin-bottom:-55px}.brand{font-size:43px;letter-spacing:4px}.tagline{font-size:10px;letter-spacing:4px}.hero-sub{font-size:11px}.credits{gap:20px;margin-top:25px}.login-side{padding:0 12px 20px}.login-card{padding:25px 18px;border-radius:24px}.login-title{font-size:21px}.telegram{padding:12px}.field input,.primary{height:54px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+.card{
+  width:100%;max-width:380px;padding:28px 24px;border-radius:18px;
+  background:#12121a;border:1px solid rgba(255,255,255,.08);
+}
+h1{font-size:20px;font-weight:800;text-align:center;margin-bottom:22px;letter-spacing:-.02em}
+label{display:block;font-size:12px;color:rgba(255,255,255,.5);margin-bottom:6px;font-weight:600}
+input{
+  width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.1);
+  background:rgba(0,0,0,.35);color:#fff;font-family:inherit;font-size:14px;outline:none;margin-bottom:14px;
+  direction:ltr;text-align:left;
+}
+input:focus{border-color:rgba(59,130,246,.55)}
+button{
+  width:100%;padding:13px;border:none;border-radius:12px;
+  background:#2563eb;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;
+}
+button:hover{background:#1d4ed8}
+button:disabled{opacity:.5;cursor:not-allowed}
+.err{display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.28);color:#fca5a5;padding:10px 12px;border-radius:10px;font-size:12px;margin-bottom:12px}
+.err.show{display:block}
+.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.28);border-radius:12px;padding:12px;font-size:12px;line-height:1.85;color:#fbbf24;margin-bottom:16px}
+.warn code{background:rgba(0,0,0,.35);padding:2px 6px;border-radius:6px;font-family:ui-monospace,monospace;color:#93c5fd}
+.hidden{display:none}
 </style>
 </head>
 <body>
-<div class="scene">
-  <section class="hero">
-    <div class="grid-floor"></div>
-    <div class="hero-content">
-      <div class="logo-orbit" aria-hidden="true">
-        <div class="orbit"></div><div class="orbit o2"></div>
-        <div class="logo3d"><div class="depth">N</div><div class="face">N</div></div>
-      </div>
-      <div class="brand">ONEX</div>
-      <div class="tagline">FAST <b>•</b> SECURE <b>•</b> STABLE</div>
-      <div class="hero-sub">اتصال سریع، پایدار و امن بدون محدودیت</div>
-      <div class="credits">
-        <div>Designed by<strong><a href="https://t.me/Mehtif" target="_blank" rel="noopener">@Mehtif</a></strong></div>
-        <div>Telegram Channel<strong><a href="https://t.me/V2rayTun0" target="_blank" rel="noopener">@V2rayTun0</a></strong></div>
-      </div>
+<div class="card">
+  <h1>پی ایکس پنل</h1>
+
+  <div id="setupBox" class="hidden">
+    <div class="warn">
+      برای نگه‌داشتن داده‌ها روی Railway حتماً Volume با مسیر <code>/data</code> وصل کنید.
     </div>
-  </section>
+    <div class="err" id="setupErr"></div>
+    <label>رمز عبور پنل</label>
+    <input type="password" id="setupPw" placeholder="حداقل ۶ کاراکتر" autocomplete="new-password">
+    <label>تکرار رمز عبور</label>
+    <input type="password" id="setupPw2" placeholder="تکرار رمز" autocomplete="new-password">
+    <button type="button" id="setupBtn" onclick="doSetup()">تنظیم رمز و ورود</button>
+  </div>
 
-  <main class="login-side">
-    <div class="login-card" id="loginCard">
-      <div class="login-logo" aria-hidden="true"><span>N</span></div>
-      <div class="login-title">به پنل <b>ONEX</b> خوش آمدید</div>
-      <div class="login-desc">برای ادامه، اطلاعات حساب کاربری خود را وارد کنید</div>
-
-      <div id="setupBox" class="hidden">
-        <div class="setup-title">راه‌اندازی اولیه</div>
-        <div class="setup-desc">رمز عبور مدیر پنل را برای اولین ورود تعیین کنید.</div>
-        <div class="warn">برای نگه‌داشتن داده‌ها روی Railway حتماً Volume با مسیر <code>/data</code> وصل کنید.</div>
-        <div class="err" id="setupErr"></div>
-        <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="setupPw" placeholder="رمز عبور، حداقل ۶ کاراکتر" autocomplete="new-password"></div>
-        <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="setupPw2" placeholder="تکرار رمز عبور" autocomplete="new-password"></div>
-        <button class="primary" type="button" id="setupBtn" onclick="doSetup()"><span>تنظیم رمز و ورود</span></button>
-      </div>
-
-      <div id="loginBox" class="hidden">
-        <div class="err" id="loginErr"></div>
-        <form id="loginForm">
-          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg><input type="text" id="loginUser" placeholder="نام کاربری ادمین" autocomplete="username"></div>
-          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="loginPw" placeholder="رمز عبور" autocomplete="current-password" required><button class="eye" type="button" onclick="togglePassword()" aria-label="نمایش رمز"><svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div>
-          <button class="primary" type="submit" id="loginBtn"><span>ورود به پنل</span></button>
-          <div class="row"><label class="remember"><input type="checkbox" checked> مرا به خاطر بسپار</label><span class="forgot">دسترسی امن به پنل</span></div>
-        </form>
-      </div>
-
-      <a class="telegram" href="https://t.me/V2rayTun0" target="_blank" rel="noopener">
-        <div class="telegram-icon"><svg viewBox="0 0 24 24" fill="white"><path d="M21.4 3.5 2.9 10.6c-1.3.5-1.3 1.2-.2 1.5l4.7 1.5 1.8 5.7c.2.6.1.8.8.8.5 0 .7-.2 1-.5l2.3-2.2 4.8 3.5c.9.5 1.6.3 1.8-.9l3.1-14.6c.3-1.5-.5-2.2-1.8-1.6Zm-12.9 9.8 9.9-6.2c.5-.3 1-.1.6.2l-8 7.2-.3 3.2-1.4-4.4-3.4-1.1c-.7-.2-.7-.5.1-.8Z"/></svg></div>
-        <div class="telegram-text"><small>کانال رسمی تلگرام</small><b>@V2rayTun0</b></div>
-        <div class="tg-arrow">‹</div>
-      </a>
-      <div class="footer">© 2026 ONEX &nbsp;|&nbsp; Designed by <a href="https://t.me/Mehtif" target="_blank" rel="noopener">@Mehtif</a></div>
-    </div>
-  </main>
+  <div id="loginBox" class="hidden">
+    <div class="err" id="loginErr"></div>
+    <form id="loginForm">
+      <label>نام کاربری ادمین</label>
+      <input type="text" id="loginUser" placeholder="خالی = مالک پنل" autocomplete="username">
+      <label>رمز عبور</label>
+      <input type="password" id="loginPw" placeholder="رمز عبور" autocomplete="current-password" required>
+      <button type="submit" id="loginBtn">ورود</button>
+    </form>
+  </div>
 </div>
 <script>
-const card=document.getElementById('loginCard');
-if(window.matchMedia('(pointer:fine)').matches){
-  document.addEventListener('mousemove',e=>{
-    const r=card.getBoundingClientRect();
-    const x=(e.clientX-r.left)/r.width-.5;
-    const y=(e.clientY-r.top)/r.height-.5;
-    if(e.clientX>=r.left-120&&e.clientX<=r.right+120&&e.clientY>=r.top-120&&e.clientY<=r.bottom+120){
-      card.style.transform=`perspective(1000px) rotateX(${(-y*2.8).toFixed(2)}deg) rotateY(${(x*3.2).toFixed(2)}deg) translateZ(3px)`;
-    }
-  });
-  document.addEventListener('mouseleave',()=>card.style.transform='');
-}
-function togglePassword(){
-  const input=document.getElementById('loginPw');
-  input.type=input.type==='password'?'text':'password';
-}
 async function checkSetup(){
   try{
     const r=await fetch('/api/setup/status',{cache:'no-store'});
     const d=await r.json();
     if(d.needs_setup){
       document.getElementById('setupBox').classList.remove('hidden');
-      document.getElementById('setupPw').focus();
     }else{
       document.getElementById('loginBox').classList.remove('hidden');
       document.getElementById('loginPw').focus();
     }
-  }catch(e){document.getElementById('loginBox').classList.remove('hidden');}
+  }catch(e){
+    document.getElementById('loginBox').classList.remove('hidden');
+  }
 }
 async function doSetup(){
   const pw=document.getElementById('setupPw').value;
   const pw2=document.getElementById('setupPw2').value;
-  const err=document.getElementById('setupErr');err.classList.remove('show');
-  if(pw.length<6){err.textContent='رمز حداقل ۶ کاراکتر باشد';err.classList.add('show');return}
+  const err=document.getElementById('setupErr');
+  err.classList.remove('show');
+  if(pw.length<6){err.textContent='رمز حداقل ۶ کاراکتر';err.classList.add('show');return}
   if(pw!==pw2){err.textContent='تکرار رمز یکسان نیست';err.classList.add('show');return}
   const btn=document.getElementById('setupBtn');btn.disabled=true;
   try{
     const r=await fetch('/api/setup/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,repeat_password:pw2})});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(d.detail||'خطا در تنظیم رمز');
+    if(!r.ok) throw new Error(d.detail||'خطا');
     location.href='/dashboard';
-  }catch(e){err.textContent=e.message||'خطا';err.classList.add('show');btn.disabled=false;}
+  }catch(e){
+    err.textContent=e.message||'خطا';err.classList.add('show');
+    btn.disabled=false;
+  }
 }
 document.getElementById('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const err=document.getElementById('loginErr');err.classList.remove('show');
+  const err=document.getElementById('loginErr');
+  err.classList.remove('show');
   const btn=document.getElementById('loginBtn');btn.disabled=true;
   try{
-    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('loginPw').value,username:document.getElementById('loginUser').value})});
-    if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'رمز اشتباه است');}
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      password:document.getElementById('loginPw').value,
+      username:document.getElementById('loginUser').value
+    })});
+    if(!r.ok){
+      const d=await r.json().catch(()=>({}));
+      throw new Error(d.detail||'رمز اشتباه است');
+    }
     location.href='/dashboard';
-  }catch(e){err.textContent=e.message||'خطا در ورود';err.classList.add('show');btn.disabled=false;}
+  }catch(e){
+    err.textContent=e.message;err.classList.add('show');
+    btn.disabled=false;
+  }
 });
 checkSetup();
 </script>

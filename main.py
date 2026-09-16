@@ -2210,62 +2210,6 @@ table th:first-child, table td:first-child{overflow:visible}
  -webkit-backdrop-filter:blur(14px);
 }
 
-
-
-/* FINAL MOBILE DASHBOARD RESPONSIVE PATCH */
-@media(max-width:768px){
-  .mob-bar{
-    display:flex!important;
-    position:fixed!important;
-    top:0!important;
-    left:0!important;
-    right:0!important;
-    height:58px!important;
-    z-index:9000!important;
-  }
-  #sidebar{
-    position:fixed!important;
-    top:0!important;
-    right:0!important;
-    bottom:0!important;
-    width:100%!important;
-    max-width:100%!important;
-    transform:translateX(110%)!important;
-    border-radius:0!important;
-    z-index:10001!important;
-  }
-  #sidebar.open,
-  #sidebar.show{
-    transform:translateX(0)!important;
-  }
-  .main,.main.expanded{
-    margin:0!important;
-    padding:70px 12px 24px!important;
-    width:100%!important;
-  }
-  .dashboard,.content,.container{
-    width:100%!important;
-    max-width:none!important;
-  }
-  .metrics,.stats-grid,.cards-grid{
-    grid-template-columns:1fr!important;
-  }
-  .quick-actions,.actions-grid{
-    grid-template-columns:1fr!important;
-  }
-  .panel-card,.card,.metric,.stat-card{
-    width:100%!important;
-    overflow:hidden!important;
-  }
-  .chart-card svg,.graph-card svg,canvas{
-    max-width:100%!important;
-  }
-  .table-wrap, .table-responsive{
-    overflow-x:auto!important;
-    width:100%!important;
-  }
-}
-
 </style>
 </head>
 
@@ -2482,62 +2426,6 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
 @media(max-width:900px){.scene{grid-template-columns:1fr}.hero{min-height:420px;padding:25px}.login-side{padding:0 20px 35px}.login-card{max-width:520px}.credits{margin-top:35px}.brand{font-size:58px}.logo-orbit{transform:scale(.78);margin-bottom:-25px}.hero-sub{margin-top:0}}
 @media(max-width:520px){.hero{min-height:350px}.logo-orbit{transform:scale(.62);margin-top:-35px;margin-bottom:-55px}.brand{font-size:43px;letter-spacing:4px}.tagline{font-size:10px;letter-spacing:4px}.hero-sub{font-size:11px}.credits{gap:20px;margin-top:25px}.login-side{padding:0 12px 20px}.login-card{padding:25px 18px;border-radius:24px}.login-title{font-size:21px}.telegram{padding:12px}.field input,.primary{height:54px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
-
-
-/* FINAL MOBILE DASHBOARD RESPONSIVE PATCH */
-@media(max-width:768px){
-  .mob-bar{
-    display:flex!important;
-    position:fixed!important;
-    top:0!important;
-    left:0!important;
-    right:0!important;
-    height:58px!important;
-    z-index:9000!important;
-  }
-  #sidebar{
-    position:fixed!important;
-    top:0!important;
-    right:0!important;
-    bottom:0!important;
-    width:100%!important;
-    max-width:100%!important;
-    transform:translateX(110%)!important;
-    border-radius:0!important;
-    z-index:10001!important;
-  }
-  #sidebar.open,
-  #sidebar.show{
-    transform:translateX(0)!important;
-  }
-  .main,.main.expanded{
-    margin:0!important;
-    padding:70px 12px 24px!important;
-    width:100%!important;
-  }
-  .dashboard,.content,.container{
-    width:100%!important;
-    max-width:none!important;
-  }
-  .metrics,.stats-grid,.cards-grid{
-    grid-template-columns:1fr!important;
-  }
-  .quick-actions,.actions-grid{
-    grid-template-columns:1fr!important;
-  }
-  .panel-card,.card,.metric,.stat-card{
-    width:100%!important;
-    overflow:hidden!important;
-  }
-  .chart-card svg,.graph-card svg,canvas{
-    max-width:100%!important;
-  }
-  .table-wrap, .table-responsive{
-    overflow-x:auto!important;
-    width:100%!important;
-  }
-}
-
 </style>
 </head>
 <body>
@@ -4264,62 +4152,6 @@ async def info_page(
   .sub-box {{
     background-color: var(--bg-sub-card);
   }}
-
-
-/* FINAL MOBILE DASHBOARD RESPONSIVE PATCH */
-@media(max-width:768px){
-  .mob-bar{
-    display:flex!important;
-    position:fixed!important;
-    top:0!important;
-    left:0!important;
-    right:0!important;
-    height:58px!important;
-    z-index:9000!important;
-  }
-  #sidebar{
-    position:fixed!important;
-    top:0!important;
-    right:0!important;
-    bottom:0!important;
-    width:100%!important;
-    max-width:100%!important;
-    transform:translateX(110%)!important;
-    border-radius:0!important;
-    z-index:10001!important;
-  }
-  #sidebar.open,
-  #sidebar.show{
-    transform:translateX(0)!important;
-  }
-  .main,.main.expanded{
-    margin:0!important;
-    padding:70px 12px 24px!important;
-    width:100%!important;
-  }
-  .dashboard,.content,.container{
-    width:100%!important;
-    max-width:none!important;
-  }
-  .metrics,.stats-grid,.cards-grid{
-    grid-template-columns:1fr!important;
-  }
-  .quick-actions,.actions-grid{
-    grid-template-columns:1fr!important;
-  }
-  .panel-card,.card,.metric,.stat-card{
-    width:100%!important;
-    overflow:hidden!important;
-  }
-  .chart-card svg,.graph-card svg,canvas{
-    max-width:100%!important;
-  }
-  .table-wrap, .table-responsive{
-    overflow-x:auto!important;
-    width:100%!important;
-  }
-}
-
 </style>
 </head>
 <body class="font-vazir text-slate-100 antialiased min-h-screen py-8 px-3 sm:px-4 md:py-14">
@@ -5266,62 +5098,6 @@ h1{
 .version{
     color:#60a5fa;
     font-size:11px;
-}
-
-
-
-/* FINAL MOBILE DASHBOARD RESPONSIVE PATCH */
-@media(max-width:768px){
-  .mob-bar{
-    display:flex!important;
-    position:fixed!important;
-    top:0!important;
-    left:0!important;
-    right:0!important;
-    height:58px!important;
-    z-index:9000!important;
-  }
-  #sidebar{
-    position:fixed!important;
-    top:0!important;
-    right:0!important;
-    bottom:0!important;
-    width:100%!important;
-    max-width:100%!important;
-    transform:translateX(110%)!important;
-    border-radius:0!important;
-    z-index:10001!important;
-  }
-  #sidebar.open,
-  #sidebar.show{
-    transform:translateX(0)!important;
-  }
-  .main,.main.expanded{
-    margin:0!important;
-    padding:70px 12px 24px!important;
-    width:100%!important;
-  }
-  .dashboard,.content,.container{
-    width:100%!important;
-    max-width:none!important;
-  }
-  .metrics,.stats-grid,.cards-grid{
-    grid-template-columns:1fr!important;
-  }
-  .quick-actions,.actions-grid{
-    grid-template-columns:1fr!important;
-  }
-  .panel-card,.card,.metric,.stat-card{
-    width:100%!important;
-    overflow:hidden!important;
-  }
-  .chart-card svg,.graph-card svg,canvas{
-    max-width:100%!important;
-  }
-  .table-wrap, .table-responsive{
-    overflow-x:auto!important;
-    width:100%!important;
-  }
 }
 
 </style>
@@ -7201,77 +6977,6 @@ tr:hover td{background:var(--hover)}
 @media(max-width:420px){
   .metrics,.stats-grid,.cards-grid{grid-template-columns:1fr!important}
   .quick-actions,.actions-grid{grid-template-columns:1fr!important}
-}
-
-
-/* FINAL MOBILE DASHBOARD RESPONSIVE PATCH */
-@media(max-width:768px){
-  .mob-bar{
-    display:flex!important;
-    position:fixed!important;
-    top:0!important;
-    left:0!important;
-    right:0!important;
-    height:58px!important;
-    z-index:9000!important;
-  }
-  #sidebar{
-    position:fixed!important;
-    top:0!important;
-    right:0!important;
-    bottom:0!important;
-    width:100%!important;
-    max-width:100%!important;
-    transform:translateX(110%)!important;
-    border-radius:0!important;
-    z-index:10001!important;
-  }
-  #sidebar.open,
-  #sidebar.show{
-    transform:translateX(0)!important;
-  }
-  .main,.main.expanded{
-    margin:0!important;
-    padding:70px 12px 24px!important;
-    width:100%!important;
-  }
-  .dashboard,.content,.container{
-    width:100%!important;
-    max-width:none!important;
-  }
-  .metrics,.stats-grid,.cards-grid{
-    grid-template-columns:1fr!important;
-  }
-  .quick-actions,.actions-grid{
-    grid-template-columns:1fr!important;
-  }
-  .panel-card,.card,.metric,.stat-card{
-    width:100%!important;
-    overflow:hidden!important;
-  }
-  .chart-card svg,.graph-card svg,canvas{
-    max-width:100%!important;
-  }
-  .table-wrap, .table-responsive{
-    overflow-x:auto!important;
-    width:100%!important;
-  }
-}
-
-
-/* ONEX MOBILE REAL FIX v4 */
-@media (max-width: 768px){
-  html,body{max-width:100%!important;overflow-x:hidden!important}
-  .main,.main.expanded{position:relative!important;right:0!important;left:0!important;width:100%!important;min-width:0!important}
-  #sidebar{width:min(92vw,360px)!important}
-  .grid,.dashboard-grid,.row,.flex-row{flex-wrap:wrap!important;max-width:100%!important}
-  [style*="width:"],[style*="min-width:"]{max-width:100%!important}
-  input,select,button,textarea{max-width:100%!important}
-}
-@media(max-width:480px){
-  .main,.main.expanded{padding-left:8px!important;padding-right:8px!important}
-  .metrics,.stats-grid,.cards-grid,.quick-actions,.actions-grid{display:grid!important;grid-template-columns:1fr!important}
-  .panel-card,.card,.metric,.stat-card{border-radius:18px!important}
 }
 </style>
 </head>

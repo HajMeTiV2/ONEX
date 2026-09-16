@@ -148,43 +148,7 @@ function startCoreEngine() {
   });
 }
 
-function syncUserTrafficFromCore() {
-  const binPath = path.join(__dirname, 'xray-bin', 'xray');
-  if (!fs.existsSync(binPath)) return;
-  exec(`${binPath} api statsquery -server 127.0.0.1:10085 -reset true`, (error, stdout) => {
-    if (error || !stdout) return;
-    try {
-      const statsObj = JSON.parse(stdout);
-      if (!statsObj.stat || !Array.isArray(statsObj.stat)) return;
-      statsObj.stat.forEach(item => {
-        const parts = item.name.split('>>>');
-        if (parts[0] === 'user' && parts[2] === 'traffic') {
-          const uuid = parts[1];
-          const direction = parts[3];
-          const bytes = parseInt(item.value, 10) || 0;
-          if (bytes > 0) {
-            const addedGb = bytes / (1024 * 1024 * 1024);
-            const column = direction === 'downlink' ? 'downlink_bytes' : 'uplink_bytes';
-            db.get('SELECT id, status, expire_days FROM configs WHERE uuid = ?', [uuid], (err, cfg) => {
-              if (cfg) {
-                if (cfg.status === 'pending') {
-                  const exp = new Date();
-                  exp.setDate(exp.getDate() + cfg.expire_days);
-                  db.run('UPDATE configs SET status = "active", expire_date = ? WHERE id = ?', [exp.toISOString(), cfg.id]);
-                }
-                db.run(`UPDATE configs SET used_gb = used_gb + ?, ${column} = ${column} + ? WHERE uuid = ?`, [addedGb, bytes, uuid]);
-              }
-            });
-          }
-        }
-      });
-    } catch (e) {}
-  });
-}
-
-setInterval(syncUserTrafficFromCore, 10000);
-startCoreEngine();
-
+// ساخت لینک‌های کامل با دامنه رایلی و تگ اختصاصی شما
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const remark = `NEXO-${cfg.name} | @V2rayTun0`;
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
@@ -277,13 +241,50 @@ app.post('/api/save-worker-settings', auth, (req, res) => {
   });
 });
 
-// رفع مشکل پورتال ساب و جستجوی دقیق کانفیگ با id یا uuid
+app.get('/api/announcement', (req, res) => {
+  db.get('SELECT value FROM settings WHERE key = "active_announcement"', (err, row) => {
+    res.json({ message: row ? row.value : '' });
+  });
+});
+
+// پوشش کامل مسیر subinfo برای قالب‌های مختلف ساب
+app.get('/api/subinfo/:id', (req, res) => {
+  const queryId = req.params.id;
+  db.get('SELECT * FROM configs WHERE id = ? OR uuid = ?', [queryId, queryId], (err, cfg) => {
+    if (!cfg) return res.status(404).json({ error: 'Config not found' });
+    
+    const total = cfg.total_gb || 20;
+    const used = cfg.used_gb || 0;
+    const remaining = Math.max(0, total - used).toFixed(2);
+    const percent = Math.min(100, Math.round((used / total) * 100));
+    const proto = req.protocol || 'https';
+    const host = req.get('host');
+
+    res.json({
+      config: cfg,
+      usagePercent: percent,
+      remainingGb: remaining,
+      subUrl: `${proto}://${host}/sub/${cfg.id}`
+    });
+  });
+});
+
+// پوشش مسیر جایگزین subscription json
+app.get('/api/subscription/:id/json', (req, res) => {
+  const queryId = req.params.id;
+  db.get('SELECT * FROM configs WHERE id = ? OR uuid = ?', [queryId, queryId], (err, cfg) => {
+    if (!cfg) return res.status(404).json({ success: false, error: 'Config not found' });
+    res.json({ success: true, data: cfg });
+  });
+});
+
+// مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64)
 app.get('/sub/:id', (req, res) => {
   const defaultHost = req.headers.host;
   const queryId = req.params.id;
   
   db.get('SELECT * FROM configs WHERE id = ? OR uuid = ?', [queryId, queryId], (err, cfg) => {
-    if (!cfg) return res.status(404).send('Config not found');
+    if (!cfg) return res.status(403).send('Config not found');
     db.all('SELECT key, value FROM settings', (err, sets) => {
       const setMap = {};
       (sets || []).forEach(s => setMap[s.key] = s.value);

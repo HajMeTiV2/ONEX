@@ -230,12 +230,12 @@ PROTOCOLS = (
 )
 
 PROTOCOL_LABELS = {
-    "vless-ws": "VLESS WebSocket ⭐",
+    "vless-ws": "🚀 VLESS WebSocket",
     "xhttp-packet-up": "XHTTP Packet Up",
     "xhttp-stream-up": "XHTTP Stream Up",
     "xhttp-stream-one": "XHTTP Stream One",
-    "vmess-ws": "VMess WebSocket",
-    "trojan-ws": "Trojan WebSocket",
+    "vmess-ws": "🚀 VMess WebSocket",
+    "trojan-ws": "🚀 Trojan WebSocket",
     "shadowsocks": "Shadowsocks",
     "socks5": "SOCKS5",
     "http": "HTTP Proxy",
@@ -2190,6 +2190,26 @@ html{scroll-behavior:smooth} body{overflow-x:hidden} button,input,select,textare
 table th:first-child, table td:first-child{overflow:visible}
 .cfg-chk{accent-color:var(--accent)}
 #page-donate .page-title{width:100%}
+
+/* ONEX glass protocol selector */
+#page-create select {
+  background:linear-gradient(135deg,rgba(20,25,45,.92),rgba(8,10,20,.96))!important;
+  border:1px solid rgba(99,102,241,.35)!important;
+  box-shadow:0 0 18px rgba(99,102,241,.12), inset 0 1px 20px rgba(255,255,255,.03)!important;
+  color:#e5e7eb!important;
+  transition:.35s ease!important;
+}
+#page-create select:hover,#page-create select:focus{
+ border-color:#60a5fa!important;
+ transform:translateY(-2px);
+ box-shadow:0 0 25px rgba(96,165,250,.25)!important;
+}
+#page-create .field label[data-i18n="label_proto"]:before{content:"🚀 ";}
+#page-create .card{
+ backdrop-filter:blur(14px);
+ -webkit-backdrop-filter:blur(14px);
+}
+
 </style>
 </head>
 

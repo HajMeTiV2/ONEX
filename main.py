@@ -4192,6 +4192,109 @@ async def info_page(
   @keyframes tgParticle3{{0%,100%{{transform:translate(0,0);opacity:.25}}50%{{transform:translate(12px,20px);opacity:1}}}}
   @media (max-width:700px){{.tg-hero{{min-height:unset;border-radius:22px;}}.tg-hero-inner{{grid-template-columns:76px minmax(0,1fr);gap:13px;padding:16px 14px;min-height:126px;}}.tg-visual{{width:70px;height:70px;}}.tg-logo-wrap{{width:54px;height:54px;border-radius:18px;box-shadow:-5px 6px 0 rgba(4,45,110,.5),0 8px 20px rgba(0,136,255,.4),0 0 24px rgba(0,174,255,.3);}}.tg-logo-wrap svg{{width:32px;height:32px;}}.tg-orbit{{inset:2px;}}.tg-kicker{{font-size:8px;margin-bottom:2px;}}.tg-title{{font-size:15px;line-height:1.5;}}.tg-desc{{font-size:9px;margin-top:3px;line-height:1.6;}}.tg-handle{{margin-top:6px;padding:5px 9px;font-size:10px;}}.tg-join{{grid-column:1 / -1;width:100%;min-width:0;padding:11px 14px;border-radius:14px;font-size:12px;transform:none;box-shadow:0 6px 0 rgba(25,45,130,.5),0 10px 22px rgba(37,99,235,.26);}}.tg-bell{{right:10px;top:10px;transform:scale(.72);}}}}
   @media (prefers-reduced-motion:reduce){{.tg-hero::before,.tg-hero::after,.tg-orbit,.tg-logo-wrap,.tg-join::before,.tg-handle-dot,.tg-bell,.tg-particle{{animation:none!important;}}}}
+
+  /* ============================================================
+     GLASS PANELS — COLORFUL NEON GLASS (PLAN 1 FINAL)
+     ============================================================ */
+  .dynamic-card{{
+    position:relative;
+    overflow:hidden;
+    background:
+      radial-gradient(120% 150% at 100% 0%,rgba(72,115,255,.105),transparent 46%),
+      radial-gradient(100% 130% at 0% 100%,rgba(139,92,246,.075),transparent 48%),
+      linear-gradient(135deg,rgba(18,25,43,.78),rgba(8,11,21,.82));
+    border-color:rgba(105,145,255,.18);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.055),inset 0 0 35px rgba(72,115,255,.025),0 14px 40px rgba(0,0,0,.16) !important;
+    backdrop-filter:blur(22px) saturate(125%);
+  }}
+  .dynamic-card::before{{
+    content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+    background:linear-gradient(115deg,rgba(255,255,255,.045),transparent 22%,transparent 72%,rgba(96,165,250,.055));
+    opacity:.9;
+  }}
+  .dynamic-card:nth-of-type(2n){{
+    background:
+      radial-gradient(110% 150% at 0% 0%,rgba(0,174,255,.10),transparent 45%),
+      radial-gradient(100% 130% at 100% 100%,rgba(37,99,235,.075),transparent 48%),
+      linear-gradient(135deg,rgba(14,25,43,.80),rgba(7,11,20,.84));
+    border-color:rgba(56,189,248,.17);
+  }}
+  .dynamic-card:nth-of-type(3n){{
+    background:
+      radial-gradient(120% 140% at 100% 10%,rgba(168,85,247,.105),transparent 44%),
+      radial-gradient(100% 130% at 0% 100%,rgba(52,211,153,.055),transparent 46%),
+      linear-gradient(135deg,rgba(24,20,43,.80),rgba(9,10,21,.84));
+    border-color:rgba(167,139,250,.17);
+  }}
+  .sub-box{{
+    background:
+      linear-gradient(135deg,rgba(20,27,45,.66),rgba(9,12,22,.72));
+    border-color:rgba(110,145,220,.12) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.028),inset 0 0 22px rgba(96,165,250,.025) !important;
+  }}
+  .dynamic-card:hover{{
+    background:
+      radial-gradient(120% 150% at 100% 0%,rgba(72,115,255,.14),transparent 46%),
+      radial-gradient(100% 130% at 0% 100%,rgba(139,92,246,.10),transparent 48%),
+      linear-gradient(135deg,rgba(21,29,49,.84),rgba(8,11,21,.88));
+    border-color:rgba(96,165,250,.25);
+  }}
+  @media (max-width:700px){{
+    .dynamic-card{{
+      background:
+        radial-gradient(120% 140% at 100% 0%,rgba(72,115,255,.095),transparent 44%),
+        radial-gradient(100% 120% at 0% 100%,rgba(139,92,246,.065),transparent 46%),
+        linear-gradient(135deg,rgba(17,24,40,.80),rgba(7,10,19,.86));
+      border-color:rgba(96,140,245,.17);
+    }}
+    .sub-box{{background:linear-gradient(135deg,rgba(19,26,43,.62),rgba(8,11,20,.70));}}
+  }}
+
+  /* FORCE VISIBLE GLASS COLOR - SUBSCRIPTION PAGE */
+  .dynamic-card{{
+    background:
+      linear-gradient(135deg,rgba(24,58,105,.72) 0%,rgba(18,31,61,.68) 45%,rgba(18,12,42,.72) 100%) !important;
+    border:1px solid rgba(83,150,255,.38) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 0 45px rgba(45,120,255,.10),0 12px 35px rgba(0,0,0,.22) !important;
+    backdrop-filter:blur(24px) saturate(145%);
+    -webkit-backdrop-filter:blur(24px) saturate(145%);
+  }}
+  .dynamic-card:nth-of-type(2n){{
+    background:
+      linear-gradient(135deg,rgba(20,74,94,.70) 0%,rgba(12,38,65,.68) 48%,rgba(11,22,43,.74) 100%) !important;
+    border-color:rgba(34,211,238,.34) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11),inset 0 0 45px rgba(34,211,238,.09),0 12px 35px rgba(0,0,0,.22) !important;
+  }}
+  .dynamic-card:nth-of-type(3n){{
+    background:
+      linear-gradient(135deg,rgba(55,34,91,.72) 0%,rgba(30,24,62,.69) 50%,rgba(18,15,42,.74) 100%) !important;
+    border-color:rgba(168,85,247,.36) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11),inset 0 0 45px rgba(139,92,246,.10),0 12px 35px rgba(0,0,0,.22) !important;
+  }}
+  .sub-box{{
+    background:linear-gradient(135deg,rgba(27,49,82,.72),rgba(12,20,39,.78)) !important;
+    border-color:rgba(96,165,250,.24) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.07),inset 0 0 28px rgba(59,130,246,.07) !important;
+  }}
+  .dynamic-card .text-white\/40{{color:rgba(226,232,240,.58) !important;}}
+  .dynamic-card .text-white\/45{{color:rgba(226,232,240,.68) !important;}}
+  .dynamic-card .text-white\/35{{color:rgba(226,232,240,.55) !important;}}
+  @media (max-width:700px){{
+    .dynamic-card{{
+      background:linear-gradient(135deg,rgba(23,56,100,.76),rgba(13,27,54,.72),rgba(25,15,51,.76)) !important;
+      border-color:rgba(83,150,255,.40) !important;
+    }}
+    .dynamic-card:nth-of-type(2n){{
+      background:linear-gradient(135deg,rgba(18,69,88,.75),rgba(11,35,60,.73),rgba(8,20,38,.78)) !important;
+      border-color:rgba(34,211,238,.36) !important;
+    }}
+    .dynamic-card:nth-of-type(3n){{
+      background:linear-gradient(135deg,rgba(53,32,88,.76),rgba(28,22,58,.73),rgba(17,14,39,.78)) !important;
+      border-color:rgba(168,85,247,.38) !important;
+    }}
+    .sub-box{{background:linear-gradient(135deg,rgba(26,48,79,.72),rgba(10,18,36,.80)) !important;}}
+  }}
+
 </style>
 </head>
 <body class="font-vazir text-slate-100 antialiased min-h-screen py-8 px-3 sm:px-4 md:py-14">

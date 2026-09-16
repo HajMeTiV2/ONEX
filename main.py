@@ -6541,11 +6541,15 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .sb-toggle:hover{filter:brightness(1.1);transform:translateY(-50%) scale(1.05)}
 .sb-toggle svg{width:14px;height:14px;transition:transform .28s}
 .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
-.sb-logo{display:flex;align-items:center;gap:12px;padding:20px 16px;border-bottom:1px solid var(--card-b)}
-.sb-logo-icon{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;box-shadow:0 4px 14px rgba(59,130,246,.35)}
-.sb-logo-text{overflow:hidden;white-space:nowrap}
-.sb-logo-name{font-size:15px;font-weight:800;letter-spacing:-.02em}
-.sb-logo-ver{font-size:10px;color:var(--t3);margin-top:2px}
+.sb-logo{display:flex;align-items:center;justify-content:center;padding:18px 14px;border-bottom:1px solid var(--card-b)}
+.sb-logo-icon{position:relative;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;font-size:0;font-weight:900;color:#fff;isolation:isolate;transform:perspective(260px) rotateX(7deg) rotateY(-8deg);background:linear-gradient(145deg,#0ea5e9 0%,#2563eb 48%,#7c3aed 100%);border:1px solid rgba(255,255,255,.22);box-shadow:0 16px 30px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.32);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.sb-logo-icon:before{content:'';position:absolute;inset:5px;border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.03) 45%,rgba(0,0,0,.18));border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 -8px 16px rgba(0,0,0,.14),0 0 22px rgba(32,200,255,.18);z-index:-1}
+.sb-logo-icon:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 25px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.38);transform:translateZ(18px);animation:onexLogoGlow 2.8s ease-in-out infinite}
+.sb-logo-text,.sb-logo-name,.sb-logo-ver{display:none!important}
+.sidebar.collapsed .sb-logo{justify-content:center;padding:14px 8px}
+.sidebar.collapsed .sb-logo-icon{margin:0 auto}
+@keyframes onexLogoFloat{0%,100%{transform:perspective(260px) rotateX(7deg) rotateY(-8deg) translateY(0)}50%{transform:perspective(260px) rotateX(10deg) rotateY(-13deg) translateY(-4px)}}
+@keyframes onexLogoGlow{0%,100%{filter:brightness(1);text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.38)}50%{filter:brightness(1.18);text-shadow:4px 4px 0 rgba(29,78,216,.95),7px 7px 0 rgba(30,41,59,.5),0 0 26px rgba(32,200,255,.75)}}
 .sidebar.collapsed .sb-logo-text,
 .sidebar.collapsed .nav-label,
 .sidebar.collapsed .nav-sec,
@@ -6673,8 +6677,10 @@ tr:hover td{background:var(--hover)}
 /* =========================================================
    ONEX DASHBOARD REDESIGN
    ========================================================= */
-.mob-brand{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:900;letter-spacing:.06em}
-.mob-brand-mark{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#20d8ff,#365cff 55%,#8b5cf6);box-shadow:0 0 22px rgba(59,130,246,.45);font-weight:900}
+.mob-brand{display:flex;align-items:center;gap:9px}
+.mob-brand-mark{position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:0;font-weight:900;isolation:isolate;background:linear-gradient(145deg,#0ea5e9,#2563eb 52%,#7c3aed);border:1px solid rgba(255,255,255,.22);box-shadow:0 10px 24px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.28);transform:perspective(220px) rotateX(7deg) rotateY(-8deg);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.mob-brand-mark:before{content:'';position:absolute;inset:4px;border-radius:9px;background:linear-gradient(145deg,rgba(255,255,255,.25),rgba(255,255,255,.03) 50%,rgba(0,0,0,.18));z-index:-1}
+.mob-brand-mark:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 18px/1 Inter,system-ui,sans-serif;color:#fff;text-shadow:2px 2px 0 rgba(29,78,216,.95),4px 4px 0 rgba(30,41,59,.5),0 0 13px rgba(255,255,255,.35);transform:translateZ(12px)}
 .onex-topbar{height:66px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;padding:10px 14px 10px 16px;border:1px solid rgba(96,165,250,.14);border-radius:20px;background:linear-gradient(180deg,rgba(17,24,39,.82),rgba(8,12,23,.72));backdrop-filter:blur(18px);box-shadow:0 12px 35px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.04)}
 .top-server{display:flex;align-items:center;gap:12px;min-width:0}.top-dot{width:10px;height:10px;border-radius:50%;background:#22c55e;box-shadow:0 0 14px #22c55e;animation:pulseDot 1.8s ease-in-out infinite}.top-server b{font-size:13px}.top-server small{color:var(--t3);font-size:11px}.top-sep{width:1px;height:24px;background:var(--card-b)}
 .top-actions{display:flex;align-items:center;gap:8px}.top-chip{display:flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid var(--card-b);border-radius:12px;background:rgba(255,255,255,.025);color:var(--t2);font-size:11px}.top-avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#3b82f6,#8b5cf6);font-weight:900;color:#fff;box-shadow:0 0 24px rgba(59,130,246,.3)}
@@ -6873,7 +6879,7 @@ tr:hover td{background:var(--hover)}
 <body>
 
 <div class="mob-bar">
-  <div class="mob-brand"><span class="mob-brand-mark">N</span><span>ONEX</span></div>
+  <div class="mob-brand"><span class="mob-brand-mark">N</span></div>
   <button class="btn btn-sm" id="mobMenuBtn" aria-label="menu">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
@@ -6886,11 +6892,7 @@ tr:hover td{background:var(--hover)}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="sb-logo-icon">N</div>
-    <div class="sb-logo-text">
-      <div class="sb-logo-name">ONEX</div>
-      <div class="sb-logo-ver">CONTROL CENTER</div>
-    </div>
+    <div class="sb-logo-icon" aria-label="ONEX 3D logo">N</div>
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>
@@ -6934,14 +6936,6 @@ tr:hover td{background:var(--hover)}
     <button class="nav-item" data-page="settings" data-perm="settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
       <span class="nav-label" data-i18n="nav_settings">تنظیمـات</span>
-    </button>
-    <button class="nav-item" data-page="support" data-perm="support">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-      <span class="nav-label" data-i18n="nav_support">پشتیبانـی</span>
-    </button>
-    <button class="nav-item" data-page="donate">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      <span class="nav-label" data-i18n="nav_donate">حمایت مالـی</span>
     </button>
   </nav>
   <div class="sb-foot">
@@ -7260,45 +7254,7 @@ tr:hover td{background:var(--hover)}
 </section>
 
 
-<section class="page" id="page-donate">
-  <div class="page-head" style="justify-content:center">
-    <div>
-      <div class="page-title" style="justify-content:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        <span data-i18n="nav_donate">حمایـت مالــــی</span>
-      </div>
-    </div>
-  </div>
-  <div style="display:flex;justify-content:center;width:100%">
-  <div class="card" style="max-width:560px;width:100%;line-height:2;font-size:14px;color:var(--t2);text-align:center">
-    <div style="font-size:16px;font-weight:800;color:var(--t1);margin-bottom:12px">💖 حمایت از پروژه (اختیاری)</div>
-    <p>اگه از پروژه خوشتون اومده یا براتون مفید بوده، می‌تونید با یه حمایت کوچیک مالی به ادامه‌ی توسعه و بهتر شدن پروژه کمک کنید. 🫶🏻✨</p>
-    <p style="margin-top:10px">💰 هر مقدار حمایتی، حتی کم، برای ما ارزشمنده و باعث میشه با انگیزه‌ی بیشتری ادامه بدیم! 🚀❤️‍🔥</p>
-    <p style="margin-top:10px">🔗 لینک حمایت مالی:</p>
-    <div style="margin-top:12px;display:flex;justify-content:center"><a href="https://reymit.ir/moditor" target="_blank" rel="noopener" class="btn btn-p" style="display:inline-flex;text-decoration:none">🙂 reymit.ir/moditor</a></div>
-    <p style="margin-top:16px;font-size:13px;color:var(--t3)">🙏🏻 ممنون از حمایت و همراهی‌تون عشقا! ❤️‍🔥🌹</p>
-    <p style="margin-top:8px;font-size:12px;color:var(--t3)">کاملاً اختیاری است و هیچ اجباری وجود ندارد.</p>
-  </div>
-  </div>
-</section>
 
-<section class="page" id="page-support">
-  <div class="page-head"><div><div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg><span data-i18n="nav_support">پشتیبانی</span></div></div></div>
-  <div class="support-grid">
-    <a class="support-tile" href="https://github.com/iran-px-panel/pxpanel" target="_blank" rel="noopener">
-      <div class="support-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.4.6.1.82-.26.82-.58v-2.03c-3.34.73-4.03-1.61-4.03-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.74.08-.74 1.21.09 1.85 1.24 1.85 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.57C20.56 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg></div>
-      <div><div class="support-label" data-i18n="github">گیت هـاب پروژه</div><div class="support-val">iran-px-panel/pxpanel</div></div>
-    </a>
-    <a class="support-tile" href="https://t.me/V2rayTun0" target="_blank" rel="noopener">
-      <div class="support-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.2-1.86 8.77c-.14.62-.5.77-1.01.48l-2.8-2.06-1.35 1.3c-.15.15-.27.27-.55.27l.2-2.84 5.18-4.68c.22-.2-.05-.31-.35-.12l-6.4 4.03-2.76-.86c-.6-.19-.61-.6.12-.89l10.78-4.16c.5-.18.94.12.78.86z"/></svg></div>
-      <div><div class="support-label" data-i18n="telegram">کانال تلگـرام</div><div class="support-val">@V2rayTun0</div></div>
-    </a>
-    <a class="support-tile" href="https://t.me/logictop12" target="_blank" rel="noopener">
-      <div class="support-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></div>
-      <div><div class="support-label" data-i18n="channel">گروه تلگـرام (پشتیبانی)</div><div class="support-val">t.me/logictop12</div></div>
-    </a>
-  </div>
-</section>
 
 <section class="page" id="page-telegram">
   <div class="page-head">

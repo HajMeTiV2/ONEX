@@ -1,7 +1,7 @@
 # ============================================================
-# PXPanel 13.8.0
+# ONEX Control Center
 # Railway Ready
-# Created By PIXON
+# Designed by @Mehtif
 # ============================================================
 import asyncio
 import base64
@@ -705,13 +705,13 @@ def hash_password(
     ).hexdigest()
 
 
-# ONEX authentication: default credentials are admin / admin.
-# If ADMIN_PASSWORD is explicitly provided, it is used instead.
+# ONEX default owner credentials. They can be changed later from the panel.
+# ADMIN_PASSWORD, when provided, overrides the default password.
 _env_pw = os.environ.get("ADMIN_PASSWORD", "").strip()
-_DEFAULT_ADMIN_PASSWORD = _env_pw or "admin"
-AUTH_SCHEMA_VERSION = 2
+_default_pw = _env_pw or "admin"
 AUTH = {
-    "password_hash": hash_password(_DEFAULT_ADMIN_PASSWORD),
+    "username": "admin",
+    "password_hash": hash_password(_default_pw),
     "password_configured": True,
 }
 
@@ -991,7 +991,7 @@ def set_auth_cookie(
 # ============================================================
 
 def generate_vless_link(
-    uuid: str, host: str, remark: str = "PXPanel",
+    uuid: str, host: str, remark: str = "ONEX",
     protocol: str = DEFAULT_PROTOCOL, fingerprint: str | None = None,
     alpn: str | None = None, port: int | None = None,
 ):
@@ -1000,7 +1000,7 @@ def generate_vless_link(
     if fp not in FINGERPRINTS: fp = DEFAULT_FINGERPRINT
     port_value = safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT)
     alpn_value = (alpn or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
-    label = quote(str(remark or "PXPanel"), safe="")
+    label = quote(str(remark or "ONEX"), safe="")
     if protocol == "vless-ws":
         q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
@@ -1162,21 +1162,21 @@ async def load_state():
         ADMIN_ACCOUNTS.clear()
         ADMIN_ACCOUNTS.update(data.get("admin_accounts") or {})
 
-        # One-time migration to ONEX credentials. Older PXPanel state files
-        # used the first-run setup flow; they must not bring that screen back.
-        # Once migrated, the password changed from Settings is persisted normally.
-        stored_password = data.get("password_hash")
-        stored_auth_version = int(data.get("auth_version") or 0)
-        if stored_auth_version >= AUTH_SCHEMA_VERSION and stored_password:
-            AUTH["password_hash"] = stored_password
+        stored_password = data.get(
+            "password_hash"
+        )
+        stored_username = str(data.get("owner_username") or "").strip().lower()
+
+        if stored_username:
+            AUTH["username"] = stored_username
+            if stored_password:
+                AUTH["password_hash"] = stored_password
+                AUTH["password_configured"] = True
+        elif stored_password:
+            # Existing PX data had no owner username; initialize the ONEX owner as admin/admin.
+            AUTH["username"] = "admin"
+            AUTH["password_hash"] = hash_password("admin")
             AUTH["password_configured"] = True
-        else:
-            AUTH["password_hash"] = hash_password(_DEFAULT_ADMIN_PASSWORD)
-            AUTH["password_configured"] = True
-            data["auth_version"] = AUTH_SCHEMA_VERSION
-            # Persist the migration after the rest of state has been loaded.
-            # save_state is safe here because the startup path has not begun serving requests.
-            await save_state()
 
         # Compatibility for older records
         for uid, link in LINKS.items():
@@ -1275,9 +1275,10 @@ async def save_state():
                         "password_hash"
                     ],
 
-                "auth_version":
-                    AUTH_SCHEMA_VERSION,
+                "owner_username":
+                    AUTH.get("username", "admin"),
 
+                
                 "saved_at":
                     datetime.now().isoformat(),
             }
@@ -2320,78 +2321,181 @@ LOGIN_HTML = r"""
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ONEX Control Center</title>
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#050b18">
+<title>ONEX | ورود به پنل</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
+:root{
+  --bg:#020712;
+  --panel:rgba(5,13,27,.72);
+  --panel2:rgba(8,19,38,.58);
+  --line:rgba(88,180,255,.22);
+  --text:#f8fbff;
+  --muted:#8fa7c3;
+  --blue:#168cff;
+  --cyan:#29d7ff;
+  --shadow:0 30px 100px rgba(0,0,0,.55);
+}
 *{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg)}
 body{
-  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
-  font-family:Vazirmatn,sans-serif;color:#f1f5f9;background:#0a0a0f;
+  min-height:100vh;overflow-x:hidden;color:var(--text);font-family:'Vazirmatn',sans-serif;
+  background:
+    radial-gradient(circle at 18% 22%,rgba(0,126,255,.17),transparent 28%),
+    radial-gradient(circle at 85% 15%,rgba(0,207,255,.12),transparent 24%),
+    linear-gradient(145deg,#020712 0%,#061329 52%,#02050d 100%);
 }
-.card{
-  width:100%;max-width:380px;padding:28px 24px;border-radius:18px;
-  background:#12121a;border:1px solid rgba(255,255,255,.08);
-}
-h1{font-size:20px;font-weight:800;text-align:center;margin-bottom:22px;letter-spacing:-.02em}
-label{display:block;font-size:12px;color:rgba(255,255,255,.5);margin-bottom:6px;font-weight:600}
-input{
-  width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.1);
-  background:rgba(0,0,0,.35);color:#fff;font-family:inherit;font-size:14px;outline:none;margin-bottom:14px;
-  direction:ltr;text-align:left;
-}
-input:focus{border-color:rgba(59,130,246,.55)}
-button{
-  width:100%;padding:13px;border:none;border-radius:12px;
-  background:#2563eb;color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;margin-top:4px;
-}
-button:hover{background:#1d4ed8}
-button:disabled{opacity:.5;cursor:not-allowed}
-.err{display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.28);color:#fca5a5;padding:10px 12px;border-radius:10px;font-size:12px;margin-bottom:12px}
-.err.show{display:block}
-.warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.28);border-radius:12px;padding:12px;font-size:12px;line-height:1.85;color:#fbbf24;margin-bottom:16px}
-.warn code{background:rgba(0,0,0,.35);padding:2px 6px;border-radius:6px;font-family:ui-monospace,monospace;color:#93c5fd}
-.hidden{display:none}
+body:before,body:after{content:"";position:fixed;inset:0;pointer-events:none}
+body:before{opacity:.38;background-image:radial-gradient(#7bdcff 1px,transparent 1px);background-size:90px 90px;animation:stars 22s linear infinite}
+body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0,.08) 45%,rgba(0,0,0,.52) 100%)}
+@keyframes stars{to{transform:translate3d(90px,90px,0)}}
+.scene{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr);position:relative;z-index:1}
+.hero{position:relative;display:flex;align-items:center;justify-content:center;padding:48px;overflow:hidden;perspective:1200px}
+.hero:before{content:"";position:absolute;left:5%;right:5%;bottom:12%;height:34%;border-radius:50%;background:radial-gradient(ellipse,rgba(13,140,255,.22),transparent 68%);filter:blur(16px)}
+.grid-floor{position:absolute;left:-15%;right:-15%;bottom:-13%;height:44%;transform:perspective(600px) rotateX(65deg);background-image:linear-gradient(rgba(24,143,255,.15) 1px,transparent 1px),linear-gradient(90deg,rgba(24,143,255,.15) 1px,transparent 1px);background-size:55px 55px;mask-image:linear-gradient(to top,black,transparent);animation:gridMove 7s linear infinite}
+@keyframes gridMove{to{background-position:0 55px,55px 0}}
+.hero-content{text-align:center;position:relative;z-index:2;transform-style:preserve-3d;animation:heroFloat 5s ease-in-out infinite}
+@keyframes heroFloat{0%,100%{transform:translateY(0) rotateX(0deg)}50%{transform:translateY(-12px) rotateX(1.5deg)}}
+.logo-orbit{width:330px;height:330px;position:relative;margin:0 auto 10px;transform-style:preserve-3d;animation:logoTilt 8s ease-in-out infinite}
+@keyframes logoTilt{0%,100%{transform:rotateY(-8deg) rotateX(4deg)}50%{transform:rotateY(8deg) rotateX(-3deg)}}
+.orbit{position:absolute;inset:58px;border:2px solid rgba(31,167,255,.78);border-radius:50%;box-shadow:0 0 20px rgba(0,157,255,.55),inset 0 0 18px rgba(0,157,255,.18);transform:rotateX(68deg) rotateZ(-18deg);animation:spin 5s linear infinite}
+.orbit.o2{inset:40px;border-color:rgba(64,223,255,.36);transform:rotateY(68deg) rotateZ(24deg);animation-duration:8s;animation-direction:reverse}
+.orbit:after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:#8ff5ff;box-shadow:0 0 18px 7px #16a8ff;left:8%;top:15%}
+@keyframes spin{to{transform:rotateX(68deg) rotateZ(342deg)}}
+.logo3d{position:absolute;left:50%;top:50%;width:145px;height:145px;transform:translate(-50%,-50%) rotateX(-7deg) rotateY(-14deg);transform-style:preserve-3d;filter:drop-shadow(0 25px 25px rgba(0,112,255,.35))}
+.logo3d .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:38px 52px 38px 52px;font-family:Inter,sans-serif;font-size:108px;font-weight:900;line-height:1;color:white;background:linear-gradient(145deg,#63edff 0%,#0c9cff 42%,#123cf0 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 3px 0 rgba(0,44,150,.7),0 0 28px rgba(16,174,255,.55);animation:facePulse 2.8s ease-in-out infinite}
+.logo3d .depth{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;font-size:108px;font-weight:900;color:#063fa8;transform:translateZ(-18px) translate(9px,10px);opacity:.7;filter:blur(.2px)}
+@keyframes facePulse{50%{filter:brightness(1.22) saturate(1.2)}}
+.brand{font-family:Inter,sans-serif;font-size:78px;font-weight:900;letter-spacing:8px;background:linear-gradient(90deg,#f8fbff 0%,#dbeeff 48%,#22b7ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 10px 35px rgba(0,132,255,.3)}
+.tagline{margin-top:5px;letter-spacing:8px;color:#b4c7df;font-family:Inter,sans-serif;font-size:15px}
+.tagline b{color:#25baff}
+.hero-sub{margin-top:18px;color:#8da9c7;font-size:14px}
+.credits{display:flex;justify-content:center;gap:45px;margin-top:65px;color:#7f98b5;font-size:12px}
+.credits strong{display:block;color:#f3f8ff;margin-top:5px;font-size:13px;direction:ltr}
+.credits a{color:#27c6ff;text-decoration:none}
+.login-side{display:flex;align-items:center;justify-content:center;padding:45px 6vw 45px 35px;position:relative}
+.login-card{width:min(500px,100%);padding:34px;border:1px solid var(--line);border-radius:30px;background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68));box-shadow:var(--shadow),0 0 80px rgba(0,119,255,.10);backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);position:relative;overflow:hidden;transform-style:preserve-3d;transition:transform .25s ease,box-shadow .25s ease}
+.login-card:before{content:"";position:absolute;inset:-2px;background:linear-gradient(120deg,transparent 25%,rgba(43,198,255,.25),transparent 50%);transform:translateX(-100%);animation:sheen 5s ease-in-out infinite;pointer-events:none}
+@keyframes sheen{55%,100%{transform:translateX(120%)}}
+.login-logo{width:76px;height:76px;margin:0 auto 12px;border-radius:24px;display:grid;place-items:center;background:linear-gradient(145deg,#087cff,#21d5ff);box-shadow:0 0 35px rgba(0,153,255,.38);transform-style:preserve-3d;animation:miniLogo 4s ease-in-out infinite}
+.login-logo span{font-family:Inter,sans-serif;font-size:55px;font-weight:900;color:white;text-shadow:4px 5px 0 rgba(0,51,150,.55);transform:translateZ(18px) rotateY(-8deg)}
+@keyframes miniLogo{50%{transform:rotateY(12deg) rotateX(6deg) translateY(-4px)}}
+.login-title{text-align:center;font-size:25px;font-weight:900}.login-title b{color:#24c4ff}.login-desc{text-align:center;color:var(--muted);font-size:12px;margin-top:7px;margin-bottom:27px}
+.field{position:relative;margin-bottom:15px}.field svg{position:absolute;right:15px;top:50%;transform:translateY(-50%);width:21px;height:21px;color:#5f9dd8;pointer-events:none}.field input{width:100%;height:58px;padding:0 50px 0 44px;border-radius:17px;border:1px solid rgba(122,180,235,.14);background:rgba(2,11,24,.62);color:#fff;font-family:inherit;font-size:14px;outline:none;direction:ltr;text-align:left;transition:.25s}.field input::placeholder{color:#617a98}.field input:focus{border-color:#168cff;box-shadow:0 0 0 4px rgba(22,140,255,.10),0 0 30px rgba(22,140,255,.10)}
+.eye{position:absolute;left:12px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#6485a9;cursor:pointer;padding:7px;display:grid;place-items:center}.eye svg{position:static;transform:none;width:20px;height:20px}
+.primary{width:100%;height:58px;margin-top:5px;border:0;border-radius:17px;color:#fff;font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;background:linear-gradient(100deg,#086cff,#12a7ff 55%,#1ad8ff);box-shadow:0 12px 28px rgba(0,115,255,.24);position:relative;overflow:hidden;transition:transform .2s,filter .2s}.primary:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.28),transparent 70%);transform:translateX(-120%);animation:buttonSheen 3.5s infinite}.primary:hover{transform:translateY(-2px);filter:brightness(1.08)}.primary:disabled{opacity:.55;cursor:not-allowed;transform:none}.primary span{position:relative;z-index:1}
+@keyframes buttonSheen{50%,100%{transform:translateX(120%)}}
+.row{display:flex;align-items:center;justify-content:space-between;margin:15px 2px 0;font-size:11px;color:#728ba8}.remember{display:flex;align-items:center;gap:7px}.remember input{accent-color:#129cff}.forgot{color:#19b9ff}
+.telegram{margin-top:23px;padding:14px 15px;border-radius:18px;border:1px solid rgba(43,191,255,.25);background:linear-gradient(120deg,rgba(0,115,255,.08),rgba(20,211,255,.05));display:flex;align-items:center;gap:13px;text-decoration:none;color:#fff;position:relative;overflow:hidden}.telegram:before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent,rgba(37,198,255,.14),transparent);transform:translateX(-120%);animation:telegramSheen 3s infinite}.telegram-icon{width:45px;height:45px;border-radius:50%;display:grid;place-items:center;flex:0 0 45px;background:linear-gradient(145deg,#23aaff,#0878ff);box-shadow:0 0 25px rgba(0,147,255,.35);animation:tgPulse 2.2s ease-in-out infinite;position:relative;z-index:1}.telegram-icon svg{width:24px}.telegram-text{position:relative;z-index:1}.telegram-text small{display:block;color:#7894b2;font-size:10px}.telegram-text b{display:block;color:#23c7ff;font-family:Inter,sans-serif;font-size:14px;margin-top:2px;direction:ltr;text-align:right}.tg-arrow{margin-right:auto;color:#3dbfff;font-size:23px;position:relative;z-index:1;animation:arrowPulse 1.8s ease-in-out infinite}@keyframes telegramSheen{50%,100%{transform:translateX(120%)}}@keyframes tgPulse{50%{transform:translateY(-3px) rotate(-7deg);box-shadow:0 0 34px rgba(0,181,255,.6)}}@keyframes arrowPulse{50%{transform:translateX(-4px)}}
+.err,.error{display:none;margin-bottom:13px;padding:11px 13px;border-radius:13px;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.28);color:#ff9d9d;font-size:12px;line-height:1.7}.err.show,.error.show{display:block}.warn{margin-bottom:16px;padding:12px;border-radius:13px;background:rgba(245,158,11,.09);border:1px solid rgba(245,158,11,.25);color:#fbbf24;font-size:11px;line-height:1.9}.warn code{background:rgba(0,0,0,.35);padding:2px 5px;border-radius:5px;color:#9ed4ff;font-family:ui-monospace,monospace}.hidden{display:none!important}
+.footer{text-align:center;color:#526b88;font-size:10px;margin-top:20px}.footer a{color:#2ac8ff;text-decoration:none}
+.setup-title{font-size:21px;font-weight:900;margin-bottom:5px;text-align:center}.setup-desc{text-align:center;color:#819ab7;font-size:11px;margin-bottom:20px}
+@media(max-width:900px){.scene{grid-template-columns:1fr}.hero{min-height:420px;padding:25px}.login-side{padding:0 20px 35px}.login-card{max-width:520px}.credits{margin-top:35px}.brand{font-size:58px}.logo-orbit{transform:scale(.78);margin-bottom:-25px}.hero-sub{margin-top:0}}
+@media(max-width:520px){.hero{min-height:350px}.logo-orbit{transform:scale(.62);margin-top:-35px;margin-bottom:-55px}.brand{font-size:43px;letter-spacing:4px}.tagline{font-size:10px;letter-spacing:4px}.hero-sub{font-size:11px}.credits{gap:20px;margin-top:25px}.login-side{padding:0 12px 20px}.login-card{padding:25px 18px;border-radius:24px}.login-title{font-size:21px}.telegram{padding:12px}.field input,.primary{height:54px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
-<div class="card">
-  <h1>پی ایکس پنل</h1>
+<div class="scene">
+  <section class="hero">
+    <div class="grid-floor"></div>
+    <div class="hero-content">
+      <div class="logo-orbit" aria-hidden="true">
+        <div class="orbit"></div><div class="orbit o2"></div>
+        <div class="logo3d"><div class="depth">N</div><div class="face">N</div></div>
+      </div>
+      <div class="brand">ONEX</div>
+      <div class="tagline">FAST <b>•</b> SECURE <b>•</b> STABLE</div>
+      <div class="hero-sub">اتصال سریع، پایدار و امن بدون محدودیت</div>
+      <div class="credits">
+        <div>Designed by<strong><a href="https://t.me/Mehtif" target="_blank" rel="noopener">@Mehtif</a></strong></div>
+        <div>Telegram Channel<strong><a href="https://t.me/V2rayTun0" target="_blank" rel="noopener">@V2rayTun0</a></strong></div>
+      </div>
+    </div>
+  </section>
 
-  <div id="loginBox">
-    <div class="err" id="loginErr"></div>
-    <form id="loginForm">
-      <label>نام کاربری ادمین</label>
-      <input type="text" id="loginUser" placeholder="خالی = مالک پنل" autocomplete="username">
-      <label>رمز عبور</label>
-      <input type="password" id="loginPw" placeholder="رمز عبور" autocomplete="current-password" required>
-      <button type="submit" id="loginBtn">ورود</button>
-    </form>
-  </div>
+  <main class="login-side">
+    <div class="login-card" id="loginCard">
+      <div class="login-logo" aria-hidden="true"><span>N</span></div>
+      <div class="login-title">به پنل <b>ONEX</b> خوش آمدید</div>
+      <div class="login-desc">برای ادامه، اطلاعات حساب کاربری خود را وارد کنید</div>
+
+      <div id="loginBox">
+        <div class="err" id="loginErr"></div>
+        <form id="loginForm">
+          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg><input type="text" id="loginUser" placeholder="نام کاربری ادمین" autocomplete="username"></div>
+          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="loginPw" placeholder="رمز عبور" autocomplete="current-password" required><button class="eye" type="button" onclick="togglePassword()" aria-label="نمایش رمز"><svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div>
+          <button class="primary" type="submit" id="loginBtn"><span>ورود به پنل</span></button>
+          <div class="row"><label class="remember"><input type="checkbox" checked> مرا به خاطر بسپار</label><span class="forgot">دسترسی امن به پنل</span></div>
+        </form>
+      </div>
+
+      <a class="telegram" href="https://t.me/V2rayTun0" target="_blank" rel="noopener">
+        <div class="telegram-icon"><svg viewBox="0 0 24 24" fill="white"><path d="M21.4 3.5 2.9 10.6c-1.3.5-1.3 1.2-.2 1.5l4.7 1.5 1.8 5.7c.2.6.1.8.8.8.5 0 .7-.2 1-.5l2.3-2.2 4.8 3.5c.9.5 1.6.3 1.8-.9l3.1-14.6c.3-1.5-.5-2.2-1.8-1.6Zm-12.9 9.8 9.9-6.2c.5-.3 1-.1.6.2l-8 7.2-.3 3.2-1.4-4.4-3.4-1.1c-.7-.2-.7-.5.1-.8Z"/></svg></div>
+        <div class="telegram-text"><small>کانال رسمی تلگرام</small><b>@V2rayTun0</b></div>
+        <div class="tg-arrow">‹</div>
+      </a>
+      <div class="footer">© 2026 ONEX &nbsp;|&nbsp; Designed by <a href="https://t.me/Mehtif" target="_blank" rel="noopener">@Mehtif</a></div>
+    </div>
+  </main>
 </div>
 <script>
-document.getElementById('loginUser').value='admin';
-document.getElementById('loginPw').focus();
+const card=document.getElementById('loginCard');
+if(window.matchMedia('(pointer:fine)').matches){
+  document.addEventListener('mousemove',e=>{
+    const r=card.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width-.5;
+    const y=(e.clientY-r.top)/r.height-.5;
+    if(e.clientX>=r.left-120&&e.clientX<=r.right+120&&e.clientY>=r.top-120&&e.clientY<=r.bottom+120){
+      card.style.transform=`perspective(1000px) rotateX(${(-y*2.8).toFixed(2)}deg) rotateY(${(x*3.2).toFixed(2)}deg) translateZ(3px)`;
+    }
+  });
+  document.addEventListener('mouseleave',()=>card.style.transform='');
+}
+function togglePassword(){
+  const input=document.getElementById('loginPw');
+  input.type=input.type==='password'?'text':'password';
+}
+async function checkSetup(){
+  try{
+    const r=await fetch('/api/setup/status',{cache:'no-store'});
+    const d=await r.json();
+    if(d.needs_setup){
+      document.getElementById('setupBox').classList.remove('hidden');
+      document.getElementById('setupPw').focus();
+    }else{
+      document.getElementById('loginBox').classList.remove('hidden');
+      document.getElementById('loginPw').focus();
+    }
+  }catch(e){document.getElementById('loginBox').classList.remove('hidden');}
+}
+async function doSetup(){
+  const pw=document.getElementById('setupPw').value;
+  const pw2=document.getElementById('setupPw2').value;
+  const err=document.getElementById('setupErr');err.classList.remove('show');
+  if(pw.length<6){err.textContent='رمز حداقل ۶ کاراکتر باشد';err.classList.add('show');return}
+  if(pw!==pw2){err.textContent='تکرار رمز یکسان نیست';err.classList.add('show');return}
+  const btn=document.getElementById('setupBtn');btn.disabled=true;
+  try{
+    const r=await fetch('/api/setup/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,repeat_password:pw2})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.detail||'خطا در تنظیم رمز');
+    location.href='/dashboard';
+  }catch(e){err.textContent=e.message||'خطا';err.classList.add('show');btn.disabled=false;}
+}
 document.getElementById('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const err=document.getElementById('loginErr');
-  err.classList.remove('show');
+  const err=document.getElementById('loginErr');err.classList.remove('show');
   const btn=document.getElementById('loginBtn');btn.disabled=true;
   try{
-    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      password:document.getElementById('loginPw').value,
-      username:document.getElementById('loginUser').value
-    })});
-    if(!r.ok){
-      const d=await r.json().catch(()=>({}));
-      throw new Error(d.detail||'رمز اشتباه است');
-    }
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('loginPw').value,username:document.getElementById('loginUser').value})});
+    if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'رمز اشتباه است');}
     location.href='/dashboard';
-  }catch(e){
-    err.textContent=e.message;err.classList.add('show');
-    btn.disabled=false;
-  }
+  }catch(e){err.textContent=e.message||'خطا در ورود';err.classList.add('show');btn.disabled=false;}
 });
+// ONEX: first-run setup removed; login is always shown.
 </script>
 </body>
 </html>
@@ -2427,13 +2531,34 @@ def login_error_html(
 
 @app.get("/api/setup/status")
 async def setup_status():
-    # Kept for backwards compatibility with older clients; setup is disabled.
-    return {"password_configured": True, "needs_setup": False}
+    return {
+        "password_configured": bool(AUTH.get("password_configured") and AUTH.get("password_hash")),
+        "needs_setup": not bool(AUTH.get("password_configured") and AUTH.get("password_hash")),
+    }
 
 
 @app.post("/api/setup/password")
 async def setup_password(request: Request):
-    raise HTTPException(status_code=410, detail="راه‌اندازی اولیه غیرفعال است؛ رمز را از تنظیمات پنل تغییر دهید")
+    if AUTH.get("password_configured") and AUTH.get("password_hash"):
+        raise HTTPException(status_code=400, detail="رمز قبلاً تنظیم شده است")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="اطلاعات نامعتبر")
+    pw = str(body.get("password") or "")
+    rp = str(body.get("repeat_password") or body.get("confirm") or "")
+    if len(pw) < 6:
+        raise HTTPException(status_code=400, detail="رمز باید حداقل ۶ کاراکتر باشد")
+    if pw != rp:
+        raise HTTPException(status_code=400, detail="تکرار رمز یکسان نیست")
+    AUTH["password_hash"] = hash_password(pw)
+    AUTH["password_configured"] = True
+    await save_state()
+    token = await create_session()
+    response = JSONResponse({"ok": True, "message": "رمز تنظیم شد"})
+    set_auth_cookie(response, request, token)
+    log_activity("auth", "رمز اولیه پنل تنظیم شد", "ok")
+    return response
 
 
 @app.get(
@@ -2462,7 +2587,6 @@ async def login_page(
 async def login_form(
     request: Request,
 ):
-
     try:
 
         content_type = (
@@ -2484,6 +2608,7 @@ async def login_form(
                     "",
                 )
             ).strip()
+            username = str(body.get("username", "")).strip().lower()
 
         else:
 
@@ -2616,16 +2741,21 @@ async def api_login(request: Request):
         raise HTTPException(status_code=400, detail="رمز عبور الزامی است")
     meta = {"role": "owner", "admin_id": None, "username": "owner"}
     ok = False
-    if username and username not in ("owner", "admin", "root"):
+    if username == str(AUTH.get("username") or "admin").strip().lower():
+        if hash_password(password) == AUTH["password_hash"]:
+            ok = True
+            meta = {"role": "owner", "admin_id": None, "username": username}
+    elif username and username not in ("owner", "admin", "root"):
         aid, admin = find_admin_by_username(username)
         if admin and admin.get("password_hash") == hash_password(password):
             if not admin_is_valid(admin):
                 raise HTTPException(status_code=403, detail="حساب مسدود یا منقضی شده است")
             ok = True
             meta = {"role": "admin", "admin_id": aid, "username": username}
-    else:
-        if hash_password(password) == AUTH["password_hash"]:
-            ok = True
+    elif hash_password(password) == AUTH["password_hash"]:
+        # Backward compatibility: owner login without a username.
+        ok = True
+        meta = {"role": "owner", "admin_id": None, "username": AUTH.get("username", "admin")}
     if not ok:
         locked, value = register_login_failure(ip)
         if locked:
@@ -2732,6 +2862,13 @@ async def api_change_password(
     ] = hash_password(
         new_password
     )
+    new_username = str(body.get("new_username") or "").strip().lower()
+    if new_username:
+        if not new_username.isalnum() or len(new_username) < 3:
+            raise HTTPException(status_code=400, detail="نام کاربری باید حداقل ۳ کاراکتر و فقط شامل حروف و عدد انگلیسی باشد")
+        if new_username in ("owner", "root"):
+            raise HTTPException(status_code=400, detail="این نام کاربری رزرو شده است")
+        AUTH["username"] = new_username
 
     async with SESSIONS_LOCK:
 
@@ -3024,7 +3161,7 @@ async def create_auto_link(
     uid, link = await make_link(
         label=auto_config_name(), limit_bytes=0, expires_at=None,
         ip_limit=cfg["ip"], speed_limit_bytes=cfg["speed"], connection_limit=cfg["conn"],
-        note=f"Auto generated by PXPanel | profile={profile}",
+        note=f"Auto generated by ONEX | profile={profile}",
         protocol=protocol, fingerprint=cfg["fp"],
         alpn=DEFAULT_ALPN_BY_PROTOCOL.get(protocol, ""), port=443, fragment=cfg["fragment"],
         config_count=config_count,
@@ -6366,7 +6503,7 @@ DASHBOARD_HTML = r"""
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>PXPanel 13.8.0</title>
+<title>ONEX Control Center</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -6515,15 +6652,6 @@ tr:hover td{background:var(--hover)}
 .switch input:checked+.slider{background:var(--green)}
 .switch input:checked+.slider:before{transform:translateX(18px)}
 
-/* ONEX mobile drawer v3 - isolated from legacy .sidebar rules */
-.onex-mobile-overlay{display:none;position:fixed;inset:0;background:rgba(2,6,23,.68);backdrop-filter:blur(8px);z-index:1001}
-.onex-mobile-drawer{display:none;position:fixed;top:0;right:0;bottom:0;width:min(230px,78vw);background:linear-gradient(180deg,#071225 0%,#050b17 100%);border-left:1px solid rgba(45,145,255,.32);box-shadow:-20px 0 60px rgba(0,0,0,.55),-4px 0 30px rgba(0,130,255,.08);z-index:1002;overflow:hidden;flex-direction:column;direction:rtl}
-.onex-mobile-head{height:82px;flex:0 0 82px;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(96,165,250,.12);background:rgba(3,10,23,.9)}
-.onex-mobile-brand{display:flex;align-items:center;gap:10px}.onex-mobile-brand strong{display:block;font-size:16px;letter-spacing:.04em;color:#fff}.onex-mobile-brand small{display:block;font-size:8px;color:#64748b;margin-top:3px;direction:ltr}.onex-mobile-logo{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-weight:900;font-size:20px;color:#fff;background:linear-gradient(135deg,#1687ff,#664cff);box-shadow:0 0 25px rgba(43,119,255,.5);animation:onexLogoFloat 2.8s ease-in-out infinite}.onex-mobile-close{width:34px;height:34px;border-radius:10px;border:1px solid rgba(96,165,250,.18);background:rgba(255,255,255,.035);color:#cbd5e1;font-size:25px;line-height:1;cursor:pointer}.onex-mobile-scroll{flex:1;overflow-y:auto;padding:14px 10px 12px}.onex-mobile-sec{font-size:9px;color:#64748b;padding:8px 10px 7px;font-weight:700}.onex-mobile-nav{width:100%;min-height:44px!important;margin:3px 0!important;padding:8px 10px!important;display:flex!important;align-items:center!important;gap:10px!important;justify-content:flex-start!important;border:1px solid transparent!important;border-radius:13px!important;background:transparent!important;color:#94a3b8!important;box-shadow:none!important;transition:.2s!important}.onex-mobile-nav .om-icon{width:28px;height:28px;flex:0 0 28px;display:grid;place-items:center;border-radius:9px;background:rgba(37,99,235,.08);color:#7aa7d8;font-size:17px}.onex-mobile-nav .nav-label{font-size:11px!important;font-weight:700!important}.onex-mobile-nav.on{color:#60a5fa!important;background:linear-gradient(90deg,rgba(37,99,235,.18),rgba(37,99,235,.05))!important;border-color:rgba(37,99,235,.35)!important;box-shadow:inset -3px 0 #1687ff,0 0 20px rgba(37,99,235,.07)!important}.onex-mobile-nav.on .om-icon{color:#fff;background:linear-gradient(135deg,#147cff,#4b5cff);box-shadow:0 0 16px rgba(37,99,235,.3)}.onex-mobile-foot{flex:0 0 auto;padding:10px;border-top:1px solid rgba(96,165,250,.12);background:rgba(3,8,18,.95);display:grid;gap:7px}.onex-mobile-foot button,.onex-mobile-foot a{width:100%;min-height:42px;border-radius:12px;border:1px solid rgba(148,163,184,.15);background:rgba(255,255,255,.035);color:#cbd5e1;text-decoration:none;font-family:inherit;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}.onex-mobile-foot .green{color:#34d399;border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.08)}.onex-mobile-foot .danger{color:#f87171;border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.07)}
-body.onex-menu-lock{overflow:hidden!important}
-@keyframes onexLogoFloat{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-3px) rotate(2deg)}}
-@media(max-width:900px){.sidebar{display:none!important}.onex-mobile-drawer{display:flex;transform:translateX(105%);transition:transform .28s cubic-bezier(.4,0,.2,1)}.onex-mobile-drawer.open{transform:translateX(0)}.onex-mobile-overlay.show{display:block}.mob-bar{display:flex;z-index:1000}.main,.main.expanded{margin-right:0!important;padding-top:72px!important}}
-@media(min-width:901px){.onex-mobile-drawer,.onex-mobile-overlay{display:none!important}}
 .mob-bar{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:var(--bg2);border-bottom:1px solid var(--card-b);z-index:250;align-items:center;justify-content:space-between;padding:0 16px;box-shadow:var(--shadow)}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:290;display:none}
 .overlay.show{display:block}
@@ -6548,6 +6676,29 @@ body.onex-menu-lock{overflow:hidden!important}
 .conn-badge.red{background:rgba(239,68,68,.18);color:#f87171}
 .spin{width:36px;height:36px;border:3px solid var(--card-b);border-top-color:var(--accent);border-radius:50%;margin:0 auto;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* =========================================================
+   ONEX DASHBOARD REDESIGN
+   ========================================================= */
+.mob-brand{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:900;letter-spacing:.06em}
+.mob-brand-mark{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#20d8ff,#365cff 55%,#8b5cf6);box-shadow:0 0 22px rgba(59,130,246,.45);font-weight:900}
+.onex-topbar{height:66px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;padding:10px 14px 10px 16px;border:1px solid rgba(96,165,250,.14);border-radius:20px;background:linear-gradient(180deg,rgba(17,24,39,.82),rgba(8,12,23,.72));backdrop-filter:blur(18px);box-shadow:0 12px 35px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.04)}
+.top-server{display:flex;align-items:center;gap:12px;min-width:0}.top-dot{width:10px;height:10px;border-radius:50%;background:#22c55e;box-shadow:0 0 14px #22c55e;animation:pulseDot 1.8s ease-in-out infinite}.top-server b{font-size:13px}.top-server small{color:var(--t3);font-size:11px}.top-sep{width:1px;height:24px;background:var(--card-b)}
+.top-actions{display:flex;align-items:center;gap:8px}.top-chip{display:flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid var(--card-b);border-radius:12px;background:rgba(255,255,255,.025);color:var(--t2);font-size:11px}.top-avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#3b82f6,#8b5cf6);font-weight:900;color:#fff;box-shadow:0 0 24px rgba(59,130,246,.3)}
+.dashboard-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin:0 2px 18px}.hero-kicker{font-size:10px;letter-spacing:.2em;color:#60a5fa;font-weight:800;text-transform:uppercase}.hero-title{font-size:27px;font-weight:900;line-height:1.25;margin-top:6px}.hero-title span{color:#60a5fa;text-shadow:0 0 22px rgba(96,165,250,.35)}.hero-sub{margin-top:6px;color:var(--t3);font-size:12px}.hero-actions{display:flex;gap:8px;flex-wrap:wrap}
+.onex-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}.onex-metric{position:relative;overflow:hidden;min-height:122px;padding:17px;border:1px solid rgba(96,165,250,.13);border-radius:20px;background:linear-gradient(145deg,rgba(15,25,45,.92),rgba(8,12,22,.92));box-shadow:0 12px 32px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.035);transition:.25s}.onex-metric:hover{transform:translateY(-3px);border-color:rgba(96,165,250,.35);box-shadow:0 16px 40px rgba(37,99,235,.14)}.onex-metric:after{content:'';position:absolute;right:-40px;bottom:-55px;width:140px;height:140px;border-radius:50%;background:rgba(37,99,235,.14);filter:blur(18px)}.metric-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:rgba(37,99,235,.14);border:1px solid rgba(96,165,250,.24);color:#60a5fa;box-shadow:0 0 20px rgba(37,99,235,.15)}.metric-icon svg{width:21px;height:21px}.onex-metric .metric-label{margin:10px 0 3px}.onex-metric .metric-val{font-size:25px}.metric-trend{position:absolute;left:15px;bottom:16px;font-size:10px;color:#34d399;font-weight:800}
+.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(260px,.72fr);gap:14px;align-items:stretch}.dashboard-grid-right{display:grid;grid-template-rows:auto 1fr;gap:14px}.onex-card{background:linear-gradient(145deg,rgba(14,20,34,.92),rgba(7,11,20,.92));border:1px solid rgba(96,165,250,.12);border-radius:20px;box-shadow:0 14px 38px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.035);overflow:hidden}.onex-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid rgba(255,255,255,.055)}.onex-card-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800}.onex-card-title svg{color:#60a5fa}.onex-card-body{padding:16px 18px}
+.chart-wrap{height:275px;padding:8px 12px 12px;position:relative}.traffic-svg{width:100%;height:100%;display:block}.chart-grid-line{stroke:rgba(148,163,184,.1);stroke-width:1}.chart-fill{fill:url(#trafficFill)}.chart-line{fill:none;stroke:#20c8ff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 7px rgba(32,200,255,.55))}.chart-dot{fill:#fff;stroke:#20c8ff;stroke-width:3;filter:drop-shadow(0 0 6px rgba(32,200,255,.75))}.chart-labels{display:flex;justify-content:space-between;padding:0 10px;color:var(--t3);font-size:9px}.chart-badge{position:absolute;top:18px;right:25%;padding:7px 10px;border:1px solid rgba(32,200,255,.25);background:rgba(5,12,25,.88);border-radius:10px;font-size:10px;color:#bcefff;box-shadow:0 0 18px rgba(32,200,255,.1)}
+.range-mini{display:flex;gap:4px;background:rgba(255,255,255,.025);padding:3px;border-radius:10px}.range-mini button{border:0;background:transparent;color:var(--t3);font-family:inherit;font-size:9px;padding:6px 9px;border-radius:8px;cursor:pointer}.range-mini button.on{background:#2563eb;color:#fff;box-shadow:0 4px 12px rgba(37,99,235,.25)}
+.health-list{display:grid;gap:14px}.health-row{display:grid;grid-template-columns:34px 1fr 42px;gap:10px;align-items:center}.health-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(37,99,235,.1);color:#60a5fa}.health-name{font-size:11px;color:var(--t2);margin-bottom:5px}.health-pct{font-size:10px;color:var(--t2);text-align:left;direction:ltr}.health-track{height:7px;border-radius:99px;background:rgba(148,163,184,.1);overflow:hidden}.health-fill{height:100%;width:var(--w);border-radius:99px;background:linear-gradient(90deg,#2563eb,#22d3ee);box-shadow:0 0 12px rgba(34,211,238,.35);animation:healthIn .9s ease both}.xray-state{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border-radius:13px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.16);font-size:11px;margin-top:4px}.xray-state span:last-child{color:#34d399;font-weight:800}.xray-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 9px #22c55e;margin-left:6px}
+.telegram-card{position:relative;min-height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:20px;overflow:hidden;background:radial-gradient(circle at 50% 20%,rgba(37,99,235,.24),transparent 35%),linear-gradient(145deg,rgba(10,23,48,.96),rgba(5,10,21,.96));border:1px solid rgba(59,130,246,.3);border-radius:20px;box-shadow:0 14px 38px rgba(0,0,0,.32),0 0 35px rgba(37,99,235,.08)}.tg-orbit{width:118px;height:118px;border:1px solid rgba(59,130,246,.5);border-radius:50%;margin:5px auto 12px;display:grid;place-items:center;position:relative;animation:orbitSpin 8s linear infinite}.tg-orbit:before,.tg-orbit:after{content:'';position:absolute;border:1px solid rgba(32,200,255,.3);border-radius:50%}.tg-orbit:before{inset:12px;transform:rotate(55deg) scaleX(1.45)}.tg-orbit:after{inset:24px;transform:rotate(-35deg) scaleX(1.55)}.tg-logo{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#28a9ff,#1769ff);box-shadow:0 0 28px rgba(37,99,235,.6);animation:floatY 2.8s ease-in-out infinite}.tg-logo svg{width:34px;height:34px;color:#fff}.tg-title{text-align:center;font-size:13px;color:var(--t2)}.tg-handle{text-align:center;font-size:23px;font-weight:900;color:#20c8ff;margin-top:5px;text-shadow:0 0 18px rgba(32,200,255,.3);direction:ltr}.tg-desc{text-align:center;color:var(--t3);font-size:10px;margin-top:6px}.tg-btn{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:18px;padding:11px;border-radius:13px;text-decoration:none;color:#fff;background:linear-gradient(135deg,#147cff,#3b5bff);box-shadow:0 8px 24px rgba(37,99,235,.3);font-size:11px;font-weight:800}.tg-btn:hover{filter:brightness(1.08)}
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.quick-item{display:flex;align-items:center;gap:10px;padding:13px;border-radius:15px;background:rgba(255,255,255,.025);border:1px solid var(--card-b);cursor:pointer;transition:.2s}.quick-item:hover{transform:translateY(-2px);border-color:rgba(96,165,250,.3);background:rgba(37,99,235,.07)}.quick-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(37,99,235,.13);color:#60a5fa}.quick-item:nth-child(2) .quick-icon{color:#34d399;background:rgba(34,197,94,.1)}.quick-item:nth-child(3) .quick-icon{color:#a78bfa;background:rgba(139,92,246,.11)}.quick-item:nth-child(4) .quick-icon{color:#22d3ee;background:rgba(34,211,238,.1)}.quick-name{font-size:11px;font-weight:800}.quick-desc{font-size:9px;color:var(--t3);margin-top:3px}
+.recent-card{margin-top:14px}.recent-table{width:100%;border-collapse:collapse;font-size:10px}.recent-table th{font-size:9px;padding:10px 12px;background:rgba(255,255,255,.025);color:var(--t3)}.recent-table td{padding:10px 12px;border-top:1px solid rgba(255,255,255,.045);color:var(--t2)}.recent-status{display:inline-flex;align-items:center;gap:5px;color:#34d399}.recent-status i{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 7px #22c55e}.recent-actions{display:flex;gap:5px}.mini-action{width:27px;height:27px;border:1px solid var(--card-b);border-radius:8px;background:rgba(255,255,255,.025);color:var(--t2);display:grid;place-items:center;cursor:pointer}.mini-action:hover{color:#60a5fa;border-color:rgba(96,165,250,.3)}
+.server-info{display:grid;gap:9px}.info-row{display:flex;align-items:center;justify-content:space-between;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.045);font-size:10px}.info-row:last-child{border-bottom:0;padding-bottom:0}.info-row span:first-child{color:var(--t3)}.info-row span:last-child{color:var(--t2);font-weight:700}.onex-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:12px 4px;color:var(--t3);font-size:9px}.onex-footer b{color:#60a5fa}
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.72);opacity:.65}}@keyframes orbitSpin{to{transform:rotate(360deg)}}@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}@keyframes healthIn{from{width:0}}@media(max-width:1050px){.dashboard-grid{grid-template-columns:1fr}.dashboard-grid-right{grid-template-columns:1fr 1fr;grid-template-rows:none}.quick-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.onex-topbar{height:auto;min-height:60px;padding:9px 10px;border-radius:16px}.top-server small,.top-sep,.top-chip{display:none}.dashboard-hero{align-items:flex-start;flex-direction:column}.hero-title{font-size:23px}.hero-actions{width:100%}.onex-metrics{grid-template-columns:1fr 1fr;gap:10px}.onex-metric{min-height:112px;padding:13px;border-radius:16px}.metric-icon{width:37px;height:37px;border-radius:12px}.onex-metric .metric-val{font-size:21px}.dashboard-grid-right{grid-template-columns:1fr}.chart-wrap{height:230px}.quick-grid{grid-template-columns:1fr 1fr}.recent-table{min-width:600px}.recent-card .onex-card-body{overflow-x:auto}.onex-footer{padding-bottom:22px}}
+@media(max-width:390px){.onex-metrics{grid-template-columns:1fr}.quick-grid{grid-template-columns:1fr}.hero-title{font-size:21px}.onex-metric{min-height:102px}.chart-wrap{height:205px}}
+
 </style>
 </head>
 <body>
@@ -6559,40 +6710,6 @@ body.onex-menu-lock{overflow:hidden!important}
   </button>
 </div>
 <div class="overlay" id="overlay"></div>
-
-<!-- ONEX mobile drawer: independent from the legacy desktop sidebar -->
-<div class="onex-mobile-overlay" id="onexMobileOverlay"></div>
-<aside class="onex-mobile-drawer" id="onexMobileDrawer" aria-hidden="true">
-  <div class="onex-mobile-head">
-    <div class="onex-mobile-brand">
-      <div class="onex-mobile-logo">N</div>
-      <div><strong>ONEX</strong><small>CONTROL CENTER</small></div>
-    </div>
-    <button type="button" class="onex-mobile-close" id="onexMobileClose" aria-label="بستن">×</button>
-  </div>
-  <div class="onex-mobile-scroll">
-    <div class="onex-mobile-sec">پنل</div>
-    <button class="nav-item onex-mobile-nav on" data-page="dash" data-perm="dash"><span class="om-icon">⌂</span><span class="nav-label">داشبورد</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="configs" data-perm="configs"><span class="om-icon">◈</span><span class="nav-label">کانفیگ‌ها</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="groups" data-perm="configs"><span class="om-icon">□</span><span class="nav-label">گروه‌ها</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="create" data-perm="create"><span class="om-icon">＋</span><span class="nav-label">ساخت کانفیگ</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="stats" data-perm="stats"><span class="om-icon">⌁</span><span class="nav-label">آمار</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="logs" data-perm="logs"><span class="om-icon">▤</span><span class="nav-label">لاگ فعالیت</span></button>
-    <div class="onex-mobile-sec">سیستم</div>
-    <button class="nav-item onex-mobile-nav" data-page="telegram" data-perm="telegram"><span class="om-icon">➤</span><span class="nav-label">ربات تلگرام</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="news" data-perm="news"><span class="om-icon">▥</span><span class="nav-label">اخبار</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="admins" data-perm="admins"><span class="om-icon">♙</span><span class="nav-label">ادمین‌ها</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="settings" data-perm="settings"><span class="om-icon">⚙</span><span class="nav-label">تنظیمات</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="support" data-perm="support"><span class="om-icon">♧</span><span class="nav-label">پشتیبانی</span></button>
-    <button class="nav-item onex-mobile-nav" data-page="donate"><span class="om-icon">♡</span><span class="nav-label">حمایت مالی</span></button>
-  </div>
-  <div class="onex-mobile-foot">
-    <button type="button" onclick="toggleTheme()"><span>☼</span> تم روشن</button>
-    <button type="button" onclick="refreshAll()"><span>⟳</span> بروزرسانی آمار</button>
-    <button type="button" onclick="panelUpdate()" class="green"><span>⟳</span> بروزرسانی پنل</button>
-    <a href="/logout" class="danger"><span>↪</span> خروج</a>
-  </div>
-</aside>
 
 <aside class="sidebar" id="sidebar">
   <button class="sb-toggle" id="sbToggle" title="Toggle">
@@ -6679,32 +6796,67 @@ body.onex-menu-lock{overflow:hidden!important}
 
 <main class="main" id="main">
 
+<div class="onex-topbar">
+  <div class="top-server"><span class="top-dot"></span><b>سرور آنلاین</b><span class="top-sep"></span><small id="topHost">—</small><span class="top-sep"></span><small id="topUptime">Uptime: —</small></div>
+  <div class="top-actions"><div class="top-chip">🇮🇷 فارسی</div><div class="top-chip">🔔 اعلان‌ها</div><div class="top-avatar">N</div></div>
+</div>
 <section class="page on" id="page-dash">
-  <div class="page-head">
+  <div class="dashboard-hero">
     <div>
-      <div class="page-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-        <span data-i18n="nav_dash">داشبورد</span>
+      <div class="hero-kicker">ONEX CONTROL CENTER</div>
+      <div class="hero-title">خوش آمدید به <span>ONEX</span></div>
+      <div class="hero-sub" id="lastUpd" data-i18n="loading">در حال بارگذاری...</div>
+    </div>
+    <div class="hero-actions">
+      <button class="btn btn-p btn-sm" onclick="goPage('create')">＋ ساخت کانفیگ</button>
+      <button class="btn btn-sm" onclick="refreshAll()">↻ بروزرسانی</button>
+    </div>
+  </div>
+
+  <div class="onex-metrics">
+    <div class="onex-metric"><div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div class="metric-label">اتصالات فعال</div><div class="metric-val" id="mConns">—</div><div class="metric-trend">LIVE</div></div>
+    <div class="onex-metric"><div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20V10M18 20V4M6 20v-4"/><path d="M3 20h18"/></svg></div><div class="metric-label">ترافیک مصرف‌شده</div><div class="metric-val" id="mTraffic">—</div><div class="metric-trend">↑ REALTIME</div></div>
+    <div class="onex-metric"><div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg></div><div class="metric-label">کانفیگ‌ها</div><div class="metric-val" id="mLinks">—</div><div class="metric-trend">ACTIVE</div></div>
+    <div class="onex-metric"><div class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div class="metric-label">آپتایم سرور</div><div class="metric-val" id="mUptime" style="font-size:17px">—</div><div class="metric-trend">STABLE</div></div>
+  </div>
+
+  <div class="dashboard-grid">
+    <div>
+      <div class="onex-card">
+        <div class="onex-card-head"><div class="onex-card-title"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-6"/></svg>نمودار مصرف ترافیک</div><div class="range-mini"><button class="on">امروز</button><button>هفته</button><button>ماه</button><button>کل</button></div></div>
+        <div class="chart-wrap">
+          <div class="chart-badge">ترافیک زنده · <b id="chartTraffic">—</b></div>
+          <svg class="traffic-svg" viewBox="0 0 900 270" preserveAspectRatio="none" aria-label="Traffic chart">
+            <defs><linearGradient id="trafficFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#20c8ff" stop-opacity=".34"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/></linearGradient></defs>
+            <path class="chart-grid-line" d="M20 45H880M20 95H880M20 145H880M20 195H880M20 245H880"/>
+            <path class="chart-fill" d="M20 220 C80 190 105 215 155 175 S240 115 290 155 S375 105 420 132 S505 65 555 100 S630 150 680 108 S750 82 800 115 S845 65 880 90 L880 245 L20 245Z"/>
+            <path class="chart-line" d="M20 220 C80 190 105 215 155 175 S240 115 290 155 S375 105 420 132 S505 65 555 100 S630 150 680 108 S750 82 800 115 S845 65 880 90"/>
+            <circle class="chart-dot" cx="555" cy="100" r="5"/><circle class="chart-dot" cx="800" cy="115" r="5"/><circle class="chart-dot" cx="880" cy="90" r="5"/>
+          </svg>
+          <div class="chart-labels"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>24:00</span></div>
+        </div>
       </div>
-      <div class="page-sub" id="lastUpd" data-i18n="loading">در حال بارگـذاری...</div>
+      <div class="onex-card" style="margin-top:14px"><div class="onex-card-head"><div class="onex-card-title">⚡ عملیات سریع</div></div><div class="onex-card-body"><div class="quick-grid">
+        <div class="quick-item" onclick="goPage('create')"><div class="quick-icon">＋</div><div><div class="quick-name">ساخت کانفیگ</div><div class="quick-desc">ایجاد کانفیگ جدید</div></div></div>
+        <div class="quick-item" onclick="doAutoCreate()"><div class="quick-icon">✦</div><div><div class="quick-name">ساخت خودکار</div><div class="quick-desc">تولید سریع کانفیگ</div></div></div>
+        <div class="quick-item" onclick="goPage('configs')"><div class="quick-icon">☷</div><div><div class="quick-name">مدیریت کانفیگ‌ها</div><div class="quick-desc">مشاهده و ویرایش</div></div></div>
+        <div class="quick-item" onclick="goPage('telegram')"><div class="quick-icon">➤</div><div><div class="quick-name">ربات تلگرام</div><div class="quick-desc">مدیریت ربات</div></div></div>
+      </div></div></div>
+      <div class="onex-card recent-card"><div class="onex-card-head"><div class="onex-card-title">▣ کانفیگ‌های اخیر</div><button class="btn btn-sm" onclick="goPage('configs')">مشاهده همه ←</button></div><div class="onex-card-body" style="padding:0"><div style="overflow-x:auto"><table class="recent-table"><thead><tr><th>نام کانفیگ</th><th>پروتکل</th><th>مصرف</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody id="onexRecentBody"><tr><td colspan="5" style="text-align:center;color:var(--t3);padding:24px">در حال بارگذاری...</td></tr></tbody></table></div></div></div>
+    </div>
+    <div class="dashboard-grid-right">
+      <div class="onex-card"><div class="onex-card-head"><div class="onex-card-title">◉ وضعیت سرور</div><span style="color:#34d399;font-size:10px;font-weight:800"><span class="xray-dot"></span>فعال</span></div><div class="onex-card-body"><div class="health-list">
+        <div class="health-row"><div class="health-icon">CPU</div><div><div class="health-name">CPU</div><div class="health-track"><div class="health-fill" style="--w:32%"></div></div></div><div class="health-pct">32%</div></div>
+        <div class="health-row"><div class="health-icon">RAM</div><div><div class="health-name">RAM</div><div class="health-track"><div class="health-fill" style="--w:56%"></div></div></div><div class="health-pct">56%</div></div>
+        <div class="health-row"><div class="health-icon">SSD</div><div><div class="health-name">Disk</div><div class="health-track"><div class="health-fill" style="--w:48%"></div></div></div><div class="health-pct">48%</div></div>
+        <div class="health-row"><div class="health-icon">NET</div><div><div class="health-name">Network</div><div class="health-track"><div class="health-fill" style="--w:72%"></div></div></div><div class="health-pct">72%</div></div>
+        <div class="xray-state"><span>Xray Core</span><span><span class="xray-dot"></span>Running</span></div>
+      </div></div></div>
+      <div class="telegram-card"><div><div class="tg-orbit"><div class="tg-logo"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 3.5 18.2 20c-.25 1.17-.9 1.45-1.83.9l-5.05-3.72-2.43 2.34c-.27.27-.5.5-1.02.5l.37-5.23 9.52-8.6c.41-.37-.09-.58-.64-.21L5.35 13.2.43 11.66c-1.07-.33-1.09-1.07.22-1.58L19.9 2.52c.91-.34 1.71.21 1.6.98Z"/></svg></div></div><div class="tg-title">کانال تلگرام ما</div><div class="tg-handle">@V2rayTun0</div><div class="tg-desc">آخرین اخبار، آپدیت‌ها و پشتیبانی</div></div><a class="tg-btn" href="https://t.me/V2rayTun0" target="_blank" rel="noopener">➤ عضویت در کانال</a></div>
+      <div class="onex-card"><div class="onex-card-head"><div class="onex-card-title">▤ اطلاعات سرور</div></div><div class="onex-card-body"><div class="server-info"><div class="info-row"><span>IP سرور</span><span id="serverIp">—</span></div><div class="info-row"><span>کشور</span><span>—</span></div><div class="info-row"><span>نوع سرور</span><span>VPS</span></div><div class="info-row"><span>شروع سرویس</span><span>ONEX</span></div><div class="info-row"><span>نسخه Xray</span><span>—</span></div></div></div></div>
     </div>
   </div>
-  <div class="metrics">
-    <div class="metric"><div class="metric-label" data-i18n="m_conns">اتصالات فعـال</div><div class="metric-val" id="mConns">—</div></div>
-    <div class="metric"><div class="metric-label" data-i18n="m_traffic">ترافیک کـل</div><div class="metric-val" id="mTraffic">—</div></div>
-    <div class="metric"><div class="metric-label" data-i18n="m_links">کانفیگ‌هـا</div><div class="metric-val" id="mLinks">—</div></div>
-    <div class="metric"><div class="metric-label" data-i18n="m_uptime">آپتایـم سرور</div><div class="metric-val" id="mUptime" style="font-size:17px">—</div></div>
-  </div>
-  <div class="g2">
-    <div class="card action-card" onclick="goPage('create')">
-      <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="quick_create">ساخت کانفیگ</span></div>
-      <p style="color:var(--t2);font-size:12px;line-height:1.6" data-i18n="quick_create_desc">ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا</p>
-    </div>
-    <div class="card action-card purple" onclick="doAutoCreate()">
-      <div class="card-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg><span data-i18n="auto_create">ساخت خودکار (پیشنهادی)</span></div>
-      <p style="color:var(--t2);font-size:12px;line-height:1.6" data-i18n="auto_create_desc">ساخت سریع با تنظیمات بهینه · لینک VLESS و ساب</p>
-    </div>
-  </div>
+  <div class="onex-footer"><span>ONEX Control Center · <b>Fast · Secure · Stable</b></span><span>Designed by <b>@Mehtif</b> · Telegram <b>@V2rayTun0</b></span></div>
 </section>
 
 <section class="page" id="page-configs">
@@ -6966,9 +7118,9 @@ body.onex-menu-lock{overflow:hidden!important}
       <div class="support-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.4.6.1.82-.26.82-.58v-2.03c-3.34.73-4.03-1.61-4.03-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.1-.75.08-.74.08-.74 1.21.09 1.85 1.24 1.85 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.57C20.56 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg></div>
       <div><div class="support-label" data-i18n="github">گیت هـاب پروژه</div><div class="support-val">iran-px-panel/pxpanel</div></div>
     </a>
-    <a class="support-tile" href="https://t.me/logic_sec" target="_blank" rel="noopener">
+    <a class="support-tile" href="https://t.me/V2rayTun0" target="_blank" rel="noopener">
       <div class="support-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.2-1.86 8.77c-.14.62-.5.77-1.01.48l-2.8-2.06-1.35 1.3c-.15.15-.27.27-.55.27l.2-2.84 5.18-4.68c.22-.2-.05-.31-.35-.12l-6.4 4.03-2.76-.86c-.6-.19-.61-.6.12-.89l10.78-4.16c.5-.18.94.12.78.86z"/></svg></div>
-      <div><div class="support-label" data-i18n="telegram">کانال تلگـرام</div><div class="support-val">@logic_sec</div></div>
+      <div><div class="support-label" data-i18n="telegram">کانال تلگـرام</div><div class="support-val">@V2rayTun0</div></div>
     </a>
     <a class="support-tile" href="https://t.me/logictop12" target="_blank" rel="noopener">
       <div class="support-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></div>
@@ -7077,35 +7229,18 @@ function toggleTheme(){
 (function(){const th=localStorage.getItem('px_theme')||'dark';setTheme(th)})();
 
 const sb=document.getElementById('sidebar'),main=document.getElementById('main');
-const mobileDrawer=document.getElementById('onexMobileDrawer');
-const mobileOverlay=document.getElementById('onexMobileOverlay');
-function closeMobileMenu(){
-  mobileDrawer?.classList.remove('open');
-  mobileOverlay?.classList.remove('show');
-  mobileDrawer?.setAttribute('aria-hidden','true');
-  document.body.classList.remove('onex-menu-lock');
-}
-function openMobileMenu(){
-  mobileDrawer?.classList.add('open');
-  mobileOverlay?.classList.add('show');
-  mobileDrawer?.setAttribute('aria-hidden','false');
-  document.body.classList.add('onex-menu-lock');
-}
 document.getElementById('sbToggle').onclick=()=>{
   sb.classList.toggle('collapsed');
   main.classList.toggle('expanded',sb.classList.contains('collapsed'));
   localStorage.setItem('sb_c',sb.classList.contains('collapsed')?'1':'0');
 };
 if(localStorage.getItem('sb_c')==='1'){sb.classList.add('collapsed');main.classList.add('expanded')}
-document.getElementById('mobMenuBtn').onclick=openMobileMenu;
-document.getElementById('onexMobileClose').onclick=closeMobileMenu;
-mobileOverlay.onclick=closeMobileMenu;
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMobileMenu()});
+document.getElementById('mobMenuBtn').onclick=()=>{sb.classList.add('open');document.getElementById('overlay').classList.add('show')};
+document.getElementById('overlay').onclick=()=>{sb.classList.remove('open');document.getElementById('overlay').classList.remove('show')};
 
 function goPage(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on',n.dataset.page===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-'+name));
-  closeMobileMenu();
   sb.classList.remove('open');document.getElementById('overlay').classList.remove('show');
   window.scrollTo({top:0,behavior:'smooth'});
   if(name==='logs')loadLogs();
@@ -7160,6 +7295,24 @@ async function refreshAll(){
   document.getElementById('panelInfo').innerHTML=lang==='fa'
     ?`کل کانفیگ: <b>${arr.length}</b> · فعال: <b>${active}</b> · مصرف: <b>${fmtB(used)}</b> · بازه: <b>${statRange}</b>`
     :`Total: <b>${arr.length}</b> · Active: <b>${active}</b> · Usage: <b>${fmtB(used)}</b> · Range: <b>${statRange}</b>`;
+  renderOnexRecent(arr);
+  const hostEl=document.getElementById('topHost'); if(hostEl) hostEl.textContent=location.host||'ONEX SERVER';
+  const ipEl=document.getElementById('serverIp'); if(ipEl) ipEl.textContent=location.hostname||'—';
+  const chartEl=document.getElementById('chartTraffic'); if(chartEl) chartEl.textContent=fmtB(used);
+  const upEl=document.getElementById('topUptime'); const mu=document.getElementById('mUptime'); if(upEl && mu) upEl.textContent='Uptime: '+mu.textContent;
+}
+
+function renderOnexRecent(arr){
+  const el=document.getElementById('onexRecentBody'); if(!el) return;
+  if(!arr.length){el.innerHTML='<tr><td colspan=5 style="text-align:center;color:var(--t3);padding:24px">کانفیگی وجود ندارد</td></tr>';return}
+  el.innerHTML=arr.slice(0,5).map(l=>{
+    const name=esc(l.label||l.name||String(l.uuid||l.id||'').slice(0,8));
+    const proto=esc(l.protocol||'vless-ws');
+    const usage=fmtB(l.used_bytes);
+    const active=l.active!==false&&!l.expired;
+    const uid=esc(l.uuid||l.id||'');
+    return `<tr><td><b>${name}</b></td><td>${proto}</td><td>${usage}</td><td><span class="recent-status"><i></i>${active?'فعال':'متوقف'}</span></td><td><div class="recent-actions"><button class="mini-action" onclick="copyLinkById('${uid}')">⧉</button><button class="mini-action" onclick="copySubById('${uid}')">↗</button></div></td></tr>`;
+  }).join('');
 }
 
 

@@ -2426,6 +2426,32 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
 @media(max-width:900px){.scene{grid-template-columns:1fr}.hero{min-height:420px;padding:25px}.login-side{padding:0 20px 35px}.login-card{max-width:520px}.credits{margin-top:35px}.brand{font-size:58px}.logo-orbit{transform:scale(.78);margin-bottom:-25px}.hero-sub{margin-top:0}}
 @media(max-width:520px){.hero{min-height:350px}.logo-orbit{transform:scale(.62);margin-top:-35px;margin-bottom:-55px}.brand{font-size:43px;letter-spacing:4px}.tagline{font-size:10px;letter-spacing:4px}.hero-sub{font-size:11px}.credits{gap:20px;margin-top:25px}.login-side{padding:0 12px 20px}.login-card{padding:25px 18px;border-radius:24px}.login-title{font-size:21px}.telegram{padding:12px}.field input,.primary{height:54px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* ONEX MOBILE LOGIN - FINAL RESPONSIVE OVERRIDES */
+@media (max-width: 700px){
+  html,body{width:100%;min-width:0;overflow-x:hidden}
+  body{min-height:100svh;padding:0;display:block}
+  .scene{min-height:100svh;display:block}
+  .hero{display:none}
+  .login-side{min-height:100svh;width:100%;padding:18px 12px calc(18px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center}
+  .login-card{width:100%;max-width:460px;padding:24px 16px;border-radius:22px}
+  .login-logo{width:64px;height:64px;border-radius:20px;margin-bottom:10px}
+  .login-logo span{font-size:46px}
+  .login-title{font-size:21px;line-height:1.7}
+  .login-desc{font-size:11px;line-height:1.9;margin-bottom:20px}
+  .field{margin-bottom:12px}
+  .field input,.primary{height:54px;min-height:54px;font-size:16px;border-radius:15px}
+  .row{font-size:10px;gap:10px}
+  .telegram{margin-top:16px;padding:11px 12px;border-radius:15px}
+  .telegram-icon{width:40px;height:40px;flex-basis:40px}
+}
+@media (max-width:380px){
+  .login-side{padding-left:9px;padding-right:9px}
+  .login-card{padding:20px 13px;border-radius:20px}
+  .login-title{font-size:19px}
+  .login-logo{width:58px;height:58px}
+  .login-logo span{font-size:42px}
+}
+
 </style>
 </head>
 <body>
@@ -6977,6 +7003,68 @@ tr:hover td{background:var(--hover)}
 @media(max-width:420px){
   .metrics,.stats-grid,.cards-grid{grid-template-columns:1fr!important}
   .quick-actions,.actions-grid{grid-template-columns:1fr!important}
+}
+
+/* ONEX MOBILE DASHBOARD - FINAL RESPONSIVE OVERRIDES */
+@media (max-width: 768px){
+  html,body{width:100%!important;min-width:0!important;overflow-x:hidden!important}
+  body{display:block!important;padding-bottom:env(safe-area-inset-bottom)!important}
+  .mob-bar{position:fixed!important;top:0;left:0;right:0;width:100%;height:58px!important;min-height:58px!important;padding:8px 10px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;background:color-mix(in srgb,var(--bg2) 88%,transparent)!important;border-bottom:1px solid var(--card-b)!important;backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important}
+  .mob-brand{display:flex!important;align-items:center!important}
+  .mob-brand-mark{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#0ea5e9,#2563eb,#7c3aed);color:#fff;font:900 17px Inter,sans-serif;box-shadow:0 8px 20px rgba(37,99,235,.28)}
+  #mobMenuBtn{width:42px!important;height:42px!important;min-height:42px!important;padding:0!important;border-radius:13px!important}
+  .main,.main.expanded{width:100%!important;max-width:100%!important;margin:0!important;padding:70px 10px 28px!important;min-width:0!important}
+  .onex-topbar{width:100%!important;min-width:0!important;min-height:48px!important;padding:8px 10px!important;border-radius:14px!important;gap:8px!important}
+  .top-server{min-width:0!important;flex:1!important;overflow:hidden!important}
+  .top-server b{font-size:11px!important}
+  .top-actions{flex-shrink:0!important}
+  .top-avatar{width:34px!important;height:34px!important}
+  .onex-control-dock{width:100%!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin-top:9px!important}
+  .onex-3d-control{min-width:0!important;min-height:54px!important;padding:8px!important;border-radius:13px!important}
+  .control-copy{min-width:0!important}
+  .control-title,.control-sub{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+  .dashboard-hero{width:100%!important;padding:14px!important;border-radius:16px!important;gap:12px!important}
+  .hero-title{font-size:21px!important;line-height:1.7!important}
+  .hero-sub{font-size:10px!important}
+  .hero-actions{width:100%!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important}
+  .hero-actions .btn{width:100%!important;min-height:44px!important}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  .metric{min-width:0!important;padding:12px!important;border-radius:15px!important}
+  .metric-label{font-size:10px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .metric-val{font-size:20px!important}
+  .g2{grid-template-columns:1fr!important;gap:9px!important}
+  .card{min-width:0!important;padding:14px!important;border-radius:16px!important;margin-bottom:9px!important}
+  .card-title{font-size:12px!important}
+  .page-head{gap:9px!important;margin-bottom:12px!important}
+  .page-title{font-size:17px!important}
+  .page-sub{font-size:10px!important}
+  .btn{min-height:44px!important;padding:9px 12px!important;font-size:11px!important}
+  input,select,textarea{max-width:100%!important;min-height:44px!important;font-size:16px!important}
+  .form-grid{grid-template-columns:1fr!important}
+  .table-wrap,.table-container,.recent-card .onex-card-body{width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important}
+  table{min-width:620px!important;font-size:11px!important}
+  .modal-bg{padding:10px!important}
+  .modal{width:min(100%,520px)!important;max-height:calc(100svh - 20px)!important;overflow:auto!important;padding:15px!important;border-radius:18px!important}
+  .bottom-bulk{padding:9px 10px!important;padding-bottom:calc(9px + env(safe-area-inset-bottom))!important}
+  .bottom-bulk-inner{display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important}
+  .bottom-bulk-inner #bulkCount{grid-column:1/-1}
+  .bottom-bulk select,.bottom-bulk .btn{width:100%!important;min-height:42px!important}
+}
+@media (max-width:420px){
+  .main,.main.expanded{padding-left:8px!important;padding-right:8px!important}
+  .onex-control-dock{grid-template-columns:1fr!important}
+  .onex-3d-control{min-height:46px!important}
+  .dashboard-hero{padding:12px!important}
+  .hero-title{font-size:19px!important}
+  .hero-actions{grid-template-columns:1fr!important}
+  .metrics{grid-template-columns:1fr!important}
+  .metric{padding:11px!important}
+  .card{padding:12px!important}
+}
+@media (max-width:360px){
+  .main,.main.expanded{padding-left:6px!important;padding-right:6px!important}
+  .onex-topbar{padding:7px!important}
+  .page-title{font-size:16px!important}
 }
 </style>
 </head>

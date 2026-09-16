@@ -6692,6 +6692,123 @@ tr:hover td{background:var(--hover)}
 @media(max-width:700px){.onex-topbar{height:auto;min-height:60px;padding:9px 10px;border-radius:16px}.top-server small,.top-sep,.top-chip{display:none}.dashboard-hero{align-items:flex-start;flex-direction:column}.hero-title{font-size:23px}.hero-actions{width:100%}.onex-metrics{grid-template-columns:1fr 1fr;gap:10px}.onex-metric{min-height:112px;padding:13px;border-radius:16px}.metric-icon{width:37px;height:37px;border-radius:12px}.onex-metric .metric-val{font-size:21px}.dashboard-grid-right{grid-template-columns:1fr}.chart-wrap{height:230px}.quick-grid{grid-template-columns:1fr 1fr}.recent-table{min-width:600px}.recent-card .onex-card-body{overflow-x:auto}.onex-footer{padding-bottom:22px}}
 @media(max-width:390px){.onex-metrics{grid-template-columns:1fr}.quick-grid{grid-template-columns:1fr}.hero-title{font-size:21px}.onex-metric{min-height:102px}.chart-wrap{height:205px}}
 
+
+/* =========================================================
+   ONEX MOBILE DRAWER - FINAL OVERRIDE
+   این بخش عمداً در انتهای CSS قرار گرفته تا استایل‌های قدیمی
+   منوی PX یا Sidebar دسکتاپ نتوانند آن را override کنند.
+   ========================================================= */
+@media (max-width:900px){
+  html,body{overflow-x:hidden!important;width:100%!important}
+  .sidebar{
+    position:fixed!important;
+    top:0!important;
+    right:0!important;
+    left:auto!important;
+    bottom:0!important;
+    width:min(200px,78vw)!important;
+    max-width:200px!important;
+    min-width:0!important;
+    height:100dvh!important;
+    margin:0!important;
+    transform:translate3d(105%,0,0)!important;
+    transition:transform .28s cubic-bezier(.4,0,.2,1)!important;
+    z-index:10001!important;
+    overflow:hidden!important;
+    border-left:1px solid var(--card-b)!important;
+    border-right:0!important;
+    box-shadow:-18px 0 55px rgba(0,0,0,.55)!important;
+  }
+  .sidebar.open{
+    transform:translate3d(0,0,0)!important;
+  }
+  .sidebar.collapsed{
+    width:min(200px,78vw)!important;
+  }
+  .sidebar .sb-toggle{display:none!important}
+
+  .sidebar .sb-logo{
+    min-height:82px!important;
+    padding:16px 14px!important;
+  }
+  .sidebar .sb-logo-icon{
+    width:38px!important;height:38px!important;
+    font-size:13px!important;
+  }
+  .sidebar .sb-logo-text{min-width:0!important}
+  .sidebar .sb-logo-name{font-size:16px!important}
+  .sidebar .sb-logo-ver{font-size:9px!important}
+
+  .sidebar .nav{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding:10px 9px 14px!important;
+  }
+  .sidebar .nav-item{
+    width:100%!important;
+    min-height:46px!important;
+    height:auto!important;
+    margin:3px 0!important;
+    padding:9px 10px!important;
+    gap:9px!important;
+    border-radius:13px!important;
+    font-size:13px!important;
+  }
+  .sidebar .nav-item svg{
+    width:20px!important;
+    height:20px!important;
+    flex:0 0 20px!important;
+  }
+  .sidebar .nav-label{
+    font-size:13px!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  .sidebar .nav-sec{
+    padding:9px 10px 5px!important;
+    font-size:10px!important;
+  }
+
+  .sidebar .sb-bottom,
+  .sidebar .side-bottom,
+  .sidebar .sidebar-bottom{
+    flex:0 0 auto!important;
+    padding:10px!important;
+  }
+  .sidebar .sb-bottom button,
+  .sidebar .side-bottom button,
+  .sidebar .sidebar-bottom button{
+    min-height:48px!important;
+    width:100%!important;
+    margin:5px 0!important;
+    border-radius:14px!important;
+  }
+
+  .overlay{
+    position:fixed!important;
+    inset:0!important;
+    z-index:10000!important;
+    background:rgba(0,0,0,.62)!important;
+    backdrop-filter:blur(5px)!important;
+    -webkit-backdrop-filter:blur(5px)!important;
+  }
+  .mob-bar{
+    z-index:9999!important;
+  }
+  body.menu-open{overflow:hidden!important}
+}
+
+@media (max-width:380px){
+  .sidebar{
+    width:190px!important;
+    max-width:190px!important;
+  }
+  .sidebar .nav-item{min-height:44px!important;padding:8px!important}
+}
+
 </style>
 </head>
 <body>
@@ -7229,13 +7346,23 @@ document.getElementById('sbToggle').onclick=()=>{
   localStorage.setItem('sb_c',sb.classList.contains('collapsed')?'1':'0');
 };
 if(localStorage.getItem('sb_c')==='1'){sb.classList.add('collapsed');main.classList.add('expanded')}
-document.getElementById('mobMenuBtn').onclick=()=>{sb.classList.add('open');document.getElementById('overlay').classList.add('show')};
-document.getElementById('overlay').onclick=()=>{sb.classList.remove('open');document.getElementById('overlay').classList.remove('show')};
+function openMobileMenu(){
+  sb.classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+  document.body.classList.add('menu-open');
+}
+function closeMobileMenu(){
+  sb.classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  document.body.classList.remove('menu-open');
+}
+document.getElementById('mobMenuBtn').onclick=openMobileMenu;
+document.getElementById('overlay').onclick=closeMobileMenu;
 
 function goPage(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on',n.dataset.page===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-'+name));
-  sb.classList.remove('open');document.getElementById('overlay').classList.remove('show');
+  closeMobileMenu();
   window.scrollTo({top:0,behavior:'smooth'});
   if(name==='logs')loadLogs();
   if(name==='configs'||name==='dash'||name==='stats')refreshAll();

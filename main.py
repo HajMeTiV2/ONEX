@@ -384,25 +384,47 @@ def random_config_name(existing=None):
     return secrets.token_hex(6)
 
 def sanitize_config_name(name: str) -> str:
+    """Keep config names client-safe while preserving readable separators."""
     if not name:
         return random_config_name()
-    cleaned = "".join(ch for ch in str(name) if ch.isascii() and ch.isalnum())
+    cleaned = "".join(
+        ch for ch in str(name).strip()
+        if ch.isascii() and (ch.isalnum() or ch in "-_ ")
+    )
+    cleaned = "-".join(cleaned.split())
     if not cleaned or cleaned[0].isdigit():
         cleaned = ("a" + cleaned) if cleaned else random_config_name()
-    return cleaned[:40]
+    return cleaned[:40].strip("-_") or random_config_name()
+
 
 def auto_config_name() -> str:
     return random_config_name()
 
 
-def project_config_name(existing=None) -> str:
-    """Generate a unique config remark/name with the project prefix first."""
+def project_config_name(existing=None, custom_name=None) -> str:
+    """Return a unique client-safe config name with the project prefix first."""
     existing = existing or set()
+    prefix = sanitize_config_name(APP_NAME)
+    base = sanitize_config_name(custom_name) if custom_name else random_config_name()
+
+    if base.lower() == prefix.lower():
+        base = random_config_name()
+
+    if base.lower().startswith(prefix.lower() + "-"):
+        candidate = base
+    else:
+        candidate = f"{prefix}-{base}"
+
+    candidate = candidate[:40].rstrip("-_")
+    if candidate and candidate not in existing:
+        return candidate
+
     for _ in range(80):
-        name = f"{APP_NAME}-{random_config_name()}"
-        if name not in existing:
-            return name
-    return f"{APP_NAME}-{secrets.token_hex(6)}"
+        candidate = f"{prefix}-{random_config_name(existing)}"[:40].rstrip("-_")
+        if candidate not in existing:
+            return candidate
+
+    return f"{prefix}-{secrets.token_hex(6)}"[:40].rstrip("-_")
 
 
 def now_ir():
@@ -1403,7 +1425,7 @@ async def make_link(
 
     record = {
         "label":
-            sanitize_config_name((label or "").strip() or random_config_name()),
+            project_config_name(custom_name=(label or "").strip() or None),
 
         "limit_bytes":
             max(
@@ -3019,11 +3041,9 @@ async def create_link_api(
     if cat.get("single_user"):
         if ip_limit == 0: ip_limit = 1
         if connection_limit == 0: connection_limit = 1
-    label_val = body.get("label", "")
-    if cat.get("random_name") or not str(label_val).strip():
-        label_val = project_config_name()
-    else:
-        label_val = sanitize_config_name(str(label_val))
+    label_val = str(body.get("label") or "").strip() or None
+    if cat.get("random_name"):
+        label_val = None
 
     uid, link = await make_link(
         label=label_val,
@@ -3347,7 +3367,7 @@ async def update_link(
             ).strip()
 
             if value:
-                link["label"] = value[:60]
+                link["label"] = project_config_name(custom_name=value)
 
         if "note" in body:
 
@@ -3836,8 +3856,9 @@ async def subscription_single(
         time_text = "∞"
     label = str(link.get("label") or "Config")
     stats_remark = f"{label} | {volume_text} | {time_text}"
-    stats_line = generate_vless_link(uuid, "0.0.0.0", remark=stats_remark, protocol=link.get("protocol", DEFAULT_PROTOCOL), fingerprint=link.get("fingerprint", DEFAULT_FINGERPRINT), alpn=link.get("alpn"), port=link.get("port", DEFAULT_PORT))
-    lines = [stats_line]
+    # Do not inject a synthetic 0.0.0.0/statistics entry into the subscription.
+    # The subscription must contain only the actual generated configs.
+    lines = []
     used_names = set()
     cfg_count = max(1, min(40, int(link.get("config_count") or 1)))
     if clean_ips:
@@ -3845,13 +3866,15 @@ async def subscription_single(
         while len(hosts) < cfg_count:
             hosts.extend(clean_ips)
         hosts = hosts[:cfg_count]
-        for cip in hosts:
-            name = project_config_name(used_names)
+        base_label = project_config_name(custom_name=label)
+        for i, cip in enumerate(hosts):
+            name = base_label if cfg_count == 1 else project_config_name(used_names, custom_name=f"{base_label}-{i+1}")
             used_names.add(name)
             lines.append(generate_vless_link(uuid, cip, remark=name, protocol=link.get("protocol", DEFAULT_PROTOCOL), fingerprint=link.get("fingerprint", DEFAULT_FINGERPRINT), alpn=link.get("alpn"), port=link.get("port", DEFAULT_PORT)))
     else:
+        base_label = project_config_name(custom_name=label)
         for i in range(cfg_count):
-            name = project_config_name(used_names)
+            name = base_label if cfg_count == 1 else project_config_name(used_names, custom_name=f"{base_label}-{i+1}")
             used_names.add(name)
             lines.append(generate_vless_link(uuid, host, remark=name, protocol=link.get("protocol", DEFAULT_PROTOCOL), fingerprint=link.get("fingerprint", DEFAULT_FINGERPRINT), alpn=link.get("alpn"), port=link.get("port", DEFAULT_PORT)))
     content = base64.b64encode("\n".join(lines).encode()).decode()
@@ -5784,12 +5807,11 @@ async def mix_subscription(request: Request, _=Depends(require_auth)):
             ))
     if not lines:
         raise HTTPException(status_code=400, detail="هیچ کانفیگ معتبری انتخاب نشده")
-    # stats first line
     vol = f"{fmt_bytes(total_used)}/{fmt_bytes(total_limit)}" if total_limit > 0 else f"{fmt_bytes(total_used)}/∞"
     mix_label = f"{APP_NAME}-Mix-{random_config_name()[:6]}"
     stats = f"{mix_label} | {vol} | {len(lines)} configs"
-    first = generate_vless_link(ids[0], "127.0.0.1", remark=stats, protocol="vless-ws")
-    content = base64.b64encode(("\n".join([first] + lines)).encode()).decode()
+    # Mixed subscriptions contain only real configs; no synthetic/statistics config.
+    content = base64.b64encode("\n".join(lines).encode()).decode()
     # store as a sub group for reuse
     sub_id, sub = await create_sub_group(name=mix_label, desc="مخلوط‌سازی کانفیگ‌ها")
     async with SUBS_LOCK:

@@ -6912,6 +6912,51 @@ tr:hover td{background:var(--hover)}
   #sidebar .sb-foot button,#sidebar .sb-foot a.btn{min-height:44px!important}
 }
 
+
+/* ONEX MOBILE + DESKTOP UNIFIED SIDEBAR FIX */
+@media (max-width: 768px){
+  body{
+    overflow-x:hidden!important;
+  }
+  .sidebar,#sidebar{
+    width:min(330px,86vw)!important;
+    max-width:86vw!important;
+    border-radius:28px 0 0 28px!important;
+    backdrop-filter:blur(24px)!important;
+    -webkit-backdrop-filter:blur(24px)!important;
+  }
+  #sidebar .nav-item{
+    min-height:52px!important;
+    margin:5px 12px!important;
+    padding:12px 14px!important;
+    border-radius:16px!important;
+    font-size:14px!important;
+  }
+  #sidebar .nav-label{
+    font-size:14px!important;
+  }
+  #sidebar .sb-logo{
+    padding:14px!important;
+  }
+  #sidebar .sb-logo-icon{
+    width:46px!important;
+    height:46px!important;
+  }
+  #sidebar .sb-foot{
+    padding:12px!important;
+  }
+  #sidebar .sb-foot button,
+  #sidebar .sb-foot a.btn{
+    min-height:48px!important;
+    font-size:13px!important;
+  }
+}
+
+@media (min-width:769px){
+  #sidebar{
+    width:260px!important;
+  }
+}
 </style>
 </head>
 <body>

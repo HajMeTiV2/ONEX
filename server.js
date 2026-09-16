@@ -185,7 +185,6 @@ function syncUserTrafficFromCore() {
 setInterval(syncUserTrafficFromCore, 10000);
 startCoreEngine();
 
-// تابعی که لینک‌ها را با دامنه رایلی و تگ اختصاصی شما (@V2rayTun0 و NEXO) می‌سازد
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const remark = `NEXO-${cfg.name} | @V2rayTun0`;
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
@@ -243,20 +242,20 @@ app.get('/api/panel-data', auth, (req, res) => {
   });
 });
 
-// مسیر ساخت کانفیگ با دیتابیس واقعی و استارت موتور Xray
 app.post('/api/configs/create', auth, (req, res) => {
   const { name, server, protocol, tag, total_gb, expire_days } = req.body;
   const id = uuidv4().substring(0, 8);
   const uuid = uuidv4();
+  const gb = parseFloat(total_gb) || 20;
 
   db.run(
     `INSERT INTO configs (id, name, owner, server, protocol, tag, total_gb, expire_days, uuid, status) 
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-    [id, name || 'اکانت', req.session.username, server || 'Germany', protocol || 'all', tag || 'normal', parseFloat(total_gb) || 20, parseInt(expire_days) || 30, uuid],
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
+    [id, name || 'اکانت', req.session.username, server || 'Germany', protocol || 'all', tag || 'normal', gb, parseInt(expire_days) || 30, uuid],
     function(err) {
       if (err) return res.status(500).json({ error: 'خطا در ساخت کانفیگ' });
       startCoreEngine();
-      addLog(`کانفیگ جدید با نام "${name || 'اکانت'}" ساخته شد.`);
+      addLog(`کانفیگ جدید با نام "${name || 'اکانت'}" و حجم ${gb}GB ساخته شد.`);
       res.json({ success: true, id });
     }
   );
@@ -278,10 +277,13 @@ app.post('/api/save-worker-settings', auth, (req, res) => {
   });
 });
 
+// رفع مشکل پورتال ساب و جستجوی دقیق کانفیگ با id یا uuid
 app.get('/sub/:id', (req, res) => {
   const defaultHost = req.headers.host;
-  db.get('SELECT * FROM configs WHERE id = ?', [req.params.id], (err, cfg) => {
-    if (!cfg || cfg.status === 'expired') return res.status(403).send('منقضی شده');
+  const queryId = req.params.id;
+  
+  db.get('SELECT * FROM configs WHERE id = ? OR uuid = ?', [queryId, queryId], (err, cfg) => {
+    if (!cfg) return res.status(404).send('Config not found');
     db.all('SELECT key, value FROM settings', (err, sets) => {
       const setMap = {};
       (sets || []).forEach(s => setMap[s.key] = s.value);

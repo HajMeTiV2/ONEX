@@ -2122,7 +2122,10 @@ table th:first-child, table td:first-child{overflow:visible}
    Native select stays in DOM for compatibility; the visible UI is
    a fast custom picker shared by manual + auto create sections.
    ============================================================ */
-#page-create .protocol-native{position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important;overflow:hidden!important}
+#page-create select.protocol-native,#page-create .protocol-field select{display:none!important;position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important}
+#page-create .protocol-trigger{isolation:isolate}
+#page-create .protocol-trigger:after{content:'⌄';position:absolute;inset-inline-end:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#60a5fa;opacity:.9;pointer-events:none}
+#page-create .protocol-trigger .protocol-trigger-arrow{display:none}
 #page-create .protocol-trigger{width:100%;min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-radius:13px;border:1px solid rgba(96,165,250,.22);background:linear-gradient(145deg,rgba(18,31,58,.88),rgba(7,14,29,.94));color:var(--t1);cursor:pointer;position:relative;overflow:hidden;transition:.2s ease;box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.16)}
 #page-create .protocol-trigger:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(96,165,250,.10) 50%,transparent 75%);transform:translateX(-120%);transition:.45s ease;pointer-events:none}
 #page-create .protocol-trigger:hover{border-color:rgba(96,165,250,.55);transform:translateY(-1px);box-shadow:0 10px 28px rgba(37,99,235,.18),inset 0 1px rgba(255,255,255,.08)}
@@ -2149,6 +2152,24 @@ html.light .protocol-picker{background:linear-gradient(145deg,#fff,#f7fbff);bord
 @media(max-width:560px){.protocol-picker-bg{padding:8px}.protocol-picker{width:calc(100vw - 16px);max-height:90vh;border-radius:20px}.protocol-picker-head{padding:13px 14px 12px}.protocol-picker-head-icon{width:40px;height:40px;font-size:21px;border-radius:12px}.protocol-picker-title{font-size:15px}.protocol-picker-scroll{padding:11px 11px 12px}.protocol-grid{gap:7px}.protocol-option{min-height:82px;padding:9px 7px}.protocol-option-icon{font-size:23px;margin-bottom:5px}.protocol-option-name{font-size:10px}.protocol-option-desc{font-size:7.5px}.protocol-picker-foot{padding:9px 11px 11px}.protocol-selected-info{height:32px;font-size:8px}.protocol-picker-confirm{height:40px;font-size:11px}}
 @media(max-width:360px){.protocol-grid{grid-template-columns:1fr}.protocol-option{min-height:72px}.protocol-option-icon{font-size:21px;margin-bottom:3px}}
 #page-create .field label[data-i18n="label_proto"]:before{content:"✦ ";}
+/* Hard guarantee: the two protocol controls are custom buttons, never native selects. */
+#page-create .protocol-field{position:relative}
+#page-create .protocol-field > .protocol-trigger{display:flex!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:20!important;width:100%!important;min-height:46px!important}
+#page-create .protocol-field > select.protocol-native{display:none!important;pointer-events:none!important}
+@media(max-width:560px){#page-create .protocol-field > .protocol-trigger{min-height:48px!important;border-radius:14px!important}.protocol-picker{width:calc(100vw - 20px)!important;max-height:88vh!important}.protocol-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* Final protocol-picker visibility guard */
+#page-create .field:has(> select.protocol-native) { position:relative; }
+#page-create .field > select.protocol-native + .protocol-trigger { display:flex!important; visibility:visible!important; opacity:1!important; position:relative!important; z-index:5!important; }
+.protocol-picker-bg.open { display:flex!important; }
+.protocol-picker { pointer-events:auto; }
+@media (max-width:560px){
+  .protocol-picker-bg{padding:7px!important;align-items:center!important}
+  .protocol-picker{width:min(94vw,620px)!important;max-height:92vh!important;border-radius:22px!important}
+  .protocol-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .protocol-option{min-height:88px!important}
+}
+
 
 </style>
 </head>
@@ -7861,7 +7882,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
           </button>
         </div>
       </div>
-            <div class="field"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native"></select></div>
+            <div class="field protocol-field"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="cProto" onclick="openProtocolPicker('cProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر، انتخاب کنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
       <div class="field"><label>گروه</label><select id="cGroup"></select></div>
 <div class="form-row">
         <div class="field"><label data-i18n="label_count">تعداد کانفیگ در ساب (۱–۴۰)</label><input id="cCount" type="number" value="1" min="1" max="40"></div>
@@ -7883,7 +7904,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
     <div class="card" style="border-color:rgba(139,92,246,.35)">
       <div class="card-title" data-i18n="auto_create">ساخت خودکـار (پیشنهــادی)</div>
       <p style="color:var(--t2);font-size:13px;line-height:1.75;margin-bottom:14px" data-i18n="auto_desc">با یک کلیک کانفیگ بهینه ساخته می‌شود. بعد از ساخت لینک VLESS و ساب در اختیار شماست.</p>
-      <div class="field"><label data-i18n="label_proto">پروتکـل</label><select id="aProto" class="protocol-native"></select></div>
+      <div class="field protocol-field"><label data-i18n="label_proto">پروتکـل</label><select id="aProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="aProto" onclick="openProtocolPicker('aProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر، انتخاب کنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
       <div class="field"><label data-i18n="label_count">تعداد کانفیگ در سـاب (1-40)</label><input id="aCount" type="number" value="1" min="1" max="40"></div>
       <button class="btn btn-p" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="doAutoCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2"/></svg>
@@ -8794,7 +8815,7 @@ function protocolPickerShort(id,label){
 function setupProtocolPickers(){
   ['cProto','aProto'].forEach(id=>{
     const sel=document.getElementById(id); if(!sel)return;
-    sel.classList.add('protocol-native');
+    sel.classList.add('protocol-native'); sel.style.setProperty('display','none','important'); sel.setAttribute('aria-hidden','true');
     let trigger=document.querySelector(`.protocol-trigger[data-for="${id}"]`);
     if(!trigger){
       trigger=document.createElement('button'); trigger.type='button'; trigger.className='protocol-trigger'; trigger.dataset.for=id;
@@ -8846,7 +8867,13 @@ function confirmProtocolPicker(){
 function closeProtocolPicker(){const bg=document.getElementById('protocolPickerBg');if(bg)bg.classList.remove('open');document.body.style.overflow=''}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
 
-applyLang();loadMe();loadProtocols();loadGroups();refreshAll();setInterval(refreshAll,1000);
+applyLang();loadMe();loadProtocols();loadGroups();refreshAll();
+// Protocol picker bootstrap: keep the native select only as the data/control source.
+function bootProtocolPickers(){ try{ setupProtocolPickers(); }catch(e){ console.warn('Protocol picker:',e); } }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootProtocolPickers); else bootProtocolPickers();
+setTimeout(bootProtocolPickers,300);
+setTimeout(bootProtocolPickers,1000);
+setInterval(refreshAll,1000);
 
 
 </script>

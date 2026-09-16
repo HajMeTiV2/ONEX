@@ -23,22 +23,20 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// راه‌اندازی پروکسی وب‌سکت برای اتصال کلاینت‌ها به هسته داخلی Xray جهت برقراری پینگ
+// تونل سراسری برای تمامی پروتکل‌های وب‌سکت و XHTTP و gRPC
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws, req) => {
   const urlPath = req.url || '';
-  let targetPort = 8081; // پورت پیش‌فرض VLESS-WS
-  
+  let targetPort = 8081; // پیش‌فرض VLESS-WS
+
   if (urlPath.includes('vmess')) targetPort = 8082;
   else if (urlPath.includes('trojan')) targetPort = 8083;
   else if (urlPath.includes('xhttp')) targetPort = 8084;
   else if (urlPath.includes('grpc')) targetPort = 8085;
 
   proxy.ws(req, ws, { target: `ws://127.0.0.1:${targetPort}` }, (err) => {
-    if (err) {
-      ws.close();
-    }
+    if (err) ws.close();
   });
 });
 
@@ -145,7 +143,7 @@ function startCoreEngine() {
       { port: 8082, listen: "127.0.0.1", protocol: "vmess", settings: { clients: vClients.map(c => ({ id: c.id, alterId: 0, email: c.email })) }, streamSettings: { network: "ws", wsSettings: { path: "/vmess" } } },
       { port: 8083, listen: "127.0.0.1", protocol: "trojan", settings: { clients: tClients }, streamSettings: { network: "ws", wsSettings: { path: "/trojan" } } },
       { port: 8084, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/xhttp" } } },
-      { port: 8085, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "ws", wsSettings: { path: "/grpc" } } }
+      { port: 8085, listen: "127.0.0.1", protocol: "vless", settings: { clients: vClients, decryption: "none" }, streamSettings: { network: "grpc", grpcSettings: { serviceName: "grpc" } } }
     ];
 
     const xrayConfig = {
@@ -172,55 +170,27 @@ function startCoreEngine() {
   });
 }
 
-function syncUserTrafficFromCore() {
-  const binPath = path.join(__dirname, 'xray-bin', 'xray');
-  if (!fs.existsSync(binPath)) return;
-  exec(`${binPath} api statsquery -server 127.0.0.1:10085 -reset true`, (error, stdout) => {
-    if (error || !stdout) return;
-    try {
-      const statsObj = JSON.parse(stdout);
-      if (!statsObj.stat || !Array.isArray(statsObj.stat)) return;
-      statsObj.stat.forEach(item => {
-        const parts = item.name.split('>>>');
-        if (parts[0] === 'user' && parts[2] === 'traffic') {
-          const uuid = parts[1];
-          const direction = parts[3];
-          const bytes = parseInt(item.value, 10) || 0;
-          if (bytes > 0) {
-            const addedGb = bytes / (1024 * 1024 * 1024);
-            const column = direction === 'downlink' ? 'downlink_bytes' : 'uplink_bytes';
-            db.get('SELECT id, status, expire_days FROM configs WHERE uuid = ?', [uuid], (err, cfg) => {
-              if (cfg) {
-                if (cfg.status === 'pending') {
-                  const exp = new Date();
-                  exp.setDate(exp.getDate() + cfg.expire_days);
-                  db.run('UPDATE configs SET status = "active", expire_date = ? WHERE id = ?', [exp.toISOString(), cfg.id]);
-                }
-                db.run(`UPDATE configs SET used_gb = used_gb + ?, ${column} = ${column} + ? WHERE uuid = ?`, [addedGb, bytes, uuid]);
-              }
-            });
-          }
-        }
-      });
-    } catch (e) {}
-  });
-}
-
-setInterval(syncUserTrafficFromCore, 10000);
-startCoreEngine();
-
-// ساخت لینک‌های کامل با دامنه رایلی و تگ اختصاصی شما
+// ساخت تمام پروتکل‌های ممکن (VLESS, VMess, Trojan, XHTTP, gRPC) با تگ اختصاصی شما
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const remark = `NEXO-${cfg.name} | @V2rayTun0`;
   const activeHost = (customDomain && customDomain.trim() !== '') ? customDomain.trim() : defaultHost;
   const connectionAddress = (cleanIp && cleanIp.trim() !== '') ? cleanIp.trim() : activeHost;
 
-  const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark)}`;
-  const vmessPayload = { v: "2", ps: `${remark}-VMess`, add: connectionAddress, port: "443", id: cfg.uuid, aid: "0", scy: "auto", net: "ws", type: "none", host: activeHost, path: "/vmess", tls: "tls", sni: activeHost };
+  // ۱. VLESS WebSocket
+  const vlessWs = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fvless&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-VLESS-WS')}`;
+  
+  // ۲. VMess WebSocket
+  const vmessPayload = { v: "2", ps: `${remark}-VMess-WS`, add: connectionAddress, port: "443", id: cfg.uuid, aid: "0", scy: "auto", net: "ws", type: "none", host: activeHost, path: "/vmess", tls: "tls", sni: activeHost };
   const vmessWs = `vmess://${Buffer.from(JSON.stringify(vmessPayload)).toString('base64')}`;
-  const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark)}`;
-  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark)}`;
-  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fgrpc&security=tls&encryption=none&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark)}`;
+  
+  // ۳. Trojan WebSocket
+  const trojanWs = `trojan://${cfg.uuid}@${connectionAddress}:443?path=%2Ftrojan&security=tls&type=ws&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-Trojan-WS')}`;
+  
+  // ۴. VLESS XHTTP (مدرن‌ترین پروتکل ضد فیلتر)
+  const vlessXhttp = `vless://${cfg.uuid}@${connectionAddress}:443?path=%2Fxhttp&security=tls&encryption=none&type=xhttp&host=${activeHost}&sni=${activeHost}#${encodeURIComponent(remark + '-VLESS-XHTTP')}`;
+  
+  // ۵. VLESS gRPC
+  const vlessGrpc = `vless://${cfg.uuid}@${connectionAddress}:443?mode=gun&serviceName=grpc&security=tls&encryption=none&type=grpc&sni=${activeHost}#${encodeURIComponent(remark + '-VLESS-gRPC')}`;
 
   const plainSub = [vlessWs, vmessWs, trojanWs, vlessXhttp, vlessGrpc].join('\n');
   return { plainSub };
@@ -281,7 +251,7 @@ app.post('/api/configs/create', auth, (req, res) => {
     function(err) {
       if (err) return res.status(500).json({ error: 'خطا در ساخت کانفیگ' });
       startCoreEngine();
-      addLog(`کانفیگ جدید با نام "${name || 'اکانت'}" و حجم ${gb}GB ساخته شد.`);
+      addLog(`کانفیگ چند پروتکلی با نام "${name || 'اکانت'}" ساخته شد.`);
       res.json({ success: true, id });
     }
   );
@@ -355,5 +325,5 @@ app.get('/sub/:id', (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[ONEX Enterprise] Running on port ${PORT} with Full Proxy Core Tunnel`);
+  console.log(`[ONEX Enterprise] Running on port ${PORT} with All Protocols Enabled`);
 });

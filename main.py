@@ -6754,185 +6754,93 @@ tr:hover td{background:var(--hover)}
 
 
 /* ============================================================
-   ONEX MOBILE FIT — SAME DESKTOP DESIGN, ONLY DIMENSIONS
-   No mobile redesign, no new navigation. The original desktop
-   components stay intact; widths, spacing and grids are resized
-   so the complete UI fits inside a phone viewport.
+   ONEX MOBILE FIT — DESKTOP VISUALS, PHONE-SAFE DIMENSIONS
+   Same components, colors and visual language. Only dimensions,
+   columns and spacing change so every element stays in the viewport.
    ============================================================ */
-@media (max-width: 768px){
-  html,body{width:100%;max-width:100%;overflow-x:hidden}
-  body{font-size:12px}
+@media (max-width:768px){
+  html,body{width:100%;max-width:100%;min-width:0;overflow-x:hidden}
+  body{display:flex;min-height:100vh}
 
-  /* Keep the original right sidebar, but make it phone-sized. */
-  :root{--sb:118px;--sb-c:54px;--radius:14px}
+  /* Desktop sidebar kept on the right, proportionally reduced. */
+  :root{--sb:128px;--sb-c:46px;--radius:14px}
   .sidebar{width:var(--sb);overflow:hidden}
   .sidebar.collapsed{width:var(--sb-c)}
   .sb-toggle{width:28px;height:28px;left:-14px;border-radius:8px}
-  .sb-logo{padding:12px 8px}
-  .sb-logo-icon{width:42px;height:42px;border-radius:13px}
+  .sb-logo{padding:11px 8px}
+  .sb-logo-icon{width:43px;height:43px;border-radius:13px}
   .sb-logo-icon:after{font-size:20px}
-
-  .nav{padding:6px 0}
-  .nav-sec{padding:9px 8px 4px;font-size:7px;text-align:center}
-  .nav-item{
-    gap:5px;padding:8px 6px;margin:2px 5px;width:calc(100% - 10px);
-    border-radius:9px;font-size:8px;line-height:1.35;justify-content:flex-start;
-  }
+  .nav{padding:5px 0}
+  .nav-sec{padding:9px 8px 4px;font-size:7px;letter-spacing:.06em}
+  .nav-item{gap:5px;padding:8px 6px;margin:2px 5px;width:calc(100% - 10px);border-radius:9px;font-size:8px;line-height:1.35}
   .nav-item svg{width:16px;height:16px;min-width:16px;min-height:16px}
-  .nav-item.on{box-shadow:inset -2px 0 0 var(--accent)}
   .sb-foot{padding:7px;gap:5px}
   .sb-foot button,.sb-foot a.btn{padding:8px 4px;border-radius:9px;font-size:8px;gap:4px}
   .sb-foot svg{width:14px;height:14px}
 
-  /* Main column exactly follows the sidebar; no horizontal overflow. */
-  .main{width:auto;min-width:0;margin-right:var(--sb);padding:12px 10px 35px}
+  .main{width:auto;min-width:0;margin-right:var(--sb);padding:12px 9px 38px}
   .main.expanded{margin-right:var(--sb-c)}
-  .mob-bar{display:none!important}
-  .overlay{display:none!important}
+  .mob-bar,.overlay{display:none!important}
 
-  .onex-topbar{height:50px;margin-bottom:10px;padding:7px 9px;border-radius:13px;gap:7px}
-  .top-server{gap:6px}
-  .top-dot{width:7px;height:7px}
-  .top-server b{font-size:9px}
-  .top-server small{font-size:7px}
-  .top-sep{height:18px}
-  .top-actions{gap:4px}
-  .top-chip{padding:6px 7px;border-radius:8px;font-size:7px;gap:4px}
-  .top-avatar{width:28px;height:28px;border-radius:9px;font-size:9px}
+  /* Top bar: no item is allowed to force the main column wider. */
+  .onex-topbar{height:55px;margin-bottom:10px;padding:7px 8px;border-radius:13px;gap:5px;min-width:0}
+  .top-server{gap:5px;min-width:0;overflow:hidden}.top-dot{width:7px;height:7px;flex:0 0 auto}
+  .top-server b{font-size:9px;white-space:nowrap}.top-server small{font-size:6.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.top-sep{height:18px;flex:0 0 auto}
+  .top-actions{gap:3px;flex:0 0 auto}.top-chip{padding:5px 6px;border-radius:8px;font-size:6.5px;gap:3px}.top-avatar{width:28px;height:28px;border-radius:8px;font-size:8px}
 
-  .onex-control-dock{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:-2px 0 10px;padding:5px;border-radius:13px}
-  .onex-3d-control{min-height:45px;border-radius:10px;gap:4px;padding:6px 4px;font-size:8px;box-shadow:0 5px 0 rgba(2,6,23,.7),0 8px 14px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.08)}
-  .onex-3d-control .control-icon{width:25px;height:25px;flex-basis:25px;border-radius:8px}
-  .onex-3d-control svg{width:13px;height:13px}
-  .onex-3d-control .control-copy{gap:1px}
-  .onex-3d-control .control-title{font-size:8px}
-  .onex-3d-control .control-sub{font-size:6px}
+  .onex-control-dock{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:0 0 10px;padding:5px;border-radius:13px;min-width:0}
+  .onex-3d-control{min-width:0;min-height:52px;border-radius:10px;gap:3px;padding:6px 3px;overflow:hidden}
+  .onex-3d-control .control-icon{width:25px;height:25px;flex:0 0 25px;border-radius:8px}
+  .onex-3d-control svg{width:13px;height:13px}.onex-3d-control .control-copy{min-width:0}.onex-3d-control .control-title{font-size:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.onex-3d-control .control-sub{font-size:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-  .dashboard-hero{align-items:flex-start;gap:8px;margin:0 1px 10px}
-  .hero-kicker{font-size:7px}
-  .hero-title{font-size:18px;margin-top:3px}
-  .hero-sub{font-size:8px;margin-top:3px}
-  .hero-actions{gap:4px}
-  .hero-actions .btn{padding:7px 8px;font-size:8px;border-radius:8px}
-  .hero-actions .btn svg{width:12px;height:12px}
+  .dashboard-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:5px;margin:0 1px 10px;min-width:0}
+  .dashboard-hero>div:first-child{min-width:0}.hero-kicker{font-size:7px;letter-spacing:.14em}.hero-title{font-size:18px;margin-top:3px;line-height:1.25}.hero-sub{font-size:7px;margin-top:3px;white-space:nowrap}.hero-actions{gap:4px;flex:0 0 auto}
+  .hero-actions .btn{padding:6px 7px;font-size:7px;border-radius:8px;white-space:nowrap}.hero-actions .btn svg{width:11px;height:11px}
 
-  /* Same metric cards, reduced to two columns so every card stays visible. */
-  .onex-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:10px}
-  .onex-metric{min-height:86px;padding:10px;border-radius:13px}
-  .metric-icon{width:30px;height:30px;border-radius:10px}
-  .metric-icon svg{width:15px;height:15px}
-  .onex-metric .metric-label{margin:6px 0 2px;font-size:7px}
-  .onex-metric .metric-val{font-size:16px}
-  .metric-trend{left:9px;bottom:8px;font-size:6.5px}
+  /* Two columns preserve the desktop card style without crushing text. */
+  .onex-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}
+  .onex-metric{min-width:0;min-height:88px;padding:8px;border-radius:13px}
+  .metric-icon{width:27px;height:27px;border-radius:9px}.metric-icon svg{width:14px;height:14px}
+  .onex-metric .metric-label{margin:6px 0 2px;font-size:7px;line-height:1.35}.onex-metric .metric-val{font-size:15px;white-space:nowrap}.metric-trend{left:8px;bottom:7px;font-size:6px;white-space:nowrap}
 
-  /* Keep the original dashboard cards and chart; only resize the grid. */
-  .dashboard-grid{grid-template-columns:minmax(0,1fr);gap:9px}
-  .dashboard-grid-right{grid-template-rows:auto auto;gap:9px}
-  .onex-card{border-radius:14px}
-  .onex-card-head{gap:6px;padding:10px 11px}
-  .onex-card-title{gap:5px;font-size:9px}
-  .onex-card-body{padding:10px 11px}
-  .chart-wrap{height:155px;padding:5px 7px 8px}
-  .chart-labels{padding:0 6px;font-size:6px}
-  .chart-badge{top:10px;padding:4px 6px;font-size:6px}
-  .range-mini{gap:2px;padding:2px;border-radius:7px}
-  .range-mini button{font-size:6px;padding:4px 5px;border-radius:6px}
+  /* Same desktop dashboard cards, stacked only because the phone is narrow. */
+  .dashboard-grid{grid-template-columns:minmax(0,1fr);gap:8px}
+  .dashboard-grid-right{grid-template-rows:auto auto;gap:8px}
+  .onex-card{min-width:0;border-radius:13px}.onex-card-head{gap:5px;padding:9px 10px}.onex-card-title{gap:5px;font-size:8px}.onex-card-body{padding:9px 10px}
+  .chart-wrap{height:145px;padding:5px 6px 8px}.chart-labels{padding:0 5px;font-size:6px}.chart-badge{top:9px;padding:4px 5px;font-size:5.5px}.range-mini{gap:2px;padding:2px;border-radius:7px}.range-mini button{font-size:6px;padding:4px 6px;border-radius:6px}
 
-  .health-list{gap:8px}
-  .health-row{grid-template-columns:25px 1fr 30px;gap:6px}
-  .health-icon{width:25px;height:25px;border-radius:8px}
-  .health-icon svg{width:13px;height:13px}
-  .health-name{font-size:7px;margin-bottom:3px}
-  .health-pct{font-size:7px}
-  .health-track{height:5px}
-  .xray-state{padding:7px 8px;border-radius:9px;font-size:7px}
+  .health-list{gap:8px}.health-row{grid-template-columns:24px minmax(0,1fr) 28px;gap:6px}.health-icon{width:24px;height:24px;border-radius:8px}.health-icon svg{width:12px;height:12px}.health-name{font-size:7px;margin-bottom:3px}.health-pct{font-size:6.5px}.health-track{height:5px}.xray-state{padding:7px 8px;border-radius:8px;font-size:7px}
+  .telegram-card{padding:10px;border-radius:13px}.tg-orbit{width:68px;height:68px;margin:3px auto 7px}.tg-logo{width:40px;height:40px}.tg-logo svg{width:21px;height:21px}.tg-title{font-size:8px}.tg-handle{font-size:14px}.tg-desc{font-size:6px}.tg-btn{margin-top:8px;padding:7px;border-radius:8px;font-size:7px}
+  .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.quick-item{gap:6px;padding:8px;border-radius:10px;min-width:0}.quick-icon{width:28px;height:28px;border-radius:8px;flex:0 0 28px}.quick-icon svg{width:14px;height:14px}.quick-name{font-size:7px}.quick-desc{font-size:6px;margin-top:1px}
+  .recent-card{margin-top:8px}.recent-table{font-size:7px}.recent-table th{font-size:6px;padding:7px 6px}.recent-table td{padding:7px 6px}.mini-action{width:21px;height:21px;border-radius:6px}
+  .server-info{gap:6px}.info-row{padding-bottom:6px;font-size:7px}.onex-footer{margin-top:8px;padding:7px 2px;font-size:6px}
 
-  .telegram-card{padding:12px;border-radius:14px}
-  .tg-orbit{width:76px;height:76px;margin:3px auto 8px}
-  .tg-logo{width:44px;height:44px}
-  .tg-logo svg{width:23px;height:23px}
-  .tg-title{font-size:8px}
-  .tg-handle{font-size:14px;margin-top:3px}
-  .tg-desc{font-size:6px;margin-top:3px}
-  .tg-btn{margin-top:9px;padding:7px;border-radius:9px;font-size:7px}
-
-  .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
-  .quick-item{gap:6px;padding:8px;border-radius:10px}
-  .quick-icon{width:27px;height:27px;border-radius:8px}
-  .quick-icon svg{width:14px;height:14px}
-  .quick-name{font-size:7px}
-  .quick-desc{font-size:6px;margin-top:1px}
-
-  .recent-card{margin-top:9px}
-  .recent-table{font-size:7px}
-  .recent-table th{font-size:6px;padding:7px 6px}
-  .recent-table td{padding:7px 6px}
-  .mini-action{width:22px;height:22px;border-radius:6px}
-
-  .server-info{gap:6px}
-  .info-row{padding-bottom:6px;font-size:7px}
-  .onex-footer{margin-top:9px;padding:8px 2px;font-size:6px}
-
-  /* Other existing pages use the same original components. */
-  .page-head{gap:8px;margin-bottom:10px}
-  .page-title{font-size:15px;gap:6px}
-  .page-title svg{width:17px;height:17px}
-  .page-sub{font-size:8px;margin-top:3px}
-  .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:10px}
-  .metric{padding:10px;border-radius:13px}
-  .metric-label{font-size:7px;margin-bottom:5px}
-  .metric-val{font-size:16px}
-  .card{padding:11px;border-radius:13px;margin-bottom:9px}
-  .card-title{font-size:9px;margin-bottom:8px}
-  .card-title svg{width:13px;height:13px}
-  .g2{grid-template-columns:1fr;gap:9px;margin-bottom:9px}
-  .support-grid{grid-template-columns:1fr;gap:8px}
-  .support-tile{gap:8px;padding:10px;border-radius:12px}
-  .support-icon{width:34px;height:34px;border-radius:10px}
-  .support-icon svg{width:17px;height:17px}
-  .support-label{font-size:7px}
-  .support-val{font-size:9px;margin-top:2px}
-  .log-item{padding:8px 0;font-size:8px;gap:7px}
-  .log-time{font-size:7px;min-width:50px}
-  .btn{padding:7px 9px;border-radius:8px;font-size:8px}
-  .btn-sm{padding:5px 7px;font-size:7px;border-radius:7px}
-  .btn svg{width:12px;height:12px}
-  .form-row{grid-template-columns:1fr;gap:0}
-  .field{margin-bottom:9px}
-  .field label{font-size:7px;margin-bottom:4px}
-  .field input,.field select,.field textarea{padding:8px 9px;border-radius:8px;font-size:11px;min-height:34px}
-  .table-wrap{max-width:100%;overflow-x:auto}
-  table{font-size:8px;min-width:0}
-  th{padding:8px 7px}
-  td{padding:8px 7px}
-  .ops{gap:3px}
-  .range-tab{padding:5px 7px;font-size:7px;border-radius:7px}
-  .modal-bg{padding:8px}
-  .modal{width:calc(100vw - 16px);max-width:none;max-height:92vh;padding:13px;border-radius:14px}
-  .modal-title{font-size:13px;margin-bottom:10px}
-  .modal-actions{gap:5px;margin-top:10px}
-  .link-box{padding:8px;font-size:8px;margin:6px 0 8px;max-height:75px}
-  .toast{bottom:12px;padding:9px 13px;border-radius:10px;font-size:9px}
+  /* Other pages: same desktop components, safely resized. */
+  .page-head{gap:7px;margin-bottom:10px}.page-title{font-size:14px;gap:5px}.page-title svg{width:16px;height:16px}.page-sub{font-size:7px;margin-top:3px}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}.metric{padding:9px;border-radius:12px;min-width:0}.metric-label{font-size:7px;margin-bottom:4px}.metric-val{font-size:15px}
+  .card{padding:10px;border-radius:12px;margin-bottom:8px}.card-title{font-size:8px;margin-bottom:8px}.card-title svg{width:13px;height:13px}.g2{grid-template-columns:1fr;gap:8px;margin-bottom:8px}
+  .support-grid{grid-template-columns:1fr 1fr;gap:6px}.support-tile{gap:6px;padding:8px;border-radius:10px}.support-icon{width:29px;height:29px;border-radius:8px}.support-icon svg{width:14px;height:14px}.support-label{font-size:6.5px}.support-val{font-size:8px;margin-top:2px}
+  .log-item{padding:7px 0;font-size:7px;gap:6px}.log-time{font-size:6px;min-width:44px}.btn{padding:7px 8px;border-radius:8px;font-size:7px}.btn-sm{padding:5px 6px;font-size:6.5px}.btn svg{width:11px;height:11px}
+  .form-row{grid-template-columns:1fr;gap:0}.field{margin-bottom:8px}.field label{font-size:7px;margin-bottom:4px}.field input,.field select,.field textarea{padding:8px;border-radius:8px;font-size:11px;min-height:34px}
+  .table-wrap{width:100%;max-width:100%;overflow-x:auto}table{font-size:7px;min-width:420px}th{padding:7px 6px}td{padding:7px 6px}.ops{gap:3px}.range-tab{padding:5px 6px;font-size:6.5px;border-radius:7px}
+  .modal-bg{padding:8px}.modal{width:calc(100vw - 16px);max-width:460px;max-height:92vh;padding:12px;border-radius:13px}.modal-title{font-size:12px;margin-bottom:9px}.modal-actions{gap:5px;margin-top:9px}.link-box{padding:8px;font-size:7px;margin:6px 0 8px;max-height:70px}.toast{bottom:10px;padding:8px 11px;border-radius:9px;font-size:8px}
 }
 
-@media (max-width: 420px){
-  :root{--sb:106px;--sb-c:50px}
-  .main{padding-left:7px;padding-right:7px}
-  .nav-item{font-size:7.5px;padding:7px 5px}
-  .onex-topbar{padding-left:7px;padding-right:7px}
-  .top-chip{display:none}
-  .hero-actions .btn{padding:6px 6px}
-  .onex-metric{min-height:82px;padding:9px}
-  .onex-metric .metric-val{font-size:15px}
+@media (max-width:520px){
+  :root{--sb:120px;--sb-c:44px}
+  .main{margin-right:var(--sb);padding-left:7px;padding-right:7px}
+  .nav-item{font-size:7.5px;padding:8px 5px}
+  .onex-topbar{height:52px;padding:6px 7px}.top-chip{display:none}.top-server small{max-width:65px}
+  .onex-control-dock{gap:4px}.onex-3d-control{min-height:49px;padding:5px 3px}.onex-3d-control .control-icon{width:23px;height:23px;flex-basis:23px}.onex-3d-control .control-title{font-size:6.5px}.onex-3d-control .control-sub{font-size:4.5px}
+  .hero-title{font-size:16px}.hero-kicker{font-size:6.5px}.hero-sub{font-size:6.5px}.hero-actions .btn{padding:5px 6px;font-size:6.5px}
+  .onex-metric{min-height:84px;padding:7px}.onex-metric .metric-label{font-size:6.5px}.onex-metric .metric-val{font-size:14px}.metric-trend{font-size:5.5px}
 }
 
-@media (max-width: 340px){
-  :root{--sb:94px;--sb-c:46px}
-  .main{padding-left:5px;padding-right:5px}
-  .nav-item{font-size:7px;margin-left:3px;margin-right:3px;width:calc(100% - 6px)}
-  .onex-metrics{gap:5px}
-  .onex-metric{padding:8px}
-  .onex-metric .metric-val{font-size:14px}
+@media (max-width:380px){
+  :root{--sb:112px;--sb-c:42px}
+  .main{padding-left:6px;padding-right:6px}
+  .nav-item{font-size:7px}.onex-metrics{gap:5px}.onex-metric{min-height:80px;padding:6px}.onex-metric .metric-val{font-size:13px}
+  .dashboard-hero{gap:3px}.hero-title{font-size:15px}.hero-actions .btn{padding:5px;font-size:6px}
 }
 
 </style>

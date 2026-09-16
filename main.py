@@ -4194,6 +4194,119 @@ async def info_page(
   @media (prefers-reduced-motion:reduce){{.tg-hero::before,.tg-hero::after,.tg-orbit,.tg-logo-wrap,.tg-join::before,.tg-handle-dot,.tg-bell,.tg-particle{{animation:none!important;}}}}
 
   /* ============================================================
+     ONEX PREMIUM GLASS SYSTEM — SUBSCRIPTION PAGE
+     Deep 3D glass, luminous edges, reflections and animated depth
+     ============================================================ */
+  .w-full.max-w-4xl.mx-auto.space-y-5{{position:relative;}}
+  .w-full.max-w-4xl.mx-auto.space-y-5::before{{
+    content:"";position:fixed;inset:-25%;pointer-events:none;z-index:-1;
+    background:
+      radial-gradient(circle at 15% 22%,rgba(0,174,255,.13),transparent 24%),
+      radial-gradient(circle at 85% 38%,rgba(124,58,237,.12),transparent 25%),
+      radial-gradient(circle at 52% 86%,rgba(16,185,129,.08),transparent 22%);
+    filter:blur(28px);animation:pageAura 12s ease-in-out infinite alternate;
+  }}
+
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card{{
+    position:relative;isolation:isolate;overflow:hidden;
+    border-radius:24px !important;
+    background:
+      linear-gradient(145deg,rgba(28,52,88,.70),rgba(8,17,34,.78) 48%,rgba(19,12,43,.70)) !important;
+    border:1px solid rgba(94,183,255,.30) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.14),
+      inset 0 -1px 0 rgba(0,0,0,.35),
+      inset 0 0 55px rgba(45,125,255,.08),
+      0 18px 45px rgba(0,0,0,.28),
+      0 0 30px rgba(37,99,235,.07) !important;
+    backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);
+    transform:translateZ(0);transition:transform .35s ease,border-color .35s ease,box-shadow .35s ease;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card::before{{
+    content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit;
+    background:
+      radial-gradient(ellipse at 8% 15%,rgba(0,198,255,.18),transparent 28%),
+      radial-gradient(ellipse at 92% 85%,rgba(124,58,237,.17),transparent 30%),
+      linear-gradient(120deg,transparent 0%,rgba(255,255,255,.045) 42%,transparent 58%);
+    background-size:auto,auto,220% 100%;
+    animation:glassFlow 9s ease-in-out infinite;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card::after{{
+    content:"";position:absolute;top:-120%;left:-35%;width:34%;height:340%;z-index:3;pointer-events:none;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.12),transparent);
+    transform:rotate(22deg);animation:glassSweep 7s ease-in-out infinite;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:hover{{
+    transform:translateY(-3px);
+    border-color:rgba(86,190,255,.48) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 65px rgba(45,125,255,.11),0 24px 55px rgba(0,0,0,.34),0 0 38px rgba(37,99,235,.12) !important;
+  }}
+
+  /* Different glass tones, like the reference concept */
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:nth-of-type(2){{
+    background:linear-gradient(145deg,rgba(8,73,91,.68),rgba(7,27,47,.80),rgba(5,17,31,.78)) !important;
+    border-color:rgba(34,211,238,.30) !important;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:nth-of-type(3){{
+    background:linear-gradient(145deg,rgba(30,50,96,.72),rgba(10,24,53,.80),rgba(30,15,62,.68)) !important;
+    border-color:rgba(96,165,250,.32) !important;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:nth-of-type(4){{
+    background:linear-gradient(145deg,rgba(12,66,76,.66),rgba(8,28,45,.80),rgba(7,18,35,.80)) !important;
+    border-color:rgba(45,212,191,.27) !important;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:nth-of-type(5){{
+    background:linear-gradient(145deg,rgba(39,26,82,.72),rgba(17,19,50,.80),rgba(8,25,48,.76)) !important;
+    border-color:rgba(168,85,247,.34) !important;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:nth-of-type(6){{
+    background:linear-gradient(145deg,rgba(12,59,75,.68),rgba(8,25,44,.80),rgba(12,18,39,.78)) !important;
+    border-color:rgba(45,212,191,.28) !important;
+  }}
+
+  .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box{{
+    position:relative;overflow:hidden;
+    background:linear-gradient(145deg,rgba(28,58,99,.55),rgba(7,18,37,.72)) !important;
+    border:1px solid rgba(94,170,255,.22) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.075),inset 0 0 28px rgba(59,130,246,.06),0 8px 24px rgba(0,0,0,.12) !important;
+    transition:transform .28s ease,border-color .28s ease,box-shadow .28s ease,background .28s ease;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box::before{{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,transparent 25%,rgba(255,255,255,.055) 48%,transparent 68%);
+    transform:translateX(-120%);animation:subBoxShine 6s ease-in-out infinite;
+  }}
+  .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box:hover{{
+    transform:translateY(-2px) perspective(700px) rotateX(1deg);
+    border-color:rgba(83,180,255,.42) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.11),inset 0 0 34px rgba(59,130,246,.09),0 12px 28px rgba(0,0,0,.20),0 0 20px rgba(37,99,235,.08) !important;
+  }}
+
+  /* Give text/value blocks more luminous depth */
+  .w-full.max-w-4xl.mx-auto.space-y-5 .text-purple-300{{text-shadow:0 0 14px rgba(168,85,247,.22);}}
+  .w-full.max-w-4xl.mx-auto.space-y-5 .text-blue-300{{text-shadow:0 0 14px rgba(96,165,250,.22);}}
+  .w-full.max-w-4xl.mx-auto.space-y-5 .text-emerald-300{{text-shadow:0 0 14px rgba(52,211,153,.20);}}
+  .w-full.max-w-4xl.mx-auto.space-y-5 .text-amber-300{{text-shadow:0 0 14px rgba(251,191,36,.18);}}
+
+  @keyframes pageAura{{0%{{transform:translate3d(-1%,0,0) scale(1)}}100%{{transform:translate3d(1%,-1%,0) scale(1.05)}}}}
+  @keyframes glassFlow{{0%,100%{{background-position:center,center,0% 0}}50%{{background-position:center,center,120% 0}}}}
+  @keyframes glassSweep{{0%,55%{{left:-35%;opacity:0}}65%{{opacity:1}}100%{{left:120%;opacity:0}}}}
+  @keyframes subBoxShine{{0%,58%{{transform:translateX(-120%);opacity:0}}68%{{opacity:1}}100%{{transform:translateX(120%);opacity:0}}}}
+
+  @media (max-width:700px){{
+    .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card{{
+      border-radius:20px !important;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 0 42px rgba(45,125,255,.075),0 14px 34px rgba(0,0,0,.26) !important;
+    }}
+    .w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card:hover{{transform:none;}}
+    .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box:hover{{transform:none;}}
+  }}
+  @media (prefers-reduced-motion:reduce){{
+    .w-full.max-w-4xl.mx-auto.space-y-5::before,.w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card::before,.w-full.max-w-4xl.mx-auto.space-y-5 > section.dynamic-card::after,.w-full.max-w-4xl.mx-auto.space-y-5 .sub-box::before{{animation:none!important;}}
+  }}
+
+
+  /* ============================================================
      GLASS PANELS — COLORFUL NEON GLASS (PLAN 1 FINAL)
      ============================================================ */
   .dynamic-card{{

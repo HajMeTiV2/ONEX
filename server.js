@@ -9,14 +9,32 @@ const fs = require('fs');
 const os = require('os');
 const { spawn, exec } = require('child_process');
 const http = require('http');
+const { WebSocketServer } = require('ws');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
+
+// راه‌اندازی وب‌سکت سرور روی همان پورت رایلی برای پاسخ به پینگ و تونل پروکسی
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws, req) => {
+  const urlPath = req.url || '';
+  console.log(`[PROXY TUNNEL] اتصال وب‌سکت جدید روی مسیر: ${urlPath}`);
+  
+  ws.on('message', (message) => {
+    // مدیریت ترافیک پروکسی دریافتی از کلاینت (V2RayNG)
+  });
+
+  ws.on('close', () => {
+    // بسته شدن اتصال پروکسی
+  });
+});
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -247,7 +265,6 @@ app.get('/api/announcement', (req, res) => {
   });
 });
 
-// پوشش کامل مسیر subinfo برای قالب‌های مختلف ساب
 app.get('/api/subinfo/:id', (req, res) => {
   const queryId = req.params.id;
   db.get('SELECT * FROM configs WHERE id = ? OR uuid = ?', [queryId, queryId], (err, cfg) => {
@@ -269,7 +286,6 @@ app.get('/api/subinfo/:id', (req, res) => {
   });
 });
 
-// پوشش مسیر جایگزین subscription json
 app.get('/api/subscription/:id/json', (req, res) => {
   const queryId = req.params.id;
   db.get('SELECT * FROM configs WHERE id = ? OR uuid = ?', [queryId, queryId], (err, cfg) => {
@@ -278,7 +294,6 @@ app.get('/api/subscription/:id/json', (req, res) => {
   });
 });
 
-// مسیر اصلی ساب‌کریپشن کلاینت‌ها (Base64)
 app.get('/sub/:id', (req, res) => {
   const defaultHost = req.headers.host;
   const queryId = req.params.id;
@@ -295,7 +310,7 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-const server = http.createServer(app);
+// استفاده از server.listen به جای app.listen برای فعال‌سازی وب‌سکت
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[ONEX Enterprise] Running on port ${PORT}`);
+  console.log(`[ONEX Enterprise] Running on port ${PORT} with WebSocket Tunnel`);
 });

@@ -6752,6 +6752,189 @@ tr:hover td{background:var(--hover)}
 
 
 
+
+/* ============================================================
+   ONEX MOBILE FIT — SAME DESKTOP DESIGN, ONLY DIMENSIONS
+   No mobile redesign, no new navigation. The original desktop
+   components stay intact; widths, spacing and grids are resized
+   so the complete UI fits inside a phone viewport.
+   ============================================================ */
+@media (max-width: 768px){
+  html,body{width:100%;max-width:100%;overflow-x:hidden}
+  body{font-size:12px}
+
+  /* Keep the original right sidebar, but make it phone-sized. */
+  :root{--sb:118px;--sb-c:54px;--radius:14px}
+  .sidebar{width:var(--sb);overflow:hidden}
+  .sidebar.collapsed{width:var(--sb-c)}
+  .sb-toggle{width:28px;height:28px;left:-14px;border-radius:8px}
+  .sb-logo{padding:12px 8px}
+  .sb-logo-icon{width:42px;height:42px;border-radius:13px}
+  .sb-logo-icon:after{font-size:20px}
+
+  .nav{padding:6px 0}
+  .nav-sec{padding:9px 8px 4px;font-size:7px;text-align:center}
+  .nav-item{
+    gap:5px;padding:8px 6px;margin:2px 5px;width:calc(100% - 10px);
+    border-radius:9px;font-size:8px;line-height:1.35;justify-content:flex-start;
+  }
+  .nav-item svg{width:16px;height:16px;min-width:16px;min-height:16px}
+  .nav-item.on{box-shadow:inset -2px 0 0 var(--accent)}
+  .sb-foot{padding:7px;gap:5px}
+  .sb-foot button,.sb-foot a.btn{padding:8px 4px;border-radius:9px;font-size:8px;gap:4px}
+  .sb-foot svg{width:14px;height:14px}
+
+  /* Main column exactly follows the sidebar; no horizontal overflow. */
+  .main{width:auto;min-width:0;margin-right:var(--sb);padding:12px 10px 35px}
+  .main.expanded{margin-right:var(--sb-c)}
+  .mob-bar{display:none!important}
+  .overlay{display:none!important}
+
+  .onex-topbar{height:50px;margin-bottom:10px;padding:7px 9px;border-radius:13px;gap:7px}
+  .top-server{gap:6px}
+  .top-dot{width:7px;height:7px}
+  .top-server b{font-size:9px}
+  .top-server small{font-size:7px}
+  .top-sep{height:18px}
+  .top-actions{gap:4px}
+  .top-chip{padding:6px 7px;border-radius:8px;font-size:7px;gap:4px}
+  .top-avatar{width:28px;height:28px;border-radius:9px;font-size:9px}
+
+  .onex-control-dock{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:-2px 0 10px;padding:5px;border-radius:13px}
+  .onex-3d-control{min-height:45px;border-radius:10px;gap:4px;padding:6px 4px;font-size:8px;box-shadow:0 5px 0 rgba(2,6,23,.7),0 8px 14px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.08)}
+  .onex-3d-control .control-icon{width:25px;height:25px;flex-basis:25px;border-radius:8px}
+  .onex-3d-control svg{width:13px;height:13px}
+  .onex-3d-control .control-copy{gap:1px}
+  .onex-3d-control .control-title{font-size:8px}
+  .onex-3d-control .control-sub{font-size:6px}
+
+  .dashboard-hero{align-items:flex-start;gap:8px;margin:0 1px 10px}
+  .hero-kicker{font-size:7px}
+  .hero-title{font-size:18px;margin-top:3px}
+  .hero-sub{font-size:8px;margin-top:3px}
+  .hero-actions{gap:4px}
+  .hero-actions .btn{padding:7px 8px;font-size:8px;border-radius:8px}
+  .hero-actions .btn svg{width:12px;height:12px}
+
+  /* Same metric cards, reduced to two columns so every card stays visible. */
+  .onex-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:10px}
+  .onex-metric{min-height:86px;padding:10px;border-radius:13px}
+  .metric-icon{width:30px;height:30px;border-radius:10px}
+  .metric-icon svg{width:15px;height:15px}
+  .onex-metric .metric-label{margin:6px 0 2px;font-size:7px}
+  .onex-metric .metric-val{font-size:16px}
+  .metric-trend{left:9px;bottom:8px;font-size:6.5px}
+
+  /* Keep the original dashboard cards and chart; only resize the grid. */
+  .dashboard-grid{grid-template-columns:minmax(0,1fr);gap:9px}
+  .dashboard-grid-right{grid-template-rows:auto auto;gap:9px}
+  .onex-card{border-radius:14px}
+  .onex-card-head{gap:6px;padding:10px 11px}
+  .onex-card-title{gap:5px;font-size:9px}
+  .onex-card-body{padding:10px 11px}
+  .chart-wrap{height:155px;padding:5px 7px 8px}
+  .chart-labels{padding:0 6px;font-size:6px}
+  .chart-badge{top:10px;padding:4px 6px;font-size:6px}
+  .range-mini{gap:2px;padding:2px;border-radius:7px}
+  .range-mini button{font-size:6px;padding:4px 5px;border-radius:6px}
+
+  .health-list{gap:8px}
+  .health-row{grid-template-columns:25px 1fr 30px;gap:6px}
+  .health-icon{width:25px;height:25px;border-radius:8px}
+  .health-icon svg{width:13px;height:13px}
+  .health-name{font-size:7px;margin-bottom:3px}
+  .health-pct{font-size:7px}
+  .health-track{height:5px}
+  .xray-state{padding:7px 8px;border-radius:9px;font-size:7px}
+
+  .telegram-card{padding:12px;border-radius:14px}
+  .tg-orbit{width:76px;height:76px;margin:3px auto 8px}
+  .tg-logo{width:44px;height:44px}
+  .tg-logo svg{width:23px;height:23px}
+  .tg-title{font-size:8px}
+  .tg-handle{font-size:14px;margin-top:3px}
+  .tg-desc{font-size:6px;margin-top:3px}
+  .tg-btn{margin-top:9px;padding:7px;border-radius:9px;font-size:7px}
+
+  .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .quick-item{gap:6px;padding:8px;border-radius:10px}
+  .quick-icon{width:27px;height:27px;border-radius:8px}
+  .quick-icon svg{width:14px;height:14px}
+  .quick-name{font-size:7px}
+  .quick-desc{font-size:6px;margin-top:1px}
+
+  .recent-card{margin-top:9px}
+  .recent-table{font-size:7px}
+  .recent-table th{font-size:6px;padding:7px 6px}
+  .recent-table td{padding:7px 6px}
+  .mini-action{width:22px;height:22px;border-radius:6px}
+
+  .server-info{gap:6px}
+  .info-row{padding-bottom:6px;font-size:7px}
+  .onex-footer{margin-top:9px;padding:8px 2px;font-size:6px}
+
+  /* Other existing pages use the same original components. */
+  .page-head{gap:8px;margin-bottom:10px}
+  .page-title{font-size:15px;gap:6px}
+  .page-title svg{width:17px;height:17px}
+  .page-sub{font-size:8px;margin-top:3px}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:10px}
+  .metric{padding:10px;border-radius:13px}
+  .metric-label{font-size:7px;margin-bottom:5px}
+  .metric-val{font-size:16px}
+  .card{padding:11px;border-radius:13px;margin-bottom:9px}
+  .card-title{font-size:9px;margin-bottom:8px}
+  .card-title svg{width:13px;height:13px}
+  .g2{grid-template-columns:1fr;gap:9px;margin-bottom:9px}
+  .support-grid{grid-template-columns:1fr;gap:8px}
+  .support-tile{gap:8px;padding:10px;border-radius:12px}
+  .support-icon{width:34px;height:34px;border-radius:10px}
+  .support-icon svg{width:17px;height:17px}
+  .support-label{font-size:7px}
+  .support-val{font-size:9px;margin-top:2px}
+  .log-item{padding:8px 0;font-size:8px;gap:7px}
+  .log-time{font-size:7px;min-width:50px}
+  .btn{padding:7px 9px;border-radius:8px;font-size:8px}
+  .btn-sm{padding:5px 7px;font-size:7px;border-radius:7px}
+  .btn svg{width:12px;height:12px}
+  .form-row{grid-template-columns:1fr;gap:0}
+  .field{margin-bottom:9px}
+  .field label{font-size:7px;margin-bottom:4px}
+  .field input,.field select,.field textarea{padding:8px 9px;border-radius:8px;font-size:11px;min-height:34px}
+  .table-wrap{max-width:100%;overflow-x:auto}
+  table{font-size:8px;min-width:0}
+  th{padding:8px 7px}
+  td{padding:8px 7px}
+  .ops{gap:3px}
+  .range-tab{padding:5px 7px;font-size:7px;border-radius:7px}
+  .modal-bg{padding:8px}
+  .modal{width:calc(100vw - 16px);max-width:none;max-height:92vh;padding:13px;border-radius:14px}
+  .modal-title{font-size:13px;margin-bottom:10px}
+  .modal-actions{gap:5px;margin-top:10px}
+  .link-box{padding:8px;font-size:8px;margin:6px 0 8px;max-height:75px}
+  .toast{bottom:12px;padding:9px 13px;border-radius:10px;font-size:9px}
+}
+
+@media (max-width: 420px){
+  :root{--sb:106px;--sb-c:50px}
+  .main{padding-left:7px;padding-right:7px}
+  .nav-item{font-size:7.5px;padding:7px 5px}
+  .onex-topbar{padding-left:7px;padding-right:7px}
+  .top-chip{display:none}
+  .hero-actions .btn{padding:6px 6px}
+  .onex-metric{min-height:82px;padding:9px}
+  .onex-metric .metric-val{font-size:15px}
+}
+
+@media (max-width: 340px){
+  :root{--sb:94px;--sb-c:46px}
+  .main{padding-left:5px;padding-right:5px}
+  .nav-item{font-size:7px;margin-left:3px;margin-right:3px;width:calc(100% - 6px)}
+  .onex-metrics{gap:5px}
+  .onex-metric{padding:8px}
+  .onex-metric .metric-val{font-size:14px}
+}
+
 </style>
 </head>
 <body>

@@ -6694,119 +6694,178 @@ tr:hover td{background:var(--hover)}
 
 
 /* =========================================================
-   ONEX MOBILE DRAWER - FINAL OVERRIDE
-   این بخش عمداً در انتهای CSS قرار گرفته تا استایل‌های قدیمی
-   منوی PX یا Sidebar دسکتاپ نتوانند آن را override کنند.
+   ONEX MOBILE DRAWER — ISOLATED UI
+   The mobile drawer is rebuilt independently from the legacy PX
+   sidebar rules. No desktop collapse/width styles are reused.
    ========================================================= */
 @media (max-width:900px){
-  html,body{overflow-x:hidden!important;width:100%!important}
-  .sidebar{
+  html,body{width:100%!important;max-width:100%!important;overflow-x:hidden!important}
+  body.menu-open{overflow:hidden!important;touch-action:none!important}
+
+  /* isolate the legacy sidebar on mobile */
+  #sidebar.sidebar{
+    all:unset!important;
     position:fixed!important;
-    top:0!important;
-    right:0!important;
-    left:auto!important;
-    bottom:0!important;
-    width:min(200px,78vw)!important;
-    max-width:200px!important;
-    min-width:0!important;
+    inset:0 0 0 auto!important;
+    width:min(290px,84vw)!important;
     height:100dvh!important;
-    margin:0!important;
-    transform:translate3d(105%,0,0)!important;
-    transition:transform .28s cubic-bezier(.4,0,.2,1)!important;
-    z-index:10001!important;
+    display:flex!important;
+    flex-direction:column!important;
+    direction:rtl!important;
+    background:linear-gradient(180deg,#090d18 0%,#060812 52%,#05060b 100%)!important;
+    color:#f8fafc!important;
+    border-left:1px solid rgba(66,153,255,.30)!important;
+    border-radius:22px 0 0 22px!important;
+    box-shadow:-22px 0 70px rgba(0,0,0,.72),0 0 55px rgba(37,99,235,.08)!important;
     overflow:hidden!important;
-    border-left:1px solid var(--card-b)!important;
-    border-right:0!important;
-    box-shadow:-18px 0 55px rgba(0,0,0,.55)!important;
+    transform:translate3d(110%,0,0)!important;
+    transition:transform .30s cubic-bezier(.22,1,.36,1)!important;
+    z-index:10001!important;
+    visibility:hidden!important;
   }
-  .sidebar.open{
+  #sidebar.sidebar.open{
     transform:translate3d(0,0,0)!important;
+    visibility:visible!important;
   }
-  .sidebar.collapsed{
-    width:min(200px,78vw)!important;
-  }
-  .sidebar .sb-toggle{display:none!important}
+  #sidebar.sidebar.collapsed{width:min(290px,84vw)!important}
+  #sidebar .sb-toggle{display:none!important}
 
-  .sidebar .sb-logo{
-    min-height:82px!important;
-    padding:16px 14px!important;
+  #mobileDrawerClose{
+    all:unset!important;position:absolute!important;top:12px!important;left:12px!important;
+    width:34px!important;height:34px!important;display:grid!important;place-items:center!important;
+    border:1px solid rgba(148,163,184,.15)!important;border-radius:11px!important;
+    background:rgba(255,255,255,.035)!important;color:#cbd5e1!important;
+    font:300 25px/1 Inter,sans-serif!important;cursor:pointer!important;z-index:5!important;
   }
-  .sidebar .sb-logo-icon{
-    width:38px!important;height:38px!important;
-    font-size:13px!important;
+  #sidebar .sb-logo{
+    all:unset!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:11px!important;
+    min-height:78px!important;
+    padding:12px 15px!important;
+    box-sizing:border-box!important;
+    border-bottom:1px solid rgba(148,163,184,.10)!important;
+    background:linear-gradient(180deg,rgba(19,29,52,.55),rgba(8,11,19,.25))!important;
   }
-  .sidebar .sb-logo-text{min-width:0!important}
-  .sidebar .sb-logo-name{font-size:16px!important}
-  .sidebar .sb-logo-ver{font-size:9px!important}
+  #sidebar .sb-logo-icon{
+    all:unset!important;
+    width:43px!important;height:43px!important;flex:0 0 43px!important;
+    display:grid!important;place-items:center!important;
+    border-radius:14px!important;
+    background:linear-gradient(145deg,#19b8ff,#315cff 58%,#8655ff)!important;
+    color:#fff!important;font:900 15px Inter,sans-serif!important;
+    box-shadow:0 0 25px rgba(49,109,255,.42)!important;
+  }
+  #sidebar .sb-logo-text{display:block!important;min-width:0!important;overflow:hidden!important}
+  #sidebar .sb-logo-name{font:900 17px Inter,sans-serif!important;letter-spacing:.03em!important;color:#fff!important}
+  #sidebar .sb-logo-ver{margin-top:4px!important;font:500 9px Inter,sans-serif!important;letter-spacing:.12em!important;color:rgba(226,232,240,.42)!important}
 
-  .sidebar .nav{
+  #sidebar .nav{
+    all:unset!important;
+    display:block!important;
     flex:1 1 auto!important;
     min-height:0!important;
     overflow-y:auto!important;
     overflow-x:hidden!important;
-    padding:10px 9px 14px!important;
+    padding:12px 10px 14px!important;
+    box-sizing:border-box!important;
   }
-  .sidebar .nav-item{
+  #sidebar .nav-sec{
+    all:unset!important;
+    display:block!important;
+    padding:9px 12px 7px!important;
+    color:rgba(148,163,184,.48)!important;
+    font:800 9px Inter,sans-serif!important;
+    letter-spacing:.14em!important;
+  }
+  #sidebar .nav-item{
+    all:unset!important;
+    display:flex!important;
     width:100%!important;
-    min-height:46px!important;
-    height:auto!important;
+    min-height:47px!important;
+    box-sizing:border-box!important;
+    align-items:center!important;
+    gap:11px!important;
     margin:3px 0!important;
-    padding:9px 10px!important;
-    gap:9px!important;
-    border-radius:13px!important;
-    font-size:13px!important;
-  }
-  .sidebar .nav-item svg{
-    width:20px!important;
-    height:20px!important;
-    flex:0 0 20px!important;
-  }
-  .sidebar .nav-label{
-    font-size:13px!important;
-    white-space:nowrap!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
-  }
-  .sidebar .nav-sec{
-    padding:9px 10px 5px!important;
-    font-size:10px!important;
-  }
-
-  .sidebar .sb-bottom,
-  .sidebar .side-bottom,
-  .sidebar .sidebar-bottom{
-    flex:0 0 auto!important;
-    padding:10px!important;
-  }
-  .sidebar .sb-bottom button,
-  .sidebar .side-bottom button,
-  .sidebar .sidebar-bottom button{
-    min-height:48px!important;
-    width:100%!important;
-    margin:5px 0!important;
+    padding:9px 12px!important;
+    border:1px solid transparent!important;
     border-radius:14px!important;
+    color:rgba(226,232,240,.60)!important;
+    background:transparent!important;
+    cursor:pointer!important;
+    font:600 12px 'Vazirmatn',sans-serif!important;
+    transition:background .18s,border-color .18s,color .18s,transform .18s!important;
+  }
+  #sidebar .nav-item svg{
+    all:unset!important;
+    width:20px!important;height:20px!important;flex:0 0 20px!important;
+    display:block!important;color:rgba(148,163,184,.68)!important;
+  }
+  #sidebar .nav-item:hover{
+    background:rgba(59,130,246,.07)!important;
+    color:#dbeafe!important;
+    transform:translateX(-2px)!important;
+  }
+  #sidebar .nav-item.on{
+    color:#60a5fa!important;
+    background:linear-gradient(90deg,rgba(37,99,235,.08),rgba(37,99,235,.22))!important;
+    border-color:rgba(59,130,246,.18)!important;
+    box-shadow:inset -3px 0 0 #3b82f6,0 0 22px rgba(37,99,235,.08)!important;
+  }
+  #sidebar .nav-item.on svg{color:#60a5fa!important}
+  #sidebar .nav-label{
+    display:block!important;visibility:visible!important;
+    overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+    color:inherit!important;font:inherit!important;
   }
 
-  .overlay{
-    position:fixed!important;
-    inset:0!important;
-    z-index:10000!important;
-    background:rgba(0,0,0,.62)!important;
-    backdrop-filter:blur(5px)!important;
-    -webkit-backdrop-filter:blur(5px)!important;
+  /* footer is the actual class used by this dashboard */
+  #sidebar .sb-foot{
+    all:unset!important;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:7px!important;
+    padding:10px!important;
+    box-sizing:border-box!important;
+    border-top:1px solid rgba(148,163,184,.10)!important;
+    background:rgba(4,7,13,.72)!important;
   }
-  .mob-bar{
-    z-index:9999!important;
+  #sidebar .sb-foot button,#sidebar .sb-foot a.btn{
+    all:unset!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:100%!important;
+    min-height:47px!important;
+    box-sizing:border-box!important;
+    border:1px solid rgba(148,163,184,.12)!important;
+    border-radius:14px!important;
+    background:rgba(255,255,255,.025)!important;
+    color:rgba(241,245,249,.78)!important;
+    cursor:pointer!important;
+    font:700 12px 'Vazirmatn',sans-serif!important;
   }
-  body.menu-open{overflow:hidden!important}
+  #sidebar .sb-foot a.danger{color:#f87171!important;background:rgba(239,68,68,.06)!important;border-color:rgba(239,68,68,.18)!important}
+  #sidebar .sb-foot svg{width:17px!important;height:17px!important;margin-left:7px!important;display:block!important}
+
+  #overlay{
+    position:fixed!important;inset:0!important;
+    display:none!important;z-index:10000!important;
+    background:rgba(0,0,0,.64)!important;
+    backdrop-filter:blur(7px)!important;
+    -webkit-backdrop-filter:blur(7px)!important;
+  }
+  #overlay.show{display:block!important}
+  #mobMenuBtn{position:relative!important;z-index:10002!important}
 }
 
-@media (max-width:380px){
-  .sidebar{
-    width:190px!important;
-    max-width:190px!important;
-  }
-  .sidebar .nav-item{min-height:44px!important;padding:8px!important}
+@media(max-width:420px){
+  #sidebar.sidebar{width:min(270px,82vw)!important}
+  #sidebar .sb-logo{min-height:72px!important;padding:10px 13px!important}
+  #sidebar .sb-logo-icon{width:40px!important;height:40px!important;flex-basis:40px!important}
+  #sidebar .nav-item{min-height:44px!important;padding:8px 10px!important}
+  #sidebar .sb-foot button,#sidebar .sb-foot a.btn{min-height:44px!important}
 }
 
 </style>
@@ -6822,6 +6881,7 @@ tr:hover td{background:var(--hover)}
 <div class="overlay" id="overlay"></div>
 
 <aside class="sidebar" id="sidebar">
+  <button type="button" id="mobileDrawerClose" aria-label="بستن منو" style="display:none">×</button>
   <button class="sb-toggle" id="sbToggle" title="Toggle">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
@@ -7348,6 +7408,7 @@ document.getElementById('sbToggle').onclick=()=>{
 if(localStorage.getItem('sb_c')==='1'){sb.classList.add('collapsed');main.classList.add('expanded')}
 function openMobileMenu(){
   sb.classList.add('open');
+  sb.classList.remove('collapsed');
   document.getElementById('overlay').classList.add('show');
   document.body.classList.add('menu-open');
 }
@@ -7358,6 +7419,10 @@ function closeMobileMenu(){
 }
 document.getElementById('mobMenuBtn').onclick=openMobileMenu;
 document.getElementById('overlay').onclick=closeMobileMenu;
+const mobileDrawerClose=document.getElementById('mobileDrawerClose');
+if(mobileDrawerClose) mobileDrawerClose.onclick=closeMobileMenu;
+window.addEventListener('resize',()=>{if(window.innerWidth>900) closeMobileMenu()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeMobileMenu()});
 
 function goPage(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on',n.dataset.page===name));

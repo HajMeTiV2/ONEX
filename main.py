@@ -7454,6 +7454,202 @@ tr:hover td{background:var(--hover)}
   .main,.main.expanded{width:100% !important;max-width:100% !important;margin:0 !important;padding:70px 12px 40px !important}
 }
 
+
+
+/* ============================================================
+   ONEX GLOBAL THEME SYSTEM — ALL PANEL PAGES
+   One visual language for Dashboard / Configs / Create / Stats /
+   Logs / Settings / Telegram / News / Admins / Modals / Drawer.
+   Dark = ONEX login glass. Light = clean full-white UI.
+   ============================================================ */
+
+/* ---------- DARK: same glass language as LOGIN ---------- */
+html:not(.light) body{
+  background:
+    radial-gradient(circle at 18% 22%,rgba(0,126,255,.17),transparent 28%),
+    radial-gradient(circle at 85% 15%,rgba(0,207,255,.12),transparent 24%),
+    linear-gradient(145deg,#020712 0%,#061329 52%,#02050d 100%) !important;
+}
+html:not(.light) body::before{
+  background:
+    radial-gradient(ellipse 80% 50% at 100% 0%,rgba(0,126,255,.14),transparent 50%),
+    radial-gradient(ellipse 60% 40% at 0% 100%,rgba(124,58,237,.09),transparent 45%) !important;
+}
+html:not(.light) .sidebar,
+html:not(.light) .mob-bar{
+  background:linear-gradient(145deg,rgba(9,22,43,.82),rgba(2,9,20,.72)) !important;
+  border-color:rgba(88,180,255,.22) !important;
+  box-shadow:0 30px 100px rgba(0,0,0,.45),0 0 80px rgba(0,119,255,.08),inset 0 1px rgba(255,255,255,.08) !important;
+  backdrop-filter:blur(25px) saturate(125%) !important;
+  -webkit-backdrop-filter:blur(25px) saturate(125%) !important;
+}
+html:not(.light) .onex-topbar,
+html:not(.light) .onex-control-dock,
+html:not(.light) .onex-card,
+html:not(.light) .onex-metric,
+html:not(.light) .card,
+html:not(.light) .metric,
+html:not(.light) .support-tile,
+html:not(.light) .modal,
+html:not(.light) .toast{
+  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
+  border-color:rgba(88,180,255,.22) !important;
+  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(22,140,255,.045) !important;
+  backdrop-filter:blur(25px) saturate(125%) !important;
+  -webkit-backdrop-filter:blur(25px) saturate(125%) !important;
+}
+html:not(.light) .onex-control-dock{
+  background:linear-gradient(145deg,rgba(9,22,43,.70),rgba(2,9,20,.58)) !important;
+}
+html:not(.light) .quick-item,
+html:not(.light) .top-chip,
+html:not(.light) .range-tabs,
+html:not(.light) .range-mini,
+html:not(.light) .mini-action,
+html:not(.light) .sub-box,
+html:not(.light) .link-box,
+html:not(.light) .table-wrap{
+  background:linear-gradient(145deg,rgba(8,20,39,.60),rgba(2,9,20,.48)) !important;
+  border-color:rgba(88,180,255,.16) !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 28px rgba(22,140,255,.035) !important;
+}
+html:not(.light) .field input,
+html:not(.light) .field select,
+html:not(.light) .field textarea,
+html:not(.light) #cfgSearch{
+  background:linear-gradient(145deg,rgba(2,11,24,.68),rgba(4,14,29,.52)) !important;
+  color:#f8fbff !important;
+  border-color:rgba(122,180,235,.20) !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.035) !important;
+}
+html:not(.light) th{background:rgba(2,11,24,.58) !important;color:rgba(226,238,255,.62) !important}
+html:not(.light) td{border-color:rgba(122,180,235,.11) !important}
+html:not(.light) tr:hover td{background:rgba(22,140,255,.055) !important}
+html:not(.light) .onex-card-head{border-color:rgba(122,180,235,.12) !important}
+html:not(.light) .sb-foot{border-color:rgba(88,180,255,.16) !important}
+html:not(.light) .sb-foot button,
+html:not(.light) .sb-foot a.btn,
+html:not(.light) .btn:not(.btn-p):not(.btn-d){
+  background:linear-gradient(145deg,rgba(9,22,43,.70),rgba(2,9,20,.58)) !important;
+  border-color:rgba(88,180,255,.18) !important;
+  color:var(--t2) !important;
+}
+html:not(.light) .modal-bg{background:rgba(0,4,12,.68) !important;backdrop-filter:blur(9px) !important}
+html:not(.light) .nav-item:hover,
+html:not(.light) .nav-item.on{background:rgba(22,140,255,.10) !important}
+
+/* ---------- LIGHT: genuinely white, everywhere ---------- */
+html.light body{
+  background:#ffffff !important;
+  color:#0f172a !important;
+}
+html.light body::before{background:none !important;opacity:0 !important}
+html.light .sidebar,
+html.light .mob-bar,
+html.light .main,
+html.light .onex-topbar,
+html.light .onex-control-dock,
+html.light .onex-card,
+html.light .onex-metric,
+html.light .card,
+html.light .metric,
+html.light .support-tile,
+html.light .modal,
+html.light .toast,
+html.light .quick-item,
+html.light .table-wrap,
+html.light .sub-box,
+html.light .link-box{
+  background:#ffffff !important;
+  color:#0f172a !important;
+  border-color:rgba(15,23,42,.10) !important;
+  box-shadow:0 10px 30px rgba(15,23,42,.07),inset 0 1px rgba(255,255,255,.95) !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+html.light .onex-control-dock{background:#ffffff !important}
+html.light .onex-3d-control{
+  background:linear-gradient(145deg,#ffffff,#f5f8fc) !important;
+  color:#0f172a !important;
+  border-color:rgba(15,23,42,.10) !important;
+  box-shadow:0 7px 0 rgba(15,23,42,.08),0 12px 25px rgba(15,23,42,.08),inset 0 1px #fff !important;
+}
+html.light .top-chip,
+html.light .range-tabs,
+html.light .range-mini,
+html.light .mini-action{
+  background:#ffffff !important;
+  color:#334155 !important;
+  border-color:rgba(15,23,42,.10) !important;
+}
+html.light .field input,
+html.light .field select,
+html.light .field textarea,
+html.light #cfgSearch{
+  background:#ffffff !important;
+  color:#0f172a !important;
+  border-color:rgba(15,23,42,.14) !important;
+  box-shadow:inset 0 1px 2px rgba(15,23,42,.025) !important;
+}
+html.light .field input::placeholder,
+html.light .field textarea::placeholder{color:#94a3b8 !important}
+html.light th{background:#ffffff !important;color:#64748b !important}
+html.light td{border-color:rgba(15,23,42,.08) !important;color:#334155 !important}
+html.light tr:hover td{background:#f8fafc !important}
+html.light .onex-card-head{border-color:rgba(15,23,42,.08) !important}
+html.light .sb-foot{border-color:rgba(15,23,42,.08) !important}
+html.light .sb-foot button,
+html.light .sb-foot a.btn,
+html.light .btn:not(.btn-p):not(.btn-d){
+  background:#ffffff !important;
+  color:#334155 !important;
+  border-color:rgba(15,23,42,.12) !important;
+}
+html.light .nav-item{color:#64748b !important}
+html.light .nav-item:hover{background:#f1f5f9 !important;color:#2563eb !important}
+html.light .nav-item.on{background:#eff6ff !important;color:#2563eb !important;box-shadow:inset -3px 0 0 #2563eb !important}
+html.light .page-title,
+html.light .card-title,
+html.light .onex-card-title,
+html.light .quick-name,
+html.light .support-val,
+html.light .metric-val,
+html.light .onex-metric .metric-val{color:#0f172a !important}
+html.light .page-sub,
+html.light .field label,
+html.light .metric-label,
+html.light .quick-desc,
+html.light .support-label,
+html.light .log-time,
+html.light .health-name,
+html.light .health-pct{color:#64748b !important}
+html.light .log-msg{color:#334155 !important}
+html.light .modal-bg{background:rgba(15,23,42,.30) !important;backdrop-filter:blur(7px) !important}
+html.light .toast{color:#0f172a !important}
+
+/* Inline utility backgrounds used by the secondary pages: neutralize them
+   so every page follows the selected global theme rather than its old color. */
+html.light .page [style*="background:rgba(255"],
+html.light .page [style*="background: rgba(255"],
+html.light .page [style*="background:#0"],
+html.light .page [style*="background: #0"]{background:#ffffff !important}
+html:not(.light) .page [style*="background:rgba(255"],
+html:not(.light) .page [style*="background: rgba(255"],
+html:not(.light) .page [style*="background:#0"],
+html:not(.light) .page [style*="background: #0"]{
+  background:linear-gradient(145deg,rgba(8,20,39,.60),rgba(2,9,20,.48)) !important;
+}
+
+/* Keep the primary/danger actions visually meaningful in both themes. */
+.btn-p{color:#fff !important}
+.btn-d{color:#dc2626 !important}
+html:not(.light) .btn-d{color:#ff9b9b !important}
+
+/* Faster theme transition: no page-by-page repaint feeling. */
+body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.toast,
+.field input,.field select,.field textarea,.table-wrap,.quick-item,.onex-topbar,.onex-control-dock{
+  transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease !important;
+}
 </style>
 </head>
 <body>

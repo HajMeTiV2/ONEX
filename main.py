@@ -2117,24 +2117,38 @@ table th:first-child, table td:first-child{overflow:visible}
 .cfg-chk{accent-color:var(--accent)}
 #page-donate .page-title{width:100%}
 
-/* ONEX glass protocol selector */
-#page-create select {
-  background:linear-gradient(135deg,rgba(20,25,45,.92),rgba(8,10,20,.96))!important;
-  border:1px solid rgba(99,102,241,.35)!important;
-  box-shadow:0 0 18px rgba(99,102,241,.12), inset 0 1px 20px rgba(255,255,255,.03)!important;
-  color:#e5e7eb!important;
-  transition:.35s ease!important;
-}
-#page-create select:hover,#page-create select:focus{
- border-color:#60a5fa!important;
- transform:translateY(-2px);
- box-shadow:0 0 25px rgba(96,165,250,.25)!important;
-}
-#page-create .field label[data-i18n="label_proto"]:before{content:"🚀 ";}
-#page-create .card{
- backdrop-filter:blur(14px);
- -webkit-backdrop-filter:blur(14px);
-}
+/* ============================================================
+   3D GLASS PROTOCOL PICKER
+   Native select stays in DOM for compatibility; the visible UI is
+   a fast custom picker shared by manual + auto create sections.
+   ============================================================ */
+#page-create .protocol-native{position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important;overflow:hidden!important}
+#page-create .protocol-trigger{width:100%;min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-radius:13px;border:1px solid rgba(96,165,250,.22);background:linear-gradient(145deg,rgba(18,31,58,.88),rgba(7,14,29,.94));color:var(--t1);cursor:pointer;position:relative;overflow:hidden;transition:.2s ease;box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.16)}
+#page-create .protocol-trigger:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(96,165,250,.10) 50%,transparent 75%);transform:translateX(-120%);transition:.45s ease;pointer-events:none}
+#page-create .protocol-trigger:hover{border-color:rgba(96,165,250,.55);transform:translateY(-1px);box-shadow:0 10px 28px rgba(37,99,235,.18),inset 0 1px rgba(255,255,255,.08)}
+#page-create .protocol-trigger:hover:before{transform:translateX(120%)}
+#page-create .protocol-trigger-main{display:flex;align-items:center;gap:10px;min-width:0;text-align:right}
+#page-create .protocol-trigger-icon{width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(145deg,rgba(59,130,246,.25),rgba(124,58,237,.20));border:1px solid rgba(147,197,253,.20);font-size:17px;box-shadow:inset 0 1px rgba(255,255,255,.12),0 5px 14px rgba(37,99,235,.18);flex:0 0 auto}
+#page-create .protocol-trigger-text{min-width:0;display:flex;flex-direction:column;gap:1px}
+#page-create .protocol-trigger-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-create .protocol-trigger-sub{font-size:9px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-create .protocol-trigger-arrow{font-size:14px;color:var(--accent2);transition:transform .2s;flex:0 0 auto}
+.protocol-picker-bg{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(1,5,14,.62);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.protocol-picker-bg.open{display:flex}
+.protocol-picker{width:min(620px,calc(100vw - 24px));max-height:min(88vh,760px);overflow:hidden;border-radius:24px;border:1px solid rgba(96,165,250,.35);background:linear-gradient(145deg,rgba(7,19,39,.98),rgba(5,11,24,.985));box-shadow:0 30px 90px rgba(0,0,0,.55),0 0 55px rgba(37,99,235,.13),inset 0 1px rgba(255,255,255,.09);color:var(--t1);transform:translateY(8px) scale(.985);opacity:0;transition:.22s ease;display:flex;flex-direction:column}
+.protocol-picker-bg.open .protocol-picker{transform:none;opacity:1}
+.protocol-picker-head{padding:17px 18px 15px;border-bottom:1px solid rgba(148,163,184,.12);display:flex;align-items:center;gap:12px;flex:0 0 auto;background:linear-gradient(180deg,rgba(255,255,255,.045),transparent)}
+.protocol-picker-head-icon{width:45px;height:45px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:linear-gradient(145deg,#0ea5e9,#2563eb 55%,#7c3aed);box-shadow:0 10px 26px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.2)}
+.protocol-picker-head-text{flex:1;min-width:0}.protocol-picker-title{font-size:17px;font-weight:900}.protocol-picker-subtitle{font-size:10px;color:var(--t3);margin-top:3px}.protocol-picker-close{width:34px;height:34px;border:1px solid rgba(148,163,184,.16);border-radius:10px;background:rgba(255,255,255,.035);color:var(--t2);cursor:pointer;font-size:20px;line-height:1;display:grid;place-items:center;transition:.15s}.protocol-picker-close:hover{background:rgba(59,130,246,.14);color:#fff;border-color:rgba(96,165,250,.45)}
+.protocol-picker-scroll{overflow:auto;padding:14px 16px 16px;scrollbar-width:thin}.protocol-picker-scroll::-webkit-scrollbar{width:4px}.protocol-picker-scroll::-webkit-scrollbar-thumb{background:rgba(96,165,250,.28);border-radius:99px}
+.protocol-section{margin-bottom:17px}.protocol-section:last-child{margin-bottom:0}.protocol-section-title{display:flex;align-items:center;gap:9px;margin:0 2px 9px;color:#93c5fd;font-size:11px;font-weight:900}.protocol-section-title:before{content:"";height:1px;flex:1;background:linear-gradient(90deg,rgba(59,130,246,.05),rgba(59,130,246,.38));order:2}.protocol-section-title span{order:1}.protocol-section-title b{font-size:13px;order:3;font-weight:500}
+.protocol-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.protocol-option{position:relative;min-height:91px;border-radius:16px;border:1px solid rgba(96,165,250,.16);background:linear-gradient(145deg,rgba(17,34,62,.74),rgba(7,16,32,.82));padding:11px 10px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden;transition:.18s ease;box-shadow:inset 0 1px rgba(255,255,255,.045)}.protocol-option:before{content:"";position:absolute;inset:-30%;background:radial-gradient(circle,rgba(59,130,246,.15),transparent 55%);opacity:0;transition:.18s}.protocol-option:hover{transform:translateY(-2px);border-color:rgba(96,165,250,.48);box-shadow:0 10px 24px rgba(37,99,235,.14),inset 0 1px rgba(255,255,255,.07)}.protocol-option:hover:before{opacity:1}.protocol-option.selected{border-color:#38bdf8;box-shadow:0 0 0 1px rgba(56,189,248,.18),0 0 24px rgba(37,99,235,.24),inset 0 1px rgba(255,255,255,.12);background:linear-gradient(145deg,rgba(18,53,91,.88),rgba(22,18,63,.86))}.protocol-option.selected:after{content:"✓";position:absolute;top:7px;right:7px;width:21px;height:21px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#38bdf8,#6366f1);color:#fff;font-size:12px;font-weight:900;box-shadow:0 5px 13px rgba(59,130,246,.38)}
+.protocol-option-radio{position:absolute;top:10px;left:10px;width:16px;height:16px;border-radius:50%;border:2px solid rgba(191,219,254,.65);background:transparent}.protocol-option.selected .protocol-option-radio{border-color:#22d3ee;box-shadow:0 0 0 3px rgba(34,211,238,.10)}.protocol-option-icon{font-size:27px;line-height:1;margin-bottom:7px;filter:drop-shadow(0 5px 8px rgba(59,130,246,.24));position:relative;z-index:1}.protocol-option-name{font-size:11px;font-weight:900;position:relative;z-index:1}.protocol-option-desc{font-size:8.5px;color:var(--t3);margin-top:2px;position:relative;z-index:1}.protocol-picker-foot{padding:11px 16px 15px;border-top:1px solid rgba(148,163,184,.12);background:linear-gradient(180deg,transparent,rgba(255,255,255,.025));flex:0 0 auto}.protocol-selected-info{height:35px;border-radius:10px;border:1px solid rgba(59,130,246,.18);background:rgba(59,130,246,.07);display:flex;align-items:center;justify-content:center;color:#93c5fd;font-size:9px;margin-bottom:8px}.protocol-picker-confirm{width:100%;height:43px;border:0;border-radius:12px;background:linear-gradient(135deg,#2196f3,#6366f1 55%,#8b5cf6);color:#fff;font-family:inherit;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 8px 22px rgba(59,130,246,.28);transition:.18s}.protocol-picker-confirm:hover{filter:brightness(1.08);transform:translateY(-1px)}
+html.light .protocol-picker-bg{background:rgba(15,23,42,.28);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+html.light .protocol-picker{background:linear-gradient(145deg,#fff,#f7fbff);border-color:rgba(37,99,235,.18);box-shadow:0 28px 80px rgba(15,23,42,.18),0 0 35px rgba(37,99,235,.08);color:#0f172a}.light .protocol-picker-head{border-color:rgba(15,23,42,.08);background:linear-gradient(180deg,#fff,#f8fbff)}.light .protocol-picker-close{background:#f8fafc;color:#475569;border-color:#e2e8f0}.light .protocol-section-title{color:#2563eb}.light .protocol-section-title:before{background:linear-gradient(90deg,rgba(37,99,235,.03),rgba(37,99,235,.22))}.light .protocol-option{background:linear-gradient(145deg,#fff,#f7faff);border-color:rgba(37,99,235,.13);box-shadow:0 5px 18px rgba(15,23,42,.05),inset 0 1px #fff}.light .protocol-option:hover{border-color:rgba(37,99,235,.38);box-shadow:0 9px 22px rgba(37,99,235,.10)}.light .protocol-option.selected{background:linear-gradient(145deg,#eff8ff,#f4f0ff);border-color:#3b82f6;box-shadow:0 0 0 1px rgba(59,130,246,.10),0 10px 25px rgba(37,99,235,.12)}.light .protocol-option-radio{border-color:#94a3b8}.light .protocol-option-desc,.light .protocol-picker-subtitle{color:#64748b}.light .protocol-selected-info{background:#eff6ff;border-color:#bfdbfe;color:#2563eb}
+@media(max-width:560px){.protocol-picker-bg{padding:8px}.protocol-picker{width:calc(100vw - 16px);max-height:90vh;border-radius:20px}.protocol-picker-head{padding:13px 14px 12px}.protocol-picker-head-icon{width:40px;height:40px;font-size:21px;border-radius:12px}.protocol-picker-title{font-size:15px}.protocol-picker-scroll{padding:11px 11px 12px}.protocol-grid{gap:7px}.protocol-option{min-height:82px;padding:9px 7px}.protocol-option-icon{font-size:23px;margin-bottom:5px}.protocol-option-name{font-size:10px}.protocol-option-desc{font-size:7.5px}.protocol-picker-foot{padding:9px 11px 11px}.protocol-selected-info{height:32px;font-size:8px}.protocol-picker-confirm{height:40px;font-size:11px}}
+@media(max-width:360px){.protocol-grid{grid-template-columns:1fr}.protocol-option{min-height:72px}.protocol-option-icon{font-size:21px;margin-bottom:3px}}
+#page-create .field label[data-i18n="label_proto"]:before{content:"✦ ";}
 
 </style>
 </head>
@@ -7650,7 +7664,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
 .field input,.field select,.field textarea,.table-wrap,.quick-item,.onex-topbar,.onex-control-dock{
   transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease !important;
 }
-</style>
+\n/* ============================================================\n   ONEX THEME ENFORCER — SECONDARY PAGES + NESTED COMPONENTS\n   This block intentionally comes last so old hard-coded dashboard\n   colors cannot win over the selected global theme.\n   ============================================================ */\n\n/* DARK: login glass recipe applied to every structural surface. */\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric,\nhtml:not(.light) .page .table-wrap,\nhtml:not(.light) .page .support-tile,\nhtml:not(.light) .page .link-box,\nhtml:not(.light) .page .sub-box,\nhtml:not(.light) .page .quick-item,\nhtml:not(.light) .page .range-tabs,\nhtml:not(.light) .page .range-mini,\nhtml:not(.light) .page .mini-action,\nhtml:not(.light) .page .chart-badge,\nhtml:not(.light) .page .health-track,\nhtml:not(.light) .page .xray-state,\nhtml:not(.light) .page .recent-table,\nhtml:not(.light) .page .recent-table th,\nhtml:not(.light) .page .recent-table td,\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n  border-color:rgba(88,180,255,.18) !important;\n  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 32px rgba(22,140,255,.035),0 14px 38px rgba(0,0,0,.18) !important;\n  backdrop-filter:blur(25px) saturate(120%) !important;\n  -webkit-backdrop-filter:blur(25px) saturate(120%) !important;\n}\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric{\n  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(22,140,255,.045) !important;\n}\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(2,11,24,.68),rgba(4,14,29,.52)) !important;\n  color:#f8fbff !important;\n}\nhtml:not(.light) .page .page-title,\nhtml:not(.light) .page .card-title,\nhtml:not(.light) .page .metric-val,\nhtml:not(.light) .page .quick-name{color:#f8fbff !important}\nhtml:not(.light) .page .page-sub,\nhtml:not(.light) .page .field label,\nhtml:not(.light) .page .metric-label,\nhtml:not(.light) .page .quick-desc{color:rgba(248,250,252,.55) !important}\n\n/* Preserve intentional accent controls/badges in dark mode. */\nhtml:not(.light) .page .btn-p,\nhtml:not(.light) .page .btn-d,\nhtml:not(.light) .page .range-tab.on,\nhtml:not(.light) .page .conn-badge,\nhtml:not(.light) .page .support-icon,\nhtml:not(.light) .page .quick-icon,\nhtml:not(.light) .page .metric-icon{\n  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\n\n/* LIGHT: every structural panel becomes pure white, not gray. */\nhtml.light .page,\nhtml.light .page.on{color:#0f172a !important}\nhtml.light .page .card,\nhtml.light .page .metric,\nhtml.light .page .table-wrap,\nhtml.light .page .support-tile,\nhtml.light .page .link-box,\nhtml.light .page .sub-box,\nhtml.light .page .quick-item,\nhtml.light .page .range-tabs,\nhtml.light .page .range-mini,\nhtml.light .page .mini-action,\nhtml.light .page .chart-badge,\nhtml.light .page .health-track,\nhtml.light .page .xray-state,\nhtml.light .page .recent-table,\nhtml.light .page .recent-table th,\nhtml.light .page .recent-table td,\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea,\nhtml.light .page .onex-topbar,\nhtml.light .page .onex-control-dock,\nhtml.light .page .onex-card,\nhtml.light .page .onex-metric{\n  background:#fff !important;\n  color:#0f172a !important;\n  border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 10px 30px rgba(15,23,42,.07),inset 0 1px rgba(255,255,255,.98) !important;\n  backdrop-filter:none !important;\n  -webkit-backdrop-filter:none !important;\n}\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.14) !important;\n}\nhtml.light .page .page-title,\nhtml.light .page .card-title,\nhtml.light .page .metric-val,\nhtml.light .page .quick-name,\nhtml.light .page .support-val{color:#0f172a !important}\nhtml.light .page .page-sub,\nhtml.light .page .field label,\nhtml.light .page .metric-label,\nhtml.light .page .quick-desc,\nhtml.light .page .support-label,\nhtml.light .page .log-time,\nhtml.light .page .health-name,\nhtml.light .page .health-pct{color:#64748b !important}\nhtml.light .page .log-msg{color:#334155 !important}\nhtml.light .page .onex-card-head,\nhtml.light .page .sb-foot{border-color:rgba(15,23,42,.08) !important}\nhtml.light .page th{background:#fff !important;color:#64748b !important}\nhtml.light .page td{background:#fff !important;color:#334155 !important;border-color:rgba(15,23,42,.08) !important}\nhtml.light .page tr:hover td{background:#f8fafc !important}\n\n/* Inline background declarations on secondary pages: normalize containers\n   while leaving action buttons, badges and icons untouched. */\nhtml.light .page div[style*="background:"],\nhtml.light .page section[style*="background:"],\nhtml.light .page article[style*="background:"],\nhtml.light .page aside[style*="background:"]{\n  background:#fff !important;\n  color:inherit;\n}\nhtml:not(.light) .page div[style*="background:"],\nhtml:not(.light) .page section[style*="background:"],\nhtml:not(.light) .page article[style*="background:"],\nhtml:not(.light) .page aside[style*="background:"]{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n/* Re-apply accent colors to controls after the broad inline rule. */\nhtml.light .page .btn-p{background:linear-gradient(135deg,#3b82f6,#6366f1) !important;color:#fff !important;border-color:transparent !important}\nhtml.light .page .btn-d{background:rgba(239,68,68,.08) !important;color:#dc2626 !important;border-color:rgba(239,68,68,.20) !important}\nhtml.light .page .range-tab.on{background:#2563eb !important;color:#fff !important}\nhtml.light .page .switch .slider{background:rgba(148,163,184,.35) !important}\nhtml.light .page .switch input:checked + .slider{background:#16a34a !important}\nhtml.light .page .quick-icon,\nhtml.light .page .support-icon,\nhtml.light .page .metric-icon{background:#f1f5f9 !important}\n\n/* Drawer and mobile top bar use exactly the same theme surfaces. */\nhtml.light .sidebar,html.light .mob-bar{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 18px 50px rgba(15,23,42,.12) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\nhtml:not(.light) .sidebar,html:not(.light) .mob-bar{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n\n/* Theme switch itself is instant enough that pages never look half-painted. */\nhtml,body,.sidebar,.mob-bar,.main,.page,.page .card,.page .metric,.page .onex-card,.page .onex-metric,\n.page .field input,.page .field select,.page .field textarea,.page .table-wrap,.page .link-box,.page .sub-box{\n  transition:background-color .12s ease,background .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease !important;\n}\n</style>
 </head>
 <body>
 
@@ -7847,7 +7861,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
           </button>
         </div>
       </div>
-            <div class="field"><label data-i18n="label_proto">پروتکـل</label><select id="cProto"></select></div>
+            <div class="field"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native"></select></div>
       <div class="field"><label>گروه</label><select id="cGroup"></select></div>
 <div class="form-row">
         <div class="field"><label data-i18n="label_count">تعداد کانفیگ در ساب (۱–۴۰)</label><input id="cCount" type="number" value="1" min="1" max="40"></div>
@@ -7869,7 +7883,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
     <div class="card" style="border-color:rgba(139,92,246,.35)">
       <div class="card-title" data-i18n="auto_create">ساخت خودکـار (پیشنهــادی)</div>
       <p style="color:var(--t2);font-size:13px;line-height:1.75;margin-bottom:14px" data-i18n="auto_desc">با یک کلیک کانفیگ بهینه ساخته می‌شود. بعد از ساخت لینک VLESS و ساب در اختیار شماست.</p>
-      <div class="field"><label data-i18n="label_proto">پروتکـل</label><select id="aProto"></select></div>
+      <div class="field"><label data-i18n="label_proto">پروتکـل</label><select id="aProto" class="protocol-native"></select></div>
       <div class="field"><label data-i18n="label_count">تعداد کانفیگ در سـاب (1-40)</label><input id="aCount" type="number" value="1" min="1" max="40"></div>
       <button class="btn btn-p" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="doAutoCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2"/></svg>
@@ -8568,12 +8582,14 @@ async function loadProtocols(){
   const r=await api('/api/protocols');
   const list=(r&&r.protocols)||[];
   const def=(r&&r.default)||'vless-ws';
+  __protocolPickerOptions=list;
   ['cProto','aProto'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
     el.innerHTML=list.map(p=>`<option value="${esc(p.id)}" ${p.id===def?'selected':''}>${esc(p.label||p.id)}</option>`).join('')
       ||'<option value="vless-ws">VLESS WebSocket</option>';
   });
+  setupProtocolPickers();
 }
 let __allLinks=[];
 function filterConfigs(){
@@ -8750,6 +8766,85 @@ async function restoreBot(){
     if(r) toast(r.message||(lang==='fa'?'ربات بازیابی شد':'Bot restored'));
   }catch(e){ toast(e.message||String(e)); }
 }
+
+
+/* ============================================================
+   PROTOCOL PICKER UI
+   ============================================================ */
+const PROTOCOL_PICKER_ICONS={
+  'vless-ws':'🚀','xhttp-packet-up':'▰','xhttp-stream-up':'⚡','xhttp-stream-one':'🛡️',
+  'vmess-ws':'🚀','trojan-ws':'🚀','shadowsocks':'◉','socks5':'◉','http':'🛡️',
+  'hysteria2':'🌀','tuic':'🔥','wireguard':'🛡️','highspeed-demo':'⚡','gaming-lite-demo':'🎮'
+};
+const PROTOCOL_PICKER_GROUPS=[
+  {title:'VLESS',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']},
+  {title:'VMess',ids:['vmess-ws']},
+  {title:'Proxy',ids:['trojan-ws','shadowsocks','socks5','http','hysteria2']},
+  {title:'VPN / Tunnel',ids:['tuic','wireguard']},
+  {title:'Demo',ids:['highspeed-demo','gaming-lite-demo']}
+];
+let __protocolPickerTarget='';
+let __protocolPickerOptions=[];
+function protocolPickerEl(id){return document.getElementById(id)}
+function protocolPickerLabel(id){const p=__protocolPickerOptions.find(x=>x.id===id);return p?.label||id||'VLESS WebSocket'}
+function protocolPickerShort(id,label){
+  const map={'vless-ws':'VLESS WebSocket','xhttp-packet-up':'VLESS XHTTP (Packet Up)','xhttp-stream-up':'VLESS XHTTP (Stream Up)','xhttp-stream-one':'VLESS XHTTP (Stream One)','vmess-ws':'VMess WebSocket','trojan-ws':'Trojan WebSocket','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria 2','tuic':'TUIC','wireguard':'WireGuard'};
+  return map[id]||label||id;
+}
+function setupProtocolPickers(){
+  ['cProto','aProto'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel)return;
+    sel.classList.add('protocol-native');
+    let trigger=document.querySelector(`.protocol-trigger[data-for="${id}"]`);
+    if(!trigger){
+      trigger=document.createElement('button'); trigger.type='button'; trigger.className='protocol-trigger'; trigger.dataset.for=id;
+      trigger.onclick=()=>openProtocolPicker(id);
+      sel.parentNode.insertBefore(trigger,sel.nextSibling);
+    }
+    syncProtocolPicker(id);
+  });
+}
+function syncProtocolPicker(id){
+  const sel=document.getElementById(id), trigger=document.querySelector(`.protocol-trigger[data-for="${id}"]`); if(!sel||!trigger)return;
+  const value=sel.value||'vless-ws', label=protocolPickerShort(value,protocolPickerLabel(value));
+  trigger.innerHTML=`<span class="protocol-trigger-main"><span class="protocol-trigger-icon">${PROTOCOL_PICKER_ICONS[value]||'◉'}</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">${esc(label)}</span><span class="protocol-trigger-sub">${lang==='fa'?'برای تغییر، انتخاب کنید':'Tap to choose another protocol'}</span></span></span><span class="protocol-trigger-arrow">⌄</span>`;
+}
+function ensureProtocolPicker(){
+  if(document.getElementById('protocolPickerBg'))return;
+  const bg=document.createElement('div'); bg.id='protocolPickerBg'; bg.className='protocol-picker-bg';
+  bg.innerHTML=`<div class="protocol-picker" role="dialog" aria-modal="true">
+    <div class="protocol-picker-head"><div class="protocol-picker-head-icon">✦</div><div class="protocol-picker-head-text"><div class="protocol-picker-title">${lang==='fa'?'انتخاب پروتکل':'Select Protocol'}</div><div class="protocol-picker-subtitle">${lang==='fa'?'پروتکل موردنظر را انتخاب کنید':'Choose the protocol you want to use'}</div></div><button type="button" class="protocol-picker-close" onclick="closeProtocolPicker()">×</button></div>
+    <div class="protocol-picker-scroll" id="protocolPickerScroll"></div>
+    <div class="protocol-picker-foot"><div class="protocol-selected-info" id="protocolSelectedInfo">—</div><button type="button" class="protocol-picker-confirm" onclick="confirmProtocolPicker()">${lang==='fa'?'تأیید و ادامه →':'Confirm & Continue →'}</button></div>
+  </div>`;
+  bg.addEventListener('click',e=>{if(e.target===bg)closeProtocolPicker()});
+  document.body.appendChild(bg);
+}
+function openProtocolPicker(targetId){
+  const sel=document.getElementById(targetId); if(!sel)return;
+  ensureProtocolPicker(); __protocolPickerTarget=targetId;
+  const current=sel.value||'vless-ws', scroll=document.getElementById('protocolPickerScroll');
+  const available=new Set(__protocolPickerOptions.map(x=>x.id));
+  scroll.innerHTML=PROTOCOL_PICKER_GROUPS.map(g=>{
+    const items=g.ids.filter(id=>available.has(id)); if(!items.length)return '';
+    return `<section class="protocol-section"><div class="protocol-section-title"><span>${g.title}</span><b>⌁</b></div><div class="protocol-grid">${items.map(id=>{const p=__protocolPickerOptions.find(x=>x.id===id)||{id,label:id}; const name=protocolPickerShort(id,p.label); return `<button type="button" class="protocol-option ${id===current?'selected':''}" data-proto="${esc(id)}" onclick="chooseProtocol('${esc(id)}')"><span class="protocol-option-radio"></span><span class="protocol-option-icon">${PROTOCOL_PICKER_ICONS[id]||'◉'}</span><span class="protocol-option-name">${esc(name)}</span><span class="protocol-option-desc">${esc(p.label||id)}</span></button>`}).join('')}</div></section>`;
+  }).join('');
+  document.getElementById('protocolSelectedInfo').textContent=(lang==='fa'?'پروتکل انتخاب‌شده: ':'Selected: ')+protocolPickerShort(current,protocolPickerLabel(current));
+  document.getElementById('protocolPickerBg').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function chooseProtocol(id){
+  const sel=document.getElementById(__protocolPickerTarget); if(!sel)return;
+  sel.value=id;
+  document.querySelectorAll('#protocolPickerScroll .protocol-option').forEach(x=>x.classList.toggle('selected',x.dataset.proto===id));
+  document.getElementById('protocolSelectedInfo').textContent=(lang==='fa'?'پروتکل انتخاب‌شده: ':'Selected: ')+protocolPickerShort(id,protocolPickerLabel(id));
+}
+function confirmProtocolPicker(){
+  if(__protocolPickerTarget){const sel=document.getElementById(__protocolPickerTarget); if(sel){sel.dispatchEvent(new Event('change',{bubbles:true}));syncProtocolPicker(__protocolPickerTarget)}}
+  closeProtocolPicker();
+}
+function closeProtocolPicker(){const bg=document.getElementById('protocolPickerBg');if(bg)bg.classList.remove('open');document.body.style.overflow=''}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
 
 applyLang();loadMe();loadProtocols();loadGroups();refreshAll();setInterval(refreshAll,1000);
 

@@ -1,7 +1,7 @@
 # ============================================================
-# PXPanel 13.8.0
+# ONEX Control Center
 # Railway Ready
-# Created By PIXON
+# Designed by @Mehtif
 # ============================================================
 import asyncio
 import base64
@@ -37,11 +37,11 @@ from fastapi.middleware.cors import CORSMiddleware
 # APP
 # ============================================================
 
-APP_NAME = "PXPanel"
+APP_NAME = "ONEX"
 APP_VERSION = "13.10.0"
 
-SUPPORT_USERNAME = "@logic_sec"
-SUPPORT_URL = "https://t.me/logic_sec"
+SUPPORT_USERNAME = "@V2rayTun0"
+SUPPORT_URL = "https://t.me/V2rayTun0"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -705,11 +705,16 @@ def hash_password(
     ).hexdigest()
 
 
-# No default password — first-run setup required unless ADMIN_PASSWORD env is set
+# ONEX default owner credentials.
+# First deployment starts with username=admin / password=admin.
+# After the owner changes credentials from Settings, the saved values are used.
 _env_pw = os.environ.get("ADMIN_PASSWORD", "").strip()
+_env_user = os.environ.get("ADMIN_USERNAME", "admin").strip().lower() or "admin"
 AUTH = {
-    "password_hash": hash_password(_env_pw) if _env_pw else "",
-    "password_configured": bool(_env_pw),
+    "username": _env_user,
+    "password_hash": hash_password(_env_pw or "admin"),
+    "password_configured": True,
+    "credentials_version": 1,
 }
 
 # Sub-admin accounts (panel operators with granular permissions)
@@ -988,7 +993,7 @@ def set_auth_cookie(
 # ============================================================
 
 def generate_vless_link(
-    uuid: str, host: str, remark: str = "PXPanel",
+    uuid: str, host: str, remark: str = "ONEX",
     protocol: str = DEFAULT_PROTOCOL, fingerprint: str | None = None,
     alpn: str | None = None, port: int | None = None,
 ):
@@ -997,7 +1002,7 @@ def generate_vless_link(
     if fp not in FINGERPRINTS: fp = DEFAULT_FINGERPRINT
     port_value = safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT)
     alpn_value = (alpn or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
-    label = quote(str(remark or "PXPanel"), safe="")
+    label = quote(str(remark or "ONEX"), safe="")
     if protocol == "vless-ws":
         q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
@@ -1162,10 +1167,24 @@ async def load_state():
         stored_password = data.get(
             "password_hash"
         )
+        stored_username = str(data.get("username") or "").strip().lower()
+        stored_cred_version = int(data.get("credentials_version") or 0)
 
-        if stored_password:
-            AUTH["password_hash"] = stored_password
+        # One-time migration from the old PX/ONEX setup screen.
+        # Existing legacy credentials are intentionally replaced with admin/admin.
+        if stored_cred_version < 1:
+            AUTH["username"] = "admin"
+            AUTH["password_hash"] = hash_password("admin")
             AUTH["password_configured"] = True
+            AUTH["credentials_version"] = 1
+            logger.info("Legacy credentials migrated to ONEX default admin/admin")
+        else:
+            if stored_username:
+                AUTH["username"] = stored_username
+            if stored_password:
+                AUTH["password_hash"] = stored_password
+            AUTH["password_configured"] = True
+            AUTH["credentials_version"] = stored_cred_version
 
         # Compatibility for older records
         for uid, link in LINKS.items():
@@ -1259,10 +1278,16 @@ async def save_state():
                 "admin_accounts":
                     dict(ADMIN_ACCOUNTS),
 
+                "username":
+                    AUTH.get("username", "admin"),
+
                 "password_hash":
                     AUTH[
                         "password_hash"
                     ],
+
+                "credentials_version":
+                    1,
 
                 "saved_at":
                     datetime.now().isoformat(),
@@ -1882,6 +1907,7 @@ async def startup():
     )
 
     await load_state()
+    await save_state()
 
     await ensure_default_categories()
     await ensure_default_link()
@@ -2134,7 +2160,7 @@ h1{
     }
 }
 
-/* PXPanel 13.0.1 responsive system */
+/* ONEX responsive system */
 html{scroll-behavior:smooth} body{overflow-x:hidden} button,input,select,textarea{touch-action:manipulation} .modal{overscroll-behavior:contain}
 @media(max-width:900px){.container,.shell,.dashboard,.main,.content{max-width:100%!important;width:100%!important}.grid,.stats-grid,.cards-grid,.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sidebar{z-index:1000}}
 @media(max-width:640px){body{padding:10px!important;font-size:14px}.grid,.stats-grid,.cards-grid,.form-grid{grid-template-columns:1fr!important}.card,.panel,.section,.modal{border-radius:18px!important}.modal{max-height:92vh;overflow:auto;padding:14px!important}.header,.topbar,.toolbar,.actions{flex-wrap:wrap!important}.header>* ,.topbar>*{max-width:100%}.btn,button{min-height:44px}.field input,.field select,.field textarea,input,select,textarea{min-height:44px;font-size:16px;max-width:100%}table{display:block;overflow-x:auto;white-space:nowrap}.link-row,.config-row{flex-direction:column!important;align-items:stretch!important}.brand-name{font-size:15px}}
@@ -2277,7 +2303,7 @@ async def root(
         )
 
     return HTMLResponse(
-        LANDING_HTML
+        LOGIN_HTML
     )
 
 
@@ -2407,21 +2433,11 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
       <div class="login-title">به پنل <b>ONEX</b> خوش آمدید</div>
       <div class="login-desc">برای ادامه، اطلاعات حساب کاربری خود را وارد کنید</div>
 
-      <div id="setupBox" class="hidden">
-        <div class="setup-title">راه‌اندازی اولیه</div>
-        <div class="setup-desc">رمز عبور مدیر پنل را برای اولین ورود تعیین کنید.</div>
-        <div class="warn">برای نگه‌داشتن داده‌ها روی Railway حتماً Volume با مسیر <code>/data</code> وصل کنید.</div>
-        <div class="err" id="setupErr"></div>
-        <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="setupPw" placeholder="رمز عبور، حداقل ۶ کاراکتر" autocomplete="new-password"></div>
-        <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="setupPw2" placeholder="تکرار رمز عبور" autocomplete="new-password"></div>
-        <button class="primary" type="button" id="setupBtn" onclick="doSetup()"><span>تنظیم رمز و ورود</span></button>
-      </div>
-
-      <div id="loginBox" class="hidden">
+      <div id="loginBox">
         <div class="err" id="loginErr"></div>
         <form id="loginForm">
-          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg><input type="text" id="loginUser" placeholder="نام کاربری ادمین" autocomplete="username"></div>
-          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="loginPw" placeholder="رمز عبور" autocomplete="current-password" required><button class="eye" type="button" onclick="togglePassword()" aria-label="نمایش رمز"><svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div>
+          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg><input type="text" id="loginUser" value="admin" placeholder="نام کاربری ادمین" autocomplete="username"></div>
+          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="loginPw" value="admin" placeholder="رمز عبور" autocomplete="current-password" required><button class="eye" type="button" onclick="togglePassword()" aria-label="نمایش رمز"><svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div>
           <button class="primary" type="submit" id="loginBtn"><span>ورود به پنل</span></button>
           <div class="row"><label class="remember"><input type="checkbox" checked> مرا به خاطر بسپار</label><span class="forgot">دسترسی امن به پنل</span></div>
         </form>
@@ -2453,33 +2469,7 @@ function togglePassword(){
   const input=document.getElementById('loginPw');
   input.type=input.type==='password'?'text':'password';
 }
-async function checkSetup(){
-  try{
-    const r=await fetch('/api/setup/status',{cache:'no-store'});
-    const d=await r.json();
-    if(d.needs_setup){
-      document.getElementById('setupBox').classList.remove('hidden');
-      document.getElementById('setupPw').focus();
-    }else{
-      document.getElementById('loginBox').classList.remove('hidden');
-      document.getElementById('loginPw').focus();
-    }
-  }catch(e){document.getElementById('loginBox').classList.remove('hidden');}
-}
-async function doSetup(){
-  const pw=document.getElementById('setupPw').value;
-  const pw2=document.getElementById('setupPw2').value;
-  const err=document.getElementById('setupErr');err.classList.remove('show');
-  if(pw.length<6){err.textContent='رمز حداقل ۶ کاراکتر باشد';err.classList.add('show');return}
-  if(pw!==pw2){err.textContent='تکرار رمز یکسان نیست';err.classList.add('show');return}
-  const btn=document.getElementById('setupBtn');btn.disabled=true;
-  try{
-    const r=await fetch('/api/setup/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw,repeat_password:pw2})});
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(d.detail||'خطا در تنظیم رمز');
-    location.href='/dashboard';
-  }catch(e){err.textContent=e.message||'خطا';err.classList.add('show');btn.disabled=false;}
-}
+document.getElementById('loginPw').focus();
 document.getElementById('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const err=document.getElementById('loginErr');err.classList.remove('show');
@@ -2490,7 +2480,6 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
     location.href='/dashboard';
   }catch(e){err.textContent=e.message||'خطا در ورود';err.classList.add('show');btn.disabled=false;}
 });
-checkSetup();
 </script>
 </body>
 </html>
@@ -2527,13 +2516,15 @@ def login_error_html(
 @app.get("/api/setup/status")
 async def setup_status():
     return {
-        "password_configured": bool(AUTH.get("password_configured") and AUTH.get("password_hash")),
-        "needs_setup": not bool(AUTH.get("password_configured") and AUTH.get("password_hash")),
+        "password_configured": True,
+        "needs_setup": False,
+        "username": AUTH.get("username", "admin"),
     }
 
 
 @app.post("/api/setup/password")
 async def setup_password(request: Request):
+    raise HTTPException(status_code=410, detail="راه‌اندازی اولیه حذف شده است؛ از تنظیمات پنل استفاده کنید")
     if AUTH.get("password_configured") and AUTH.get("password_hash"):
         raise HTTPException(status_code=400, detail="رمز قبلاً تنظیم شده است")
     try:
@@ -2583,7 +2574,7 @@ async def login_form(
     request: Request,
 ):
     if not (AUTH.get("password_configured") and AUTH.get("password_hash")):
-        return HTMLResponse(login_error_html("ابتدا از صفحه ورود، رمز اولیه را تنظیم کنید"))
+        return HTMLResponse(login_error_html("ورود با نام کاربری و رمز عبور انجام می‌شود"))
 
 
     try:
@@ -2601,6 +2592,7 @@ async def login_form(
 
             body = await request.json()
 
+            username = str(body.get("username", "")).strip().lower()
             password = str(
                 body.get(
                     "password",
@@ -2619,6 +2611,13 @@ async def login_form(
                 )
             )
 
+            username = (
+                parsed.get(
+                    "username",
+                    [""],
+                )[0]
+                .strip().lower()
+            )
             password = (
                 parsed.get(
                     "password",
@@ -2654,19 +2653,16 @@ async def login_form(
             headers={"Retry-After": str(retry_after)},
         )
 
-    if not password:
+    if not username or not password:
         register_login_failure(ip)
         return HTMLResponse(
             login_error_html(
-                "رمز عبور را وارد کنید."
+                "نام کاربری و رمز عبور را وارد کنید."
             ),
             status_code=400,
         )
 
-    if (
-        hash_password(password)
-        != AUTH["password_hash"]
-    ):
+    if username != AUTH.get("username", "admin") or hash_password(password) != AUTH["password_hash"]:
 
         locked, value = register_login_failure(ip)
         if locked:
@@ -2725,7 +2721,7 @@ async def login_form(
 @app.post("/api/login")
 async def api_login(request: Request):
     if not (AUTH.get("password_configured") and AUTH.get("password_hash")):
-        raise HTTPException(status_code=400, detail="ابتدا رمز پنل را در راه‌اندازی تنظیم کنید")
+        raise HTTPException(status_code=400, detail="ورود نیاز به حساب کاربری دارد")
     try:
         body = await request.json()
     except Exception:
@@ -2739,18 +2735,18 @@ async def api_login(request: Request):
     if not password:
         register_login_failure(ip)
         raise HTTPException(status_code=400, detail="رمز عبور الزامی است")
-    meta = {"role": "owner", "admin_id": None, "username": "owner"}
+    meta = {"role": "owner", "admin_id": None, "username": AUTH.get("username", "admin")}
     ok = False
-    if username and username not in ("owner", "admin", "root"):
+    if username and username == AUTH.get("username", "admin"):
+        if hash_password(password) == AUTH["password_hash"]:
+            ok = True
+    elif username:
         aid, admin = find_admin_by_username(username)
         if admin and admin.get("password_hash") == hash_password(password):
             if not admin_is_valid(admin):
                 raise HTTPException(status_code=403, detail="حساب مسدود یا منقضی شده است")
             ok = True
             meta = {"role": "admin", "admin_id": aid, "username": username}
-    else:
-        if hash_password(password) == AUTH["password_hash"]:
-            ok = True
     if not ok:
         locked, value = register_login_failure(ip)
         if locked:
@@ -2816,6 +2812,7 @@ async def api_change_password(
             "",
         )
     )
+    new_username = str(body.get("new_username") or AUTH.get("username", "admin")).strip().lower()
 
     if (
         hash_password(current_password)
@@ -2840,6 +2837,9 @@ async def api_change_password(
         )
     )
 
+    if not new_username or len(new_username) < 3 or len(new_username) > 32 or not new_username.replace("_", "").replace("-", "").isalnum():
+        raise HTTPException(status_code=400, detail="نام کاربری باید ۳ تا ۳۲ کاراکتر و فقط شامل حروف، عدد، _ یا - باشد")
+
     if len(new_password) < 6:
         raise HTTPException(
             status_code=400,
@@ -2853,10 +2853,15 @@ async def api_change_password(
         )
 
     AUTH[
+        "username"
+    ] = new_username
+    AUTH[
         "password_hash"
     ] = hash_password(
         new_password
     )
+    AUTH["password_configured"] = True
+    AUTH["credentials_version"] = 1
 
     async with SESSIONS_LOCK:
 
@@ -3149,7 +3154,7 @@ async def create_auto_link(
     uid, link = await make_link(
         label=auto_config_name(), limit_bytes=0, expires_at=None,
         ip_limit=cfg["ip"], speed_limit_bytes=cfg["speed"], connection_limit=cfg["conn"],
-        note=f"Auto generated by PXPanel | profile={profile}",
+        note=f"Auto generated by ONEX | profile={profile}",
         protocol=protocol, fingerprint=cfg["fp"],
         alpn=DEFAULT_ALPN_BY_PROTOCOL.get(protocol, ""), port=443, fragment=cfg["fragment"],
         config_count=config_count,
@@ -6687,6 +6692,182 @@ tr:hover td{background:var(--hover)}
 @media(max-width:700px){.onex-topbar{height:auto;min-height:60px;padding:9px 10px;border-radius:16px}.top-server small,.top-sep,.top-chip{display:none}.dashboard-hero{align-items:flex-start;flex-direction:column}.hero-title{font-size:23px}.hero-actions{width:100%}.onex-metrics{grid-template-columns:1fr 1fr;gap:10px}.onex-metric{min-height:112px;padding:13px;border-radius:16px}.metric-icon{width:37px;height:37px;border-radius:12px}.onex-metric .metric-val{font-size:21px}.dashboard-grid-right{grid-template-columns:1fr}.chart-wrap{height:230px}.quick-grid{grid-template-columns:1fr 1fr}.recent-table{min-width:600px}.recent-card .onex-card-body{overflow-x:auto}.onex-footer{padding-bottom:22px}}
 @media(max-width:390px){.onex-metrics{grid-template-columns:1fr}.quick-grid{grid-template-columns:1fr}.hero-title{font-size:21px}.onex-metric{min-height:102px}.chart-wrap{height:205px}}
 
+
+/* =========================================================
+   ONEX MOBILE DRAWER — ISOLATED UI
+   The mobile drawer is rebuilt independently from the legacy PX
+   sidebar rules. No desktop collapse/width styles are reused.
+   ========================================================= */
+@media (max-width:900px){
+  html,body{width:100%!important;max-width:100%!important;overflow-x:hidden!important}
+  body.menu-open{overflow:hidden!important;touch-action:none!important}
+
+  /* isolate the legacy sidebar on mobile */
+  #sidebar.sidebar{
+    all:unset!important;
+    position:fixed!important;
+    inset:0 0 0 auto!important;
+    width:min(290px,84vw)!important;
+    height:100dvh!important;
+    display:flex!important;
+    flex-direction:column!important;
+    direction:rtl!important;
+    background:linear-gradient(180deg,#090d18 0%,#060812 52%,#05060b 100%)!important;
+    color:#f8fafc!important;
+    border-left:1px solid rgba(66,153,255,.30)!important;
+    border-radius:22px 0 0 22px!important;
+    box-shadow:-22px 0 70px rgba(0,0,0,.72),0 0 55px rgba(37,99,235,.08)!important;
+    overflow:hidden!important;
+    transform:translate3d(110%,0,0)!important;
+    transition:transform .30s cubic-bezier(.22,1,.36,1)!important;
+    z-index:10001!important;
+    visibility:hidden!important;
+  }
+  #sidebar.sidebar.open{
+    transform:translate3d(0,0,0)!important;
+    visibility:visible!important;
+  }
+  #sidebar.sidebar.collapsed{width:min(290px,84vw)!important}
+  #sidebar .sb-toggle{display:none!important}
+
+  #mobileDrawerClose{
+    all:unset!important;position:absolute!important;top:12px!important;left:12px!important;
+    width:34px!important;height:34px!important;display:grid!important;place-items:center!important;
+    border:1px solid rgba(148,163,184,.15)!important;border-radius:11px!important;
+    background:rgba(255,255,255,.035)!important;color:#cbd5e1!important;
+    font:300 25px/1 Inter,sans-serif!important;cursor:pointer!important;z-index:5!important;
+  }
+  #sidebar .sb-logo{
+    all:unset!important;
+    display:flex!important;
+    align-items:center!important;
+    gap:11px!important;
+    min-height:78px!important;
+    padding:12px 15px!important;
+    box-sizing:border-box!important;
+    border-bottom:1px solid rgba(148,163,184,.10)!important;
+    background:linear-gradient(180deg,rgba(19,29,52,.55),rgba(8,11,19,.25))!important;
+  }
+  #sidebar .sb-logo-icon{
+    all:unset!important;
+    width:43px!important;height:43px!important;flex:0 0 43px!important;
+    display:grid!important;place-items:center!important;
+    border-radius:14px!important;
+    background:linear-gradient(145deg,#19b8ff,#315cff 58%,#8655ff)!important;
+    color:#fff!important;font:900 15px Inter,sans-serif!important;
+    box-shadow:0 0 25px rgba(49,109,255,.42)!important;
+  }
+  #sidebar .sb-logo-text{display:block!important;min-width:0!important;overflow:hidden!important}
+  #sidebar .sb-logo-name{font:900 17px Inter,sans-serif!important;letter-spacing:.03em!important;color:#fff!important}
+  #sidebar .sb-logo-ver{margin-top:4px!important;font:500 9px Inter,sans-serif!important;letter-spacing:.12em!important;color:rgba(226,232,240,.42)!important}
+
+  #sidebar .nav{
+    all:unset!important;
+    display:block!important;
+    flex:1 1 auto!important;
+    min-height:0!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding:12px 10px 14px!important;
+    box-sizing:border-box!important;
+  }
+  #sidebar .nav-sec{
+    all:unset!important;
+    display:block!important;
+    padding:9px 12px 7px!important;
+    color:rgba(148,163,184,.48)!important;
+    font:800 9px Inter,sans-serif!important;
+    letter-spacing:.14em!important;
+  }
+  #sidebar .nav-item{
+    all:unset!important;
+    display:flex!important;
+    width:100%!important;
+    min-height:47px!important;
+    box-sizing:border-box!important;
+    align-items:center!important;
+    gap:11px!important;
+    margin:3px 0!important;
+    padding:9px 12px!important;
+    border:1px solid transparent!important;
+    border-radius:14px!important;
+    color:rgba(226,232,240,.60)!important;
+    background:transparent!important;
+    cursor:pointer!important;
+    font:600 12px 'Vazirmatn',sans-serif!important;
+    transition:background .18s,border-color .18s,color .18s,transform .18s!important;
+  }
+  #sidebar .nav-item svg{
+    all:unset!important;
+    width:20px!important;height:20px!important;flex:0 0 20px!important;
+    display:block!important;color:rgba(148,163,184,.68)!important;
+  }
+  #sidebar .nav-item:hover{
+    background:rgba(59,130,246,.07)!important;
+    color:#dbeafe!important;
+    transform:translateX(-2px)!important;
+  }
+  #sidebar .nav-item.on{
+    color:#60a5fa!important;
+    background:linear-gradient(90deg,rgba(37,99,235,.08),rgba(37,99,235,.22))!important;
+    border-color:rgba(59,130,246,.18)!important;
+    box-shadow:inset -3px 0 0 #3b82f6,0 0 22px rgba(37,99,235,.08)!important;
+  }
+  #sidebar .nav-item.on svg{color:#60a5fa!important}
+  #sidebar .nav-label{
+    display:block!important;visibility:visible!important;
+    overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
+    color:inherit!important;font:inherit!important;
+  }
+
+  /* footer is the actual class used by this dashboard */
+  #sidebar .sb-foot{
+    all:unset!important;
+    display:flex!important;
+    flex-direction:column!important;
+    gap:7px!important;
+    padding:10px!important;
+    box-sizing:border-box!important;
+    border-top:1px solid rgba(148,163,184,.10)!important;
+    background:rgba(4,7,13,.72)!important;
+  }
+  #sidebar .sb-foot button,#sidebar .sb-foot a.btn{
+    all:unset!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:100%!important;
+    min-height:47px!important;
+    box-sizing:border-box!important;
+    border:1px solid rgba(148,163,184,.12)!important;
+    border-radius:14px!important;
+    background:rgba(255,255,255,.025)!important;
+    color:rgba(241,245,249,.78)!important;
+    cursor:pointer!important;
+    font:700 12px 'Vazirmatn',sans-serif!important;
+  }
+  #sidebar .sb-foot a.danger{color:#f87171!important;background:rgba(239,68,68,.06)!important;border-color:rgba(239,68,68,.18)!important}
+  #sidebar .sb-foot svg{width:17px!important;height:17px!important;margin-left:7px!important;display:block!important}
+
+  #overlay{
+    position:fixed!important;inset:0!important;
+    display:none!important;z-index:10000!important;
+    background:rgba(0,0,0,.64)!important;
+    backdrop-filter:blur(7px)!important;
+    -webkit-backdrop-filter:blur(7px)!important;
+  }
+  #overlay.show{display:block!important}
+  #mobMenuBtn{position:relative!important;z-index:10002!important}
+}
+
+@media(max-width:420px){
+  #sidebar.sidebar{width:min(270px,82vw)!important}
+  #sidebar .sb-logo{min-height:72px!important;padding:10px 13px!important}
+  #sidebar .sb-logo-icon{width:40px!important;height:40px!important;flex-basis:40px!important}
+  #sidebar .nav-item{min-height:44px!important;padding:8px 10px!important}
+  #sidebar .sb-foot button,#sidebar .sb-foot a.btn{min-height:44px!important}
+}
+
 </style>
 </head>
 <body>
@@ -6700,6 +6881,7 @@ tr:hover td{background:var(--hover)}
 <div class="overlay" id="overlay"></div>
 
 <aside class="sidebar" id="sidebar">
+  <button type="button" id="mobileDrawerClose" aria-label="بستن منو" style="display:none">×</button>
   <button class="sb-toggle" id="sbToggle" title="Toggle">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
@@ -6992,7 +7174,8 @@ tr:hover td{background:var(--hover)}
     </div>
   </div>
   <div class="card">
-    <div class="card-title" data-i18n="change_pw">تغییر رمز عبـور</div>
+    <div class="card-title" data-i18n="change_pw">تغییر نام کاربری و رمز عبور</div>
+    <div class="field"><label>نام کاربری جدید</label><input type="text" id="newUser" value="admin" autocomplete="username"></div>
     <div class="field"><label data-i18n="pw_cur">رمز فعلـی</label><input type="password" id="pwCur"></div>
     <div class="field"><label data-i18n="pw_new">رمـز جدیـد</label><input type="password" id="pwNew"></div>
     <div class="field"><label data-i18n="pw_cf">تکـرار رمـز</label><input type="password" id="pwCf"></div>
@@ -7223,13 +7406,28 @@ document.getElementById('sbToggle').onclick=()=>{
   localStorage.setItem('sb_c',sb.classList.contains('collapsed')?'1':'0');
 };
 if(localStorage.getItem('sb_c')==='1'){sb.classList.add('collapsed');main.classList.add('expanded')}
-document.getElementById('mobMenuBtn').onclick=()=>{sb.classList.add('open');document.getElementById('overlay').classList.add('show')};
-document.getElementById('overlay').onclick=()=>{sb.classList.remove('open');document.getElementById('overlay').classList.remove('show')};
+function openMobileMenu(){
+  sb.classList.add('open');
+  sb.classList.remove('collapsed');
+  document.getElementById('overlay').classList.add('show');
+  document.body.classList.add('menu-open');
+}
+function closeMobileMenu(){
+  sb.classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  document.body.classList.remove('menu-open');
+}
+document.getElementById('mobMenuBtn').onclick=openMobileMenu;
+document.getElementById('overlay').onclick=closeMobileMenu;
+const mobileDrawerClose=document.getElementById('mobileDrawerClose');
+if(mobileDrawerClose) mobileDrawerClose.onclick=closeMobileMenu;
+window.addEventListener('resize',()=>{if(window.innerWidth>900) closeMobileMenu()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeMobileMenu()});
 
 function goPage(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on',n.dataset.page===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-'+name));
-  sb.classList.remove('open');document.getElementById('overlay').classList.remove('show');
+  closeMobileMenu();
   window.scrollTo({top:0,behavior:'smooth'});
   if(name==='logs')loadLogs();
   if(name==='configs'||name==='dash'||name==='stats')refreshAll();
@@ -7477,10 +7675,10 @@ async function doManualCreate(){
   if(r){showResult(r);refreshAll()}
 }
 async function doChangePw(){
-  const cur=document.getElementById('pwCur').value,nw=document.getElementById('pwNew').value,cf=document.getElementById('pwCf').value;
+  const user=document.getElementById('newUser').value.trim(),cur=document.getElementById('pwCur').value,nw=document.getElementById('pwNew').value,cf=document.getElementById('pwCf').value;
   if(nw!==cf){toast(lang==='fa'?'رمزها یکی نیستند':'Passwords mismatch');return}
-  const r=await api('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({current_password:cur,new_password:nw,repeat_password:cf})});
-  if(r){toast(lang==='fa'?'رمز تغییر کرد':'Password changed');document.getElementById('pwCur').value='';document.getElementById('pwNew').value='';document.getElementById('pwCf').value=''}
+  const r=await api('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({new_username:user,current_password:cur,new_password:nw,repeat_password:cf})});
+  if(r){toast(lang==='fa'?'اطلاعات ورود تغییر کرد':'Credentials changed');document.getElementById('pwCur').value='';document.getElementById('pwNew').value='';document.getElementById('pwCf').value='';}
 }
 async function loadLogs(){
   const box=document.getElementById('logsBox');
@@ -7574,6 +7772,8 @@ async function loadMe(){
   if(!r)return;
   USER_ROLE=r.role||'owner';
   USER_PERMS=r.permissions||{};
+  const ownerUser=document.getElementById('newUser');
+  if(ownerUser && USER_ROLE==='owner' && r.username) ownerUser.value=r.username;
   document.querySelectorAll('.nav-item[data-perm]').forEach(el=>{
     const p=el.getAttribute('data-perm');
     if(USER_ROLE==='owner'){el.style.display='';return}

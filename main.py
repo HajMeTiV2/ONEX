@@ -2145,25 +2145,12 @@ h1{
     text-decoration:none;
 }
 
-@media(max-width:600px){
-    .card{
-        padding:24px;
-        border-radius:22px;
-    }
 
-    h1{
-        font-size:23px;
-    }
-
-    .actions{
-        flex-direction:column;
-    }
-}
 
 /* ONEX responsive system */
 html{scroll-behavior:smooth} body{overflow-x:hidden} button,input,select,textarea{touch-action:manipulation} .modal{overscroll-behavior:contain}
-@media(max-width:900px){.container,.shell,.dashboard,.main,.content{max-width:100%!important;width:100%!important}.grid,.stats-grid,.cards-grid,.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sidebar{z-index:1000}}
-@media(max-width:640px){body{padding:10px!important;font-size:14px}.grid,.stats-grid,.cards-grid,.form-grid{grid-template-columns:1fr!important}.card,.panel,.section,.modal{border-radius:18px!important}.modal{max-height:92vh;overflow:auto;padding:14px!important}.header,.topbar,.toolbar,.actions{flex-wrap:wrap!important}.header>* ,.topbar>*{max-width:100%}.btn,button{min-height:44px}.field input,.field select,.field textarea,input,select,textarea{min-height:44px;font-size:16px;max-width:100%}table{display:block;overflow-x:auto;white-space:nowrap}.link-row,.config-row{flex-direction:column!important;align-items:stretch!important}.brand-name{font-size:15px}}
+
+
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 
 /* Toggle switch */
@@ -2423,71 +2410,17 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
 .err,.error{display:none;margin-bottom:13px;padding:11px 13px;border-radius:13px;background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.28);color:#ff9d9d;font-size:12px;line-height:1.7}.err.show,.error.show{display:block}.warn{margin-bottom:16px;padding:12px;border-radius:13px;background:rgba(245,158,11,.09);border:1px solid rgba(245,158,11,.25);color:#fbbf24;font-size:11px;line-height:1.9}.warn code{background:rgba(0,0,0,.35);padding:2px 5px;border-radius:5px;color:#9ed4ff;font-family:ui-monospace,monospace}.hidden{display:none!important}
 .footer{text-align:center;color:#526b88;font-size:10px;margin-top:20px}.footer a{color:#2ac8ff;text-decoration:none}
 .setup-title{font-size:21px;font-weight:900;margin-bottom:5px;text-align:center}.setup-desc{text-align:center;color:#819ab7;font-size:11px;margin-bottom:20px}
-@media(max-width:900px){.scene{grid-template-columns:1fr}.hero{min-height:420px;padding:25px}.login-side{padding:0 20px 35px}.login-card{max-width:520px}.credits{margin-top:35px}.brand{font-size:58px}.logo-orbit{transform:scale(.78);margin-bottom:-25px}.hero-sub{margin-top:0}}
-@media(max-width:520px){.hero{min-height:350px}.logo-orbit{transform:scale(.62);margin-top:-35px;margin-bottom:-55px}.brand{font-size:43px;letter-spacing:4px}.tagline{font-size:10px;letter-spacing:4px}.hero-sub{font-size:11px}.credits{gap:20px;margin-top:25px}.login-side{padding:0 12px 20px}.login-card{padding:25px 18px;border-radius:24px}.login-title{font-size:21px}.telegram{padding:12px}.field input,.primary{height:54px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
-/* ONEX MOBILE LOGIN - FINAL RESPONSIVE OVERRIDES */
-@media (max-width: 700px){
-  html,body{width:100%;min-width:0;overflow-x:hidden}
-  body{min-height:100svh;padding:0;display:block}
-  .scene{min-height:100svh;display:block}
-  .hero{display:none}
-  .login-side{min-height:100svh;width:100%;padding:18px 12px calc(18px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center}
-  .login-card{width:100%;max-width:460px;padding:24px 16px;border-radius:22px}
-  .login-logo{width:64px;height:64px;border-radius:20px;margin-bottom:10px}
-  .login-logo span{font-size:46px}
-  .login-title{font-size:21px;line-height:1.7}
-  .login-desc{font-size:11px;line-height:1.9;margin-bottom:20px}
-  .field{margin-bottom:12px}
-  .field input,.primary{height:54px;min-height:54px;font-size:16px;border-radius:15px}
-  .row{font-size:10px;gap:10px}
-  .telegram{margin-top:16px;padding:11px 12px;border-radius:15px}
-  .telegram-icon{width:40px;height:40px;flex-basis:40px}
-}
-@media (max-width:380px){
-  .login-side{padding-left:9px;padding-right:9px}
-  .login-card{padding:20px 13px;border-radius:20px}
-  .login-title{font-size:19px}
-  .login-logo{width:58px;height:58px}
-  .login-logo span{font-size:42px}
-}
 
 
-/* ==========================================================
-   ONEX RESPONSIVE V2 — PHONE FIRST
-   ========================================================== */
-@media screen and (max-width: 768px){
-  html,body{width:100%!important;min-width:0!important;overflow-x:hidden!important}
-  body{min-height:100dvh!important}
-  .scene{display:block!important;width:100%!important;min-height:100dvh!important}
-  .hero{display:none!important}
-  .login-side{display:flex!important;width:100%!important;min-height:100dvh!important;padding:16px 10px calc(16px + env(safe-area-inset-bottom))!important;align-items:center!important;justify-content:center!important}
-  .login-card{display:block!important;width:100%!important;max-width:430px!important;margin:0 auto!important;padding:22px 14px!important;border-radius:20px!important}
-  .login-logo{width:62px!important;height:62px!important;border-radius:18px!important;margin:0 auto 10px!important}
-  .login-logo span{font-size:44px!important}
-  .login-title{font-size:20px!important;line-height:1.8!important}
-  .login-desc{font-size:11px!important;line-height:1.9!important;margin:4px 0 18px!important}
-  .field{margin-bottom:11px!important}
-  .field input{width:100%!important;height:54px!important;min-height:54px!important;padding-right:48px!important;padding-left:44px!important;font-size:16px!important;border-radius:14px!important}
-  .field svg{right:14px!important;width:19px!important;height:19px!important}
-  .eye{left:8px!important;min-width:40px!important;min-height:40px!important}
-  .primary{height:54px!important;min-height:54px!important;margin-top:3px!important;border-radius:14px!important;font-size:14px!important}
-  .row{margin-top:12px!important;font-size:10px!important}
-  .telegram{margin-top:15px!important;padding:10px!important;border-radius:14px!important;gap:10px!important}
-  .telegram-icon{width:39px!important;height:39px!important;flex-basis:39px!important}
-  .telegram-text b{font-size:13px!important}
-  .footer{font-size:9px!important;margin-top:14px!important}
-}
-@media screen and (max-width:380px){
-  .login-side{padding-left:7px!important;padding-right:7px!important}
-  .login-card{padding:18px 12px!important;border-radius:18px!important}
-  .login-logo{width:56px!important;height:56px!important}
-  .login-logo span{font-size:40px!important}
-  .login-title{font-size:18px!important}
-  .login-desc{margin-bottom:14px!important}
-  .field input,.primary{height:52px!important;min-height:52px!important}
-  .telegram{margin-top:12px!important}
-}
+
+
+
+
+
+
+
+
+
 
 </style>
 </head>
@@ -6736,16 +6669,8 @@ tr:hover td{background:var(--hover)}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:290;display:none}
 .overlay.show{display:block}
 
-@media(max-width:900px){
-  .sidebar{transform:translateX(100%)}
-  .sidebar.open{transform:translateX(0)}
-  .sb-toggle{display:none!important}
-  .main,.main.expanded{margin-right:0;padding-top:72px}
-  .mob-bar{display:flex}
-  .metrics{grid-template-columns:1fr 1fr}
-  .g2,.form-row{grid-template-columns:1fr}
-}
-@media(max-width:480px){.metrics{grid-template-columns:1fr}}
+
+
 .spin{width:36px;height:36px;border:3px solid var(--card-b);border-top-color:var(--accent);border-radius:50%;margin:0 auto;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -6781,7 +6706,7 @@ tr:hover td{background:var(--hover)}
 @keyframes controlShine{0%,45%{left:-45%;opacity:0}55%{opacity:1}100%{left:120%;opacity:0}}
 @keyframes iconFloat{0%,100%{transform:translateY(0) translateZ(18px) rotate(-1deg)}50%{transform:translateY(-3px) translateZ(18px) rotate(1deg)}}
 @keyframes dockSweep{0%{background-position:200% 0}100%{background-position:-20% 0}}
-@media(max-width:700px){.onex-control-dock{grid-template-columns:1fr;margin:-2px 0 14px;padding:8px;gap:8px;border-radius:18px}.onex-3d-control{min-height:54px;justify-content:flex-start;padding:8px 12px;border-radius:15px}.onex-3d-control .control-icon{width:34px;height:34px;flex-basis:34px;border-radius:11px}.onex-3d-control .control-title{font-size:11px}.onex-3d-control .control-sub{font-size:8px}}
+
 
 .top-server{display:flex;align-items:center;gap:12px;min-width:0}.top-dot{width:10px;height:10px;border-radius:50%;background:#22c55e;box-shadow:0 0 14px #22c55e;animation:pulseDot 1.8s ease-in-out infinite}.top-server b{font-size:13px}.top-server small{color:var(--t3);font-size:11px}.top-sep{width:1px;height:24px;background:var(--card-b)}
 .top-actions{display:flex;align-items:center;gap:8px}.top-chip{display:flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid var(--card-b);border-radius:12px;background:rgba(255,255,255,.025);color:var(--t2);font-size:11px}.top-avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#3b82f6,#8b5cf6);font-weight:900;color:#fff;box-shadow:0 0 24px rgba(59,130,246,.3)}
@@ -6795,405 +6720,43 @@ tr:hover td{background:var(--hover)}
 .quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.quick-item{display:flex;align-items:center;gap:10px;padding:13px;border-radius:15px;background:rgba(255,255,255,.025);border:1px solid var(--card-b);cursor:pointer;transition:.2s}.quick-item:hover{transform:translateY(-2px);border-color:rgba(96,165,250,.3);background:rgba(37,99,235,.07)}.quick-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(37,99,235,.13);color:#60a5fa}.quick-item:nth-child(2) .quick-icon{color:#34d399;background:rgba(34,197,94,.1)}.quick-item:nth-child(3) .quick-icon{color:#a78bfa;background:rgba(139,92,246,.11)}.quick-item:nth-child(4) .quick-icon{color:#22d3ee;background:rgba(34,211,238,.1)}.quick-name{font-size:11px;font-weight:800}.quick-desc{font-size:9px;color:var(--t3);margin-top:3px}
 .recent-card{margin-top:14px}.recent-table{width:100%;border-collapse:collapse;font-size:10px}.recent-table th{font-size:9px;padding:10px 12px;background:rgba(255,255,255,.025);color:var(--t3)}.recent-table td{padding:10px 12px;border-top:1px solid rgba(255,255,255,.045);color:var(--t2)}.recent-status{display:inline-flex;align-items:center;gap:5px;color:#34d399}.recent-status i{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 7px #22c55e}.recent-actions{display:flex;gap:5px}.mini-action{width:27px;height:27px;border:1px solid var(--card-b);border-radius:8px;background:rgba(255,255,255,.025);color:var(--t2);display:grid;place-items:center;cursor:pointer}.mini-action:hover{color:#60a5fa;border-color:rgba(96,165,250,.3)}
 .server-info{display:grid;gap:9px}.info-row{display:flex;align-items:center;justify-content:space-between;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.045);font-size:10px}.info-row:last-child{border-bottom:0;padding-bottom:0}.info-row span:first-child{color:var(--t3)}.info-row span:last-child{color:var(--t2);font-weight:700}.onex-footer{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:12px 4px;color:var(--t3);font-size:9px}.onex-footer b{color:#60a5fa}
-@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.72);opacity:.65}}@keyframes orbitSpin{to{transform:rotate(360deg)}}@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}@keyframes healthIn{from{width:0}}@media(max-width:1050px){.dashboard-grid{grid-template-columns:1fr}.dashboard-grid-right{grid-template-columns:1fr 1fr;grid-template-rows:none}.quick-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:700px){.onex-topbar{height:auto;min-height:60px;padding:9px 10px;border-radius:16px}.top-server small,.top-sep,.top-chip{display:none}.dashboard-hero{align-items:flex-start;flex-direction:column}.hero-title{font-size:23px}.hero-actions{width:100%}.onex-metrics{grid-template-columns:1fr 1fr;gap:10px}.onex-metric{min-height:112px;padding:13px;border-radius:16px}.metric-icon{width:37px;height:37px;border-radius:12px}.onex-metric .metric-val{font-size:21px}.dashboard-grid-right{grid-template-columns:1fr}.chart-wrap{height:230px}.quick-grid{grid-template-columns:1fr 1fr}.recent-table{min-width:600px}.recent-card .onex-card-body{overflow-x:auto}.onex-footer{padding-bottom:22px}}
-@media(max-width:390px){.onex-metrics{grid-template-columns:1fr}.quick-grid{grid-template-columns:1fr}.hero-title{font-size:21px}.onex-metric{min-height:102px}.chart-wrap{height:205px}}
+@keyframes pulseDot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.72);opacity:.65}}@keyframes orbitSpin{to{transform:rotate(360deg)}}@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}@keyframes healthIn{from{width:0}}
 
 
-/* =========================================================
-   ONEX MOBILE DRAWER — ISOLATED UI
+
+
    The mobile drawer is rebuilt independently from the legacy PX
    sidebar rules. No desktop collapse/width styles are reused.
    ========================================================= */
-@media (max-width:900px){
-  html,body{width:100%!important;max-width:100%!important;overflow-x:hidden!important}
-  body.menu-open{overflow:hidden!important;touch-action:none!important}
-
-  /* isolate the legacy sidebar on mobile */
-  #sidebar.sidebar{
-    all:unset!important;
-    position:fixed!important;
-    inset:0 0 0 auto!important;
-    width:min(290px,84vw)!important;
-    height:100dvh!important;
-    display:flex!important;
-    flex-direction:column!important;
-    direction:rtl!important;
-    background:linear-gradient(180deg,#090d18 0%,#060812 52%,#05060b 100%)!important;
-    color:#f8fafc!important;
-    border-left:1px solid rgba(66,153,255,.30)!important;
-    border-radius:22px 0 0 22px!important;
-    box-shadow:-22px 0 70px rgba(0,0,0,.72),0 0 55px rgba(37,99,235,.08)!important;
-    overflow:hidden!important;
-    transform:translate3d(110%,0,0)!important;
-    transition:transform .30s cubic-bezier(.22,1,.36,1)!important;
-    z-index:10001!important;
-    visibility:hidden!important;
-  }
-  #sidebar.sidebar.open{
-    transform:translate3d(0,0,0)!important;
-    visibility:visible!important;
-  }
-  #sidebar.sidebar.collapsed{width:min(290px,84vw)!important}
-  #sidebar .sb-toggle{display:none!important}
-
-  #mobileDrawerClose{
-    all:unset!important;position:absolute!important;top:12px!important;left:12px!important;
-    width:34px!important;height:34px!important;display:grid!important;place-items:center!important;
-    border:1px solid rgba(148,163,184,.15)!important;border-radius:11px!important;
-    background:rgba(255,255,255,.035)!important;color:#cbd5e1!important;
-    font:300 25px/1 Inter,sans-serif!important;cursor:pointer!important;z-index:5!important;
-  }
-  #sidebar .sb-logo{
-    all:unset!important;
-    display:flex!important;
-    align-items:center!important;
-    gap:11px!important;
-    min-height:78px!important;
-    padding:12px 15px!important;
-    box-sizing:border-box!important;
-    border-bottom:1px solid rgba(148,163,184,.10)!important;
-    background:linear-gradient(180deg,rgba(19,29,52,.55),rgba(8,11,19,.25))!important;
-  }
-  #sidebar .sb-logo-icon{
-    all:unset!important;
-    width:43px!important;height:43px!important;flex:0 0 43px!important;
-    display:grid!important;place-items:center!important;
-    border-radius:14px!important;
-    background:linear-gradient(145deg,#19b8ff,#315cff 58%,#8655ff)!important;
-    color:#fff!important;font:900 15px Inter,sans-serif!important;
-    box-shadow:0 0 25px rgba(49,109,255,.42)!important;
-  }
-  #sidebar .sb-logo-text{display:block!important;min-width:0!important;overflow:hidden!important}
-  #sidebar .sb-logo-name{font:900 17px Inter,sans-serif!important;letter-spacing:.03em!important;color:#fff!important}
-  #sidebar .sb-logo-ver{margin-top:4px!important;font:500 9px Inter,sans-serif!important;letter-spacing:.12em!important;color:rgba(226,232,240,.42)!important}
-
-  #sidebar .nav{
-    all:unset!important;
-    display:block!important;
-    flex:1 1 auto!important;
-    min-height:0!important;
-    overflow-y:auto!important;
-    overflow-x:hidden!important;
-    padding:12px 10px 14px!important;
-    box-sizing:border-box!important;
-  }
-  #sidebar .nav-sec{
-    all:unset!important;
-    display:block!important;
-    padding:9px 12px 7px!important;
-    color:rgba(148,163,184,.48)!important;
-    font:800 9px Inter,sans-serif!important;
-    letter-spacing:.14em!important;
-  }
-  #sidebar .nav-item{
-    all:unset!important;
-    display:flex!important;
-    width:100%!important;
-    min-height:47px!important;
-    box-sizing:border-box!important;
-    align-items:center!important;
-    gap:11px!important;
-    margin:3px 0!important;
-    padding:9px 12px!important;
-    border:1px solid transparent!important;
-    border-radius:14px!important;
-    color:rgba(226,232,240,.60)!important;
-    background:transparent!important;
-    cursor:pointer!important;
-    font:600 12px 'Vazirmatn',sans-serif!important;
-    transition:background .18s,border-color .18s,color .18s,transform .18s!important;
-  }
-  #sidebar .nav-item svg{
-    all:unset!important;
-    width:20px!important;height:20px!important;flex:0 0 20px!important;
-    display:block!important;color:rgba(148,163,184,.68)!important;
-  }
-  #sidebar .nav-item:hover{
-    background:rgba(59,130,246,.07)!important;
-    color:#dbeafe!important;
-    transform:translateX(-2px)!important;
-  }
-  #sidebar .nav-item.on{
-    color:#60a5fa!important;
-    background:linear-gradient(90deg,rgba(37,99,235,.08),rgba(37,99,235,.22))!important;
-    border-color:rgba(59,130,246,.18)!important;
-    box-shadow:inset -3px 0 0 #3b82f6,0 0 22px rgba(37,99,235,.08)!important;
-  }
-  #sidebar .nav-item.on svg{color:#60a5fa!important}
-  #sidebar .nav-label{
-    display:block!important;visibility:visible!important;
-    overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;
-    color:inherit!important;font:inherit!important;
-  }
-
-  /* footer is the actual class used by this dashboard */
-  #sidebar .sb-foot{
-    all:unset!important;
-    display:flex!important;
-    flex-direction:column!important;
-    gap:7px!important;
-    padding:10px!important;
-    box-sizing:border-box!important;
-    border-top:1px solid rgba(148,163,184,.10)!important;
-    background:rgba(4,7,13,.72)!important;
-  }
-  #sidebar .sb-foot button,#sidebar .sb-foot a.btn{
-    all:unset!important;
-    display:flex!important;
-    align-items:center!important;
-    justify-content:center!important;
-    width:100%!important;
-    min-height:47px!important;
-    box-sizing:border-box!important;
-    border:1px solid rgba(148,163,184,.12)!important;
-    border-radius:14px!important;
-    background:rgba(255,255,255,.025)!important;
-    color:rgba(241,245,249,.78)!important;
-    cursor:pointer!important;
-    font:700 12px 'Vazirmatn',sans-serif!important;
-  }
-  #sidebar .sb-foot a.danger{color:#f87171!important;background:rgba(239,68,68,.06)!important;border-color:rgba(239,68,68,.18)!important}
-  #sidebar .sb-foot svg{width:17px!important;height:17px!important;margin-left:7px!important;display:block!important}
-
-  #overlay{
-    position:fixed!important;inset:0!important;
-    display:none!important;z-index:10000!important;
-    background:rgba(0,0,0,.64)!important;
-    backdrop-filter:blur(7px)!important;
-    -webkit-backdrop-filter:blur(7px)!important;
-  }
-  #overlay.show{display:block!important}
-  #mobMenuBtn{position:relative!important;z-index:10002!important}
-}
-
-@media(max-width:420px){
-  #sidebar.sidebar{width:min(270px,82vw)!important}
-  #sidebar .sb-logo{min-height:72px!important;padding:10px 13px!important}
-  #sidebar .sb-logo-icon{width:40px!important;height:40px!important;flex-basis:40px!important}
-  #sidebar .nav-item{min-height:44px!important;padding:8px 10px!important}
-  #sidebar .sb-foot button,#sidebar .sb-foot a.btn{min-height:44px!important}
-}
 
 
-/* ONEX MOBILE + DESKTOP UNIFIED SIDEBAR FIX */
-@media (max-width: 768px){
-  body{
-    overflow-x:hidden!important;
-  }
-  .sidebar,#sidebar{
-    width:min(330px,86vw)!important;
-    max-width:86vw!important;
-    border-radius:28px 0 0 28px!important;
-    backdrop-filter:blur(24px)!important;
-    -webkit-backdrop-filter:blur(24px)!important;
-  }
-  #sidebar .nav-item{
-    min-height:52px!important;
-    margin:5px 12px!important;
-    padding:12px 14px!important;
-    border-radius:16px!important;
-    font-size:14px!important;
-  }
-  #sidebar .nav-label{
-    font-size:14px!important;
-  }
-  #sidebar .sb-logo{
-    padding:14px!important;
-  }
-  #sidebar .sb-logo-icon{
-    width:46px!important;
-    height:46px!important;
-  }
-  #sidebar .sb-foot{
-    padding:12px!important;
-  }
-  #sidebar .sb-foot button,
-  #sidebar .sb-foot a.btn{
-    min-height:48px!important;
-    font-size:13px!important;
-  }
-}
 
-@media (min-width:769px){
-  #sidebar{
-    width:260px!important;
-  }
-}
 
-/* ONEX REAL MOBILE DASHBOARD FIX */
-@media (max-width:640px){
-  body{overflow-x:hidden!important}
-  .main,.main.expanded{padding:66px 10px 20px!important;margin:0!important;width:100%!important}
-  .content,.container,.dashboard{width:100%!important;max-width:100%!important}
-  .topbar,.header{height:auto!important;min-height:54px!important;padding:8px 10px!important}
-  .metrics,.stats-grid,.cards-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-  .metric,.stat-card,.panel-card,.card{min-width:0!important;padding:12px!important}
-  .chart,.chart-card,.graph-card{width:100%!important;overflow:hidden!important}
-  .quick-actions,.actions-grid{grid-template-columns:1fr 1fr!important;gap:8px!important}
-  .quick-actions>*{min-height:58px!important}
-  table{font-size:11px!important}
-  .server-grid,.bottom-grid,.info-grid{grid-template-columns:1fr!important}
-  .panel-title{font-size:16px!important}
-  .card-title{font-size:13px!important}
-}
-@media(max-width:420px){
-  .metrics,.stats-grid,.cards-grid{grid-template-columns:1fr!important}
-  .quick-actions,.actions-grid{grid-template-columns:1fr!important}
-}
 
-/* ONEX MOBILE DASHBOARD - FINAL RESPONSIVE OVERRIDES */
-@media (max-width: 768px){
-  html,body{width:100%!important;min-width:0!important;overflow-x:hidden!important}
-  body{display:block!important;padding-bottom:env(safe-area-inset-bottom)!important}
-  .mob-bar{position:fixed!important;top:0;left:0;right:0;width:100%;height:58px!important;min-height:58px!important;padding:8px 10px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;background:color-mix(in srgb,var(--bg2) 88%,transparent)!important;border-bottom:1px solid var(--card-b)!important;backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important}
-  .mob-brand{display:flex!important;align-items:center!important}
-  .mob-brand-mark{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#0ea5e9,#2563eb,#7c3aed);color:#fff;font:900 17px Inter,sans-serif;box-shadow:0 8px 20px rgba(37,99,235,.28)}
-  #mobMenuBtn{width:42px!important;height:42px!important;min-height:42px!important;padding:0!important;border-radius:13px!important}
-  .main,.main.expanded{width:100%!important;max-width:100%!important;margin:0!important;padding:70px 10px 28px!important;min-width:0!important}
-  .onex-topbar{width:100%!important;min-width:0!important;min-height:48px!important;padding:8px 10px!important;border-radius:14px!important;gap:8px!important}
-  .top-server{min-width:0!important;flex:1!important;overflow:hidden!important}
-  .top-server b{font-size:11px!important}
-  .top-actions{flex-shrink:0!important}
-  .top-avatar{width:34px!important;height:34px!important}
-  .onex-control-dock{width:100%!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin-top:9px!important}
-  .onex-3d-control{min-width:0!important;min-height:54px!important;padding:8px!important;border-radius:13px!important}
-  .control-copy{min-width:0!important}
-  .control-title,.control-sub{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-  .dashboard-hero{width:100%!important;padding:14px!important;border-radius:16px!important;gap:12px!important}
-  .hero-title{font-size:21px!important;line-height:1.7!important}
-  .hero-sub{font-size:10px!important}
-  .hero-actions{width:100%!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important}
-  .hero-actions .btn{width:100%!important;min-height:44px!important}
-  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-  .metric{min-width:0!important;padding:12px!important;border-radius:15px!important}
-  .metric-label{font-size:10px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .metric-val{font-size:20px!important}
-  .g2{grid-template-columns:1fr!important;gap:9px!important}
-  .card{min-width:0!important;padding:14px!important;border-radius:16px!important;margin-bottom:9px!important}
-  .card-title{font-size:12px!important}
-  .page-head{gap:9px!important;margin-bottom:12px!important}
-  .page-title{font-size:17px!important}
-  .page-sub{font-size:10px!important}
-  .btn{min-height:44px!important;padding:9px 12px!important;font-size:11px!important}
-  input,select,textarea{max-width:100%!important;min-height:44px!important;font-size:16px!important}
-  .form-grid{grid-template-columns:1fr!important}
-  .table-wrap,.table-container,.recent-card .onex-card-body{width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important}
-  table{min-width:620px!important;font-size:11px!important}
-  .modal-bg{padding:10px!important}
-  .modal{width:min(100%,520px)!important;max-height:calc(100svh - 20px)!important;overflow:auto!important;padding:15px!important;border-radius:18px!important}
-  .bottom-bulk{padding:9px 10px!important;padding-bottom:calc(9px + env(safe-area-inset-bottom))!important}
-  .bottom-bulk-inner{display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important}
-  .bottom-bulk-inner #bulkCount{grid-column:1/-1}
-  .bottom-bulk select,.bottom-bulk .btn{width:100%!important;min-height:42px!important}
-}
-@media (max-width:420px){
-  .main,.main.expanded{padding-left:8px!important;padding-right:8px!important}
-  .onex-control-dock{grid-template-columns:1fr!important}
-  .onex-3d-control{min-height:46px!important}
-  .dashboard-hero{padding:12px!important}
-  .hero-title{font-size:19px!important}
-  .hero-actions{grid-template-columns:1fr!important}
-  .metrics{grid-template-columns:1fr!important}
-  .metric{padding:11px!important}
-  .card{padding:12px!important}
-}
-@media (max-width:360px){
-  .main,.main.expanded{padding-left:6px!important;padding-right:6px!important}
-  .onex-topbar{padding:7px!important}
-  .page-title{font-size:16px!important}
-}
 
-/* ==========================================================
-   ONEX RESPONSIVE V2 — REAL MOBILE DASHBOARD
-   ========================================================== */
-@media screen and (max-width: 768px){
-  html,body{width:100%!important;min-width:0!important;overflow-x:hidden!important}
-  body{display:block!important;min-height:100dvh!important}
-  .mob-bar{display:flex!important;position:fixed!important;inset:0 0 auto 0!important;width:100%!important;height:58px!important;padding:7px 9px!important;z-index:10002!important}
-  #mobMenuBtn{display:flex!important;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;padding:0!important;align-items:center!important;justify-content:center!important}
-  .main,.main.expanded{display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:70px 10px 30px!important}
-  #sidebar.sidebar{position:fixed!important;top:0!important;right:0!important;bottom:0!important;left:auto!important;width:min(300px,86vw)!important;max-width:86vw!important;height:100dvh!important;transform:translate3d(105%,0,0)!important;visibility:hidden!important;z-index:10001!important;overflow-y:auto!important;overflow-x:hidden!important}
-  #sidebar.sidebar.open{transform:translate3d(0,0,0)!important;visibility:visible!important}
-  #sidebar .sb-toggle{display:none!important}
-  #overlay{z-index:10000!important}
-  .onex-topbar{width:100%!important;max-width:none!important;min-height:48px!important;height:auto!important;padding:7px 9px!important;border-radius:13px!important}
-  .top-server{min-width:0!important;flex:1 1 auto!important;overflow:hidden!important}
-  .top-server small,.top-sep,.top-chip{display:none!important}
-  .top-actions{flex:0 0 auto!important}
-  .top-avatar{width:34px!important;height:34px!important}
-  .onex-control-dock{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;width:100%!important;gap:6px!important;margin:8px 0 12px!important}
-  .onex-3d-control{min-width:0!important;min-height:50px!important;padding:7px 6px!important;border-radius:12px!important}
-  .control-copy{min-width:0!important}
-  .control-title,.control-sub{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-  .control-title{font-size:10px!important}.control-sub{font-size:7px!important}
-  .dashboard-hero{display:flex!important;flex-direction:column!important;align-items:stretch!important;width:100%!important;margin:0 0 12px!important;padding:13px!important;border-radius:15px!important;gap:11px!important}
-  .hero-kicker{font-size:8px!important}.hero-title{font-size:20px!important;line-height:1.7!important}.hero-sub{font-size:10px!important}
-  .hero-actions{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%!important;gap:7px!important}
-  .hero-actions .btn{width:100%!important;min-height:44px!important}
-  .onex-metrics{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin-bottom:10px!important}
-  .onex-metric{min-width:0!important;min-height:105px!important;padding:12px!important;border-radius:15px!important}
-  .metric-icon{width:35px!important;height:35px!important;border-radius:11px!important}.metric-icon svg{width:18px!important;height:18px!important}
-  .onex-metric .metric-label{font-size:9px!important;margin-top:8px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
-  .onex-metric .metric-val{font-size:19px!important}
-  .dashboard-grid{display:grid!important;grid-template-columns:1fr!important;width:100%!important;gap:10px!important}
-  .dashboard-grid>div,.dashboard-grid-right{width:100%!important;min-width:0!important;display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
-  .onex-card,.telegram-card{width:100%!important;min-width:0!important;border-radius:16px!important}
-  .onex-card-head{padding:12px 13px!important;gap:7px!important}.onex-card-body{padding:12px 13px!important}
-  .onex-card-title{font-size:11px!important}
-  .chart-wrap{height:190px!important;min-height:190px!important;overflow:hidden!important}
-  .chart-badge{top:10px!important;right:10px!important;font-size:8px!important}
-  .chart-labels{font-size:7px!important;padding:0 6px!important}
-  .range-mini{gap:2px!important}.range-mini button{font-size:8px!important;padding:5px 6px!important}
-  .quick-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important}
-  .quick-item{min-width:0!important;padding:10px!important;border-radius:12px!important;gap:7px!important}
-  .quick-icon{width:32px!important;height:32px!important;min-width:32px!important;border-radius:10px!important}
-  .quick-name{font-size:9px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}.quick-desc{font-size:7px!important}
-  .recent-card .onex-card-body{overflow-x:auto!important;padding:0!important;-webkit-overflow-scrolling:touch!important}
-  .recent-table{min-width:560px!important;font-size:9px!important}
-  .recent-table th,.recent-table td{padding:8px 9px!important}
-  .health-row{grid-template-columns:30px minmax(0,1fr) 36px!important;gap:7px!important}.health-icon{width:30px!important;height:30px!important;font-size:8px!important}.health-name{font-size:9px!important}.health-pct{font-size:8px!important}
-  .telegram-card{min-height:260px!important;padding:14px!important}.tg-orbit{width:92px!important;height:92px!important}.tg-logo{width:54px!important;height:54px!important}.tg-logo svg{width:27px!important;height:27px!important}.tg-handle{font-size:18px!important}.tg-btn{margin-top:12px!important}
-  .server-info{gap:7px!important}.info-row{font-size:9px!important;padding-bottom:7px!important}
-  .onex-footer{display:block!important;text-align:center!important;line-height:1.9!important;padding:10px 2px 20px!important;font-size:8px!important}
-  .page-head{display:flex!important;align-items:flex-start!important;gap:9px!important;margin-bottom:12px!important}.page-title{font-size:16px!important}.page-sub{font-size:9px!important}
-  .btn{min-height:44px!important;padding:9px 11px!important;font-size:10px!important;white-space:nowrap!important}
-  input,select,textarea{width:100%!important;max-width:100%!important;min-height:44px!important;font-size:16px!important}
-  .form-row,.form-grid{display:grid!important;grid-template-columns:1fr!important;gap:9px!important}
-  .table-wrap,.table-container{width:100%!important;max-width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch!important}
-  table{min-width:620px!important}
-  .modal-bg{padding:8px!important}.modal{width:100%!important;max-width:520px!important;max-height:calc(100dvh - 16px)!important;overflow:auto!important;border-radius:16px!important}
-}
-@media screen and (max-width:420px){
-  .main,.main.expanded{padding-left:7px!important;padding-right:7px!important}
-  .onex-control-dock{grid-template-columns:1fr!important}
-  .onex-3d-control{min-height:44px!important}
-  .hero-actions{grid-template-columns:1fr!important}
-  .onex-metrics{grid-template-columns:1fr!important}
-  .onex-metric{min-height:94px!important}
-  .quick-grid{grid-template-columns:1fr!important}
-  .dashboard-grid-right{grid-template-columns:1fr!important}
-  .chart-wrap{height:175px!important;min-height:175px!important}
-}
-@media screen and (max-width:360px){
-  .main,.main.expanded{padding-left:5px!important;padding-right:5px!important}
-  .login-card{padding-left:10px!important;padding-right:10px!important}
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 </style>
 </head>
 <body>
 
-<div class="mob-bar">
-  <div class="mob-brand"><span class="mob-brand-mark">N</span></div>
-  <button class="btn btn-sm" id="mobMenuBtn" aria-label="menu">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-  </button>
-</div>
-<div class="overlay" id="overlay"></div>
-
 <aside class="sidebar" id="sidebar">
-  <button type="button" id="mobileDrawerClose" aria-label="بستن منو" style="display:none">×</button>
   <button class="sb-toggle" id="sbToggle" title="Toggle">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
@@ -7671,28 +7234,9 @@ document.getElementById('sbToggle').onclick=()=>{
   localStorage.setItem('sb_c',sb.classList.contains('collapsed')?'1':'0');
 };
 if(localStorage.getItem('sb_c')==='1'){sb.classList.add('collapsed');main.classList.add('expanded')}
-function openMobileMenu(){
-  sb.classList.add('open');
-  sb.classList.remove('collapsed');
-  document.getElementById('overlay').classList.add('show');
-  document.body.classList.add('menu-open');
-}
-function closeMobileMenu(){
-  sb.classList.remove('open');
-  document.getElementById('overlay').classList.remove('show');
-  document.body.classList.remove('menu-open');
-}
-document.getElementById('mobMenuBtn').onclick=openMobileMenu;
-document.getElementById('overlay').onclick=closeMobileMenu;
-const mobileDrawerClose=document.getElementById('mobileDrawerClose');
-if(mobileDrawerClose) mobileDrawerClose.onclick=closeMobileMenu;
-window.addEventListener('resize',()=>{if(window.innerWidth>900) closeMobileMenu()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape') closeMobileMenu()});
-
 function goPage(name){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on',n.dataset.page===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-'+name));
-  closeMobileMenu();
   window.scrollTo({top:0,behavior:'smooth'});
   if(name==='logs')loadLogs();
   if(name==='configs'||name==='dash'||name==='stats')refreshAll();

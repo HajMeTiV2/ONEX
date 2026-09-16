@@ -241,8 +241,8 @@ PROTOCOL_LABELS = {
     "hysteria2": "Hysteria 2",
     "tuic": "TUIC",
     "wireguard": "WireGuard",
-    "highspeed-demo": "HighSpeed Upload/Download (دمو)",
-    "gaming-lite-demo": "Gaming Lite (دمو)",
+    "highspeed-demo": "HIGHSped",
+    "gaming-lite-demo": "Gaming Pro",
 }
 
 PROTOCOL_ALIASES = {
@@ -8824,7 +8824,7 @@ const PROTOCOL_PICKER_GROUPS=[
   {title:'VMess',ids:['vmess-ws']},
   {title:'Proxy',ids:['trojan-ws','shadowsocks','socks5','http','hysteria2']},
   {title:'VPN / Tunnel',ids:['tuic','wireguard']},
-  {title:'Demo',ids:['highspeed-demo','gaming-lite-demo']}
+  {title:'NEW',ids:['highspeed-demo','gaming-lite-demo']}
 ];
 let __protocolPickerTarget='';
 let __protocolPickerOptions=[];
@@ -8895,18 +8895,57 @@ document.addEventListener('click',function(e){
 },true);
 
 
-/* Protocol Picker V3: self-contained and intentionally overrides every older picker implementation. */
+
+/* 3D animated protocol icon system */
+.protocol-option-icon{width:48px;height:48px;display:grid;place-items:center;position:relative;margin-bottom:6px;perspective:120px}
+.protocol-3d-icon{width:46px;height:46px;display:grid;place-items:center;position:relative;transform-style:preserve-3d;animation:p3dFloat 3.2s ease-in-out infinite;filter:drop-shadow(0 8px 12px rgba(37,99,235,.30))}
+.protocol-3d-icon svg{width:42px;height:42px;overflow:visible;transform:translateZ(8px);filter:drop-shadow(0 0 7px rgba(34,211,238,.34))}
+.protocol-3d-icon .p3d-orbit{position:absolute;width:40px;height:17px;border:1px solid rgba(56,189,248,.45);border-radius:50%;transform:rotate(-18deg) rotateX(62deg) translateZ(2px);box-shadow:0 0 12px rgba(59,130,246,.25);animation:p3dOrbit 2.8s linear infinite}
+.protocol-3d-icon .p3d-orbit:after{content:'';position:absolute;width:5px;height:5px;border-radius:50%;background:#67e8f9;box-shadow:0 0 10px #22d3ee;left:4px;top:5px}
+.protocol-3d-icon.layers{animation-duration:3.6s}.protocol-3d-icon.layers svg{animation:p3dTilt 2.7s ease-in-out infinite}
+.protocol-3d-icon.bolt{animation:p3dPulse 2.1s ease-in-out infinite}.protocol-3d-icon.shield{animation-duration:3.8s}.protocol-3d-icon.ring svg{animation:p3dSpin 5s linear infinite}.protocol-3d-icon.spiral svg{animation:p3dSpinReverse 5.5s linear infinite}.protocol-3d-icon.flame{animation:p3dFire 1.8s ease-in-out infinite}.protocol-3d-icon.game{animation:p3dGame 2.4s ease-in-out infinite}
+.protocol-3d-icon.pink svg{filter:drop-shadow(0 0 10px rgba(244,114,182,.55))}.protocol-3d-icon.purple svg{filter:drop-shadow(0 0 10px rgba(168,85,247,.55))}.protocol-3d-icon.cyan svg{filter:drop-shadow(0 0 10px rgba(34,211,238,.55))}
+.protocol-option.selected .protocol-3d-icon{filter:drop-shadow(0 0 15px rgba(59,130,246,.72)) drop-shadow(0 8px 10px rgba(0,0,0,.25));animation-duration:2.2s}
+.protocol-section-new .protocol-section-title{color:#c084fc}.protocol-section-title em{font-style:normal;font-size:8px;margin-inline-start:6px;padding:3px 6px;border-radius:999px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;box-shadow:0 0 12px rgba(99,102,241,.35)}
+.selected-mini-icon .protocol-3d-icon{width:22px;height:22px;display:inline-grid;vertical-align:middle}.selected-mini-icon .protocol-3d-icon svg{width:20px;height:20px}.selected-mini-icon .protocol-3d-icon .p3d-orbit{display:none}
+@keyframes p3dFloat{0%,100%{transform:translateY(0) rotateY(-4deg)}50%{transform:translateY(-4px) rotateY(5deg)}}
+@keyframes p3dOrbit{to{transform:rotate(342deg) rotateX(62deg)}}
+@keyframes p3dTilt{0%,100%{transform:translateZ(8px) rotateY(-5deg)}50%{transform:translateZ(8px) rotateY(7deg)}}
+@keyframes p3dPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes p3dSpin{to{transform:rotateZ(360deg)}}
+@keyframes p3dSpinReverse{to{transform:rotateZ(-360deg)}}
+@keyframes p3dFire{0%,100%{transform:translateY(1px) scale(.98)}50%{transform:translateY(-4px) scale(1.04)}}
+@keyframes p3dGame{0%,100%{transform:rotateY(-6deg) translateY(0)}50%{transform:rotateY(6deg) translateY(-3px)}}
+@media(prefers-reduced-motion:reduce){.protocol-3d-icon,.protocol-3d-icon svg,.protocol-3d-icon .p3d-orbit{animation:none!important}}
+
+/* Protocol Picker V4 — 3D animated protocol cards + NEW section. */
 (function(){
-  const ICON={"vless-ws":"🚀","xhttp-packet-up":"▰","xhttp-stream-up":"⚡","xhttp-stream-one":"🛡️","vmess-ws":"🚀","trojan-ws":"🚀","shadowsocks":"◉","socks5":"◉","http":"🛡️","hysteria2":"🌀","tuic":"🔥","wireguard":"🛡️","highspeed-demo":"⚡","gaming-lite-demo":"🎮"};
+  const ICON={
+    'vless-ws':'<span class="protocol-3d-icon rocket"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="gRocket" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#22d3ee"/><stop offset=".55" stop-color="#3b82f6"/><stop offset="1" stop-color="#a855f7"/></linearGradient></defs><path fill="url(#gRocket)" d="M45 7C34 9 24 16 19 27l-3 8 13 13 8-3C48 40 55 30 57 19l-2-10-10-2z"/><circle cx="41" cy="23" r="5" fill="#fff" opacity=".9"/><path fill="#ff6b9d" d="M22 39 9 44l7 3-3 8 14-9z"/><path fill="#22d3ee" d="M29 51 24 63l9-6 5 3 1-14z"/></svg></span>',
+    'xhttp-packet-up':'<span class="protocol-3d-icon layers"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gLayer" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d946ef"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path fill="url(#gLayer)" d="m32 8 23 12-23 12L9 20z"/><path fill="#9333ea" d="m9 29 23 12 23-12v9L32 50 9 38z"/><path fill="#c026d3" d="m9 43 23 12 23-12v9L32 64 9 52z"/></svg></span>',
+    'xhttp-stream-up':'<span class="protocol-3d-icon bolt"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gBolt" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#67e8f9"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs><circle cx="32" cy="32" r="22" fill="url(#gBolt)" opacity=".9"/><path fill="#fff" d="m36 8-18 27h12l-3 21 19-29H34z"/></svg></span>',
+    'xhttp-stream-one':'<span class="protocol-3d-icon shield"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gShield" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5eead4"/><stop offset="1" stop-color="#10b981"/></linearGradient></defs><path fill="url(#gShield)" d="M32 5 52 12v17c0 14-9 24-20 30C21 53 12 43 12 29V12z"/><path fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="m22 32 7 7 14-16"/></svg></span>',
+    'vmess-ws':'<span class="protocol-3d-icon rocket cyan"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><path fill="#38bdf8" d="M45 7C34 9 24 16 19 27l-3 8 13 13 8-3C48 40 55 30 57 19l-2-10-10-2z"/><circle cx="41" cy="23" r="5" fill="#fff"/><path fill="#22d3ee" d="M22 39 9 44l7 3-3 8 14-9z"/><path fill="#a855f7" d="M29 51 24 63l9-6 5 3 1-14z"/></svg></span>',
+    'trojan-ws':'<span class="protocol-3d-icon rocket pink"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><path fill="#f472b6" d="M45 7C34 9 24 16 19 27l-3 8 13 13 8-3C48 40 55 30 57 19l-2-10-10-2z"/><circle cx="41" cy="23" r="5" fill="#fff"/><path fill="#fb7185" d="M22 39 9 44l7 3-3 8 14-9z"/><path fill="#c084fc" d="M29 51 24 63l9-6 5 3 1-14z"/></svg></span>',
+    'shadowsocks':'<span class="protocol-3d-icon ring"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gRing" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><circle cx="32" cy="32" r="21" fill="none" stroke="url(#gRing)" stroke-width="8"/><ellipse cx="32" cy="32" rx="12" ry="21" fill="none" stroke="#e9d5ff" stroke-width="3" opacity=".75"/><path d="M10 32h44" stroke="#fff" stroke-width="3" opacity=".55"/></svg></span>',
+    'socks5':'<span class="protocol-3d-icon ring cyan"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="23" fill="#0891b2" opacity=".8"/><path d="M18 32h28M32 18v28" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="32" r="10" fill="none" stroke="#67e8f9" stroke-width="5"/></svg></span>',
+    'http':'<span class="protocol-3d-icon shield blue"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><path fill="#38bdf8" d="M32 6 53 14v16c0 13-9 23-21 28C20 53 11 43 11 30V14z"/><path fill="none" stroke="#fff" stroke-width="5" d="M22 32h20M32 22v20"/></svg></span>',
+    'hysteria2':'<span class="protocol-3d-icon spiral"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gSpiral" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e879f9"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path d="M48 17C37 5 18 9 13 23c-5 15 8 30 24 28 15-2 20-20 10-30-9-9-25-6-28 5-3 10 7 19 17 16 8-2 11-12 5-17" fill="none" stroke="url(#gSpiral)" stroke-width="8" stroke-linecap="round"/></svg></span>',
+    'tuic':'<span class="protocol-3d-icon flame"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gFire" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#5eead4"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs><path fill="url(#gFire)" d="M36 5c2 13-8 16-5 25 2 6 8 5 10-1 8 7 10 17 5 25-6 10-25 9-31-2-6-11 2-22 10-29 0 9 5 11 8 6 3-6-1-13 3-24z"/><path fill="#fff" opacity=".65" d="M31 35c-5 5-7 10-4 14 3 4 10 3 12-2 2-4-2-9-8-12z"/></svg></span>',
+    'wireguard':'<span class="protocol-3d-icon shield purple"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gWire" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path fill="url(#gWire)" d="M32 5 52 12v17c0 14-9 24-20 30C21 53 12 43 12 29V12z"/><path fill="none" stroke="#fff" stroke-width="4" d="M22 33h20M32 23v20"/></svg></span>',
+    'highspeed-demo':'<span class="protocol-3d-icon bolt pink"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="23" fill="#8b5cf6" opacity=".82"/><path fill="#fff" d="m37 6-21 30h13l-3 22 22-32H35z"/></svg></span>',
+    'gaming-lite-demo':'<span class="protocol-3d-icon game"><span class="p3d-orbit"></span><svg viewBox="0 0 64 64"><defs><linearGradient id="gGame" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><path fill="url(#gGame)" d="M13 22c5-8 15-8 19-3 4-5 14-5 19 3l7 18c3 9-8 15-14 7l-6-8H26l-6 8c-6 8-17 2-14-7z"/><path stroke="#fff" stroke-width="4" stroke-linecap="round" d="M22 28v12M16 34h12"/><circle cx="45" cy="31" r="3" fill="#fff"/><circle cx="51" cy="37" r="3" fill="#fff"/></svg></span>'
+  };
   const GROUPS=[
-    ["VLESS",["vless-ws","xhttp-packet-up","xhttp-stream-up","xhttp-stream-one"]],
-    ["VMess",["vmess-ws"]],
-    ["Proxy",["trojan-ws","shadowsocks","socks5","http","hysteria2"]],
-    ["VPN / Tunnel",["tuic","wireguard"]],
-    ["Demo",["highspeed-demo","gaming-lite-demo"]]
+    ['VLESS',['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']],
+    ['VMess',['vmess-ws']],
+    ['Proxy',['trojan-ws','shadowsocks','socks5','http','hysteria2']],
+    ['VPN / Tunnel',['tuic','wireguard']],
+    ['NEW',['highspeed-demo','gaming-lite-demo']]
   ];
   let target=null;
-  const labels={"vless-ws":"VLESS WebSocket","xhttp-packet-up":"XHTTP Packet Up","xhttp-stream-up":"XHTTP Stream Up","xhttp-stream-one":"XHTTP Stream One","vmess-ws":"VMess WebSocket","trojan-ws":"Trojan WebSocket","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria 2","tuic":"TUIC","wireguard":"WireGuard","highspeed-demo":"HighSpeed Upload/Download","gaming-lite-demo":"Gaming Lite"};
+  const labels={'vless-ws':'Gaming Pro','xhttp-packet-up':'XHTTP','xhttp-stream-up':'HIGHSped','xhttp-stream-one':'XHTTP Stream One','vmess-ws':'VMess WebSocket','trojan-ws':'Trojan WebSocket','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria 2','tuic':'TUIC','wireguard':'WireGuard','highspeed-demo':'HIGHSped','gaming-lite-demo':'Gaming Pro'};
+  const desc={'vless-ws':'VLESS WebSocket','xhttp-packet-up':'VLESS XHTTP (Packet Up)','xhttp-stream-up':'VLESS XHTTP (Stream Up)','xhttp-stream-one':'VLESS XHTTP (Stream One)','vmess-ws':'VMess WebSocket','trojan-ws':'Trojan WebSocket','shadowsocks':'Secure Proxy','socks5':'SOCKS5 Proxy','http':'HTTP Proxy','hysteria2':'Hysteria 2','tuic':'TUIC Tunnel','wireguard':'WireGuard VPN','highspeed-demo':'High Speed','gaming-lite-demo':'Gaming Mode'};
   function ensure(){
     let bg=document.getElementById('protocolPickerBg');
     if(bg)return bg;
@@ -8923,22 +8962,22 @@ document.addEventListener('click',function(e){
   }
   function sync(id){
     const s=document.getElementById(id), b=document.querySelector('.protocol-trigger[data-for="'+id+'"]'); if(!s||!b)return;
-    const v=s.value||'vless-ws'; b.querySelector('.protocol-trigger-icon').textContent=ICON[v]||'◉'; b.querySelector('.protocol-trigger-name').textContent=labels[v]||v;
+    const v=s.value||'vless-ws'; const icon=b.querySelector('.protocol-trigger-icon'); const name=b.querySelector('.protocol-trigger-name');
+    if(icon)icon.innerHTML=ICON[v]||'◉'; if(name)name.textContent=labels[v]||v;
   }
   window.openProtocolPicker=function(id){
     const s=document.getElementById(id); if(!s)return;
     target=id; const bg=ensure(), scroll=bg.querySelector('#protocolPickerScroll'), current=s.value||'vless-ws';
-    const valid=new Set([...s.options].map(o=>o.value));
-    let html='';
-    GROUPS.forEach(([title,ids])=>{
+    const valid=new Set([...s.options].map(o=>o.value)); let html='';
+    GROUPS.forEach(([title,ids],gi)=>{
       const items=ids.filter(x=>valid.has(x)); if(!items.length)return;
-      html+='<section class="protocol-section"><div class="protocol-section-title"><span>'+title+'</span><b>⌁</b></div><div class="protocol-grid">';
-      items.forEach(v=>{html+='<button type="button" class="protocol-option '+(v===current?'selected':'')+'" data-proto="'+v+'"><span class="protocol-option-radio"></span><span class="protocol-option-icon">'+(ICON[v]||'◉')+'</span><span class="protocol-option-name">'+(labels[v]||v)+'</span><span class="protocol-option-desc">'+(v===current?'انتخاب‌شده':'برای انتخاب کلیک کنید')+'</span></button>';});
+      html+='<section class="protocol-section '+(gi===4?'protocol-section-new':'')+'"><div class="protocol-section-title"><span>'+title+(gi===4?' <em>NEW</em>':'')+'</span><b>⌁</b></div><div class="protocol-grid">';
+      items.forEach(v=>{html+='<button type="button" class="protocol-option '+(v===current?'selected':'')+'" data-proto="'+v+'"><span class="protocol-option-radio"></span><span class="protocol-option-icon">'+(ICON[v]||'◉')+'</span><span class="protocol-option-name">'+(labels[v]||v)+'</span><span class="protocol-option-desc">'+(desc[v]||v)+'</span></button>';});
       html+='</div></section>';
     });
     scroll.innerHTML=html;
-    scroll.querySelectorAll('.protocol-option').forEach(b=>b.addEventListener('click',()=>{s.value=b.dataset.proto;scroll.querySelectorAll('.protocol-option').forEach(x=>x.classList.toggle('selected',x===b));bg.querySelector('#protocolSelectedInfo').textContent='پروتکل انتخاب‌شده: '+(labels[s.value]||s.value);sync(id);}));
-    bg.querySelector('#protocolSelectedInfo').textContent='پروتکل انتخاب‌شده: '+(labels[current]||current);
+    scroll.querySelectorAll('.protocol-option').forEach(b=>b.addEventListener('click',()=>{s.value=b.dataset.proto;scroll.querySelectorAll('.protocol-option').forEach(x=>x.classList.toggle('selected',x===b));bg.querySelector('#protocolSelectedInfo').innerHTML='<span class="selected-mini-icon">'+(ICON[s.value]||'◉')+'</span> پروتکل انتخاب‌شده: '+(labels[s.value]||s.value);sync(id);}));
+    bg.querySelector('#protocolSelectedInfo').innerHTML='<span class="selected-mini-icon">'+(ICON[current]||'◉')+'</span> پروتکل انتخاب‌شده: '+(labels[current]||current);
     bg.classList.add('open'); document.body.style.overflow='hidden';
   };
   function close(){const bg=document.getElementById('protocolPickerBg');if(bg)bg.classList.remove('open');document.body.style.overflow='';target=null;}

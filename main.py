@@ -2210,6 +2210,58 @@ table th:first-child, table td:first-child{overflow:visible}
  -webkit-backdrop-filter:blur(14px);
 }
 
+
+/* === ONEX MOBILE RESPONSIVE DRAWER FIX === */
+@media(max-width:900px){
+  body{overflow-x:hidden!important}
+  .sidebar{
+    position:fixed!important;
+    top:0!important;
+    right:0!important;
+    width:min(92vw,420px)!important;
+    height:100dvh!important;
+    margin:0!important;
+    border-radius:0 0 0 28px!important;
+    transform:translateX(110%)!important;
+    transition:transform .35s ease,backdrop-filter .35s ease!important;
+    backdrop-filter:blur(24px)!important;
+    -webkit-backdrop-filter:blur(24px)!important;
+    z-index:9999!important;
+    overflow-y:auto!important;
+  }
+  .sidebar.open{
+    transform:translateX(0)!important;
+  }
+  .overlay{
+    position:fixed!important;
+    inset:0!important;
+    background:rgba(0,0,0,.55)!important;
+    backdrop-filter:blur(8px)!important;
+    z-index:9998!important;
+  }
+  .nav-item{
+    min-height:56px!important;
+    font-size:16px!important;
+  }
+  .mob-bar{
+    display:flex!important;
+    position:fixed!important;
+    top:0!important;
+    right:0!important;
+    left:0!important;
+    z-index:9000!important;
+  }
+  .main,.main.expanded{
+    margin-right:0!important;
+    padding-top:80px!important;
+    width:100%!important;
+  }
+  .dashboard,.container,.shell,.content{
+    width:100%!important;
+    max-width:100%!important;
+  }
+}
+
 </style>
 </head>
 

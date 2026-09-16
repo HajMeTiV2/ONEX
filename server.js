@@ -10,9 +10,12 @@ const os = require('os');
 const { spawn, exec } = require('child_process');
 const http = require('http');
 const { WebSocketServer } = require('ws');
+const httpProxy = require('http-proxy');
 
 const app = express();
 const server = http.createServer(app);
+const proxy = httpProxy.createProxyServer({ ws: true });
+
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 
@@ -20,19 +23,22 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// راه‌اندازی وب‌سکت سرور روی همان پورت رایلی برای پاسخ به پینگ و تونل پروکسی
+// راه‌اندازی پروکسی وب‌سکت برای اتصال کلاینت‌ها به هسته داخلی Xray جهت برقراری پینگ
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (ws, req) => {
   const urlPath = req.url || '';
-  console.log(`[PROXY TUNNEL] اتصال وب‌سکت جدید روی مسیر: ${urlPath}`);
+  let targetPort = 8081; // پورت پیش‌فرض VLESS-WS
   
-  ws.on('message', (message) => {
-    // مدیریت ترافیک پروکسی دریافتی از کلاینت (V2RayNG)
-  });
+  if (urlPath.includes('vmess')) targetPort = 8082;
+  else if (urlPath.includes('trojan')) targetPort = 8083;
+  else if (urlPath.includes('xhttp')) targetPort = 8084;
+  else if (urlPath.includes('grpc')) targetPort = 8085;
 
-  ws.on('close', () => {
-    // بسته شدن اتصال پروکسی
+  proxy.ws(req, ws, { target: `ws://127.0.0.1:${targetPort}` }, (err) => {
+    if (err) {
+      ws.close();
+    }
   });
 });
 
@@ -166,6 +172,43 @@ function startCoreEngine() {
   });
 }
 
+function syncUserTrafficFromCore() {
+  const binPath = path.join(__dirname, 'xray-bin', 'xray');
+  if (!fs.existsSync(binPath)) return;
+  exec(`${binPath} api statsquery -server 127.0.0.1:10085 -reset true`, (error, stdout) => {
+    if (error || !stdout) return;
+    try {
+      const statsObj = JSON.parse(stdout);
+      if (!statsObj.stat || !Array.isArray(statsObj.stat)) return;
+      statsObj.stat.forEach(item => {
+        const parts = item.name.split('>>>');
+        if (parts[0] === 'user' && parts[2] === 'traffic') {
+          const uuid = parts[1];
+          const direction = parts[3];
+          const bytes = parseInt(item.value, 10) || 0;
+          if (bytes > 0) {
+            const addedGb = bytes / (1024 * 1024 * 1024);
+            const column = direction === 'downlink' ? 'downlink_bytes' : 'uplink_bytes';
+            db.get('SELECT id, status, expire_days FROM configs WHERE uuid = ?', [uuid], (err, cfg) => {
+              if (cfg) {
+                if (cfg.status === 'pending') {
+                  const exp = new Date();
+                  exp.setDate(exp.getDate() + cfg.expire_days);
+                  db.run('UPDATE configs SET status = "active", expire_date = ? WHERE id = ?', [exp.toISOString(), cfg.id]);
+                }
+                db.run(`UPDATE configs SET used_gb = used_gb + ?, ${column} = ${column} + ? WHERE uuid = ?`, [addedGb, bytes, uuid]);
+              }
+            });
+          }
+        }
+      });
+    } catch (e) {}
+  });
+}
+
+setInterval(syncUserTrafficFromCore, 10000);
+startCoreEngine();
+
 // ساخت لینک‌های کامل با دامنه رایلی و تگ اختصاصی شما
 function buildLinks(cfg, defaultHost, customDomain, cleanIp) {
   const remark = `NEXO-${cfg.name} | @V2rayTun0`;
@@ -188,6 +231,7 @@ function auth(req, res, next) {
   res.redirect('/login');
 }
 
+app.use(express.static(path.join(__dirname, 'views')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'views', 'login.html')));
 app.get('/', auth, (req, res) => res.sendFile(path.join(__dirname, 'views', 'dashboard.html')));
 app.get('/subpage/:id', (req, res) => res.sendFile(path.join(__dirname, 'views', 'sub_client.html')));
@@ -310,7 +354,6 @@ app.get('/sub/:id', (req, res) => {
   });
 });
 
-// استفاده از server.listen به جای app.listen برای فعال‌سازی وب‌سکت
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[ONEX Enterprise] Running on port ${PORT} with WebSocket Tunnel`);
+  console.log(`[ONEX Enterprise] Running on port ${PORT} with Full Proxy Core Tunnel`);
 });

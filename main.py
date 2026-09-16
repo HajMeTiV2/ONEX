@@ -2171,6 +2171,27 @@ html.light .protocol-picker{background:linear-gradient(145deg,#fff,#f7fbff);bord
 }
 
 
+
+/* FINAL OVERRIDE - protocol fields are NEVER native dropdowns */
+#page-create .protocol-field > select#cProto,
+#page-create .protocol-field > select#aProto {
+  display:none !important;
+  visibility:hidden !important;
+  width:0 !important; height:0 !important;
+  opacity:0 !important; pointer-events:none !important;
+}
+#page-create .protocol-field > button.protocol-trigger {
+  display:flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  width:100% !important;
+  min-height:46px !important;
+  position:relative !important;
+  z-index:30 !important;
+  cursor:pointer !important;
+}
+.protocol-picker-bg { z-index:99999 !important; }
+.protocol-picker-bg.open { display:flex !important; visibility:visible !important; opacity:1 !important; }
 </style>
 </head>
 
@@ -7882,7 +7903,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
           </button>
         </div>
       </div>
-            <div class="field protocol-field"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="cProto" onclick="openProtocolPicker('cProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر، انتخاب کنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
+            <div class="field protocol-field" data-protocol-picker="cProto"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="cProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('cProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
       <div class="field"><label>گروه</label><select id="cGroup"></select></div>
 <div class="form-row">
         <div class="field"><label data-i18n="label_count">تعداد کانفیگ در ساب (۱–۴۰)</label><input id="cCount" type="number" value="1" min="1" max="40"></div>
@@ -7904,7 +7925,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
     <div class="card" style="border-color:rgba(139,92,246,.35)">
       <div class="card-title" data-i18n="auto_create">ساخت خودکـار (پیشنهــادی)</div>
       <p style="color:var(--t2);font-size:13px;line-height:1.75;margin-bottom:14px" data-i18n="auto_desc">با یک کلیک کانفیگ بهینه ساخته می‌شود. بعد از ساخت لینک VLESS و ساب در اختیار شماست.</p>
-      <div class="field protocol-field"><label data-i18n="label_proto">پروتکـل</label><select id="aProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="aProto" onclick="openProtocolPicker('aProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر، انتخاب کنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
+      <div class="field protocol-field" data-protocol-picker="aProto"><label data-i18n="label_proto">پروتکـل</label><select id="aProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="aProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('aProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
       <div class="field"><label data-i18n="label_count">تعداد کانفیگ در سـاب (1-40)</label><input id="aCount" type="number" value="1" min="1" max="40"></div>
       <button class="btn btn-p" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="doAutoCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2"/></svg>
@@ -8866,6 +8887,65 @@ function confirmProtocolPicker(){
 }
 function closeProtocolPicker(){const bg=document.getElementById('protocolPickerBg');if(bg)bg.classList.remove('open');document.body.style.overflow=''}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
+// Direct click fallback: guarantees both protocol fields open the custom picker.
+document.addEventListener('click',function(e){
+  const btn=e.target.closest && e.target.closest('.protocol-trigger[data-for]');
+  if(btn){ e.preventDefault(); e.stopPropagation(); openProtocolPicker(btn.getAttribute('data-for')); }
+},true);
+
+
+/* Protocol Picker V3: self-contained and intentionally overrides every older picker implementation. */
+(function(){
+  const ICON={"vless-ws":"🚀","xhttp-packet-up":"▰","xhttp-stream-up":"⚡","xhttp-stream-one":"🛡️","vmess-ws":"🚀","trojan-ws":"🚀","shadowsocks":"◉","socks5":"◉","http":"🛡️","hysteria2":"🌀","tuic":"🔥","wireguard":"🛡️","highspeed-demo":"⚡","gaming-lite-demo":"🎮"};
+  const GROUPS=[
+    ["VLESS",["vless-ws","xhttp-packet-up","xhttp-stream-up","xhttp-stream-one"]],
+    ["VMess",["vmess-ws"]],
+    ["Proxy",["trojan-ws","shadowsocks","socks5","http","hysteria2"]],
+    ["VPN / Tunnel",["tuic","wireguard"]],
+    ["Demo",["highspeed-demo","gaming-lite-demo"]]
+  ];
+  let target=null;
+  const labels={"vless-ws":"VLESS WebSocket","xhttp-packet-up":"XHTTP Packet Up","xhttp-stream-up":"XHTTP Stream Up","xhttp-stream-one":"XHTTP Stream One","vmess-ws":"VMess WebSocket","trojan-ws":"Trojan WebSocket","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria 2","tuic":"TUIC","wireguard":"WireGuard","highspeed-demo":"HighSpeed Upload/Download","gaming-lite-demo":"Gaming Lite"};
+  function ensure(){
+    let bg=document.getElementById('protocolPickerBg');
+    if(bg)return bg;
+    bg=document.createElement('div'); bg.id='protocolPickerBg'; bg.className='protocol-picker-bg';
+    bg.innerHTML='<div class="protocol-picker" role="dialog" aria-modal="true">'+
+      '<div class="protocol-picker-head"><div class="protocol-picker-head-icon">✦</div><div class="protocol-picker-head-text"><div class="protocol-picker-title">انتخاب پروتکل</div><div class="protocol-picker-subtitle">پروتکل موردنظر را انتخاب کنید</div></div><button type="button" class="protocol-picker-close" id="protocolPickerClose">×</button></div>'+
+      '<div class="protocol-picker-scroll" id="protocolPickerScroll"></div>'+
+      '<div class="protocol-picker-foot"><div class="protocol-selected-info" id="protocolSelectedInfo">—</div><button type="button" class="protocol-picker-confirm" id="protocolPickerConfirm">تأیید و ادامه →</button></div></div>';
+    document.body.appendChild(bg);
+    bg.addEventListener('click',e=>{if(e.target===bg)close();});
+    bg.querySelector('#protocolPickerClose').addEventListener('click',close);
+    bg.querySelector('#protocolPickerConfirm').addEventListener('click',()=>{if(target){const s=document.getElementById(target);if(s){s.dispatchEvent(new Event('change',{bubbles:true}));sync(target);}}close();});
+    return bg;
+  }
+  function sync(id){
+    const s=document.getElementById(id), b=document.querySelector('.protocol-trigger[data-for="'+id+'"]'); if(!s||!b)return;
+    const v=s.value||'vless-ws'; b.querySelector('.protocol-trigger-icon').textContent=ICON[v]||'◉'; b.querySelector('.protocol-trigger-name').textContent=labels[v]||v;
+  }
+  window.openProtocolPicker=function(id){
+    const s=document.getElementById(id); if(!s)return;
+    target=id; const bg=ensure(), scroll=bg.querySelector('#protocolPickerScroll'), current=s.value||'vless-ws';
+    const valid=new Set([...s.options].map(o=>o.value));
+    let html='';
+    GROUPS.forEach(([title,ids])=>{
+      const items=ids.filter(x=>valid.has(x)); if(!items.length)return;
+      html+='<section class="protocol-section"><div class="protocol-section-title"><span>'+title+'</span><b>⌁</b></div><div class="protocol-grid">';
+      items.forEach(v=>{html+='<button type="button" class="protocol-option '+(v===current?'selected':'')+'" data-proto="'+v+'"><span class="protocol-option-radio"></span><span class="protocol-option-icon">'+(ICON[v]||'◉')+'</span><span class="protocol-option-name">'+(labels[v]||v)+'</span><span class="protocol-option-desc">'+(v===current?'انتخاب‌شده':'برای انتخاب کلیک کنید')+'</span></button>';});
+      html+='</div></section>';
+    });
+    scroll.innerHTML=html;
+    scroll.querySelectorAll('.protocol-option').forEach(b=>b.addEventListener('click',()=>{s.value=b.dataset.proto;scroll.querySelectorAll('.protocol-option').forEach(x=>x.classList.toggle('selected',x===b));bg.querySelector('#protocolSelectedInfo').textContent='پروتکل انتخاب‌شده: '+(labels[s.value]||s.value);sync(id);}));
+    bg.querySelector('#protocolSelectedInfo').textContent='پروتکل انتخاب‌شده: '+(labels[current]||current);
+    bg.classList.add('open'); document.body.style.overflow='hidden';
+  };
+  function close(){const bg=document.getElementById('protocolPickerBg');if(bg)bg.classList.remove('open');document.body.style.overflow='';target=null;}
+  window.closeProtocolPicker=close;
+  function boot(){['cProto','aProto'].forEach(id=>{const s=document.getElementById(id),b=document.querySelector('.protocol-trigger[data-for="'+id+'"]');if(s&&b){b.onclick=e=>{e.preventDefault();window.openProtocolPicker(id);};sync(id);}});}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  setTimeout(boot,100); setTimeout(boot,700);
+})();
 
 applyLang();loadMe();loadProtocols();loadGroups();refreshAll();
 // Protocol picker bootstrap: keep the native select only as the data/control source.
@@ -8904,7 +8984,12 @@ async def dashboard(
     await ensure_default_categories()
 
     return HTMLResponse(
-        DASHBOARD_HTML
+        DASHBOARD_HTML,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
     )
 
 

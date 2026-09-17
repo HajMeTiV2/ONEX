@@ -38,7 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.2.2"
+APP_VERSION = "1.1.0"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -805,8 +805,6 @@ def default_admin_record(username: str, password: str, **kwargs) -> dict:
         "blocked": False,
         "permissions": {**DEFAULT_PERMS, **(kwargs.get("permissions") or {})},
         "created_at": datetime.now().isoformat(),
-        "last_login_at": None,
-        "last_login_ip": None,
     }
 
 
@@ -2948,9 +2946,6 @@ async def api_login(request: Request):
             if not admin_is_valid(admin):
                 raise HTTPException(status_code=403, detail="حساب مسدود یا منقضی شده است")
             ok = True
-            admin["last_login_at"] = datetime.now().isoformat()
-            admin["last_login_ip"] = ip
-            await save_state()
             meta = {"role": "admin", "admin_id": aid, "username": username}
     if not ok:
         locked, value = register_login_failure(ip)
@@ -4059,6 +4054,20 @@ async def link_action(
 # ============================================================
 # DELETE LINK
 # ============================================================
+
+@app.post("/api/links/delete-all")
+async def delete_all_links(_=Depends(require_auth)):
+    """Delete every config/link from the panel and unlink them from subscriptions."""
+    async with LINKS_LOCK:
+        deleted_count = len(LINKS)
+        LINKS.clear()
+    async with SUBS_LOCK:
+        for sub in SUBS.values():
+            sub["link_ids"] = []
+    await save_state()
+    log_activity("link", f"حذف همه کانفیگ‌ها — {deleted_count} مورد", "warn")
+    return {"ok": True, "deleted": deleted_count}
+
 
 @app.delete("/api/links/{uid}")
 async def delete_link(
@@ -6641,8 +6650,6 @@ async def api_admins_list(token=Depends(require_perm("admins"))):
             "blocked": bool(a.get("blocked")),
             "permissions": a.get("permissions") or {},
             "created_at": a.get("created_at"),
-            "last_login_at": a.get("last_login_at"),
-            "last_login_ip": a.get("last_login_ip"),
             "valid": admin_is_valid(a),
         })
     out.sort(key=lambda x: x.get("created_at") or "", reverse=True)
@@ -8250,87 +8257,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 
 .all-proto-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 14px;padding:12px 14px;border:1px solid rgba(34,197,94,.22);border-radius:14px;background:rgba(34,197,94,.035);cursor:pointer;user-select:none}
 .all-proto-toggle span{display:block;min-width:0}.all-proto-toggle b{display:block;font-size:12px}.all-proto-toggle small{display:block;color:var(--t3);font-size:10px;margin-top:4px;line-height:1.6}.all-proto-toggle input{position:absolute;opacity:0;pointer-events:none}.all-proto-toggle i{position:relative;flex:0 0 48px;width:48px;height:28px;border-radius:999px;background:#4b5563;transition:.2s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.all-proto-toggle i:before{content:"";position:absolute;top:4px;right:24px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:.2s}.all-proto-toggle:has(input:checked) i{background:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.28)}.all-proto-toggle:has(input:checked) i:before{right:4px}.all-proto-toggle:focus-within{outline:2px solid rgba(34,197,94,.35);outline-offset:2px}
-
-/* ============================================================
-   ADMIN MANAGEMENT — COMPACT RESPONSIVE LAYOUT
-   Matches the approved admin design while staying compact on phones.
-   ============================================================ */
-.admin-page{max-width:1080px;margin:0 auto;padding-bottom:24px}
-.admin-page .page-head{margin-bottom:14px}
-.admin-main-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(290px,.85fr);gap:14px;align-items:start}
-.admin-list-card{padding:0!important;overflow:hidden}
-.admin-list-head{padding:14px 16px;border-bottom:1px solid var(--card-b)}
-.admin-list-controls{display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:8px;margin-top:9px}
-.admin-table-wrap{overflow:auto}
-.admin-table-head{min-width:620px;display:grid;grid-template-columns:1.6fr .75fr .85fr 1.15fr .95fr;padding:9px 13px;background:var(--bg2);border-bottom:1px solid var(--card-b);font-size:10px;color:var(--t3);font-weight:700}
-.admin-create-card{padding:15px!important}
-.admin-create-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.admin-create-card .field{margin-bottom:9px}
-.admin-create-card input,.admin-create-card select{height:43px;font-size:13px}
-.admin-perms-card{margin-top:14px;padding:15px!important}
-.admin-perms-card .switch{transform:scale(.9);transform-origin:center}
-.admin-bottom-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:14px;margin-top:14px;align-items:start}
-.admin-activity-card,.admin-details-card{min-height:170px}
-.admin-page input,.admin-page select{box-sizing:border-box}
-
-@media (max-width:700px){
-  .admin-page{width:100%;max-width:none;margin:0;padding:8px 10px 24px;box-sizing:border-box}
-  .admin-page .page-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
-  .admin-page .page-title{font-size:18px!important;line-height:1.5}
-  .admin-page .page-title svg{width:19px!important;height:19px!important}
-  .admin-page .page-sub{font-size:10px!important;margin-top:2px}
-  .admin-page .page-head .btn{height:38px!important;padding:0 11px!important;font-size:11px!important;border-radius:12px!important;white-space:nowrap}
-  .admin-main-grid{grid-template-columns:1fr!important;gap:10px!important}
-  .admin-create-card{order:1;padding:13px!important}
-  .admin-list-card{order:2}
-  .admin-create-head .card-title{font-size:14px!important}
-  .admin-create-head>span{font-size:18px!important}
-  .admin-create-card .field{margin-bottom:7px!important}
-  .admin-create-card .field label{font-size:10px!important;margin-bottom:4px!important}
-  .admin-create-card input,.admin-create-card select{height:40px!important;min-height:40px!important;border-radius:12px!important;font-size:13px!important;padding:0 11px!important}
-  .admin-create-card .form-row{gap:7px!important}
-  .admin-create-card .btn{height:42px!important;font-size:12px!important;border-radius:12px!important;margin-top:5px!important}
-  .admin-list-head{padding:11px 12px!important}
-  .admin-list-head .card-title{font-size:13px!important}
-  .admin-list-head #adminCount{font-size:9px!important}
-  .admin-list-controls{grid-template-columns:minmax(0,1fr) 105px!important;gap:6px!important;margin-top:7px!important}
-  .admin-list-controls input,.admin-list-controls select{height:36px!important;min-height:36px!important;font-size:10px!important;border-radius:10px!important}
-  .admin-table-head{min-width:540px!important;padding:8px 10px!important;font-size:9px!important}
-  #adminsList{padding:5px!important}
-  #adminsList>div{padding:8px!important;border-radius:10px!important}
-  #adminsList .btn{min-width:29px!important;height:29px!important;padding:0 6px!important;font-size:11px!important}
-  .admin-perms-card{margin-top:10px!important;padding:12px!important}
-  .admin-perms-card .card-title{font-size:13px!important}
-  .admin-perms-card>div:first-child{gap:7px!important}
-  .admin-perms-card #adminPermTarget{width:145px!important;min-width:145px!important;height:36px!important;font-size:10px!important;border-radius:10px!important}
-  #selectedPermGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
-  #selectedPermGrid>label{padding:7px 8px!important;border-radius:10px!important;font-size:10px!important}
-  #selectedPermGrid .switch{transform:scale(.75)!important;margin-left:-3px}
-  .admin-bottom-grid{grid-template-columns:1fr!important;gap:10px!important;margin-top:10px!important}
-  .admin-activity-card,.admin-details-card{min-height:0!important}
-  .admin-activity-card .card-title,.admin-details-card .card-title{font-size:13px!important}
-  #adminActivityBox{max-height:190px!important}
-  #adminDetails{font-size:10px!important;line-height:1.9!important}
-}
-@media (max-width:390px){
-  .admin-page{padding-left:8px;padding-right:8px}
-  .admin-page .page-title{font-size:17px!important}
-  .admin-list-controls{grid-template-columns:1fr 94px!important}
-  #selectedPermGrid{grid-template-columns:1fr!important}
-}
-
-
-/* ADMIN PHONE VIEW — when the browser reports a wider CSS viewport, keep
-   the admin screen in the same compact mobile composition as the approved design. */
-@media (max-width:900px){
-  body:has(#page-admins.on) .sidebar{transform:translateX(105%) !important}
-  body:has(#page-admins.on) .sidebar.mobile-open{transform:translateX(0) !important}
-  body:has(#page-admins.on) .main,
-  body:has(#page-admins.on) .main.expanded{width:100% !important;max-width:100% !important;margin:0 !important;padding-left:12px !important;padding-right:12px !important}
-  body:has(#page-admins.on) .mob-bar{display:flex !important}
-}
 </style>
-
 </head>
 <body>
 
@@ -8516,6 +8443,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 
       <button class="btn btn-p btn-sm" onclick="goPage('create')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg></button>
       <button class="btn btn-sm" onclick="refreshAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10"/></svg></button>
+      <button id="deleteAllConfigsBtn" class="btn btn-sm btn-d" onclick="deleteAllConfigs()" title="حذف همه کانفیگ‌ها">🗑 حذف همه</button>
     </div>
   </div>
   <div class="card" style="padding:0">
@@ -8976,74 +8904,33 @@ html:not(.light) body:has(.page) .table-wrap{{
   </div>
 </section>
 
-<section class="page admin-page" id="page-admins">
+<section class="page" id="page-admins">
   <div class="page-head">
     <div>
-      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><span data-i18n="nav_admins">مدیریت ادمین‌ها</span></div>
-      <div class="page-sub" data-i18n="admins_sub">مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها</div>
+      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span data-i18n="nav_admins">(نسخـه دمـو) ادمیـن هــا</span></div>
+      <div class="page-sub" data-i18n="admins_sub">ساخت اکانت ادمین با دسترسی سفارشـی</div>
     </div>
-    <button class="btn btn-p btn-sm" onclick="document.getElementById('adUser')?.focus()">＋ <span data-i18n="admin_new">ادمین جدید</span></button>
   </div>
-
-  <div class="admin-main-grid">
-    <div class="card admin-list-card">
-      <div class="admin-list-head">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-          <div><div class="card-title" style="margin:0" data-i18n="admin_list">لیست ادمین‌ها</div><div id="adminCount" style="font-size:11px;color:var(--t3);margin-top:4px">—</div></div>
-          <button class="btn btn-sm" onclick="loadAdmins()">↻</button>
-        </div>
-        <div class="admin-list-controls">
-          <input id="adminSearch" oninput="renderAdminList()" placeholder="جستجوی ادمین...">
-          <select id="adminStatusFilter" onchange="renderAdminList()"><option value="all">همه وضعیت‌ها</option><option value="active">فعال</option><option value="blocked">مسدود</option><option value="invalid">منقضی/نامعتبر</option></select>
-        </div>
-      </div>
-      <div class="admin-table-wrap">
-        <div class="admin-table-head">
-          <span>نام کاربری</span><span>نقش</span><span>وضعیت</span><span>آخرین ورود</span><span>عملیات</span>
-        </div>
-        <div id="adminsList" style="padding:8px"><div style="color:var(--t3);text-align:center;padding:20px">...</div></div>
-      </div>
-    </div>
-
-    <div class="card admin-create-card">
-      <div class="admin-create-head">
-        <div><div class="card-title" style="margin:0" data-i18n="admin_create">افزودن ادمین جدید</div><div style="font-size:10px;color:var(--t3);margin-top:4px">همه ادمین‌ها از همین آدرس پنل استفاده می‌کنند.</div></div>
-        <span style="font-size:20px">＋</span>
-      </div>
-      <div class="field" style="margin-top:12px"><label data-i18n="admin_user">نام کاربری</label><input id="adUser" placeholder="user1" style="direction:ltr;text-align:left" autocomplete="off"></div>
-      <div class="field"><label data-i18n="admin_label">عنوان نمایشی</label><input id="adLabel" placeholder="اپراتور فروش"></div>
-      <div class="field"><label data-i18n="admin_pw">رمز عبور</label><input id="adPw" type="password" autocomplete="new-password"></div>
-      <div class="field"><label data-i18n="admin_pw2">تکرار رمز</label><input id="adPw2" type="password" autocomplete="new-password"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title" data-i18n="admin_create">ساخـت اکانـت ادمیـن</div>
+      <div class="field"><label data-i18n="admin_user">نام کاربـری</label><input id="adUser" placeholder="user1" style="direction:ltr;text-align:left"></div>
       <div class="form-row">
-        <div class="field"><label>محدودیت حجم</label><input id="adLimit" type="number" value="0" min="0"></div>
-        <div class="field"><label>واحد</label><select id="adUnit"><option>GB</option><option>MB</option></select></div>
+        <div class="field"><label data-i18n="admin_pw">رمز عبـور</label><input id="adPw" type="password"></div>
+        <div class="field"><label data-i18n="admin_pw2">تکرار رمـز</label><input id="adPw2" type="password"></div>
       </div>
-      <div class="field"><label>انقضا (روز)</label><input id="adDays" type="number" value="0" min="0"></div>
-      <button class="btn btn-p" style="width:100%;margin-top:8px" onclick="createAdmin()" data-i18n="admin_btn">ساخت اکانت</button>
+      <div class="form-row">
+        <div class="field"><label data-i18n="label_limit">حجـم</label><input id="adLimit" type="number" value="0" min="0"></div>
+        <div class="field"><label data-i18n="label_unit">واحـد</label><select id="adUnit"><option>GB</option><option>MB</option></select></div>
+      </div>
+      <div class="field"><label data-i18n="label_days">مدت اعتبـار (روز)</label><input id="adDays" type="number" value="0" min="0"></div>
+      <div class="card-title" style="margin-top:8px" data-i18n="admin_perms">دسترسی‌ها</div>
+      <div id="adPerms" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px"></div>
+      <button class="btn btn-p" style="width:100%;margin-top:14px" onclick="createAdmin()" data-i18n="admin_btn">ساخت اکانت</button>
     </div>
-  </div>
-
-  <div class="card admin-perms-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div><div class="card-title" style="margin:0">⚙ دسترسی‌های ادمین</div><div style="font-size:11px;color:var(--t3);margin-top:4px">ادمین را انتخاب کنید و دسترسی‌های او را جداگانه تنظیم کنید.</div></div>
-      <select id="adminPermTarget" onchange="renderSelectedAdminPerms()" style="min-width:180px"><option value="">انتخاب ادمین</option></select>
-    </div>
-    <div id="adminPermTargetEmpty" style="text-align:center;color:var(--t3);padding:20px">ابتدا یک ادمین را از لیست انتخاب کنید.</div>
-    <div id="adminSelectedPerms" hidden>
-      <div id="selectedAdminName" style="font-weight:700;margin:12px 0 8px"></div>
-      <div id="selectedPermGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"></div>
-      <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="saveSelectedAdminPerms()">ذخیره دسترسی‌ها</button>
-    </div>
-  </div>
-
-  <div class="admin-bottom-grid">
-    <div class="card admin-activity-card">
-      <div class="card-title">◷ گزارش فعالیت ادمین‌ها</div>
-      <div id="adminActivityBox" style="max-height:280px;overflow:auto"><div style="text-align:center;color:var(--t3);padding:18px">در حال دریافت...</div></div>
-    </div>
-    <div class="card admin-details-card">
-      <div class="card-title">👤 جزئیات ادمین</div>
-      <div id="adminDetails" style="color:var(--t3);font-size:12px;line-height:2.1;text-align:center;padding:10px">برای مشاهده جزئیات، یک ادمین را انتخاب کنید.</div>
+    <div class="card" style="padding:0">
+      <div style="padding:16px 18px;border-bottom:1px solid var(--card-b);font-weight:700" data-i18n="admin_list">لیست ادمین‌ها</div>
+      <div id="adminsList" style="padding:12px;max-height:480px;overflow:auto"><div style="color:var(--t3);text-align:center;padding:20px">...</div></div>
     </div>
   </div>
 </section>
@@ -9122,8 +9009,8 @@ html:not(.light) body:has(.page) .table-wrap{{
 
 <script>
 const I18N={
-fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'مدیریت ادمین‌ها',admin_new:'ادمین جدید',admin_same_url:'همه ادمین‌ها با همین آدرس پنل وارد می‌شوند و تفاوت فقط در حساب و دسترسی‌هاست.',admin_label:'عنوان نمایشی',perm_all:'همه',perm_none:'هیچ‌کدام',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'ساخت اکانت ادمین با دسترسی سفارشی',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
-en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admin Management',admin_new:'New admin',admin_same_url:'All admins use the same panel address; only the account and permissions differ.',admin_label:'Display label',perm_all:'All',perm_none:'None',refresh_news:'Refresh news',admins_sub:'Create admin accounts with custom access',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
+fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'ساخت اکانت ادمین با دسترسی سفارشی',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
+en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Create admin accounts with custom access',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
 };
 let lang=localStorage.getItem('px_lang')||'fa';
 let statRange='month';
@@ -9637,103 +9524,35 @@ async function loadNews(toastOk){
     if(toastOk) toast(lang==='fa'?'خطا در بروزرسانی':'Refresh failed');
   }
 }
-let __adminsCache=[];
-function adminStatusText(a){
-  if(a.blocked) return lang==='fa'?'مسدود':'Blocked';
-  if(!a.valid) return lang==='fa'?'نامعتبر':'Invalid';
-  return lang==='fa'?'فعال':'Active';
-}
-function adminStatusClass(a){
-  if(a.blocked) return 'background:rgba(239,68,68,.10);color:#ef4444;border-color:rgba(239,68,68,.25)';
-  if(!a.valid) return 'background:rgba(245,158,11,.10);color:#d97706;border-color:rgba(245,158,11,.25)';
-  return 'background:rgba(16,185,129,.10);color:#059669;border-color:rgba(16,185,129,.25)';
-}
-function setAllAdminPerms(value){
-  document.querySelectorAll('#adPerms input[type="checkbox"]').forEach(x=>x.checked=!!value);
-}
-function formatAdminDate(v){
-  if(!v)return '—';
-  try{return new Date(v).toLocaleString(lang==='fa'?'fa-IR':'en-US',{dateStyle:'short',timeStyle:'short'})}catch(e){return String(v)}
-}
-function renderAdminList(){
-  const box=document.getElementById('adminsList'); if(!box)return;
-  const q=(document.getElementById('adminSearch')?.value||'').trim().toLowerCase();
-  const filter=document.getElementById('adminStatusFilter')?.value||'all';
-  const list=__adminsCache.filter(a=>{
-    const hay=[a.username,a.label,a.last_login_ip].filter(Boolean).join(' ').toLowerCase();
-    if(q && !hay.includes(q))return false;
-    if(filter==='active' && (a.blocked||!a.valid))return false;
-    if(filter==='blocked' && !a.blocked)return false;
-    if(filter==='invalid' && (a.blocked||a.valid))return false;
-    return true;
-  });
-  const count=document.getElementById('adminCount');
-  if(count)count.textContent=(lang==='fa'?`${list.length} مورد نمایش داده می‌شود · ${__adminsCache.length} ادمین`:`Showing ${list.length} of ${__adminsCache.length} admins`);
-  if(!list.length){box.innerHTML=`<div style="color:var(--t3);text-align:center;padding:28px">${lang==='fa'?'ادمینی با این فیلتر پیدا نشد':'No admin matches this filter'}</div>`;return}
-  box.innerHTML=list.map(a=>{
-    const st=adminStatusText(a), stStyle=adminStatusClass(a);
-    const perms=Object.values(a.permissions||{}).filter(Boolean).length;
-    return `<div onclick="showAdminDetails('${esc(a.id)}')" style="min-width:620px;display:grid;grid-template-columns:1.6fr .75fr .85fr 1.15fr .95fr;align-items:center;gap:8px;padding:12px 6px;border-bottom:1px solid var(--card-b);cursor:pointer">
-      <div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#7c3aed);color:white;font-weight:800">${esc((a.username||'A')[0].toUpperCase())}</span><span style="min-width:0"><b style="display:block;font-size:12px">${esc(a.username)}</b><small style="color:var(--t3)">${esc(a.label||'')}</small></span></div>
-      <span><b style="font-size:10px;padding:4px 7px;border-radius:999px;background:rgba(59,130,246,.1);color:#2563eb">Admin</b></span>
-      <span style="font-size:10px;border:1px solid;padding:4px 7px;border-radius:999px;width:max-content;${stStyle}">${st}</span>
-      <span style="font-size:10px;color:var(--t3)">${formatAdminDate(a.last_login_at)}</span>
-      <span style="display:flex;gap:4px" onclick="event.stopPropagation()"><button class="btn btn-sm" onclick="editAdmin('${esc(a.id)}')">✎</button><button class="btn btn-sm" onclick="toggleBlockAdmin('${esc(a.id)}',${!a.blocked})">${a.blocked?'✓':'⊘'}</button><button class="btn btn-sm btn-d" onclick="deleteAdmin('${esc(a.id)}')">🗑</button></span>
-      <div style="grid-column:1/-1;font-size:10px;color:var(--t3);padding-right:42px">مصرف: ${fmtB(a.used_bytes)}${a.limit_bytes?' / '+fmtB(a.limit_bytes):' / ∞'} · دسترسی فعال: ${perms}/${ALL_PERMS.length}${a.last_login_ip?' · IP: '+esc(a.last_login_ip):''}</div>
+async function loadAdmins(){
+  buildPermChecks('adPerms');
+  const r=await api('/api/admins');
+  const box=document.getElementById('adminsList');
+  if(!r||!r.admins){box.innerHTML='<div style="color:var(--t3);text-align:center;padding:20px">—</div>';return}
+  if(!r.admins.length){box.innerHTML=`<div style="color:var(--t3);text-align:center;padding:20px">${lang==='fa'?'ادمینی نیست':'No admins'}</div>`;return}
+  const labels=PERM_LABELS[lang]||PERM_LABELS.fa;
+  box.innerHTML=r.admins.map(a=>{
+    const st=a.blocked?'🔴 مسدود':(a.valid?'🟢 فعال':'🟠 نامعتبر');
+    const perms=Object.entries(a.permissions||{}).filter(([,v])=>v).map(([k])=>labels[k]||k).join(' · ')||'—';
+    return `<div style="border:1px solid var(--card-b);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--bg3)">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+        <div><b>${esc(a.username)}</b> <span style="font-size:11px;color:var(--t3)">${st}</span></div>
+        <div class="ops" style="align-items:center">
+          <label class="switch" title="مسدود">
+            <input type="checkbox" ${a.blocked?'checked':''} onchange="toggleBlockAdmin('${esc(a.id)}',this.checked)">
+            <span class="slider"></span>
+          </label>
+          <button class="btn btn-sm btn-d" onclick="deleteAdmin('${esc(a.id)}')">حذف</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:8px">حجم: ${fmtB(a.used_bytes)}${a.limit_bytes?(' / '+fmtB(a.limit_bytes)):' / ∞'} · انقضا: ${a.expires_at||'∞'}</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:6px">${perms}</div>
     </div>`;
   }).join('');
-  populateAdminTarget();
-}
-function populateAdminTarget(){
-  const sel=document.getElementById('adminPermTarget'); if(!sel)return;
-  const cur=sel.value;
-  sel.innerHTML='<option value="">انتخاب ادمین</option>'+__adminsCache.map(a=>`<option value="${esc(a.id)}">${esc(a.label||a.username)} (@${esc(a.username)})</option>`).join('');
-  if(__adminsCache.some(a=>a.id===cur))sel.value=cur;
-}
-function showAdminDetails(id){
-  const a=__adminsCache.find(x=>x.id===id); if(!a)return;
-  const sel=document.getElementById('adminPermTarget'); if(sel)sel.value=id;
-  renderSelectedAdminPerms();
-  const perms=Object.values(a.permissions||{}).filter(Boolean).length;
-  const box=document.getElementById('adminDetails'); if(!box)return;
-  box.style.textAlign='right';
-  box.innerHTML=`<div style="text-align:center;margin-bottom:10px"><div style="width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:20px;font-weight:800;margin:auto">${esc((a.username||'A')[0].toUpperCase())}</div><b style="display:block;margin-top:6px">${esc(a.label||a.username)}</b><small style="color:var(--t3);direction:ltr;display:block">@${esc(a.username)}</small></div>
-  <div><b>وضعیت:</b> ${adminStatusText(a)}</div><div><b>آخرین ورود:</b> ${formatAdminDate(a.last_login_at)}</div><div dir="ltr"><b>IP:</b> ${esc(a.last_login_ip||'—')}</div><div><b>تاریخ ایجاد:</b> ${formatAdminDate(a.created_at)}</div><div><b>دسترسی:</b> ${perms}/${ALL_PERMS.length}</div>
-  <div style="display:flex;gap:7px;margin-top:12px"><button class="btn" style="flex:1" onclick="editAdmin('${esc(a.id)}')">✎ ویرایش</button><button class="btn btn-d" style="flex:1" onclick="toggleActiveAdmin('${esc(a.id)}',${!a.active})">${a.active?'غیرفعال کردن':'فعال کردن'}</button></div>`;
-}
-function renderSelectedAdminPerms(){
-  const id=document.getElementById('adminPermTarget')?.value, empty=document.getElementById('adminPermTargetEmpty'), wrap=document.getElementById('adminSelectedPerms'), name=document.getElementById('selectedAdminName'), grid=document.getElementById('selectedPermGrid');
-  const a=__adminsCache.find(x=>x.id===id);
-  if(!a){if(empty)empty.hidden=false;if(wrap)wrap.hidden=true;return}
-  if(empty)empty.hidden=true;if(wrap)wrap.hidden=false;
-  if(name)name.textContent=`${a.label||a.username}  (@${a.username})`;
-  const labels=PERM_LABELS[lang]||PERM_LABELS.fa;
-  if(grid)grid.innerHTML=ALL_PERMS.map(p=>`<label style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 11px;border:1px solid var(--card-b);border-radius:12px;background:var(--bg2);font-size:12px"><span>${esc(labels[p]||p)}</span><label class="switch"><input type="checkbox" data-admin-perm="${p}" ${a.permissions&&a.permissions[p]?'checked':''}><span class="slider"></span></label></label>`).join('');
-}
-async function saveSelectedAdminPerms(){
-  const id=document.getElementById('adminPermTarget')?.value;if(!id)return;
-  const permissions={};document.querySelectorAll('#selectedPermGrid input[data-admin-perm]').forEach(x=>permissions[x.dataset.adminPerm]=x.checked);
-  await patchAdmin(id,{permissions},lang==='fa'?'دسترسی‌ها ذخیره شد':'Permissions saved');
-}
-async function loadAdminActivity(){
-  const box=document.getElementById('adminActivityBox');if(!box)return;
-  const data=await api('/api/activity');const logs=Array.isArray(data)?data:(data&&data.logs)||[];
-  if(!logs.length){box.innerHTML='<div style="text-align:center;color:var(--t3);padding:18px">لاگی ثبت نشده است.</div>';return}
-  box.innerHTML=logs.slice().reverse().slice(0,12).map(l=>`<div style="display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid var(--card-b);font-size:11px"><span style="color:var(--t3);white-space:nowrap">${esc((l.time||l.ts||'').toString().slice(11,19)||'—')}</span><span>${esc(l.message||l.msg||'—')}</span></div>`).join('');
-}
-async function loadAdmins(){
-  const r=await api('/api/admins');
-  if(!r||!r.admins){const box=document.getElementById('adminsList');if(box)box.innerHTML='<div style="color:var(--t3);text-align:center;padding:20px">—</div>';return}
-  __adminsCache=r.admins||[];
-  renderAdminList();
-  loadAdminActivity();
-  const current=document.getElementById('adminPermTarget')?.value;
-  if(current && __adminsCache.some(a=>a.id===current)){renderSelectedAdminPerms();showAdminDetails(current)}
 }
 async function createAdmin(){
   const body={
     username:document.getElementById('adUser').value.trim(),
-    label:document.getElementById('adLabel')?.value.trim(),
     password:document.getElementById('adPw').value,
     repeat_password:document.getElementById('adPw2').value,
     limit_value:Number(document.getElementById('adLimit').value)||0,
@@ -9742,55 +9561,18 @@ async function createAdmin(){
     permissions:readPermChecks('adPerms')
   };
   const r=await api('/api/admins',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r){toast(lang==='fa'?'اکانت ساخته شد':'Created');['adUser','adLabel','adPw','adPw2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});loadAdmins()}
-}
-async function patchAdmin(id,payload,okText){
-  const r=await api('/api/admins/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  if(r){toast(okText||'OK');loadAdmins()}
-}
-async function toggleActiveAdmin(id,active){
-  if(!active && !confirm(lang==='fa'?'این ادمین غیرفعال شود؟':'Disable this admin?'))return;
-  await patchAdmin(id,{active},active?(lang==='fa'?'فعال شد':'Enabled'):(lang==='fa'?'غیرفعال شد':'Disabled'));
+  if(r){toast(lang==='fa'?'اکانت ساخته شد':'Created');document.getElementById('adUser').value='';document.getElementById('adPw').value='';document.getElementById('adPw2').value='';loadAdmins()}
 }
 async function toggleBlockAdmin(id,blocked){
-  await patchAdmin(id,{blocked},blocked?(lang==='fa'?'مسدود شد':'Blocked'):(lang==='fa'?'رفع مسدودی شد':'Unblocked'));
-}
-async function editAdmin(id){
-  const a=__adminsCache.find(x=>x.id===id);if(!a)return;
-  const labels=PERM_LABELS[lang]||PERM_LABELS.fa;
-  const body=document.getElementById('panelModalBody');
-  const title=document.getElementById('panelModalTitle');
-  if(!body||!title)return;
-  title.textContent=lang==='fa'?'ویرایش ادمین':'Edit admin';
-  body.innerHTML=`<div class="field"><label>${lang==='fa'?'عنوان نمایشی':'Display label'}</label><input id="edLabel" value="${esc(a.label||'')}"></div>
-    <div class="field"><label>${lang==='fa'?'رمز جدید (اختیاری)':'New password (optional)'}</label><input id="edPw" type="password" autocomplete="new-password"></div>
-    <div class="form-row"><div class="field"><label>${lang==='fa'?'محدودیت حجم':'Traffic limit'}</label><input id="edLimit" type="number" min="0" value="${a.limit_bytes?Math.round(a.limit_bytes/1073741824*100)/100:0}"></div><div class="field"><label>${lang==='fa'?'واحد':'Unit'}</label><select id="edUnit"><option>GB</option><option>MB</option></select></div></div>
-    <div class="field"><label>${lang==='fa'?'انقضا (روز از امروز)':'Expiry (days from today)'}</label><input id="edDays" type="number" min="0" value="0"></div>
-    <div class="card-title" style="margin-top:10px">${lang==='fa'?'دسترسی‌ها':'Permissions'}</div><div id="edPerms" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px"></div>`;
-  document.getElementById('panelModal').classList.add('open');
-  buildPermChecks('edPerms');
-  Object.entries(a.permissions||{}).forEach(([k,v])=>{const el=document.querySelector(`#edPerms input[data-perm="${k}"]`);if(el)el.checked=!!v});
-  document.getElementById('panelModal').dataset.adminId=id;
-  document.getElementById('panelModal').dataset.adminOriginalLimit=a.limit_bytes||0;
-  const actions=document.querySelector('#panelModal .modal-actions');
-  if(actions)actions.innerHTML=`<button class="btn" onclick="document.getElementById('panelModal').classList.remove('open')">${lang==='fa'?'انصراف':'Cancel'}</button><button class="btn btn-p" onclick="saveAdminEdit()">${lang==='fa'?'ذخیره تغییرات':'Save changes'}</button>`;
-}
-async function saveAdminEdit(){
-  const id=document.getElementById('panelModal')?.dataset.adminId;if(!id)return;
-  const body={label:document.getElementById('edLabel')?.value.trim(),permissions:readPermChecks('edPerms')};
-  const pw=document.getElementById('edPw')?.value||'';if(pw)body.password=pw;
-  const lv=Number(document.getElementById('edLimit')?.value)||0;const lu=document.getElementById('edUnit')?.value||'GB';
-  body.limit_value=lv;body.limit_unit=lu;
-  const days=Number(document.getElementById('edDays')?.value)||0;body.expires_days=days;
-  const r=await api('/api/admins/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r){document.getElementById('panelModal').classList.remove('open');toast(lang==='fa'?'تغییرات ذخیره شد':'Changes saved');loadAdmins()}
+  const r=await api('/api/admins/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocked})});
+  if(r){toast(blocked?'مسدود شد':'رفع شد');loadAdmins()}
 }
 async function deleteAdmin(id){
-  const a=__adminsCache.find(x=>x.id===id);
-  if(!confirm(lang==='fa'?`اکانت «${a?.username||''}» حذف شود؟ این عمل قابل بازگشت نیست.`:`Delete “${a?.username||''}”? This cannot be undone.`))return;
+  if(!confirm(lang==='fa'?'حذف اکانت؟':'Delete?'))return;
   const r=await api('/api/admins/'+id,{method:'DELETE'});
-  if(r){toast(lang==='fa'?'اکانت حذف شد':'Deleted');loadAdmins()}
+  if(r){toast('OK');loadAdmins()}
 }
+
 
 async function loadProtocols(){
   const r=await api('/api/protocols');
@@ -9865,6 +9647,24 @@ function toggleSelectAll(on){
 }
 
 function selectedCfgIds(){return [...document.querySelectorAll('.cfg-chk:checked')].map(c=>c.value)}
+async function deleteAllConfigs(){
+  const ok=confirm(lang==='fa'
+    ? '⚠️ همه کانفیگ‌ها از پنل حذف می‌شوند.\n\nاین عملیات قابل بازگشت نیست. ادامه می‌دهید؟'
+    : '⚠️ All configs will be deleted from the panel.\n\nThis action cannot be undone. Continue?');
+  if(!ok)return;
+  const btn=document.getElementById('deleteAllConfigsBtn');
+  if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent=lang==='fa'?'در حال حذف...':'Deleting...';}
+  try{
+    const r=await api('/api/links/delete-all',{method:'POST'});
+    if(r){
+      toast(lang==='fa'?`همه کانفیگ‌ها حذف شد: ${r.deleted}`:`All configs deleted: ${r.deleted}`);
+      clearSelection();
+      refreshAll();
+    }
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'🗑 حذف همه';}
+  }
+}
 async function bulkDelete(){
   const ids=selectedCfgIds();
   if(!ids.length){toast(lang==='fa'?'چیزی انتخاب نشده':'Nothing selected');return}

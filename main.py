@@ -8251,6 +8251,86 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 .all-proto-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 14px;padding:12px 14px;border:1px solid rgba(34,197,94,.22);border-radius:14px;background:rgba(34,197,94,.035);cursor:pointer;user-select:none}
 .all-proto-toggle span{display:block;min-width:0}.all-proto-toggle b{display:block;font-size:12px}.all-proto-toggle small{display:block;color:var(--t3);font-size:10px;margin-top:4px;line-height:1.6}.all-proto-toggle input{position:absolute;opacity:0;pointer-events:none}.all-proto-toggle i{position:relative;flex:0 0 48px;width:48px;height:28px;border-radius:999px;background:#4b5563;transition:.2s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.all-proto-toggle i:before{content:"";position:absolute;top:4px;right:24px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:.2s}.all-proto-toggle:has(input:checked) i{background:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.28)}.all-proto-toggle:has(input:checked) i:before{right:4px}.all-proto-toggle:focus-within{outline:2px solid rgba(34,197,94,.35);outline-offset:2px}
 </style>
+
+/* ============================================================
+   ADMIN MANAGEMENT — COMPACT RESPONSIVE LAYOUT
+   Matches the approved admin design while staying compact on phones.
+   ============================================================ */
+.admin-page{max-width:1080px;margin:0 auto;padding-bottom:24px}
+.admin-page .page-head{margin-bottom:14px}
+.admin-main-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(290px,.85fr);gap:14px;align-items:start}
+.admin-list-card{padding:0!important;overflow:hidden}
+.admin-list-head{padding:14px 16px;border-bottom:1px solid var(--card-b)}
+.admin-list-controls{display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:8px;margin-top:9px}
+.admin-table-wrap{overflow:auto}
+.admin-table-head{min-width:620px;display:grid;grid-template-columns:1.6fr .75fr .85fr 1.15fr .95fr;padding:9px 13px;background:var(--bg2);border-bottom:1px solid var(--card-b);font-size:10px;color:var(--t3);font-weight:700}
+.admin-create-card{padding:15px!important}
+.admin-create-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.admin-create-card .field{margin-bottom:9px}
+.admin-create-card input,.admin-create-card select{height:43px;font-size:13px}
+.admin-perms-card{margin-top:14px;padding:15px!important}
+.admin-perms-card .switch{transform:scale(.9);transform-origin:center}
+.admin-bottom-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:14px;margin-top:14px;align-items:start}
+.admin-activity-card,.admin-details-card{min-height:170px}
+.admin-page input,.admin-page select{box-sizing:border-box}
+
+@media (max-width:700px){
+  .admin-page{width:100%;max-width:none;margin:0;padding:8px 10px 24px;box-sizing:border-box}
+  .admin-page .page-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+  .admin-page .page-title{font-size:18px!important;line-height:1.5}
+  .admin-page .page-title svg{width:19px!important;height:19px!important}
+  .admin-page .page-sub{font-size:10px!important;margin-top:2px}
+  .admin-page .page-head .btn{height:38px!important;padding:0 11px!important;font-size:11px!important;border-radius:12px!important;white-space:nowrap}
+  .admin-main-grid{grid-template-columns:1fr!important;gap:10px!important}
+  .admin-create-card{order:1;padding:13px!important}
+  .admin-list-card{order:2}
+  .admin-create-head .card-title{font-size:14px!important}
+  .admin-create-head>span{font-size:18px!important}
+  .admin-create-card .field{margin-bottom:7px!important}
+  .admin-create-card .field label{font-size:10px!important;margin-bottom:4px!important}
+  .admin-create-card input,.admin-create-card select{height:40px!important;min-height:40px!important;border-radius:12px!important;font-size:13px!important;padding:0 11px!important}
+  .admin-create-card .form-row{gap:7px!important}
+  .admin-create-card .btn{height:42px!important;font-size:12px!important;border-radius:12px!important;margin-top:5px!important}
+  .admin-list-head{padding:11px 12px!important}
+  .admin-list-head .card-title{font-size:13px!important}
+  .admin-list-head #adminCount{font-size:9px!important}
+  .admin-list-controls{grid-template-columns:minmax(0,1fr) 105px!important;gap:6px!important;margin-top:7px!important}
+  .admin-list-controls input,.admin-list-controls select{height:36px!important;min-height:36px!important;font-size:10px!important;border-radius:10px!important}
+  .admin-table-head{min-width:540px!important;padding:8px 10px!important;font-size:9px!important}
+  #adminsList{padding:5px!important}
+  #adminsList>div{padding:8px!important;border-radius:10px!important}
+  #adminsList .btn{min-width:29px!important;height:29px!important;padding:0 6px!important;font-size:11px!important}
+  .admin-perms-card{margin-top:10px!important;padding:12px!important}
+  .admin-perms-card .card-title{font-size:13px!important}
+  .admin-perms-card>div:first-child{gap:7px!important}
+  .admin-perms-card #adminPermTarget{width:145px!important;min-width:145px!important;height:36px!important;font-size:10px!important;border-radius:10px!important}
+  #selectedPermGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+  #selectedPermGrid>label{padding:7px 8px!important;border-radius:10px!important;font-size:10px!important}
+  #selectedPermGrid .switch{transform:scale(.75)!important;margin-left:-3px}
+  .admin-bottom-grid{grid-template-columns:1fr!important;gap:10px!important;margin-top:10px!important}
+  .admin-activity-card,.admin-details-card{min-height:0!important}
+  .admin-activity-card .card-title,.admin-details-card .card-title{font-size:13px!important}
+  #adminActivityBox{max-height:190px!important}
+  #adminDetails{font-size:10px!important;line-height:1.9!important}
+}
+@media (max-width:390px){
+  .admin-page{padding-left:8px;padding-right:8px}
+  .admin-page .page-title{font-size:17px!important}
+  .admin-list-controls{grid-template-columns:1fr 94px!important}
+  #selectedPermGrid{grid-template-columns:1fr!important}
+}
+
+
+/* ADMIN PHONE VIEW — when the browser reports a wider CSS viewport, keep
+   the admin screen in the same compact mobile composition as the approved design. */
+@media (max-width:900px){
+  body:has(#page-admins.on) .sidebar{transform:translateX(105%) !important}
+  body:has(#page-admins.on) .sidebar.mobile-open{transform:translateX(0) !important}
+  body:has(#page-admins.on) .main,
+  body:has(#page-admins.on) .main.expanded{width:100% !important;max-width:100% !important;margin:0 !important;padding-left:12px !important;padding-right:12px !important}
+  body:has(#page-admins.on) .mob-bar{display:flex !important}
+}
+
 </head>
 <body>
 
@@ -8896,7 +8976,7 @@ html:not(.light) body:has(.page) .table-wrap{{
   </div>
 </section>
 
-<section class="page" id="page-admins">
+<section class="page admin-page" id="page-admins">
   <div class="page-head">
     <div>
       <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><span data-i18n="nav_admins">مدیریت ادمین‌ها</span></div>
@@ -8905,28 +8985,28 @@ html:not(.light) body:has(.page) .table-wrap{{
     <button class="btn btn-p btn-sm" onclick="document.getElementById('adUser')?.focus()">＋ <span data-i18n="admin_new">ادمین جدید</span></button>
   </div>
 
-  <div style="display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.85fr);gap:14px;align-items:start">
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="padding:15px 18px;border-bottom:1px solid var(--card-b)">
+  <div class="admin-main-grid">
+    <div class="card admin-list-card">
+      <div class="admin-list-head">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
           <div><div class="card-title" style="margin:0" data-i18n="admin_list">لیست ادمین‌ها</div><div id="adminCount" style="font-size:11px;color:var(--t3);margin-top:4px">—</div></div>
           <button class="btn btn-sm" onclick="loadAdmins()">↻</button>
         </div>
-        <div style="display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:8px;margin-top:10px">
+        <div class="admin-list-controls">
           <input id="adminSearch" oninput="renderAdminList()" placeholder="جستجوی ادمین...">
           <select id="adminStatusFilter" onchange="renderAdminList()"><option value="all">همه وضعیت‌ها</option><option value="active">فعال</option><option value="blocked">مسدود</option><option value="invalid">منقضی/نامعتبر</option></select>
         </div>
       </div>
-      <div style="overflow:auto">
-        <div style="min-width:620px;display:grid;grid-template-columns:1.6fr .75fr .85fr 1.15fr .95fr;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--card-b);font-size:11px;color:var(--t3);font-weight:700">
+      <div class="admin-table-wrap">
+        <div class="admin-table-head">
           <span>نام کاربری</span><span>نقش</span><span>وضعیت</span><span>آخرین ورود</span><span>عملیات</span>
         </div>
         <div id="adminsList" style="padding:8px"><div style="color:var(--t3);text-align:center;padding:20px">...</div></div>
       </div>
     </div>
 
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <div class="card admin-create-card">
+      <div class="admin-create-head">
         <div><div class="card-title" style="margin:0" data-i18n="admin_create">افزودن ادمین جدید</div><div style="font-size:10px;color:var(--t3);margin-top:4px">همه ادمین‌ها از همین آدرس پنل استفاده می‌کنند.</div></div>
         <span style="font-size:20px">＋</span>
       </div>
@@ -8943,7 +9023,7 @@ html:not(.light) body:has(.page) .table-wrap{{
     </div>
   </div>
 
-  <div class="card" style="margin-top:14px">
+  <div class="card admin-perms-card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div><div class="card-title" style="margin:0">⚙ دسترسی‌های ادمین</div><div style="font-size:11px;color:var(--t3);margin-top:4px">ادمین را انتخاب کنید و دسترسی‌های او را جداگانه تنظیم کنید.</div></div>
       <select id="adminPermTarget" onchange="renderSelectedAdminPerms()" style="min-width:180px"><option value="">انتخاب ادمین</option></select>
@@ -8956,12 +9036,12 @@ html:not(.light) body:has(.page) .table-wrap{{
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:14px;margin-top:14px;align-items:start">
-    <div class="card">
+  <div class="admin-bottom-grid">
+    <div class="card admin-activity-card">
       <div class="card-title">◷ گزارش فعالیت ادمین‌ها</div>
       <div id="adminActivityBox" style="max-height:280px;overflow:auto"><div style="text-align:center;color:var(--t3);padding:18px">در حال دریافت...</div></div>
     </div>
-    <div class="card">
+    <div class="card admin-details-card">
       <div class="card-title">👤 جزئیات ادمین</div>
       <div id="adminDetails" style="color:var(--t3);font-size:12px;line-height:2.1;text-align:center;padding:10px">برای مشاهده جزئیات، یک ادمین را انتخاب کنید.</div>
     </div>

@@ -294,6 +294,18 @@ DEFAULT_ALPN_BY_PROTOCOL = {
     "vless-grpc-reality": "h2",
 }
 
+# Advanced client-link settings exposed by the manual creator.  These are
+# deliberately limited to values that the current four panel-backed
+# transports can actually represent in a VLESS URI.
+ALPN_VALUES = ("h2", "h3", "http/1.1")
+ALLOWED_TLS_MODES = {"tls"}
+FRAGMENT_PRESETS = {
+    "off": "",
+    "safe": "100-200,10-20",
+    "balanced": "80-300,10-20",
+    "aggressive": "50-500,10-30",
+}
+
 DEFAULT_PORT = 443
 MIN_PORT = 1
 MAX_PORT = 65535
@@ -1048,18 +1060,34 @@ def generate_vless_link(
     alpn: str | None = None, port: int | None = None, link: dict | None = None,
 ):
     protocol = normalize_protocol(protocol)
-    fp = (fingerprint or DEFAULT_FINGERPRINT).strip().lower()
+    link = link or {}
+    fp = (fingerprint or link.get("fingerprint") or DEFAULT_FINGERPRINT).strip().lower()
     if fp not in FINGERPRINTS: fp = DEFAULT_FINGERPRINT
     port_value = protocol_public_port(link, protocol, safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT))
-    alpn_value = (alpn or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
+    alpn_value = (alpn or link.get("alpn") or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
+    if alpn_value:
+        alpn_parts = [x.strip() for x in alpn_value.split(",") if x.strip() in ALPN_VALUES]
+        alpn_value = ",".join(dict.fromkeys(alpn_parts)) or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")
+    sni = str(link.get("sni") or host).strip() or host
+    allow_insecure = bool(link.get("allow_insecure", False))
+    fragment = str(link.get("fragment") or "off").strip().lower()
+    fragment_value = FRAGMENT_PRESETS.get(fragment, "")
     label = quote(str(remark or "ONEX"), safe="")
+
+    def _q(extra: dict):
+        if allow_insecure:
+            extra["allowInsecure"] = "1"
+        if fragment_value:
+            extra["fragment"] = fragment_value
+        return "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in extra.items())
+
     if protocol == "vless-ws":
-        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
-        return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
+        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":sni,"fp":fp,"alpn":alpn_value}
+        return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + _q(q) + "#" + label
     if protocol.startswith("xhttp-"):
         mode = protocol.replace("xhttp-", "")
-        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
-        return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
+        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":sni,"fp":fp,"alpn":alpn_value}
+        return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + _q(q) + "#" + label
     if protocol == "vmess-ws":
         raw = {"v":"2","ps":remark,"add":host,"port":port_value,"id":uuid,"aid":0,"scy":"auto","net":"ws","type":"none","host":host,"path":f"/ws/{uuid}","tls":"tls","sni":host,"fp":fp}
         return "vmess://" + base64.b64encode(json.dumps(raw,separators=(",",":"),ensure_ascii=False).encode()).decode()
@@ -1150,6 +1178,10 @@ def get_link_info(
         "fragment": link.get("fragment", "off"),
         "fingerprint": link.get("fingerprint", DEFAULT_FINGERPRINT),
         "alpn": link.get("alpn", ""),
+        "sni": link.get("sni", ""),
+        "allow_insecure": bool(link.get("allow_insecure", False)),
+        "tls_mode": link.get("tls_mode", "tls"),
+        "network": ("ws" if link.get("protocol") == "vless-ws" else "xhttp" if str(link.get("protocol", "")).startswith("xhttp-") else ""),
         "port": link.get("port", DEFAULT_PORT),
         "note": link.get("note", ""),
         "clean_ips": clean_ips,
@@ -1419,6 +1451,9 @@ async def make_link(
     protocol: str = DEFAULT_PROTOCOL,
     fingerprint: str = DEFAULT_FINGERPRINT,
     alpn: str = "",
+    sni: str = "",
+    allow_insecure: bool = False,
+    tls_mode: str = "tls",
     port: int = DEFAULT_PORT,
     ip_limit: int = 0,
     speed_limit_bytes: int = 0,
@@ -1500,6 +1535,15 @@ async def make_link(
                 alpn
                 or ""
             ).strip()[:100],
+
+        "sni":
+            (sni or "").strip()[:253],
+
+        "allow_insecure":
+            bool(allow_insecure),
+
+        "tls_mode":
+            "tls",
 
         "port":
             port,
@@ -3134,6 +3178,20 @@ async def create_link_api(
     if fingerprint not in FINGERPRINTS:
         fingerprint = DEFAULT_FINGERPRINT
 
+    raw_alpn = body.get("alpn", DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1"))
+    if isinstance(raw_alpn, list):
+        alpn_parts = [str(x).strip() for x in raw_alpn]
+    else:
+        alpn_parts = [x.strip() for x in str(raw_alpn or "").replace(";", ",").split(",")]
+    alpn_parts = list(dict.fromkeys(x for x in alpn_parts if x in ALPN_VALUES))
+    alpn = ",".join(alpn_parts)[:100] or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")
+
+    sni = str(body.get("sni") or "").strip()[:253]
+    allow_insecure = bool(body.get("allow_insecure", False))
+    tls_mode = str(body.get("tls_mode") or "tls").strip().lower()
+    if tls_mode not in ALLOWED_TLS_MODES:
+        tls_mode = "tls"
+
     fragment = str(
         body.get(
             "fragment",
@@ -3201,13 +3259,10 @@ async def create_link_api(
         ),
         protocol=protocol,
         fingerprint=fingerprint,
-        alpn=body.get(
-            "alpn",
-            DEFAULT_ALPN_BY_PROTOCOL.get(
-                protocol,
-                "http/1.1",
-            ),
-        ),
+        alpn=alpn,
+        sni=sni,
+        allow_insecure=allow_insecure,
+        tls_mode=tls_mode,
         port=port,
         ip_limit=ip_limit,
         speed_limit_bytes=speed_bytes,
@@ -3621,12 +3676,23 @@ async def update_link(
 
         if "alpn" in body:
 
-            link["alpn"] = str(
-                body.get(
-                    "alpn",
-                    "",
-                )
-            )[:100]
+            raw_alpn = body.get("alpn", "")
+            if isinstance(raw_alpn, list):
+                parts = [str(x).strip() for x in raw_alpn]
+            else:
+                parts = [x.strip() for x in str(raw_alpn or "").replace(";", ",").split(",")]
+            parts = list(dict.fromkeys(x for x in parts if x in ALPN_VALUES))
+            link["alpn"] = ",".join(parts)[:100]
+
+        if "sni" in body:
+            link["sni"] = str(body.get("sni") or "").strip()[:253]
+
+        if "allow_insecure" in body:
+            link["allow_insecure"] = bool(body.get("allow_insecure"))
+
+        if "tls_mode" in body:
+            mode = str(body.get("tls_mode") or "tls").strip().lower()
+            link["tls_mode"] = mode if mode in ALLOWED_TLS_MODES else "tls"
 
         if "port" in body:
 
@@ -7953,6 +8019,26 @@ html.light .top-setting-group,html.light .top-notify-btn{background:#fff!importa
    LIGHT STATIC 3D PROTOCOL PICKER
    ============================================================ */
 #page-create select.protocol-native,#page-create .protocol-field select{display:none!important;position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important}
+#page-create .advanced-config{margin:14px 0 16px;border:1px solid var(--card-b);border-radius:15px;overflow:hidden;background:rgba(8,18,36,.38)}
+#page-create .advanced-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;background:transparent;border:0;color:var(--t1);cursor:pointer;font-family:inherit;text-align:right}
+#page-create .advanced-toggle-main{display:flex;align-items:center;gap:10px;min-width:0}
+#page-create .advanced-toggle-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(96,165,250,.10);border:1px solid rgba(96,165,250,.18);font-size:16px}
+#page-create .advanced-toggle-text b{display:block;font-size:12px}
+#page-create .advanced-toggle-text small{display:block;margin-top:3px;color:var(--t3);font-size:10px}
+#page-create .advanced-toggle-arrow{font-size:20px;color:#60a5fa;transition:transform .18s ease}
+#page-create .advanced-config.open .advanced-toggle-arrow{transform:rotate(180deg)}
+#page-create .advanced-body{display:none;padding:0 14px 14px;border-top:1px solid var(--card-b)}
+#page-create .advanced-config.open .advanced-body{display:block}
+#page-create .advanced-section-title{font-size:10px;font-weight:800;color:var(--t3);margin:14px 0 8px;letter-spacing:.2px}
+#page-create .advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#page-create .advanced-grid .field{margin:0}
+#page-create .advanced-full{grid-column:1/-1}
+#page-create .alpn-choices{display:flex;flex-wrap:wrap;gap:7px}
+#page-create .alpn-choice{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--card-b);border-radius:10px;background:var(--input-bg);font-size:11px;cursor:pointer;user-select:none}
+#page-create .alpn-choice input{accent-color:#60a5fa}
+#page-create .advanced-note{font-size:10px;line-height:1.7;color:var(--t3);padding:8px 10px;border-radius:10px;background:rgba(148,163,184,.05);border:1px solid rgba(148,163,184,.10);margin-top:9px}
+#page-create .advanced-readonly{opacity:.72}
+@media(max-width:640px){#page-create .advanced-grid{grid-template-columns:1fr}}
 #page-create .protocol-field{position:relative}
 #page-create .protocol-trigger{width:100%;min-height:46px;display:flex!important;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-radius:13px;border:1px solid rgba(96,165,250,.22);background:linear-gradient(145deg,rgba(18,31,58,.88),rgba(7,14,29,.94));color:var(--t1);cursor:pointer;position:relative;overflow:hidden;box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.16)}
 #page-create .protocol-trigger:after{content:'⌄';position:absolute;inset-inline-end:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#60a5fa;pointer-events:none}
@@ -8250,7 +8336,6 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
       </div>
       <div class="onex-card" style="margin-top:14px"><div class="onex-card-head"><div class="onex-card-title">⚡ عملیات سریع</div></div><div class="onex-card-body"><div class="quick-grid">
         <div class="quick-item" onclick="goPage('create')"><div class="quick-icon">＋</div><div><div class="quick-name">ساخت کانفیگ</div><div class="quick-desc">ایجاد کانفیگ جدید</div></div></div>
-        <div class="quick-item" onclick="doAutoCreate()"><div class="quick-icon">✦</div><div><div class="quick-name">ساخت خودکار</div><div class="quick-desc">تولید سریع کانفیگ</div></div></div>
         <div class="quick-item" onclick="goPage('configs')"><div class="quick-icon">☷</div><div><div class="quick-name">مدیریت کانفیگ‌ها</div><div class="quick-desc">مشاهده و ویرایش</div></div></div>
         <div class="quick-item" onclick="goPage('telegram')"><div class="quick-icon">➤</div><div><div class="quick-name">ربات تلگرام</div><div class="quick-desc">مدیریت ربات</div></div></div>
       </div></div></div>
@@ -8332,23 +8417,54 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
         <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
       </div>
+
+      <div class="advanced-config" id="manualAdvanced">
+        <button type="button" class="advanced-toggle" onclick="toggleManualAdvanced()" aria-expanded="false">
+          <span class="advanced-toggle-main"><span class="advanced-toggle-icon">⚙</span><span class="advanced-toggle-text"><b>تنظیمات پیشرفته کانفیگ</b><small>TLS، SNI، Fingerprint، ALPN، Fragment و شبکه</small></span></span>
+          <span class="advanced-toggle-arrow">⌄</span>
+        </button>
+        <div class="advanced-body">
+          <div class="advanced-section-title">امنیت و TLS</div>
+          <div class="advanced-grid">
+            <div class="field"><label>TLS</label><select id="cTlsMode"><option value="tls">TLS</option><option value="reality" disabled>Reality — نیازمند سرور Reality</option></select></div>
+            <div class="field"><label>SNI</label><input id="cSni" type="text" dir="ltr" placeholder="پیش‌فرض: دامنه پنل"></div>
+            <div class="field"><label>مجوز SSL ناامن</label><select id="cAllowInsecure"><option value="false">False</option><option value="true">True</option></select></div>
+            <div class="field"><label>Fingerprint / اثرانگشت</label><select id="cFingerprint">
+              <option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="safari">Safari</option><option value="ios">iOS</option><option value="android">Android</option><option value="edge">Edge</option><option value="360">360</option><option value="qq">QQ</option><option value="random">Random</option><option value="randomized">Randomized</option>
+            </select></div>
+          </div>
+
+          <div class="advanced-section-title">ALPN</div>
+          <div class="alpn-choices" id="cAlpnChoices">
+            <label class="alpn-choice"><input type="checkbox" value="h2"> h2</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3"> h3</label>
+            <label class="alpn-choice"><input type="checkbox" value="http/1.1"> http/1.1</label>
+          </div>
+          <div class="advanced-note">می‌توانی چند مورد را هم‌زمان انتخاب کنی. اگر هیچ‌کدام را انتخاب نکنی، ALPN پیش‌فرض همان پروتکل استفاده می‌شود.</div>
+
+          <div class="advanced-section-title">شبکه و انتقال</div>
+          <div class="advanced-grid">
+            <div class="field"><label>Network</label><input id="cNetwork" class="advanced-readonly" type="text" value="WebSocket" readonly></div>
+            <div class="field"><label>Mode</label><input id="cNetworkMode" class="advanced-readonly" type="text" value="ws" dir="ltr" readonly></div>
+            <div class="field advanced-full"><label>Path</label><input id="cPath" class="advanced-readonly" type="text" value="/ws/{UUID}" dir="ltr" readonly></div>
+            <div class="field advanced-full"><label>Host</label><input id="cHost" class="advanced-readonly" type="text" value="دامنه پنل (خودکار)" readonly></div>
+          </div>
+          <div class="advanced-note">Network و Path متناسب با چهار پروتکل فعلی خودکار تعیین می‌شوند تا با backend واقعی ONEX هماهنگ بمانند و با تغییر دستی خراب نشوند.</div>
+
+          <div class="advanced-section-title">Fragment</div>
+          <div class="advanced-grid">
+            <div class="field"><label>Fragment</label><select id="cFragment"><option value="off">Off</option><option value="safe">Safe</option><option value="balanced">Balanced</option><option value="aggressive">Aggressive</option></select></div>
+          </div>
+          <div class="advanced-note">Fragment به‌صورت پارامتر لینک ذخیره می‌شود و روی کلاینت اعمال می‌شود؛ اگر خاموش باشد هیچ پارامتر Fragment به لینک اضافه نمی‌شود.</div>
+        </div>
+      </div>
+
       <button class="btn btn-p" style="width:100%" onclick="doManualCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
         <span data-i18n="btn_create">ساخت</span>
       </button>
     </div>
-    <div class="card" style="border-color:rgba(139,92,246,.35)">
-      <div class="card-title" data-i18n="auto_create">ساخت خودکـار (پیشنهــادی)</div>
-      <p style="color:var(--t2);font-size:13px;line-height:1.75;margin-bottom:14px" data-i18n="auto_desc">با یک کلیک کانفیگ بهینه ساخته می‌شود. بعد از ساخت لینک VLESS و ساب در اختیار شماست.</p>
-      <div class="field protocol-field" data-protocol-picker="aProto"><label data-i18n="label_proto">پروتکـل</label><select id="aProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="aProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('aProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
-      <div class="field"><label data-i18n="label_count">تعداد کانفیگ در سـاب (1-40)</label><input id="aCount" type="number" value="1" min="1" max="40"></div>
-       <label class="all-proto-toggle" title="یک اکانت با همه پروتکل‌ها و یک ساب"><span><b>همه پروتکل‌ها در یک ساب</b><small>یک اکانت · همه پروتکل‌های پنل · یک لینک اشتراک</small></span><input id="aAllProtocols" type="checkbox"><i aria-hidden="true"></i></label>
-      <button class="btn btn-p" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="doAutoCreate()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2"/></svg>
-        <span data-i18n="btn_auto">ساخـت خودکــار</span>
-      </button>
-    </div>
-  </div>
+    
 </section>
 
 
@@ -8757,8 +8873,8 @@ html:not(.light) body:has(.page) .table-wrap{{
 
 <script>
 const I18N={
-fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'ساخت اکانت ادمین با دسترسی سفارشی',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',auto_create:'ساخت خودکار (پیشنهادی)',auto_create_desc:'ساخت سریع با تنظیمات بهینه · لینک VLESS و ساب',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',btn_auto:'ساخت خودکار',auto_desc:'با یک کلیک کانفیگ بهینه ساخته می‌شود. بعد از ساخت لینک VLESS و ساب در اختیار شماست.',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
-en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Create admin accounts with custom access',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',auto_create:'Auto Create (Suggested)',auto_create_desc:'Quick optimal create · VLESS and Sub links',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',btn_auto:'Auto create',auto_desc:'One click creates an optimal config. VLESS and Sub links will be shown.',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
+fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'ساخت اکانت ادمین با دسترسی سفارشی',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
+en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Create admin accounts with custom access',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
 };
 let lang=localStorage.getItem('px_lang')||'fa';
 let statRange='month';
@@ -9054,16 +9170,31 @@ function showResult(data){
 function closeResult(){document.getElementById('resultModal').classList.remove('open')}
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeResult()});
 
-async function doAutoCreate(){
-  toast(lang==='fa'?'در حال ساخت...':'Creating...');
-  const count=Math.max(1,Math.min(40,Number(document.getElementById('aCount')?.value)||1));
-  const protocol=document.getElementById('aProto')?.value||undefined;
-  let r=await api('/api/links/auto',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({config_count:count,protocol,all_protocols:!!document.getElementById("aAllProtocols")?.checked})});
-  if(!r){
-    r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:'auto-'+Date.now().toString(36).slice(-5),limit_value:0,limit_unit:'GB',config_count:count,all_protocols:!!document.getElementById("aAllProtocols")?.checked})});
-  }
-  if(r){showResult(r);refreshAll()}
+function toggleManualAdvanced(){
+  const box=document.getElementById('manualAdvanced');
+  if(!box)return;
+  const open=!box.classList.contains('open');
+  box.classList.toggle('open',open);
+  const btn=box.querySelector('.advanced-toggle');
+  if(btn)btn.setAttribute('aria-expanded',open?'true':'false');
 }
+function currentManualProtocol(){return document.getElementById('cProto')?.value||'vless-ws'}
+function manualProtocolDefaults(id){
+  const map={
+    'vless-ws':{network:'WebSocket',mode:'ws',path:'/ws/{UUID}',alpn:['http/1.1']},
+    'xhttp-packet-up':{network:'XHTTP',mode:'packet-up',path:'/xhttp-siz10/packet-up/{UUID}',alpn:['h2','http/1.1']},
+    'xhttp-stream-up':{network:'XHTTP',mode:'stream-up',path:'/xhttp-siz10/stream-up/{UUID}',alpn:['h2','http/1.1']},
+    'xhttp-stream-one':{network:'XHTTP',mode:'stream-one',path:'/xhttp-siz10/stream-one/{UUID}',alpn:['h2','http/1.1']}
+  };
+  return map[id]||map['vless-ws'];
+}
+function syncManualAdvancedForProtocol(){
+  const id=currentManualProtocol(),d=manualProtocolDefaults(id);
+  const n=document.getElementById('cNetwork'),m=document.getElementById('cNetworkMode'),p=document.getElementById('cPath');
+  if(n)n.value=d.network;if(m)m.value=d.mode;if(p)p.value=d.path;
+  document.querySelectorAll('#cAlpnChoices input[type="checkbox"]').forEach(x=>x.checked=d.alpn.includes(x.value));
+}
+function collectManualAlpn(){return [...document.querySelectorAll('#cAlpnChoices input[type="checkbox"]:checked')].map(x=>x.value).join(',')}
 async function doManualCreate(){
   const body={
     label:document.getElementById('cName').value||undefined,
@@ -9076,6 +9207,12 @@ async function doManualCreate(){
     ip_limit:Number(document.getElementById('cIp').value)||0,
     speed_limit_value:Number(document.getElementById('cSpeed').value)||0,
     speed_limit_unit:'MBIT',
+    fingerprint:document.getElementById('cFingerprint')?.value||'chrome',
+    alpn:collectManualAlpn(),
+    sni:document.getElementById('cSni')?.value.trim()||'',
+    allow_insecure:(document.getElementById('cAllowInsecure')?.value||'false')==='true',
+    tls_mode:document.getElementById('cTlsMode')?.value||'tls',
+    fragment:document.getElementById('cFragment')?.value||'off',
     all_protocols:!!document.getElementById('cAllProtocols')?.checked
   };
   const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -9527,6 +9664,8 @@ function closeProtocolPicker(){const bg=document.getElementById('protocolPickerB
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupProtocolPickers);else setupProtocolPickers();setTimeout(setupProtocolPickers,300);setTimeout(setupProtocolPickers,1000);
 
+syncManualAdvancedForProtocol();
+document.getElementById('cProto')?.addEventListener('change',syncManualAdvancedForProtocol);
 applyLang();loadMe();loadProtocols();loadGroups();refreshAll();
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
 setTimeout(()=>checkPanelUpdate(true),2500);

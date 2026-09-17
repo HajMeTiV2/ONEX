@@ -38,7 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.2.4"
+APP_VERSION = "1.2.5"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -8286,6 +8286,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 .admin-perm-actions{display:flex;gap:5px}
 .admin-perm-actions .btn{height:30px!important;padding:0 8px!important;font-size:10px!important}
 .admin-perm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.admin-perm-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:0}.admin-perm-grid.compact .admin-perm-group{padding:7px}.admin-perm-grid.compact .admin-perm-item{padding:5px 4px;font-size:9px}
 .admin-perm-group{border:1px solid var(--card-b);border-radius:12px;padding:9px;background:var(--bg2)}
 .admin-perm-group-title{font-size:11px;font-weight:800;margin-bottom:7px;color:var(--t1)}
 .admin-perm-item{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:6px 5px;border-top:1px solid var(--card-b);font-size:10px}
@@ -9039,7 +9040,15 @@ html:not(.light) body:has(.page) .table-wrap{{
       <div class="form-row"><div class="field"><label>محدودیت حجم</label><input id="adLimit" type="number" value="0" min="0"></div><div class="field"><label>واحد</label><select id="adUnit"><option>GB</option><option>MB</option></select></div></div>
       <div class="field"><label>انقضا (روز)</label><input id="adDays" type="number" value="0" min="0"></div>
       <div class="admin-status-row"><span>وضعیت ادمین</span><label class="switch"><input type="checkbox" id="adActive" checked><span class="slider"></span></label></div>
-      <button class="btn btn-p" style="width:100%;margin-top:5px" onclick="createAdmin()">ساخت اکانت ادمین</button>
+      <div class="admin-create-perms">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0 6px">
+          <div><b style="font-size:11px">دسترسی‌های ادمین</b><div style="font-size:9px;color:var(--t3);margin-top:2px">دسترسی‌ها را همین‌جا قبل از ساخت انتخاب کنید.</div></div>
+          <div class="admin-perm-actions"><button type="button" class="btn" onclick="setCreateAdminPerms(true)">همه</button><button type="button" class="btn" onclick="setCreateAdminPerms(false)">هیچ‌کدام</button></div>
+        </div>
+        <div id="adPerms" class="admin-perm-grid compact"></div>
+      </div>
+      <div id="adminCreateError" style="display:none;margin-top:7px;padding:8px 10px;border:1px solid rgba(239,68,68,.25);border-radius:9px;background:rgba(239,68,68,.07);color:#ef4444;font-size:10px"></div>
+      <button id="adminCreateBtn" class="btn btn-p" style="width:100%;margin-top:8px" onclick="createAdmin()">ساخت اکانت ادمین</button>
     </div>
   </div>
 
@@ -9596,7 +9605,7 @@ goPage=function(name){
   _goPage(name);
   if(name==='telegram') loadTelegram();
   if(name==='news') loadNews();
-  if(name==='admins') loadAdmins();
+  if(name==='admins'){ initCreateAdminPerms(); loadAdmins(); }
   if(name==='groups') loadGroups();
   if(name==='settings') loadSecurity();
 };
@@ -9663,6 +9672,18 @@ function adminStatusClass(a){
 }
 function setAllAdminPerms(value){
   document.querySelectorAll('#adPerms input[data-perm]').forEach(x=>x.checked=!!value);
+}
+function setCreateAdminPerms(value){setAllAdminPerms(value)}
+function initCreateAdminPerms(){
+  const box=document.getElementById('adPerms');
+  if(!box)return;
+  buildPermChecks('adPerms');
+  setAllAdminPerms(true);
+}
+function readCreateAdminPerms(){
+  const out={};
+  document.querySelectorAll('#adPerms input[data-perm]').forEach(x=>out[x.getAttribute('data-perm')]=x.checked);
+  return out;
 }
 function renderAdminList(){
   const box=document.getElementById('adminsList');
@@ -9751,6 +9772,10 @@ async function loadAdmins(){
   if(target){renderSelectedAdminPerms();showAdminDetails(target)}
 }
 async function createAdmin(){
+  const errorBox=document.getElementById('adminCreateError');
+  const btn=document.getElementById('adminCreateBtn');
+  if(errorBox){errorBox.style.display='none';errorBox.textContent='';}
+  if(btn){btn.disabled=true;btn.setAttribute('aria-busy','true');}
   const body={
     username:document.getElementById('adUser').value.trim(),
     label:document.getElementById('adLabel')?.value.trim(),
@@ -9761,11 +9786,13 @@ async function createAdmin(){
     expires_days:Number(document.getElementById('adDays').value)||0,
     role:document.getElementById('adRole')?.value||'admin',
     active:!!document.getElementById('adActive')?.checked,
-    permissions:Object.fromEntries(ALL_PERMS.map(p=>[p, ['dash','configs','create','stats','groups','news'].includes(p)]))
+    permissions:readCreateAdminPerms()
   };
-  if(!body.username){toast(lang==='fa'?'نام کاربری را وارد کنید':'Enter a username');return}
-  if(!body.password || body.password.length<6){toast(lang==='fa'?'رمز عبور حداقل ۶ کاراکتر باشد':'Password must be at least 6 characters');return}
-  if(body.password!==body.repeat_password){toast(lang==='fa'?'تکرار رمز یکسان نیست':'Passwords do not match');return}
+  if(!body.username){showAdminCreateError('نام کاربری را وارد کنید');if(btn)btn.disabled=false;return}
+  if(!/^[a-z0-9]{3,}$/i.test(body.username)){showAdminCreateError('نام کاربری حداقل ۳ کاراکتر و فقط شامل حروف و اعداد انگلیسی باشد');if(btn)btn.disabled=false;return}
+  if(['admin','root','owner'].includes(body.username)){showAdminCreateError('این نام کاربری رزرو شده است');if(btn)btn.disabled=false;return}
+  if(!body.password || body.password.length<6){showAdminCreateError('رمز عبور حداقل ۶ کاراکتر باشد');if(btn)btn.disabled=false;return}
+  if(body.password!==body.repeat_password){showAdminCreateError('تکرار رمز یکسان نیست');if(btn)btn.disabled=false;return}
   const r=await api('/api/admins',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(r){
     toast(lang==='fa'?'اکانت ساخته شد':'Created');
@@ -9773,7 +9800,14 @@ async function createAdmin(){
     await loadAdmins();
     const sel=document.getElementById('adminPermTarget');
     if(sel && r.id){sel.value=r.id;renderSelectedAdminPerms();showAdminDetails(r.id);document.getElementById('adminSelectedPerms')?.scrollIntoView({behavior:'smooth',block:'center'})}
+    initCreateAdminPerms();
   }
+  if(btn){btn.disabled=false;btn.removeAttribute('aria-busy')}
+}
+function showAdminCreateError(msg){
+  const box=document.getElementById('adminCreateError');
+  if(box){box.textContent=msg;box.style.display='block';}
+  toast(msg);
 }
 async function patchAdmin(id,payload,okText){
   const r=await api('/api/admins/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});

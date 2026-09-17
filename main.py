@@ -8672,7 +8672,8 @@ html:not(.light) body:has(.page) .table-wrap{{
 .admin-section-wide{margin-top:14px}
 .admin-perm-card{padding:15px!important}
 .admin-perm-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
-.admin-perm-select{width:180px}
+.admin-select-shell{position:relative;display:flex;align-items:center;min-width:220px}.admin-select-badge{position:absolute;right:11px;z-index:2;width:23px;height:23px;border-radius:7px;display:grid;place-items:center;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.18);font-size:12px;pointer-events:none}.admin-select-shell .admin-perm-select{padding-right:42px!important}
+.admin-perm-select{width:220px;min-height:44px;padding:10px 40px 10px 14px!important;border:1px solid rgba(59,130,246,.28)!important;border-radius:13px!important;background-color:var(--bg3)!important;background-image:linear-gradient(135deg,rgba(59,130,246,.10),rgba(99,102,241,.04)),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")!important;background-repeat:no-repeat,no-repeat!important;background-position:center right 13px,center right 12px!important;background-size:auto,18px!important;color:var(--t1)!important;font-family:inherit!important;font-size:11px!important;font-weight:700!important;cursor:pointer;appearance:none;-webkit-appearance:none;box-shadow:0 4px 14px rgba(59,130,246,.08);transition:border-color .18s,box-shadow .18s,transform .18s}.admin-perm-select:hover{border-color:rgba(59,130,246,.55)!important;box-shadow:0 6px 18px rgba(59,130,246,.13)}.admin-perm-select:focus{outline:none!important;border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(59,130,246,.14),0 7px 20px rgba(59,130,246,.12)!important}.admin-perm-select option{background:var(--bg2);color:var(--t1);font-family:inherit;font-weight:600;padding:10px}
 .admin-perm-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .admin-perm-group{border:1px solid var(--card-b);border-radius:12px;padding:10px;background:var(--bg3)}
 .admin-perm-group h4{margin:0 0 8px;font-size:10px;font-weight:800;color:var(--t2);padding-bottom:7px;border-bottom:1px solid var(--card-b)}
@@ -8696,7 +8697,7 @@ html:not(.light) body:has(.page) .table-wrap{{
   .admin-table-head,.admin-row{min-width:560px;grid-template-columns:1.65fr .78fr .82fr 1fr .95fr;padding-left:10px;padding-right:10px}
   .admin-table-head{font-size:8px;padding-top:8px;padding-bottom:8px}.admin-row{padding-top:9px;padding-bottom:9px}
   .admin-avatar{width:30px;height:30px;flex-basis:30px;border-radius:9px;font-size:11px}.admin-user-name{font-size:10px}.admin-user-label{font-size:8px}.admin-badge,.admin-role{font-size:8px;padding:4px 6px}.admin-op{width:34px;height:34px;border-radius:9px}.admin-op svg{width:15px;height:15px}
-  .admin-perm-groups{grid-template-columns:1fr 1fr;gap:7px}.admin-perm-group{padding:8px}.admin-perm-item{font-size:9px;padding:6px 1px}.admin-perm-head{align-items:stretch}.admin-perm-select{width:100%}
+  .admin-perm-groups{grid-template-columns:1fr 1fr;gap:7px}.admin-perm-group{padding:8px}.admin-perm-item{font-size:9px;padding:6px 1px}.admin-perm-head{align-items:stretch}.admin-select-shell{width:100%;min-width:0}.admin-perm-select{width:100%}
   .admin-activity-item{grid-template-columns:50px minmax(0,1fr);font-size:9px}.admin-detail-box{padding:8px}.admin-detail-box span{font-size:7px}.admin-detail-box b{font-size:9px}
 }
 @media(max-width:430px){
@@ -8773,7 +8774,7 @@ html:not(.light) body:has(.page) .table-wrap{{
     <div class="card admin-section-wide admin-perm-card">
       <div class="admin-perm-head">
         <div><div class="admin-card-title">دسترسی‌های ادمین <span style="color:var(--accent2)">⚙</span></div><div class="admin-card-sub">ادمین را انتخاب کنید و دسترسی‌های او را جداگانه فعال یا غیرفعال کنید.</div></div>
-        <select id="adminPermSelect" class="admin-perm-select" onchange="selectAdmin(this.value)"><option value="">انتخاب ادمین</option></select>
+        <div class="admin-select-shell"><span class="admin-select-badge">👤</span><select id="adminPermSelect" class="admin-perm-select" onchange="selectAdmin(this.value)"><option value="">انتخاب ادمین</option></select></div>
       </div>
       <div id="adminPermEmpty" class="admin-selected-note">ابتدا یک ادمین را از لیست انتخاب کنید.</div>
       <div id="adminPerms" class="admin-perm-groups"></div>

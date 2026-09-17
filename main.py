@@ -8316,8 +8316,14 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   .admin-list-head{padding:10px 11px!important}
   .admin-list-controls{grid-template-columns:minmax(0,1fr) 100px!important;gap:5px!important;margin-top:6px!important}
   .admin-list-controls input,.admin-list-controls select{height:34px!important;min-height:34px!important;font-size:9px!important}
-  .admin-table-head{min-width:575px!important;padding:7px 9px!important;font-size:8px!important}
-  .admin-row{min-width:575px!important;padding:8px 9px!important;font-size:9px!important}
+  .admin-table-head{display:none!important}
+  .admin-table-wrap{overflow:visible!important}
+  .admin-row{min-width:0!important;width:100%;box-sizing:border-box;padding:10px 9px!important;font-size:9px!important;grid-template-columns:minmax(0,1fr) auto!important;gap:7px 8px!important;background:transparent}
+  .admin-row>div:first-child{grid-column:1 / -1!important}
+  .admin-row>.admin-role{grid-column:1!important;grid-row:2!important;align-self:center}
+  .admin-row>.admin-state{grid-column:2!important;grid-row:2!important;justify-self:end!important;align-self:center}
+  .admin-row>span:nth-child(4){grid-column:1!important;grid-row:3!important}
+  .admin-row>.admin-actions{grid-column:2!important;grid-row:3!important;justify-self:end!important}
   .admin-avatar{width:29px;height:29px;flex-basis:29px;font-size:11px}
   .admin-role,.admin-state{font-size:8px;padding:3px 6px}
   .admin-actions .btn{min-width:26px!important;height:26px!important;font-size:9px!important}
@@ -9244,6 +9250,14 @@ async function api(url,opts={}){
 }
 function fmtB(b){b=Number(b)||0;if(b<1024)return b+' B';if(b<1024**2)return (b/1024).toFixed(1)+' KB';if(b<1024**3)return (b/1024**2).toFixed(2)+' MB';return (b/1024**3).toFixed(2)+' GB'}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function formatAdminDate(value){
+  if(!value) return '—';
+  try{
+    const d=new Date(value);
+    if(Number.isNaN(d.getTime())) return '—';
+    return new Intl.DateTimeFormat(lang==='fa'?'fa-IR':'en-US',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d);
+  }catch(e){ return '—'; }
+}
 
 async function refreshAll(){
   if(typeof loadGroups==='function') try{await loadGroups()}catch(e){}

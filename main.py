@@ -38,7 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.2.7"
+APP_VERSION = "1.1.0"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -138,26 +138,6 @@ async def protocol_icon(protocol_id: str):
     if not path or not path.is_file():
         raise HTTPException(status_code=404, detail="Protocol icon not found")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
-
-
-ONEX_NEO_ORBIT_SVG = r"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-<defs>
-  <linearGradient id="g" x1="20" y1="20" x2="230" y2="235" gradientUnits="userSpaceOnUse"><stop stop-color="#59e7ff"/><stop offset=".45" stop-color="#168cff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
-  <linearGradient id="n" x1="80" y1="65" x2="175" y2="190" gradientUnits="userSpaceOnUse"><stop stop-color="#ffffff"/><stop offset=".45" stop-color="#c7f5ff"/><stop offset="1" stop-color="#8db7ff"/></linearGradient>
-  <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-</defs>
-<rect x="18" y="18" width="220" height="220" rx="58" fill="#071b3d" stroke="#4aa9ff" stroke-width="3"/>
-<rect x="27" y="27" width="202" height="202" rx="50" fill="url(#g)" opacity=".22"/>
-<ellipse cx="128" cy="128" rx="106" ry="42" fill="none" stroke="#5ee8ff" stroke-width="8" opacity=".9" transform="rotate(-24 128 128)" filter="url(#glow)"/>
-<ellipse cx="128" cy="128" rx="106" ry="42" fill="none" stroke="#8b5cf6" stroke-width="3" opacity=".9" transform="rotate(32 128 128)"/>
-<path d="M78 177V76l31 0 58 74V76h30v104h-31l-58-74v74z" fill="url(#n)" filter="url(#glow)"/>
-<path d="M78 177V76h30v67l-30 34zm89-27V76h30v104h-30z" fill="#8bbcff" opacity=".28"/>
-<circle cx="207" cy="78" r="7" fill="#ffffff" filter="url(#glow)"/>
-</svg>"""
-
-@app.get("/api/onex-logo.svg", include_in_schema=False)
-async def onex_logo():
-    return Response(content=ONEX_NEO_ORBIT_SVG, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 app.add_middleware(
     CORSMiddleware,
@@ -312,32 +292,6 @@ DEFAULT_ALPN_BY_PROTOCOL = {
     "xhttp-stream-up": "h2,http/1.1",
     "xhttp-stream-one": "h2,http/1.1",
     "vless-grpc-reality": "h2",
-}
-
-# Advanced client-link settings exposed by the manual creator. Xray treats
-# ALPN as a string list, so the UI exposes common values plus a custom field.
-ALPN_VALUES = (
-    # Xray-specific / commonly used values
-    "h2", "h3", "http/1.1", "FromMitM",
-    # IANA-registered ALPN protocol IDs
-    "http/0.9", "http/1.0", "spdy/1", "spdy/2", "spdy/3",
-    "stun.turn", "stun.nat-discovery", "h2c", "webrtc", "c-webrtc",
-    "ftp", "imap", "pop3", "managesieve", "coap", "co",
-    "xmpp-client", "xmpp-server", "acme-tls/1", "mqtt", "dot",
-    "ntske/1", "sunrpc", "smb", "irc", "nntp", "nnsp", "doq",
-    "sip/2", "tds/8.0", "dicom", "postgresql", "radius/1.0", "radius/1.1",
-    "netperfmeter/control", "netperfmeter/data", "n-pamp/2", "EoQ", "snifq/1",
-    # Common HTTP/3 draft/version labels seen in clients
-    "h3-29", "h3-30", "h3-31", "h3-32",
-    # Common ready-made combinations
-    "h3,h2", "h2,http/1.1", "h3,h2,http/1.1", "h3,http/1.1"
-)
-ALLOWED_TLS_MODES = {"tls", "reality"}
-FRAGMENT_PRESETS = {
-    "off": "",
-    "safe": "100-200,10-20",
-    "balanced": "80-300,10-20",
-    "aggressive": "50-500,10-30",
 }
 
 DEFAULT_PORT = 443
@@ -806,9 +760,8 @@ ADMIN_ACCOUNTS: dict = {}
 SESSION_META: dict = {}
 
 ALL_PERMS = (
-    "dash", "configs", "create", "delete_config", "delete_all_configs",
-    "subscriptions", "groups", "stats", "logs", "settings",
-    "api", "users", "vps", "xray", "advanced", "support", "telegram", "news", "admins",
+    "dash", "configs", "create", "stats", "logs",
+    "settings", "support", "telegram", "news", "admins",
 )
 DEFAULT_PERMS = {p: True for p in ALL_PERMS}
 
@@ -819,7 +772,6 @@ def default_admin_record(username: str, password: str, **kwargs) -> dict:
         "username": username.strip().lower(),
         "password_hash": hash_password(password),
         "label": kwargs.get("label") or username,
-        "role": kwargs.get("role") or "admin",
         "limit_bytes": int(kwargs.get("limit_bytes") or 0),
         "used_bytes": 0,
         "expires_at": kwargs.get("expires_at"),
@@ -827,8 +779,6 @@ def default_admin_record(username: str, password: str, **kwargs) -> dict:
         "blocked": False,
         "permissions": {**DEFAULT_PERMS, **(kwargs.get("permissions") or {})},
         "created_at": datetime.now().isoformat(),
-        "last_login_at": None,
-        "last_login_ip": None,
     }
 
 
@@ -1098,45 +1048,18 @@ def generate_vless_link(
     alpn: str | None = None, port: int | None = None, link: dict | None = None,
 ):
     protocol = normalize_protocol(protocol)
-    link = link or {}
-    fp = (fingerprint or link.get("fingerprint") or DEFAULT_FINGERPRINT).strip().lower()
+    fp = (fingerprint or DEFAULT_FINGERPRINT).strip().lower()
     if fp not in FINGERPRINTS: fp = DEFAULT_FINGERPRINT
     port_value = protocol_public_port(link, protocol, safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT))
-    alpn_value = (alpn or link.get("alpn") or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
-    if alpn_value:
-        alpn_parts = [x.strip() for x in alpn_value.split(",") if x.strip()]
-        alpn_value = ",".join(dict.fromkeys(alpn_parts))[:100] or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")
-    sni = str(link.get("sni") or host).strip() or host
-    allow_insecure = bool(link.get("allow_insecure", False))
-    fragment = str(link.get("fragment") or "off").strip().lower()
-    fragment_value = FRAGMENT_PRESETS.get(fragment, "")
+    alpn_value = (alpn or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
     label = quote(str(remark or "ONEX"), safe="")
-
-    def _q(extra: dict):
-        if allow_insecure:
-            extra["allowInsecure"] = "1"
-        if fragment_value:
-            extra["fragment"] = fragment_value
-        return "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in extra.items())
-
-    security = "reality" if str(link.get("tls_mode") or "tls").strip().lower() == "reality" else "tls"
-    reality_extra = {}
-    if security == "reality":
-        if link.get("reality_public_key"):
-            reality_extra["pbk"] = str(link.get("reality_public_key"))
-        if link.get("reality_short_id"):
-            reality_extra["sid"] = str(link.get("reality_short_id"))
-        if link.get("reality_spider_x"):
-            reality_extra["spx"] = str(link.get("reality_spider_x"))
-        if link.get("reality_target"):
-            reality_extra["target"] = str(link.get("reality_target"))
     if protocol == "vless-ws":
-        q = {"encryption":"none","security":security,"type":"ws","host":host,"path":f"/ws/{uuid}","sni":sni,"fp":fp,"alpn":alpn_value,**reality_extra}
-        return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + _q(q) + "#" + label
+        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
+        return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol.startswith("xhttp-"):
         mode = protocol.replace("xhttp-", "")
-        q = {"encryption":"none","security":security,"type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":sni,"fp":fp,"alpn":alpn_value,**reality_extra}
-        return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + _q(q) + "#" + label
+        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
+        return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol == "vmess-ws":
         raw = {"v":"2","ps":remark,"add":host,"port":port_value,"id":uuid,"aid":0,"scy":"auto","net":"ws","type":"none","host":host,"path":f"/ws/{uuid}","tls":"tls","sni":host,"fp":fp}
         return "vmess://" + base64.b64encode(json.dumps(raw,separators=(",",":"),ensure_ascii=False).encode()).decode()
@@ -1227,14 +1150,6 @@ def get_link_info(
         "fragment": link.get("fragment", "off"),
         "fingerprint": link.get("fingerprint", DEFAULT_FINGERPRINT),
         "alpn": link.get("alpn", ""),
-        "sni": link.get("sni", ""),
-        "allow_insecure": bool(link.get("allow_insecure", False)),
-        "tls_mode": link.get("tls_mode", "tls"),
-        "reality_public_key": link.get("reality_public_key", ""),
-        "reality_short_id": link.get("reality_short_id", ""),
-        "reality_spider_x": link.get("reality_spider_x", ""),
-        "reality_target": link.get("reality_target", ""),
-        "network": ("ws" if link.get("protocol") == "vless-ws" else "xhttp" if str(link.get("protocol", "")).startswith("xhttp-") else ""),
         "port": link.get("port", DEFAULT_PORT),
         "note": link.get("note", ""),
         "clean_ips": clean_ips,
@@ -1504,13 +1419,6 @@ async def make_link(
     protocol: str = DEFAULT_PROTOCOL,
     fingerprint: str = DEFAULT_FINGERPRINT,
     alpn: str = "",
-    sni: str = "",
-    allow_insecure: bool = False,
-    tls_mode: str = "tls",
-    reality_public_key: str = "",
-    reality_short_id: str = "",
-    reality_spider_x: str = "",
-    reality_target: str = "",
     port: int = DEFAULT_PORT,
     ip_limit: int = 0,
     speed_limit_bytes: int = 0,
@@ -1592,27 +1500,6 @@ async def make_link(
                 alpn
                 or ""
             ).strip()[:100],
-
-        "sni":
-            (sni or "").strip()[:253],
-
-        "allow_insecure":
-            bool(allow_insecure),
-
-        "tls_mode":
-            (tls_mode if tls_mode in ALLOWED_TLS_MODES else "tls"),
-
-        "reality_public_key":
-            (reality_public_key or "").strip()[:128],
-
-        "reality_short_id":
-            (reality_short_id or "").strip()[:64],
-
-        "reality_spider_x":
-            (reality_spider_x or "").strip()[:253],
-
-        "reality_target":
-            (reality_target or "").strip()[:253],
 
         "port":
             port,
@@ -2302,6 +2189,111 @@ table th:first-child, table td:first-child{overflow:visible}
   #page-dash .version-mini-copy b{font-size:6px!important}
   #page-dash .version-mini-copy strong{font-size:9px!important}
 }
+
+/* ============================================================
+   ONEX 1.1.5 UI POLISH — 3D BRAND / MOBILE DRAWER / PERFORMANCE
+   ============================================================ */
+
+/* Professional layered 3D ONEX mark */
+.sb-logo-icon,
+.mob-brand-icon{
+  position:relative!important;
+  overflow:hidden;
+  isolation:isolate;
+  background:
+    linear-gradient(145deg,#38bdf8 0%,#2563eb 44%,#6d28d9 100%)!important;
+}
+.sb-logo-icon{transform:perspective(420px) rotateX(8deg) rotateY(-10deg)!important}
+.sb-logo-icon:after{
+  content:''!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:0!important;
+  font-size:0!important;
+  transform:translateZ(20px)!important;
+}
+.sb-logo-icon span,.sb-logo-icon b,
+.mob-brand-icon span,.mob-brand-icon b{
+  position:absolute;
+  font-family:Inter,system-ui,sans-serif;
+  font-weight:900;
+  line-height:1;
+  letter-spacing:-.14em;
+  color:#fff;
+  text-shadow:2px 3px 0 rgba(15,23,42,.55),0 0 14px rgba(255,255,255,.28);
+  user-select:none;
+}
+.sb-logo-icon span{font-size:23px;left:12px;top:15px;z-index:2}
+.sb-logo-icon b{font-size:25px;right:8px;top:13px;z-index:3;transform:translateZ(8px) rotate(-5deg)}
+.mob-brand-icon{
+  flex:0 0 38px;
+  width:38px!important;height:38px!important;border-radius:12px!important;
+  transform:perspective(260px) rotateX(8deg) rotateY(-9deg);
+  box-shadow:0 8px 22px rgba(37,99,235,.32),inset 0 1px rgba(255,255,255,.32)!important;
+  animation:onexLogoFloatMobile 3.4s ease-in-out infinite;
+}
+.mob-brand-icon:before{
+  content:'';position:absolute;inset:4px;border-radius:9px;
+  border:1px solid rgba(255,255,255,.22);
+  background:linear-gradient(145deg,rgba(255,255,255,.25),rgba(255,255,255,0) 55%,rgba(0,0,0,.2));
+  pointer-events:none;
+}
+.mob-brand-icon span{font-size:16px;left:9px;top:11px;z-index:2}
+.mob-brand-icon b{font-size:18px;right:6px;top:10px;z-index:3;transform:translateZ(8px) rotate(-5deg)}
+@keyframes onexLogoFloatMobile{
+  0%,100%{transform:perspective(260px) rotateX(8deg) rotateY(-9deg) translateY(0)}
+  50%{transform:perspective(260px) rotateX(11deg) rotateY(-14deg) translateY(-2px)}
+}
+
+/* Phone drawer: narrower so it does not cover the whole screen. */
+@media (max-width:768px){
+  .sidebar,
+  .sidebar.collapsed{
+    width:min(270px,76vw)!important;
+    max-width:270px!important;
+  }
+  .mob-bar{
+    z-index:1500!important;
+    isolation:isolate;
+    backdrop-filter:none!important;
+    -webkit-backdrop-filter:none!important;
+    background:var(--bg2)!important;
+  }
+  .mob-menu-btn{position:relative;z-index:3;flex:0 0 42px}
+  .mob-brand{position:relative;z-index:2}
+  .mob-brand-icon{position:relative;z-index:2}
+  .overlay{z-index:1400!important}
+  .sidebar{z-index:1600!important}
+}
+
+/* Dark mode performance: avoid expensive blur/filter layers and huge shadows. */
+html:not(.light) body::before{display:none!important}
+html:not(.light) .sidebar,
+html:not(.light) .metric,
+html:not(.light) .card,
+html:not(.light) .modal,
+html:not(.light) .onex-topbar,
+html:not(.light) .onex-control-dock{
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+html:not(.light) .sidebar{box-shadow:-10px 0 26px rgba(0,0,0,.28)!important}
+html:not(.light) .metric,
+html:not(.light) .card{box-shadow:0 7px 20px rgba(0,0,0,.22)!important}
+
+/* Prevent scroll/repaint jank from decorative effects. */
+.page{will-change:auto!important}
+.metric,.card,.nav-item,.btn{backface-visibility:hidden}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+    scroll-behavior:auto!important;
+  }
+}
+
 </style>
 </head>
 
@@ -2970,9 +2962,6 @@ async def api_login(request: Request):
             if not admin_is_valid(admin):
                 raise HTTPException(status_code=403, detail="حساب مسدود یا منقضی شده است")
             ok = True
-            admin["last_login_at"] = datetime.now().isoformat()
-            admin["last_login_ip"] = ip
-            await save_state()
             meta = {"role": "admin", "admin_id": aid, "username": username}
     if not ok:
         locked, value = register_login_failure(ip)
@@ -3250,24 +3239,6 @@ async def create_link_api(
     if fingerprint not in FINGERPRINTS:
         fingerprint = DEFAULT_FINGERPRINT
 
-    raw_alpn = body.get("alpn", DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1"))
-    if isinstance(raw_alpn, list):
-        alpn_parts = [str(x).strip() for x in raw_alpn]
-    else:
-        alpn_parts = [x.strip() for x in str(raw_alpn or "").replace(";", ",").split(",")]
-    alpn_parts = list(dict.fromkeys(x for x in alpn_parts if x))
-    alpn = ",".join(alpn_parts)[:100] or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")
-
-    sni = str(body.get("sni") or "").strip()[:253]
-    allow_insecure = bool(body.get("allow_insecure", False))
-    tls_mode = str(body.get("tls_mode") or "tls").strip().lower()
-    if tls_mode not in ALLOWED_TLS_MODES:
-        tls_mode = "tls"
-    reality_public_key = str(body.get("reality_public_key") or "").strip()[:128]
-    reality_short_id = str(body.get("reality_short_id") or "").strip()[:64]
-    reality_spider_x = str(body.get("reality_spider_x") or "").strip()[:253]
-    reality_target = str(body.get("reality_target") or "").strip()[:253]
-
     fragment = str(
         body.get(
             "fragment",
@@ -3335,14 +3306,13 @@ async def create_link_api(
         ),
         protocol=protocol,
         fingerprint=fingerprint,
-        alpn=alpn,
-        sni=sni,
-        allow_insecure=allow_insecure,
-        tls_mode=tls_mode,
-        reality_public_key=reality_public_key,
-        reality_short_id=reality_short_id,
-        reality_spider_x=reality_spider_x,
-        reality_target=reality_target,
+        alpn=body.get(
+            "alpn",
+            DEFAULT_ALPN_BY_PROTOCOL.get(
+                protocol,
+                "http/1.1",
+            ),
+        ),
         port=port,
         ip_limit=ip_limit,
         speed_limit_bytes=speed_bytes,
@@ -3756,32 +3726,12 @@ async def update_link(
 
         if "alpn" in body:
 
-            raw_alpn = body.get("alpn", "")
-            if isinstance(raw_alpn, list):
-                parts = [str(x).strip() for x in raw_alpn]
-            else:
-                parts = [x.strip() for x in str(raw_alpn or "").replace(";", ",").split(",")]
-            parts = list(dict.fromkeys(x for x in parts if x))
-            link["alpn"] = ",".join(parts)[:100]
-
-        if "sni" in body:
-            link["sni"] = str(body.get("sni") or "").strip()[:253]
-
-        if "allow_insecure" in body:
-            link["allow_insecure"] = bool(body.get("allow_insecure"))
-
-        if "tls_mode" in body:
-            mode = str(body.get("tls_mode") or "tls").strip().lower()
-            link["tls_mode"] = mode if mode in ALLOWED_TLS_MODES else "tls"
-
-        if "reality_public_key" in body:
-            link["reality_public_key"] = str(body.get("reality_public_key") or "").strip()[:128]
-        if "reality_short_id" in body:
-            link["reality_short_id"] = str(body.get("reality_short_id") or "").strip()[:64]
-        if "reality_spider_x" in body:
-            link["reality_spider_x"] = str(body.get("reality_spider_x") or "").strip()[:253]
-        if "reality_target" in body:
-            link["reality_target"] = str(body.get("reality_target") or "").strip()[:253]
+            link["alpn"] = str(
+                body.get(
+                    "alpn",
+                    "",
+                )
+            )[:100]
 
         if "port" in body:
 
@@ -6656,7 +6606,6 @@ async def api_admins_list(token=Depends(require_perm("admins"))):
             "id": aid,
             "username": a.get("username"),
             "label": a.get("label"),
-            "role": a.get("role") or "admin",
             "limit_bytes": int(a.get("limit_bytes") or 0),
             "used_bytes": int(a.get("used_bytes") or 0),
             "expires_at": a.get("expires_at"),
@@ -6664,8 +6613,6 @@ async def api_admins_list(token=Depends(require_perm("admins"))):
             "blocked": bool(a.get("blocked")),
             "permissions": a.get("permissions") or {},
             "created_at": a.get("created_at"),
-            "last_login_at": a.get("last_login_at"),
-            "last_login_ip": a.get("last_login_ip"),
             "valid": admin_is_valid(a),
         })
     out.sort(key=lambda x: x.get("created_at") or "", reverse=True)
@@ -6703,12 +6650,9 @@ async def api_admins_create(request: Request, token=Depends(require_perm("admins
     expires_at = (datetime.now() + timedelta(days=days)).isoformat() if days > 0 else None
     perms_in = body.get("permissions") or {}
     permissions = {p: bool(perms_in.get(p, False)) for p in ALL_PERMS}
-    role = str(body.get("role") or "admin").lower()
-    if role not in ("admin", "operator"):
-        role = "admin"
-    active = bool(body.get("active", True))
-    rec = default_admin_record(username, password, limit_bytes=limit_bytes, expires_at=expires_at, permissions=permissions, label=body.get("label") or username, role=role)
-    rec["active"] = active
+    rec = default_admin_record(username, password, limit_bytes=limit_bytes, expires_at=expires_at, permissions=permissions, label=body.get("label") or username)
+    if "active" in body:
+        rec["active"] = bool(body.get("active"))
     ADMIN_ACCOUNTS[rec["id"]] = rec
     await save_state()
     log_activity("admin", f"اکانت ادمین «{username}» ساخته شد", "ok")
@@ -6730,9 +6674,6 @@ async def api_admins_patch(aid: str, request: Request, token=Depends(require_per
         a["active"] = bool(body["active"])
     if "label" in body:
         a["label"] = str(body["label"])[:40]
-    if "role" in body:
-        role = str(body.get("role") or "admin").lower()
-        a["role"] = role if role in ("admin", "operator") else "admin"
     if "permissions" in body and isinstance(body["permissions"], dict):
         a["permissions"] = {p: bool(body["permissions"].get(p, False)) for p in ALL_PERMS}
     if "limit_value" in body:
@@ -8119,26 +8060,6 @@ html.light .top-setting-group,html.light .top-notify-btn{background:#fff!importa
    LIGHT STATIC 3D PROTOCOL PICKER
    ============================================================ */
 #page-create select.protocol-native,#page-create .protocol-field select{display:none!important;position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important}
-#page-create .advanced-config{margin:14px 0 16px;border:1px solid var(--card-b);border-radius:15px;overflow:hidden;background:rgba(8,18,36,.38)}
-#page-create .advanced-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;background:transparent;border:0;color:var(--t1);cursor:pointer;font-family:inherit;text-align:right}
-#page-create .advanced-toggle-main{display:flex;align-items:center;gap:10px;min-width:0}
-#page-create .advanced-toggle-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(96,165,250,.10);border:1px solid rgba(96,165,250,.18);font-size:16px}
-#page-create .advanced-toggle-text b{display:block;font-size:12px}
-#page-create .advanced-toggle-text small{display:block;margin-top:3px;color:var(--t3);font-size:10px}
-#page-create .advanced-toggle-arrow{font-size:20px;color:#60a5fa;transition:transform .18s ease}
-#page-create .advanced-config.open .advanced-toggle-arrow{transform:rotate(180deg)}
-#page-create .advanced-body{display:none;padding:0 14px 14px;border-top:1px solid var(--card-b)}
-#page-create .advanced-config.open .advanced-body{display:block}
-#page-create .advanced-section-title{font-size:10px;font-weight:800;color:var(--t3);margin:14px 0 8px;letter-spacing:.2px}
-#page-create .advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-#page-create .advanced-grid .field{margin:0}
-#page-create .advanced-full{grid-column:1/-1}
-#page-create .alpn-choices{display:flex;flex-wrap:wrap;gap:7px;max-height:240px;overflow:auto;padding:4px}
-#page-create .alpn-choice{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--card-b);border-radius:10px;background:var(--input-bg);font-size:11px;cursor:pointer;user-select:none}
-#page-create .alpn-choice input{accent-color:#60a5fa}
-#page-create .advanced-note{font-size:10px;line-height:1.7;color:var(--t3);padding:8px 10px;border-radius:10px;background:rgba(148,163,184,.05);border:1px solid rgba(148,163,184,.10);margin-top:9px}
-#page-create .advanced-readonly{opacity:.72}
-@media(max-width:640px){#page-create .advanced-grid{grid-template-columns:1fr}}
 #page-create .protocol-field{position:relative}
 #page-create .protocol-trigger{width:100%;min-height:46px;display:flex!important;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-radius:13px;border:1px solid rgba(96,165,250,.22);background:linear-gradient(145deg,rgba(18,31,58,.88),rgba(7,14,29,.94));color:var(--t1);cursor:pointer;position:relative;overflow:hidden;box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.16)}
 #page-create .protocol-trigger:after{content:'⌄';position:absolute;inset-inline-end:10px;top:50%;transform:translateY(-50%);font-size:16px;color:#60a5fa;pointer-events:none}
@@ -8281,157 +8202,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 
 .all-proto-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 14px;padding:12px 14px;border:1px solid rgba(34,197,94,.22);border-radius:14px;background:rgba(34,197,94,.035);cursor:pointer;user-select:none}
 .all-proto-toggle span{display:block;min-width:0}.all-proto-toggle b{display:block;font-size:12px}.all-proto-toggle small{display:block;color:var(--t3);font-size:10px;margin-top:4px;line-height:1.6}.all-proto-toggle input{position:absolute;opacity:0;pointer-events:none}.all-proto-toggle i{position:relative;flex:0 0 48px;width:48px;height:28px;border-radius:999px;background:#4b5563;transition:.2s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.all-proto-toggle i:before{content:"";position:absolute;top:4px;right:24px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:.2s}.all-proto-toggle:has(input:checked) i{background:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.28)}.all-proto-toggle:has(input:checked) i:before{right:4px}.all-proto-toggle:focus-within{outline:2px solid rgba(34,197,94,.35);outline-offset:2px}
-
-/* ============================================================
-   ADMIN MANAGEMENT — APPROVED COMPACT RESPONSIVE LAYOUT
-   ============================================================ */
-.admin-page{max-width:1080px;margin:0 auto;padding:0 0 24px}
-.admin-page .page-head{margin-bottom:14px}
-.admin-main-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(285px,.85fr);gap:14px;align-items:start}
-.admin-list-card{padding:0!important;overflow:hidden}
-.admin-list-head{padding:13px 15px;border-bottom:1px solid var(--card-b)}
-.admin-list-controls{display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:8px;margin-top:8px}
-.admin-list-controls input,.admin-list-controls select{height:38px!important;min-height:38px!important;font-size:11px!important;border-radius:10px!important}
-.admin-table-wrap{overflow-x:auto}
-.admin-table-head{min-width:610px;display:grid;grid-template-columns:1.55fr .78fr .8fr 1.05fr .95fr;padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--card-b);font-size:10px;color:var(--t3);font-weight:700}
-.admin-create-card{padding:14px!important}
-.admin-create-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.admin-create-card .field{margin-bottom:8px}
-.admin-create-card .field label{font-size:10px;margin-bottom:4px}
-.admin-create-card input,.admin-create-card select{height:40px!important;min-height:40px!important;font-size:12px!important;border-radius:11px!important}
-.admin-create-card .form-row{gap:7px}
-.admin-status-row{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;margin:2px 0 8px;border:1px solid var(--card-b);background:var(--bg2);border-radius:11px;font-size:11px}
-.admin-perms-card{margin-top:14px;padding:14px!important}
-.admin-perm-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.admin-perm-actions{display:flex;gap:5px}
-.admin-perm-actions .btn{height:30px!important;padding:0 8px!important;font-size:10px!important}
-.admin-perm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
-.admin-perm-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:0}.admin-perm-grid.compact .admin-perm-group{padding:7px}.admin-perm-grid.compact .admin-perm-item{padding:5px 4px;font-size:9px}
-.admin-perm-group{border:1px solid var(--card-b);border-radius:12px;padding:9px;background:var(--bg2)}
-.admin-perm-group-title{font-size:11px;font-weight:800;margin-bottom:7px;color:var(--t1)}
-.admin-perm-item{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:6px 5px;border-top:1px solid var(--card-b);font-size:10px}
-.admin-perm-item:first-of-type{border-top:0}
-.admin-bottom-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:14px;margin-top:14px;align-items:start}
-.admin-activity-card,.admin-details-card{min-height:170px}
-.admin-page input,.admin-page select{box-sizing:border-box}
-.admin-row{display:grid;grid-template-columns:1.55fr .78fr .8fr 1.05fr .95fr;align-items:center;min-width:610px;padding:9px 12px;border-bottom:1px solid var(--card-b);cursor:pointer;gap:7px;font-size:10px}
-.admin-row:last-child{border-bottom:0}
-.admin-row:hover{background:var(--bg2)}
-.admin-avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-weight:800;flex:0 0 32px}
-.admin-role{font-size:9px;padding:4px 7px;border-radius:999px;background:rgba(59,130,246,.10);color:#2563eb;width:max-content}
-.admin-state{font-size:9px;border:1px solid;padding:4px 7px;border-radius:999px;width:max-content}
-.admin-actions{display:flex;gap:4px}
-.admin-actions .btn{min-width:28px!important;height:28px!important;padding:0 5px!important;font-size:10px!important}
-.admin-detail-actions{display:flex;gap:7px;margin-top:11px}
-.admin-detail-actions .btn{flex:1;height:34px!important;font-size:10px!important}
-@media(max-width:900px){
-  .admin-page{width:100%;max-width:none;margin:0;padding:4px 9px 20px;box-sizing:border-box}
-  .admin-page .page-head{margin-bottom:9px}
-  .admin-page .page-title{font-size:18px!important;line-height:1.4}
-  .admin-page .page-title svg{width:19px!important;height:19px!important}
-  .admin-page .page-sub{font-size:9px!important;margin-top:1px}
-  .admin-page .page-head .btn{height:36px!important;padding:0 10px!important;font-size:10px!important;border-radius:10px!important}
-  .admin-main-grid{grid-template-columns:1fr!important;gap:9px!important}
-  .admin-list-card{order:1}.admin-create-card{order:2}
-  .admin-list-head{padding:10px 11px!important}
-  .admin-list-controls{grid-template-columns:minmax(0,1fr) 100px!important;gap:5px!important;margin-top:6px!important}
-  .admin-list-controls input,.admin-list-controls select{height:34px!important;min-height:34px!important;font-size:9px!important}
-  .admin-table-head{display:none!important}
-  .admin-table-wrap{overflow:visible!important}
-  .admin-row{min-width:0!important;width:100%;box-sizing:border-box;padding:10px 9px!important;font-size:9px!important;grid-template-columns:minmax(0,1fr) auto!important;gap:7px 8px!important;background:transparent}
-  .admin-row>div:first-child{grid-column:1 / -1!important}
-  .admin-row>.admin-role{grid-column:1!important;grid-row:2!important;align-self:center}
-  .admin-row>.admin-state{grid-column:2!important;grid-row:2!important;justify-self:end!important;align-self:center}
-  .admin-row>span:nth-child(4){grid-column:1!important;grid-row:3!important}
-  .admin-row>.admin-actions{grid-column:2!important;grid-row:3!important;justify-self:end!important}
-  .admin-avatar{width:29px;height:29px;flex-basis:29px;font-size:11px}
-  .admin-role,.admin-state{font-size:8px;padding:3px 6px}
-  .admin-actions .btn{min-width:26px!important;height:26px!important;font-size:9px!important}
-  .admin-create-card{padding:12px!important}
-  .admin-create-card .card-title{font-size:13px!important}
-  .admin-create-card .field{margin-bottom:6px!important}
-  .admin-create-card .field label{font-size:9px!important;margin-bottom:3px!important}
-  .admin-create-card input,.admin-create-card select{height:38px!important;min-height:38px!important;font-size:11px!important;border-radius:10px!important;padding:0 9px!important}
-  .admin-create-card .btn{height:39px!important;font-size:11px!important;border-radius:10px!important}
-  .admin-status-row{font-size:10px;padding:8px 9px;margin:1px 0 6px}
-  .admin-perms-card{margin-top:9px!important;padding:11px!important}
-  .admin-perm-toolbar{align-items:flex-start}
-  .admin-perm-toolbar .card-title{font-size:12px!important}
-  .admin-perm-toolbar>div:first-child>div:last-child{font-size:9px!important}
-  .admin-perm-actions .btn{height:28px!important;font-size:9px!important}
-  .admin-perm-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:9px}
-  .admin-perm-group{padding:7px;border-radius:10px}
-  .admin-perm-group-title{font-size:10px;margin-bottom:5px}
-  .admin-perm-item{font-size:9px;padding:5px 3px}
-  .admin-perm-item .switch{transform:scale(.72);transform-origin:center}
-  .admin-bottom-grid{grid-template-columns:1fr!important;gap:9px!important;margin-top:9px!important}
-  .admin-activity-card,.admin-details-card{min-height:0!important}
-  .admin-activity-card .card-title,.admin-details-card .card-title{font-size:12px!important}
-  #adminActivityBox{max-height:180px!important}
-  #adminDetails{font-size:9px!important;line-height:1.8!important}
-}
-@media(max-width:390px){
-  .admin-page{padding-left:7px;padding-right:7px}
-  .admin-page .page-title{font-size:17px!important}
-  .admin-list-controls{grid-template-columns:1fr 92px!important}
-  .admin-perm-grid{grid-template-columns:1fr!important}
-}
-@media(max-width:900px){
-  body:has(#page-admins.on) .sidebar{transform:translateX(105%) !important}
-  body:has(#page-admins.on) .sidebar.mobile-open{transform:translateX(0) !important}
-  body:has(#page-admins.on) .main,body:has(#page-admins.on) .main.expanded{width:100%!important;max-width:100%!important;margin:0!important;padding-left:10px!important;padding-right:10px!important}
-  body:has(#page-admins.on) .mob-bar{display:flex!important}
-}
-
-/* ============================================================
-   ONEX NEO ORBIT FINAL UI TUNING
-   - Uses the new 3D Neo Orbit logo in mobile + drawer branding.
-   - Mobile drawer is narrower and keeps the animated logo visible.
-   - Dark surfaces are lighter/softer and cheaper to paint.
-   ============================================================ */
-.sb-logo-icon,.mob-brand-icon{background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important;isolation:auto!important}
-.sb-logo-icon img{width:100%;height:100%;display:block;object-fit:contain;filter:drop-shadow(0 8px 18px rgba(37,99,235,.34));animation:neoOrbitFloat 3.4s ease-in-out infinite}
-.mob-brand-icon{position:relative!important}
-.mob-brand-icon img{width:100%;height:100%;display:block;object-fit:contain;filter:drop-shadow(0 5px 12px rgba(37,99,235,.42));animation:neoOrbitFloat 3.2s ease-in-out infinite}
-@keyframes neoOrbitFloat{0%,100%{transform:translateY(0) rotateX(0deg) rotateY(-2deg) scale(1)}50%{transform:translateY(-2px) rotateX(4deg) rotateY(5deg) scale(1.035)}}
-
-/* Lighter dark theme: less black, less blur, softer shadows. */
-html:not(.light) body{background:radial-gradient(circle at 18% 22%,rgba(0,126,255,.12),transparent 30%),radial-gradient(circle at 85% 15%,rgba(0,207,255,.08),transparent 26%),linear-gradient(145deg,#06101f 0%,#0a1930 52%,#06101d 100%)!important}
-html:not(.light) body::before{background:radial-gradient(ellipse 80% 50% at 100% 0%,rgba(0,126,255,.10),transparent 52%),radial-gradient(ellipse 60% 40% at 0% 100%,rgba(124,58,237,.065),transparent 48%)!important}
-html:not(.light) .sidebar,html:not(.light) .mob-bar{background:linear-gradient(145deg,rgba(13,31,57,.94),rgba(8,22,41,.94))!important;box-shadow:0 18px 50px rgba(0,0,0,.28),0 0 45px rgba(0,119,255,.055)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}
-html:not(.light) .onex-topbar,html:not(.light) .onex-control-dock,html:not(.light) .onex-card,html:not(.light) .onex-metric,html:not(.light) .card,html:not(.light) .metric,html:not(.light) .support-tile,html:not(.light) .modal,html:not(.light) .toast{background:linear-gradient(145deg,rgba(13,31,57,.88),rgba(8,21,39,.88))!important;box-shadow:0 12px 32px rgba(0,0,0,.20),inset 0 1px rgba(255,255,255,.055)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}
-html:not(.light) .onex-control-dock{background:linear-gradient(145deg,rgba(15,35,63,.84),rgba(9,24,43,.82))!important}
-html:not(.light) .quick-item,html:not(.light) .top-chip,html:not(.light) .range-tabs,html:not(.light) .range-mini,html:not(.light) .mini-action,html:not(.light) .sub-box,html:not(.light) .link-box,html:not(.light) .table-wrap{background:rgba(10,27,49,.68)!important;box-shadow:inset 0 1px rgba(255,255,255,.045)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-html:not(.light) .page .card,html:not(.light) .page .metric,html:not(.light) .page .table-wrap,html:not(.light) .page .support-tile,html:not(.light) .page .link-box,html:not(.light) .page .sub-box,html:not(.light) .page .quick-item,html:not(.light) .page .range-tabs,html:not(.light) .page .range-mini,html:not(.light) .page .mini-action,html:not(.light) .page .chart-badge,html:not(.light) .page .health-track,html:not(.light) .page .xray-state,html:not(.light) .page .recent-table,html:not(.light) .page .recent-table th,html:not(.light) .page .recent-table td,html:not(.light) .page .field input,html:not(.light) .page .field select,html:not(.light) .page .field textarea{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-
-/* Mobile drawer: compact but still comfortable for touch. */
-@media(max-width:768px){
-  .sidebar{width:min(76vw,292px)!important;max-width:292px!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;background:linear-gradient(145deg,rgba(13,31,57,.97),rgba(8,22,41,.97))!important;box-shadow:-18px 0 55px rgba(0,0,0,.32),0 0 50px rgba(0,119,255,.06)!important}
-  .sidebar.collapsed{width:min(76vw,292px)!important}
-  .sidebar .sb-logo{padding:14px 12px 12px;min-height:86px}
-  .sidebar .sb-logo-icon{width:62px!important;height:62px!important;border-radius:18px!important}
-  .sidebar .nav{padding:4px 0}
-  .sidebar .nav-item{font-size:12px;padding:10px 14px;margin:2px 8px;width:calc(100% - 16px);gap:10px}
-  .sidebar .nav-item .nav-ico{width:21px;height:21px;min-width:21px}
-  .sidebar .sb-foot{padding:10px}
-  .mob-bar{height:58px;padding:0 10px;background:linear-gradient(145deg,rgba(13,31,57,.96),rgba(8,22,41,.96))!important;box-shadow:0 8px 24px rgba(0,0,0,.20)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}
-  .mob-menu-btn{width:40px;height:40px;border-radius:11px;background:rgba(16,42,73,.85)!important}
-  .mob-brand{gap:7px}
-  .mob-brand-icon{width:40px!important;height:40px!important;flex-basis:40px!important}
-  .mob-brand-text span{font-size:8px}
-  .overlay{background:rgba(1,6,16,.40)!important;backdrop-filter:none!important}
-  .main,.main.expanded{padding:68px 10px 34px!important}
-}
-@media(max-width:480px){
-  .sidebar{width:min(78vw,286px)!important;max-width:286px!important}
-  .sidebar.collapsed{width:min(78vw,286px)!important}
-  .sidebar .sb-logo-icon{width:66px!important;height:66px!important}
-  .mob-brand-icon{width:38px!important;height:38px!important;flex-basis:38px!important}
-}
-@media(prefers-reduced-motion:reduce){.sb-logo-icon img,.mob-brand-icon img{animation:none!important}}
-
 </style>
-
 </head>
 <body>
 
@@ -8439,7 +8210,7 @@ html:not(.light) .page .card,html:not(.light) .page .metric,html:not(.light) .pa
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand"><div class="mob-brand-icon"><img src="/api/onex-logo.svg" alt="ONEX"></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
+  <div class="mob-brand"><div class="mob-brand-icon" aria-label="ONEX 3D logo"><span>O</span><b>X</b></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -8449,7 +8220,7 @@ html:not(.light) .page .card,html:not(.light) .page .metric,html:not(.light) .pa
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="sb-logo-icon" aria-label="ONEX 3D logo"><img src="/api/onex-logo.svg" alt="ONEX"></div>
+    <div class="sb-logo-icon" aria-label="ONEX 3D logo"><span>O</span><b>X</b></div>
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>
@@ -8667,107 +8438,6 @@ html:not(.light) .page .card,html:not(.light) .page .metric,html:not(.light) .pa
         <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
         <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
       </div>
-
-      <div class="advanced-config" id="manualAdvanced">
-        <button type="button" class="advanced-toggle" onclick="toggleManualAdvanced()" aria-expanded="false">
-          <span class="advanced-toggle-main"><span class="advanced-toggle-icon">⚙</span><span class="advanced-toggle-text"><b>تنظیمات پیشرفته کانفیگ</b><small>TLS، SNI، Fingerprint، ALPN، Fragment و شبکه</small></span></span>
-          <span class="advanced-toggle-arrow">⌄</span>
-        </button>
-        <div class="advanced-body">
-          <div class="advanced-section-title">امنیت و TLS</div>
-          <div class="advanced-grid">
-            <div class="field"><label>TLS</label><select id="cTlsMode" onchange="toggleManualRealityFields()"><option value="tls">TLS</option><option value="reality">Reality</option></select></div>
-            <div class="field"><label>Port / پورت</label><input id="cPort" type="number" min="1" max="65535" placeholder="پیش‌فرض: 443"></div>
-            <div class="field"><label>SNI</label><input id="cSni" type="text" dir="ltr" placeholder="پیش‌فرض: دامنه پنل"></div>
-            <div class="field"><label>مجوز SSL ناامن</label><select id="cAllowInsecure"><option value="false">False</option><option value="true">True</option></select></div>
-            <div class="field"><label>Fingerprint / اثرانگشت</label><select id="cFingerprint">
-              <option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="safari">Safari</option><option value="ios">iOS</option><option value="android">Android</option><option value="edge">Edge</option><option value="360">360</option><option value="qq">QQ</option><option value="random">Random</option><option value="randomized">Randomized</option>
-            </select></div>
-          </div>
-          <div id="manualRealityFields" class="advanced-grid" style="display:none;margin-top:10px">
-            <div class="field advanced-full"><label>Reality Public Key</label><input id="cRealityPublicKey" type="text" dir="ltr" placeholder="Public Key"></div>
-            <div class="field"><label>Reality Short ID</label><input id="cRealityShortId" type="text" dir="ltr" placeholder="Short ID"></div>
-            <div class="field"><label>SpiderX</label><input id="cRealitySpiderX" type="text" dir="ltr" placeholder="/"></div>
-            <div class="field advanced-full"><label>Reality Target</label><input id="cRealityTarget" type="text" dir="ltr" placeholder="example.com:443"></div>
-          </div>
-
-          <div class="advanced-section-title">ALPN</div>
-          <div class="alpn-choices" id="cAlpnChoices">
-            <label class="alpn-choice"><input type="checkbox" value="h2"> HTTP/2</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3"> HTTP/3</label>
-            <label class="alpn-choice"><input type="checkbox" value="http/1.1"> HTTP/1.1</label>
-            <label class="alpn-choice"><input type="checkbox" value="FromMitM"> FromMitM</label>
-            <label class="alpn-choice"><input type="checkbox" value="http/0.9"> HTTP/0.9</label>
-            <label class="alpn-choice"><input type="checkbox" value="http/1.0"> HTTP/1.0</label>
-            <label class="alpn-choice"><input type="checkbox" value="spdy/1"> SPDY/1</label>
-            <label class="alpn-choice"><input type="checkbox" value="spdy/2"> SPDY/2</label>
-            <label class="alpn-choice"><input type="checkbox" value="spdy/3"> SPDY/3</label>
-            <label class="alpn-choice"><input type="checkbox" value="stun.turn"> stun.turn</label>
-            <label class="alpn-choice"><input type="checkbox" value="stun.nat-discovery"> stun.nat-discovery</label>
-            <label class="alpn-choice"><input type="checkbox" value="h2c"> h2c</label>
-            <label class="alpn-choice"><input type="checkbox" value="webrtc"> webrtc</label>
-            <label class="alpn-choice"><input type="checkbox" value="c-webrtc"> c-webrtc</label>
-            <label class="alpn-choice"><input type="checkbox" value="ftp"> ftp</label>
-            <label class="alpn-choice"><input type="checkbox" value="imap"> imap</label>
-            <label class="alpn-choice"><input type="checkbox" value="pop3"> pop3</label>
-            <label class="alpn-choice"><input type="checkbox" value="managesieve"> managesieve</label>
-            <label class="alpn-choice"><input type="checkbox" value="coap"> coap</label>
-            <label class="alpn-choice"><input type="checkbox" value="co"> co</label>
-            <label class="alpn-choice"><input type="checkbox" value="xmpp-client"> xmpp-client</label>
-            <label class="alpn-choice"><input type="checkbox" value="xmpp-server"> xmpp-server</label>
-            <label class="alpn-choice"><input type="checkbox" value="acme-tls/1"> acme-tls/1</label>
-            <label class="alpn-choice"><input type="checkbox" value="mqtt"> mqtt</label>
-            <label class="alpn-choice"><input type="checkbox" value="dot"> dot</label>
-            <label class="alpn-choice"><input type="checkbox" value="ntske/1"> ntske/1</label>
-            <label class="alpn-choice"><input type="checkbox" value="sunrpc"> sunrpc</label>
-            <label class="alpn-choice"><input type="checkbox" value="smb"> smb</label>
-            <label class="alpn-choice"><input type="checkbox" value="irc"> irc</label>
-            <label class="alpn-choice"><input type="checkbox" value="nntp"> nntp</label>
-            <label class="alpn-choice"><input type="checkbox" value="nnsp"> nnsp</label>
-            <label class="alpn-choice"><input type="checkbox" value="doq"> doq</label>
-            <label class="alpn-choice"><input type="checkbox" value="sip/2"> sip/2</label>
-            <label class="alpn-choice"><input type="checkbox" value="tds/8.0"> tds/8.0</label>
-            <label class="alpn-choice"><input type="checkbox" value="dicom"> dicom</label>
-            <label class="alpn-choice"><input type="checkbox" value="postgresql"> postgresql</label>
-            <label class="alpn-choice"><input type="checkbox" value="radius/1.0"> radius/1.0</label>
-            <label class="alpn-choice"><input type="checkbox" value="radius/1.1"> radius/1.1</label>
-            <label class="alpn-choice"><input type="checkbox" value="netperfmeter/control"> netperfmeter/control</label>
-            <label class="alpn-choice"><input type="checkbox" value="netperfmeter/data"> netperfmeter/data</label>
-            <label class="alpn-choice"><input type="checkbox" value="n-pamp/2"> n-pamp/2</label>
-            <label class="alpn-choice"><input type="checkbox" value="EoQ"> EoQ</label>
-            <label class="alpn-choice"><input type="checkbox" value="snifq/1"> snifq/1</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3-29"> h3-29</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3-30"> h3-30</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3-31"> h3-31</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3-32"> h3-32</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3,h2"> h3,h2</label>
-            <label class="alpn-choice"><input type="checkbox" value="h2,http/1.1"> h2,http/1.1</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3,h2,http/1.1"> h3,h2,http/1.1</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3,http/1.1"> h3,http/1.1</label>
-          </div>
-          <div class="field" style="margin-top:10px">
-            <label>ALPN سفارشی</label>
-            <input id="cAlpnCustom" type="text" dir="ltr" placeholder="مثلاً: acme-tls/1,dot,doh">
-          </div>
-          <div class="advanced-note">هر تعداد ALPN را می‌توانی انتخاب کنی. علاوه بر موارد رایج، مقدار سفارشی هم قابل وارد کردن است؛ مقادیر را با کاما جدا کن. اگر چیزی انتخاب/وارد نکنی، ALPN پیش‌فرض همان پروتکل استفاده می‌شود.</div>
-
-          <div class="advanced-section-title">شبکه و انتقال</div>
-          <div class="advanced-grid">
-            <div class="field"><label>Network</label><input id="cNetwork" class="advanced-readonly" type="text" value="WebSocket" readonly></div>
-            <div class="field"><label>Mode</label><input id="cNetworkMode" class="advanced-readonly" type="text" value="ws" dir="ltr" readonly></div>
-            <div class="field advanced-full"><label>Path</label><input id="cPath" class="advanced-readonly" type="text" value="/ws/{UUID}" dir="ltr" readonly></div>
-            <div class="field advanced-full"><label>Host</label><input id="cHost" class="advanced-readonly" type="text" value="دامنه پنل (خودکار)" readonly></div>
-          </div>
-          <div class="advanced-note">Network و Path متناسب با چهار پروتکل فعلی خودکار تعیین می‌شوند تا با backend واقعی ONEX هماهنگ بمانند و با تغییر دستی خراب نشوند.</div>
-
-          <div class="advanced-section-title">Fragment</div>
-          <div class="advanced-grid">
-            <div class="field"><label>Fragment</label><select id="cFragment"><option value="off">Off</option><option value="safe">Safe</option><option value="balanced">Balanced</option><option value="aggressive">Aggressive</option></select></div>
-          </div>
-          <div class="advanced-note">Fragment به‌صورت پارامتر لینک ذخیره می‌شود و روی کلاینت اعمال می‌شود؛ اگر خاموش باشد هیچ پارامتر Fragment به لینک اضافه نمی‌شود.</div>
-        </div>
-      </div>
-
       <button class="btn btn-p" style="width:100%" onclick="doManualCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
         <span data-i18n="btn_create">ساخت</span>
@@ -9058,6 +8728,87 @@ html:not(.light) body:has(.page) .table-wrap{{
   transition:background .12s ease,border-color .12s ease,color .12s ease !important;
 }}
 
+
+/* ============================================================
+   ONEX ADMIN MANAGEMENT — COMPACT / RESPONSIVE
+   ============================================================ */
+.admin-page{max-width:1120px;margin:0 auto;padding-bottom:24px}
+.admin-page .page-head{margin-bottom:14px}
+.admin-head-actions{display:flex;gap:8px;align-items:center}
+.admin-grid-top{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(290px,.85fr);gap:14px;align-items:start}
+.admin-card{padding:15px!important;overflow:hidden}
+.admin-card-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.admin-card-title{font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px}
+.admin-card-sub{font-size:10px;color:var(--t3);margin-top:3px}
+.admin-list-card{padding:0!important;overflow:hidden}
+.admin-list-head{padding:14px 16px;border-bottom:1px solid var(--card-b)}
+.admin-list-controls{display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:8px;margin-top:9px}
+.admin-table-wrap{overflow:auto}
+.admin-table-head,.admin-row{min-width:620px;display:grid;grid-template-columns:1.6fr .75fr .85fr 1.15fr .95fr;align-items:center}
+.admin-table-head{padding:9px 13px;background:var(--bg3);border-bottom:1px solid var(--card-b);font-size:10px;color:var(--t3);font-weight:700}
+.admin-row{padding:10px 13px;border-bottom:1px solid var(--card-b);cursor:pointer;transition:.15s;background:transparent}
+.admin-row:hover{background:var(--hover)}
+.admin-row.selected{background:rgba(59,130,246,.08);box-shadow:inset -3px 0 0 var(--accent)}
+.admin-user{display:flex;align-items:center;gap:9px;min-width:0}
+.admin-avatar{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 34px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;font-weight:800;font-size:13px}
+.admin-user-text{min-width:0}.admin-user-name{font-weight:800;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.admin-user-label{font-size:9px;color:var(--t3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-badge{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:800;white-space:nowrap}
+.admin-badge.active{background:rgba(34,197,94,.12);color:#22c55e;border:1px solid rgba(34,197,94,.22)}
+.admin-badge.blocked{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.22)}
+.admin-badge.invalid{background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.22)}
+.admin-role{font-size:9px;font-weight:800;padding:5px 8px;border-radius:8px;background:rgba(59,130,246,.12);color:#60a5fa;display:inline-block;white-space:nowrap}
+.admin-ops{display:flex;gap:5px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
+.admin-op{width:31px;height:31px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--card-b);cursor:pointer;transition:.15s;background:var(--bg3);color:var(--t2);padding:0}
+.admin-op svg{width:14px;height:14px}
+.admin-op:hover{transform:translateY(-1px);border-color:var(--accent);color:#fff}
+.admin-op.edit{background:rgba(59,130,246,.16);border-color:rgba(59,130,246,.35);color:#60a5fa}
+.admin-op.block{background:rgba(245,158,11,.13);border-color:rgba(245,158,11,.30);color:#fbbf24}
+.admin-op.delete{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.30);color:#f87171}
+.admin-op.unblock{background:rgba(34,197,94,.13);border-color:rgba(34,197,94,.30);color:#4ade80}
+.admin-empty{padding:28px 16px;text-align:center;color:var(--t3);font-size:11px}
+.admin-create-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}
+.admin-create-icon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:rgba(59,130,246,.13);color:var(--accent2);border:1px solid rgba(59,130,246,.22)}
+.admin-create-icon svg{width:19px;height:19px}
+.admin-create-card .field{margin-bottom:9px}
+.admin-create-card .form-row{gap:8px}
+.admin-create-card .field input,.admin-create-card .field select{padding:9px 11px}
+.admin-active-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid var(--card-b);border-radius:11px;background:var(--bg3);margin-top:2px}
+.admin-active-row span{font-size:11px;font-weight:700}
+.admin-section-wide{margin-top:14px}
+.admin-perm-card{padding:15px!important}
+.admin-perm-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.admin-select-shell{position:relative;display:flex;align-items:center;min-width:220px}.admin-select-badge{position:absolute;right:11px;z-index:2;width:23px;height:23px;border-radius:7px;display:grid;place-items:center;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.18);font-size:12px;pointer-events:none}.admin-select-shell .admin-perm-select{padding-right:42px!important}
+.admin-perm-select{width:220px;min-height:44px;padding:10px 40px 10px 14px!important;border:1px solid rgba(59,130,246,.28)!important;border-radius:13px!important;background-color:var(--bg3)!important;background-image:linear-gradient(135deg,rgba(59,130,246,.10),rgba(99,102,241,.04)),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")!important;background-repeat:no-repeat,no-repeat!important;background-position:center right 13px,center right 12px!important;background-size:auto,18px!important;color:var(--t1)!important;font-family:inherit!important;font-size:11px!important;font-weight:700!important;cursor:pointer;appearance:none;-webkit-appearance:none;box-shadow:0 4px 14px rgba(59,130,246,.08);transition:border-color .18s,box-shadow .18s,transform .18s}.admin-perm-select:hover{border-color:rgba(59,130,246,.55)!important;box-shadow:0 6px 18px rgba(59,130,246,.13)}.admin-perm-select:focus{outline:none!important;border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(59,130,246,.14),0 7px 20px rgba(59,130,246,.12)!important}.admin-perm-select option{background:var(--bg2);color:var(--t1);font-family:inherit;font-weight:600;padding:10px}
+.admin-perm-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.admin-perm-group{border:1px solid var(--card-b);border-radius:12px;padding:10px;background:var(--bg3)}
+.admin-perm-group h4{margin:0 0 8px;font-size:10px;font-weight:800;color:var(--t2);padding-bottom:7px;border-bottom:1px solid var(--card-b)}
+.admin-perm-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px solid var(--card-b);font-size:10px}
+.admin-perm-item:last-child{border-bottom:0}
+.admin-perm-item .switch{width:38px;height:22px;flex:0 0 auto}.admin-perm-item .slider:before{width:16px;height:16px;bottom:3px;left:3px}.admin-perm-item .switch input:checked+.slider:before{transform:translateX(16px)}
+.admin-perm-actions{display:flex;justify-content:flex-start;gap:8px;margin-top:11px;flex-wrap:wrap}
+.admin-bottom-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:14px}
+.admin-activity-list{max-height:250px;overflow:auto}
+.admin-activity-item{display:grid;grid-template-columns:58px minmax(0,1fr);gap:9px;padding:9px 0;border-bottom:1px solid var(--card-b);font-size:10px}
+.admin-activity-item:last-child{border-bottom:0}.admin-activity-time{color:var(--t3);font-size:9px}.admin-activity-msg{color:var(--t2);line-height:1.6}
+.admin-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.admin-detail-box{padding:9px;border:1px solid var(--card-b);border-radius:10px;background:var(--bg3)}
+.admin-detail-box span{display:block;color:var(--t3);font-size:8px;margin-bottom:4px}.admin-detail-box b{display:block;color:var(--t1);font-size:10px;word-break:break-word}
+.admin-detail-perms{margin-top:9px;display:flex;gap:5px;flex-wrap:wrap}.admin-detail-perm{font-size:8px;padding:4px 7px;border-radius:7px;background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.18);color:var(--t2)}
+.admin-selected-note{padding:8px 10px;border-radius:9px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.15);color:var(--t3);font-size:9px;margin-bottom:9px}
+@media(max-width:768px){
+  .admin-page{max-width:100%;padding-bottom:18px}
+  .admin-grid-top,.admin-bottom-grid{grid-template-columns:1fr;gap:8px}
+  .admin-section-wide{margin-top:8px}.admin-card{padding:11px!important}.admin-list-head{padding:11px 12px}.admin-list-controls{grid-template-columns:minmax(0,1fr) 105px;gap:6px}
+  .admin-table-head,.admin-row{min-width:560px;grid-template-columns:1.65fr .78fr .82fr 1fr .95fr;padding-left:10px;padding-right:10px}
+  .admin-table-head{font-size:8px;padding-top:8px;padding-bottom:8px}.admin-row{padding-top:9px;padding-bottom:9px}
+  .admin-avatar{width:30px;height:30px;flex-basis:30px;border-radius:9px;font-size:11px}.admin-user-name{font-size:10px}.admin-user-label{font-size:8px}.admin-badge,.admin-role{font-size:8px;padding:4px 6px}.admin-op{width:34px;height:34px;border-radius:9px}.admin-op svg{width:15px;height:15px}
+  .admin-perm-groups{grid-template-columns:1fr 1fr;gap:7px}.admin-perm-group{padding:8px}.admin-perm-item{font-size:9px;padding:6px 1px}.admin-perm-head{align-items:stretch}.admin-select-shell{width:100%;min-width:0}.admin-perm-select{width:100%}
+  .admin-activity-item{grid-template-columns:50px minmax(0,1fr);font-size:9px}.admin-detail-box{padding:8px}.admin-detail-box span{font-size:7px}.admin-detail-box b{font-size:9px}
+}
+@media(max-width:430px){
+  .admin-perm-groups{grid-template-columns:1fr}.admin-list-controls{grid-template-columns:1fr 92px}.admin-table-wrap{overflow-x:auto}.admin-op{width:32px;height:32px}.admin-create-card .form-row{grid-template-columns:1fr 1fr}.admin-create-card .field input,.admin-create-card .field select{font-size:10px}
+}
+
 </style>
 <section class="page" id="page-news">
   <div class="page-head">
@@ -9077,76 +8828,76 @@ html:not(.light) body:has(.page) .table-wrap{{
   </div>
 </section>
 
-<section class="page admin-page" id="page-admins">
-  <div class="page-head">
-    <div>
-      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><span data-i18n="nav_admins">مدیریت ادمین‌ها</span></div>
-      <div class="page-sub" data-i18n="admins_sub">مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها</div>
+<section class="page" id="page-admins">
+  <div class="admin-page">
+    <div class="page-head">
+      <div>
+        <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><span data-i18n="nav_admins">مدیریت ادمین‌ها</span></div>
+        <div class="page-sub" data-i18n="admins_sub">مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها</div>
+      </div>
+      <div class="admin-head-actions"><button class="btn btn-p" onclick="focusAdminCreate()"><span>＋</span><span>ادمین جدید</span></button></div>
     </div>
-    <button class="btn btn-p btn-sm" onclick="document.getElementById('adUser')?.focus()">＋ <span data-i18n="admin_new">ادمین جدید</span></button>
-  </div>
 
-  <div class="admin-main-grid">
-    <div class="card admin-list-card">
-      <div class="admin-list-head">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <div><div class="card-title" style="margin:0" data-i18n="admin_list">لیست ادمین‌ها</div><div id="adminCount" style="font-size:10px;color:var(--t3);margin-top:3px">—</div></div>
-          <button class="btn btn-sm" onclick="loadAdmins()">↻</button>
+    <div class="admin-grid-top">
+      <div class="card admin-card admin-list-card">
+        <div class="admin-list-head">
+          <div class="admin-card-head" style="margin-bottom:0">
+            <div><div class="admin-card-title">لیست ادمین‌ها</div><div class="admin-card-sub" id="adminsCountText">در حال دریافت...</div></div>
+            <button class="admin-op" type="button" onclick="loadAdmins()" title="بروزرسانی"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 1 0 2 5"/><path d="M20 4v7h-7"/></svg></button>
+          </div>
+          <div class="admin-list-controls">
+            <input id="adminSearch" class="field" style="margin:0;padding:9px 11px;border-radius:10px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:11px;outline:none" placeholder="جستجوی ادمین..." oninput="renderAdminList()">
+            <select id="adminStatusFilter" onchange="renderAdminList()" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:10px;outline:none"><option value="all">همه وضعیت‌ها</option><option value="active">فعال</option><option value="blocked">مسدود</option><option value="invalid">نامعتبر</option></select>
+          </div>
         </div>
-        <div class="admin-list-controls">
-          <input id="adminSearch" oninput="renderAdminList()" placeholder="جستجوی ادمین...">
-          <select id="adminStatusFilter" onchange="renderAdminList()"><option value="all">همه وضعیت‌ها</option><option value="active">فعال</option><option value="blocked">مسدود</option><option value="invalid">منقضی/نامعتبر</option></select>
+        <div class="admin-table-wrap">
+          <div class="admin-table-head"><div>کاربر</div><div>نقش</div><div>وضعیت</div><div>آخرین ورود</div><div>عملیات</div></div>
+          <div id="adminsList"><div class="admin-empty">در حال دریافت...</div></div>
         </div>
       </div>
-      <div class="admin-table-wrap">
-        <div class="admin-table-head"><span>نام کاربری</span><span>نقش</span><span>وضعیت</span><span>آخرین ورود</span><span>عملیات</span></div>
-        <div id="adminsList"><div style="color:var(--t3);text-align:center;padding:20px">در حال دریافت...</div></div>
-      </div>
-    </div>
 
-    <div class="card admin-create-card">
-      <div class="admin-create-head"><div><div class="card-title" style="margin:0">ساخت اکانت جدید</div><div style="font-size:10px;color:var(--t3);margin-top:3px">همه ادمین‌ها با همین آدرس پنل وارد می‌شوند.</div></div><span style="font-size:20px">＋</span></div>
-      <div class="field" style="margin-top:10px"><label>نام کاربری</label><input id="adUser" placeholder="user1" style="direction:ltr;text-align:left" autocomplete="off"></div>
-      <div class="field"><label>عنوان نمایشی</label><input id="adLabel" placeholder="اپراتور فروش"></div>
-      <div class="field"><label>رمز عبور</label><input id="adPw" type="password" autocomplete="new-password"></div>
-      <div class="field"><label>تکرار رمز</label><input id="adPw2" type="password" autocomplete="new-password"></div>
-      <div class="field"><label>نقش</label><select id="adRole"><option value="admin">Admin</option><option value="operator">Operator</option></select></div>
-      <div class="form-row"><div class="field"><label>محدودیت حجم</label><input id="adLimit" type="number" value="0" min="0"></div><div class="field"><label>واحد</label><select id="adUnit"><option>GB</option><option>MB</option></select></div></div>
-      <div class="field"><label>انقضا (روز)</label><input id="adDays" type="number" value="0" min="0"></div>
-      <div class="admin-status-row"><span>وضعیت ادمین</span><label class="switch"><input type="checkbox" id="adActive" checked><span class="slider"></span></label></div>
-      <div class="admin-create-perms">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0 6px">
-          <div><b style="font-size:11px">دسترسی‌های ادمین</b><div style="font-size:9px;color:var(--t3);margin-top:2px">دسترسی‌ها را همین‌جا قبل از ساخت انتخاب کنید.</div></div>
-          <div class="admin-perm-actions"><button type="button" class="btn" onclick="setCreateAdminPerms(true)">همه</button><button type="button" class="btn" onclick="setCreateAdminPerms(false)">هیچ‌کدام</button></div>
+      <div class="card admin-card admin-create-card" id="adminCreateCard">
+        <div class="admin-create-head"><div><div class="admin-card-title">افزودن ادمین جدید</div><div class="admin-card-sub">همه ادمین‌ها با همین آدرس پنل وارد می‌شوند.</div></div><div class="admin-create-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></div></div>
+        <div class="field"><label>نام کاربری</label><input id="adUser" placeholder="user1" autocomplete="off" style="direction:ltr;text-align:left"></div>
+        <div class="field"><label>عنوان نمایشی</label><input id="adLabel" placeholder="اپراتور فروش"></div>
+        <div class="form-row">
+          <div class="field"><label>رمز عبور</label><input id="adPw" type="password" autocomplete="new-password"></div>
+          <div class="field"><label>تکرار رمز</label><input id="adPw2" type="password" autocomplete="new-password"></div>
         </div>
-        <div id="adPerms" class="admin-perm-grid compact"></div>
+        <div class="form-row">
+          <div class="field"><label>محدودیت حجم</label><input id="adLimit" type="number" value="0" min="0"></div>
+          <div class="field"><label>واحد</label><select id="adUnit"><option>GB</option><option>MB</option></select></div>
+        </div>
+        <div class="field"><label>انقضا (روز) — ۰ یعنی بدون انقضا</label><input id="adDays" type="number" value="0" min="0"></div>
+        <div class="field"><label>نقش اولیه</label><select id="adRole"><option value="admin" selected>Admin — مدیریت روزمره</option><option value="operator">Operator — عملیات ساخت</option><option value="super">Super Admin — همه دسترسی‌ها</option></select></div>
+        <div style="font-size:9px;color:var(--t3);margin:-3px 0 9px">دسترسی‌های دقیق بعد از ساخت از بخش «دسترسی‌های ادمین» قابل تغییر است.</div>
+        <div class="admin-active-row"><span>وضعیت ادمین</span><label class="switch"><input id="adActive" type="checkbox" checked><span class="slider"></span></label></div>
+        <button class="btn btn-p" style="width:100%;margin-top:10px" onclick="createAdmin()"><span>♙</span> ساخت اکانت ادمین</button>
       </div>
-      <div id="adminCreateError" style="display:none;margin-top:7px;padding:8px 10px;border:1px solid rgba(239,68,68,.25);border-radius:9px;background:rgba(239,68,68,.07);color:#ef4444;font-size:10px"></div>
-      <button id="adminCreateBtn" class="btn btn-p" style="width:100%;margin-top:8px" onclick="createAdmin()">ساخت اکانت ادمین</button>
     </div>
-  </div>
 
-  <div class="card admin-perms-card">
-    <div class="admin-perm-toolbar">
-      <div><div class="card-title" style="margin:0">⚙ دسترسی‌های ادمین</div><div style="font-size:10px;color:var(--t3);margin-top:3px">یک ادمین را انتخاب کنید و دسترسی‌های او را جداگانه فعال یا غیرفعال کنید.</div></div>
-      <div style="display:flex;align-items:center;gap:7px"><select id="adminPermTarget" onchange="renderSelectedAdminPerms()" style="min-width:160px;height:34px;font-size:10px"><option value="">انتخاب ادمین</option></select><div class="admin-perm-actions"><button class="btn" onclick="setSelectedAdminPerms(true)">همه</button><button class="btn" onclick="setSelectedAdminPerms(false)">هیچ‌کدام</button></div></div>
+    <div class="card admin-section-wide admin-perm-card">
+      <div class="admin-perm-head">
+        <div><div class="admin-card-title">دسترسی‌های ادمین <span style="color:var(--accent2)">⚙</span></div><div class="admin-card-sub">ادمین را انتخاب کنید و دسترسی‌های او را جداگانه فعال یا غیرفعال کنید.</div></div>
+        <div class="admin-select-shell"><span class="admin-select-badge">👤</span><select id="adminPermSelect" class="admin-perm-select" onchange="selectAdmin(this.value)"><option value="">انتخاب ادمین</option></select></div>
+      </div>
+      <div id="adminPermEmpty" class="admin-selected-note">ابتدا یک ادمین را از لیست انتخاب کنید.</div>
+      <div id="adminPerms" class="admin-perm-groups"></div>
+      <div class="admin-perm-actions"><button class="btn btn-p" id="saveAdminPermsBtn" onclick="saveAdminPermissions()" disabled>ذخیره دسترسی‌ها</button><button class="btn" onclick="setAllAdminPerms(true)" id="adminAllBtn" disabled>همه</button><button class="btn" onclick="setAllAdminPerms(false)" id="adminNoneBtn" disabled>هیچ‌کدام</button></div>
     </div>
-    <div id="adminPermTargetEmpty" style="text-align:center;color:var(--t3);padding:18px">ابتدا یک ادمین را از لیست انتخاب کنید.</div>
-    <div id="adminSelectedPerms" hidden>
-      <div id="selectedAdminName" style="font-weight:700;font-size:11px;margin:10px 0 7px"></div>
-      <div id="selectedPermGrid" class="admin-perm-grid"></div>
-      <button class="btn btn-p" style="width:100%;height:36px;margin-top:10px;font-size:10px" onclick="saveSelectedAdminPerms()">ذخیره دسترسی‌ها</button>
-    </div>
-  </div>
 
-  <div class="admin-bottom-grid">
-    <div class="card admin-activity-card"><div class="card-title">◷ گزارش فعالیت ادمین‌ها</div><div id="adminActivityBox" style="max-height:230px;overflow:auto"><div style="text-align:center;color:var(--t3);padding:18px">در حال دریافت...</div></div></div>
-    <div class="card admin-details-card"><div class="card-title">👤 جزئیات ادمین</div><div id="adminDetails" style="color:var(--t3);font-size:11px;line-height:2;text-align:center;padding:10px">برای مشاهده جزئیات، یک ادمین را انتخاب کنید.</div></div>
+    <div class="admin-bottom-grid admin-section-wide">
+      <div class="card admin-card">
+        <div class="admin-card-head"><div><div class="admin-card-title">گزارش فعالیت ادمین‌ها <span style="color:var(--accent2)">◷</span></div><div class="admin-card-sub" id="adminActivitySub">فعالیت‌های ثبت‌شده برای ادمین انتخاب‌شده</div></div></div>
+        <div id="adminActivity" class="admin-activity-list"><div class="admin-empty">برای مشاهده فعالیت، یک ادمین را انتخاب کنید.</div></div>
+      </div>
+      <div class="card admin-card">
+        <div class="admin-card-head"><div><div class="admin-card-title">جزئیات ادمین <span style="color:var(--accent2)">♙</span></div><div class="admin-card-sub">اطلاعات حساب و وضعیت دسترسی</div></div></div>
+        <div id="adminDetails"><div class="admin-empty">برای مشاهده جزئیات، یک ادمین را انتخاب کنید.</div></div>
+      </div>
+    </div>
   </div>
 </section>
-
-
-
 
 <section class="page" id="page-telegram">
   <div class="page-head">
@@ -9219,8 +8970,8 @@ html:not(.light) body:has(.page) .table-wrap{{
 
 <script>
 const I18N={
-fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'مدیریت ادمین‌ها',admin_new:'ادمین جدید',admin_same_url:'همه ادمین‌ها با همین آدرس پنل وارد می‌شوند و تفاوت فقط در حساب و دسترسی‌هاست.',admin_label:'عنوان نمایشی',perm_all:'همه',perm_none:'هیچ‌کدام',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'ساخت اکانت ادمین با دسترسی سفارشی',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
-en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admin Management',admin_new:'New admin',admin_same_url:'All admins use the same panel address; only the account and permissions differ.',admin_label:'Display label',perm_all:'All',perm_none:'None',refresh_news:'Refresh news',admins_sub:'Create admin accounts with custom access',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
+fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
+en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Manage admin users and their access levels',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
 };
 let lang=localStorage.getItem('px_lang')||'fa';
 let statRange='month';
@@ -9318,14 +9069,6 @@ async function api(url,opts={}){
 }
 function fmtB(b){b=Number(b)||0;if(b<1024)return b+' B';if(b<1024**2)return (b/1024).toFixed(1)+' KB';if(b<1024**3)return (b/1024**2).toFixed(2)+' MB';return (b/1024**3).toFixed(2)+' GB'}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
-function formatAdminDate(value){
-  if(!value) return '—';
-  try{
-    const d=new Date(value);
-    if(Number.isNaN(d.getTime())) return '—';
-    return new Intl.DateTimeFormat(lang==='fa'?'fa-IR':'en-US',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d);
-  }catch(e){ return '—'; }
-}
 
 async function refreshAll(){
   if(typeof loadGroups==='function') try{await loadGroups()}catch(e){}
@@ -9524,32 +9267,6 @@ function showResult(data){
 function closeResult(){document.getElementById('resultModal').classList.remove('open')}
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeResult()});
 
-function toggleManualAdvanced(){
-  const box=document.getElementById('manualAdvanced');
-  if(!box)return;
-  const open=!box.classList.contains('open');
-  box.classList.toggle('open',open);
-  const btn=box.querySelector('.advanced-toggle');
-  if(btn)btn.setAttribute('aria-expanded',open?'true':'false');
-}
-function currentManualProtocol(){return document.getElementById('cProto')?.value||'vless-ws'}
-function toggleManualRealityFields(){const mode=document.getElementById('cTlsMode')?.value||'tls';const box=document.getElementById('manualRealityFields');if(box)box.style.display=mode==='reality'?'grid':'none'}
-function manualProtocolDefaults(id){
-  const map={
-    'vless-ws':{network:'WebSocket',mode:'ws',path:'/ws/{UUID}',alpn:['http/1.1']},
-    'xhttp-packet-up':{network:'XHTTP',mode:'packet-up',path:'/xhttp-siz10/packet-up/{UUID}',alpn:['h2','http/1.1']},
-    'xhttp-stream-up':{network:'XHTTP',mode:'stream-up',path:'/xhttp-siz10/stream-up/{UUID}',alpn:['h2','http/1.1']},
-    'xhttp-stream-one':{network:'XHTTP',mode:'stream-one',path:'/xhttp-siz10/stream-one/{UUID}',alpn:['h2','http/1.1']}
-  };
-  return map[id]||map['vless-ws'];
-}
-function syncManualAdvancedForProtocol(){
-  const id=currentManualProtocol(),d=manualProtocolDefaults(id);
-  const n=document.getElementById('cNetwork'),m=document.getElementById('cNetworkMode'),p=document.getElementById('cPath');
-  if(n)n.value=d.network;if(m)m.value=d.mode;if(p)p.value=d.path;
-  document.querySelectorAll('#cAlpnChoices input[type="checkbox"]').forEach(x=>x.checked=d.alpn.includes(x.value));
-}
-function collectManualAlpn(){const picked=[...document.querySelectorAll('#cAlpnChoices input[type="checkbox"]:checked')].map(x=>x.value);const custom=document.getElementById('cAlpnCustom')?.value||'';return [...picked,...custom.split(',').map(x=>x.trim()).filter(Boolean)].filter((v,i,a)=>a.indexOf(v)===i).join(',')}
 async function doManualCreate(){
   const body={
     label:document.getElementById('cName').value||undefined,
@@ -9562,17 +9279,6 @@ async function doManualCreate(){
     ip_limit:Number(document.getElementById('cIp').value)||0,
     speed_limit_value:Number(document.getElementById('cSpeed').value)||0,
     speed_limit_unit:'MBIT',
-    fingerprint:document.getElementById('cFingerprint')?.value||'chrome',
-    alpn:collectManualAlpn(),
-    sni:document.getElementById('cSni')?.value.trim()||'',
-    allow_insecure:(document.getElementById('cAllowInsecure')?.value||'false')==='true',
-    tls_mode:document.getElementById('cTlsMode')?.value||'tls',
-    reality_public_key:document.getElementById('cRealityPublicKey')?.value.trim()||'',
-    reality_short_id:document.getElementById('cRealityShortId')?.value.trim()||'',
-    reality_spider_x:document.getElementById('cRealitySpiderX')?.value.trim()||'',
-    reality_target:document.getElementById('cRealityTarget')?.value.trim()||'',
-    port:Math.max(1,Math.min(65535,Number(document.getElementById('cPort')?.value)||443)),
-    fragment:document.getElementById('cFragment')?.value||'off',
     all_protocols:!!document.getElementById('cAllProtocols')?.checked
   };
   const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -9687,18 +9393,14 @@ goPage=function(name){
   _goPage(name);
   if(name==='telegram') loadTelegram();
   if(name==='news') loadNews();
-  if(name==='admins'){ initCreateAdminPerms(); loadAdmins(); }
+  if(name==='admins') loadAdmins();
   if(name==='groups') loadGroups();
   if(name==='settings') loadSecurity();
 };
 
 const PERM_LABELS={
-  fa:{dash:'داشبورد',configs:'مدیریت کانفیگ‌ها',create:'ساخت کانفیگ',delete_config:'حذف کانفیگ',delete_all_configs:'حذف همه کانفیگ‌ها',subscriptions:'مدیریت Subscription',groups:'مدیریت گروه‌ها',stats:'مشاهده آمار',logs:'مدیریت لاگ‌ها',settings:'تنظیمات پنل',api:'دسترسی به API',users:'مدیریت کاربران',vps:'مدیریت VPS',xray:'مدیریت تنظیمات Xray',advanced:'دسترسی به تنظیمات پیشرفته',support:'پشتیبانی',telegram:'ربات تلگرام',news:'اخبار',admins:'مدیریت ادمین‌ها'},
-  en:{dash:'Dashboard',configs:'Config management',create:'Create config',delete_config:'Delete config',delete_all_configs:'Delete all configs',subscriptions:'Subscription management',groups:'Group management',stats:'View statistics',logs:'Activity logs',settings:'Panel settings',api:'API access',users:'User management',vps:'VPS management',xray:'Xray settings',advanced:'Advanced settings',support:'Support',telegram:'Telegram bot',news:'News',admins:'Admin management'}
-};
-const PERM_GROUPS={
-  fa:[['مدیریت کانفیگ‌ها',['configs','create','delete_config','delete_all_configs','subscriptions']],['سیستم و سرویس',['stats','groups','vps','xray','admins']],['پنل و دسترسی',['settings','logs','api','users','advanced']]],
-  en:[['Configs & subscriptions',['configs','create','delete_config','delete_all_configs','subscriptions']],['System & services',['stats','groups','vps','xray','admins']],['Panel & access',['settings','logs','api','users','advanced']]]
+  fa:{dash:'داشبورد',configs:'کانفیگ‌ها',create:'ساخت',stats:'آمار',logs:'لاگ',settings:'تنظیمات',support:'پشتیبانی',telegram:'ربات',news:'اخبار',admins:'ادمین‌ها'},
+  en:{dash:'Dashboard',configs:'Configs',create:'Create',stats:'Stats',logs:'Logs',settings:'Settings',support:'Support',telegram:'Bot',news:'News',admins:'Admins'}
 };
 let USER_PERMS=null;
 let USER_ROLE='owner';
@@ -9706,8 +9408,13 @@ function buildPermChecks(containerId, selected){
   const box=document.getElementById(containerId);
   if(!box)return;
   const labels=PERM_LABELS[lang]||PERM_LABELS.fa;
-  const groups=PERM_GROUPS[lang]||PERM_GROUPS.fa;
-  box.innerHTML=groups.map(([title,keys])=>`<div class="admin-perm-group"><div class="admin-perm-group-title">${title}</div>${keys.map(k=>{const on=selected?!!selected[k]:(['dash','configs','create','stats','news'].includes(k));return `<div class="admin-perm-item"><span>${esc(labels[k]||k)}</span><label class="switch"><input type="checkbox" data-perm="${k}" ${on?'checked':''}><span class="slider"></span></label></div>`}).join('')}</div>`).join('');
+  box.innerHTML=Object.keys(labels).map(k=>{
+    const on=selected?!!selected[k]:(['dash','configs','create','stats','news'].includes(k));
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:var(--bg3);border:1px solid var(--card-b)">
+      <span style="font-size:12px;font-weight:600">${labels[k]}</span>
+      <label class="switch"><input type="checkbox" data-perm="${k}" ${on?'checked':''}><span class="slider"></span></label>
+    </div>`;
+  }).join('');
 }
 function readPermChecks(containerId){
   const out={};
@@ -9741,203 +9448,157 @@ async function loadNews(toastOk){
     if(toastOk) toast(lang==='fa'?'خطا در بروزرسانی':'Refresh failed');
   }
 }
-let __adminsCache=[];
-function adminStatusText(a){
-  if(a.blocked) return lang==='fa'?'مسدود':'Blocked';
-  if(!a.valid) return lang==='fa'?'نامعتبر':'Invalid';
-  return lang==='fa'?'فعال':'Active';
+let ADMIN_ITEMS=[];
+let SELECTED_ADMIN_ID='';
+const ADMIN_PERM_GROUPS={
+  fa:[
+    ['پنل و محتوا',['dash','configs','create','stats','logs']],
+    ['سیستم و پشتیبانی',['settings','support','telegram','news']],
+    ['مدیریت',['admins']]
+  ],
+  en:[
+    ['Panel & Content',['dash','configs','create','stats','logs']],
+    ['System & Support',['settings','support','telegram','news']],
+    ['Management',['admins']]
+  ]
+};
+const ADMIN_ROLE_PRESETS={
+  super:['dash','configs','create','stats','logs','settings','support','telegram','news','admins'],
+  admin:['dash','configs','create','stats','logs','news'],
+  operator:['dash','configs','create'],
+};
+function adminRole(a){
+  const p=a&&a.permissions||{};
+  const keys=Object.keys(p).filter(k=>p[k]);
+  const all=ADMIN_ROLE_PRESETS.super.every(k=>p[k]);
+  const adm=ADMIN_ROLE_PRESETS.admin.every(k=>p[k]) && keys.length===ADMIN_ROLE_PRESETS.admin.length;
+  const op=ADMIN_ROLE_PRESETS.operator.every(k=>p[k]) && keys.length===ADMIN_ROLE_PRESETS.operator.length;
+  if(all)return 'Super Admin'; if(adm)return 'Admin'; if(op)return 'Operator'; return 'Custom';
 }
-function adminStatusClass(a){
-  if(a.blocked) return 'background:rgba(239,68,68,.10);color:#ef4444;border-color:rgba(239,68,68,.25)';
-  if(!a.valid) return 'background:rgba(245,158,11,.10);color:#d97706;border-color:rgba(245,158,11,.25)';
-  return 'background:rgba(16,185,129,.10);color:#059669;border-color:rgba(16,185,129,.25)';
+function adminLastLogin(username){
+  const needle=String(username||'').toLowerCase();
+  const logs=window.__activityLogs||[];
+  for(const l of logs.slice().reverse()){
+    const m=String(l.message||'').toLowerCase();
+    if(needle && m.includes(needle) && (m.includes('ورود موفق')||m.includes('login'))) return (l.time||'').slice(0,19).replace('T',' ');
+  }
+  return '—';
 }
-function setAllAdminPerms(value){
-  document.querySelectorAll('#adPerms input[data-perm]').forEach(x=>x.checked=!!value);
-}
-function setCreateAdminPerms(value){setAllAdminPerms(value)}
-function initCreateAdminPerms(){
-  const box=document.getElementById('adPerms');
-  if(!box)return;
-  buildPermChecks('adPerms');
-  setAllAdminPerms(true);
-}
-function readCreateAdminPerms(){
-  const out={};
-  document.querySelectorAll('#adPerms input[data-perm]').forEach(x=>out[x.getAttribute('data-perm')]=x.checked);
-  return out;
+async function loadAdminActivityCache(){
+  const r=await api('/api/activity');
+  window.__activityLogs=Array.isArray(r)?r:(r&&r.logs)||[];
 }
 function renderAdminList(){
   const box=document.getElementById('adminsList');
-  const count=document.getElementById('adminCount');
-  const search=(document.getElementById('adminSearch')?.value||'').trim().toLowerCase();
-  const filter=document.getElementById('adminStatusFilter')?.value||'all';
-  const all=Array.isArray(__adminsCache)?__adminsCache:[];
-  const rows=all.filter(a=>{
-    const hay=[a.username,a.label,a.role].map(x=>String(x||'').toLowerCase()).join(' ');
-    if(search && !hay.includes(search)) return false;
-    if(filter==='active' && !a.valid) return false;
-    if(filter==='blocked' && !a.blocked) return false;
-    if(filter==='invalid' && a.valid) return false;
+  if(!box)return;
+  const q=(document.getElementById('adminSearch')?.value||'').trim().toLowerCase();
+  const f=document.getElementById('adminStatusFilter')?.value||'all';
+  const arr=ADMIN_ITEMS.filter(a=>{
+    const hay=((a.username||'')+' '+(a.label||'')).toLowerCase();
+    if(q&&!hay.includes(q))return false;
+    if(f==='active' && (a.blocked||!a.valid))return false;
+    if(f==='blocked' && !a.blocked)return false;
+    if(f==='invalid' && (a.blocked||a.valid))return false;
     return true;
   });
-  if(count) count.textContent=lang==='fa'?`${rows.length} مورد نمایش داده می‌شود · ${all.length} ادمین`:`${rows.length} shown · ${all.length} admins`;
-  const sel=document.getElementById('adminPermTarget');
-  if(sel){
-    const current=sel.value;
-    sel.innerHTML='<option value="">انتخاب ادمین</option>'+all.map(a=>`<option value="${esc(a.id)}">${esc(a.label||a.username)} (@${esc(a.username)})</option>`).join('');
-    if(current && all.some(a=>a.id===current)) sel.value=current;
-  }
-  if(!box)return;
-  if(!rows.length){box.innerHTML='<div style="color:var(--t3);text-align:center;padding:24px">ادمینی با این فیلتر پیدا نشد.</div>';return}
-  box.innerHTML=rows.map(a=>{
-    const status=adminStatusText(a);
-    const statusStyle=adminStatusClass(a);
-    const role=a.role==='operator'?'Operator':'Admin';
-    return `<div class="admin-row" onclick="showAdminDetails('${esc(a.id)}')">
-      <div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="admin-avatar">${esc((a.username||'A')[0].toUpperCase())}</span><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.username||'—')}</b><span style="font-size:8px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${esc(a.label||'')}</span></div></div>
-      <span class="admin-role">${role}</span>
-      <span class="admin-state" style="${statusStyle}">${status}</span>
-      <span style="font-size:9px;color:var(--t3)">${formatAdminDate(a.last_login_at)}</span>
-      <div class="admin-actions" onclick="event.stopPropagation()">
-        <button class="btn" title="ویرایش" onclick="editAdmin('${esc(a.id)}')">✎</button>
-        <button class="btn btn-d" title="${a.active?'غیرفعال کردن':'فعال کردن'}" onclick="toggleActiveAdmin('${esc(a.id)}',${!a.active})">${a.active?'⊘':'✓'}</button>
-        <button class="btn" title="حذف" onclick="deleteAdmin('${esc(a.id)}')">⋮</button>
+  const count=document.getElementById('adminsCountText');
+  if(count)count.textContent=`${arr.length} مورد نمایش داده می‌شود · ${ADMIN_ITEMS.length} ادمین`;
+  if(!arr.length){box.innerHTML='<div class="admin-empty">ادمینی با این فیلتر پیدا نشد.</div>';return}
+  box.innerHTML=arr.map(a=>{
+    const status=a.blocked?['blocked','مسدود']:a.valid?['active','فعال']:['invalid','نامعتبر'];
+    const role=adminRole(a);
+    const initial=String(a.username||'?').slice(0,1).toUpperCase();
+    const last=adminLastLogin(a.username);
+    return `<div class="admin-row ${SELECTED_ADMIN_ID===a.id?'selected':''}" onclick="selectAdmin('${esc(a.id)}')">
+      <div class="admin-user"><div class="admin-avatar">${esc(initial)}</div><div class="admin-user-text"><div class="admin-user-name">${esc(a.username)}</div><div class="admin-user-label">${esc(a.label||'—')}</div></div></div>
+      <div><span class="admin-role">${esc(role)}</span></div>
+      <div><span class="admin-badge ${status[0]}"><i style="width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block"></i>${status[1]}</span></div>
+      <div style="font-size:9px;color:var(--t3)">${esc(last)}</div>
+      <div class="admin-ops" onclick="event.stopPropagation()">
+        <button class="admin-op edit" title="ویرایش / جزئیات" onclick="selectAdmin('${esc(a.id)}');focusAdminDetails()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
+        <button class="admin-op ${a.blocked?'unblock':'block'}" title="${a.blocked?'رفع مسدودی':'مسدود کردن'}" onclick="toggleBlockAdmin('${esc(a.id)}',${!a.blocked})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/>${a.blocked?'<path d="M8 12h8"/>':'<path d="M8 8l8 8M16 8l-8 8"/>'}</svg></button>
+        <button class="admin-op delete" title="حذف" onclick="deleteAdmin('${esc(a.id)}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg></button>
       </div>
     </div>`;
   }).join('');
 }
-function setSelectedAdminPerms(value){
-  document.querySelectorAll('#selectedPermGrid input[data-admin-perm]').forEach(x=>x.checked=!!value);
+function renderAdminSelectors(){
+  const sel=document.getElementById('adminPermSelect');
+  if(!sel)return;
+  sel.innerHTML='<option value="">انتخاب ادمین</option>'+ADMIN_ITEMS.map(a=>`<option value="${esc(a.id)}" ${a.id===SELECTED_ADMIN_ID?'selected':''}>${esc(a.username)} — ${esc(adminRole(a))}</option>`).join('');
 }
-function showAdminDetails(id){
-  const a=__adminsCache.find(x=>x.id===id); if(!a)return;
-  const sel=document.getElementById('adminPermTarget'); if(sel)sel.value=id;
-  renderSelectedAdminPerms();
-  const perms=Object.values(a.permissions||{}).filter(Boolean).length;
-  const box=document.getElementById('adminDetails'); if(!box)return;
-  box.style.textAlign='right';
-  box.innerHTML=`<div style="text-align:center;margin-bottom:10px"><div style="width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:20px;font-weight:800;margin:auto">${esc((a.username||'A')[0].toUpperCase())}</div><b style="display:block;margin-top:6px">${esc(a.label||a.username)}</b><small style="color:var(--t3);direction:ltr;display:block">@${esc(a.username)}</small></div>
-  <div><b>نقش:</b> ${a.role==='operator'?'Operator':'Admin'}</div><div><b>وضعیت:</b> ${adminStatusText(a)}</div><div><b>آخرین ورود:</b> ${formatAdminDate(a.last_login_at)}</div><div dir="ltr"><b>IP:</b> ${esc(a.last_login_ip||'—')}</div><div><b>تاریخ ایجاد:</b> ${formatAdminDate(a.created_at)}</div><div><b>دسترسی:</b> ${perms}/${ALL_PERMS.length}</div>
-  <div style="display:flex;gap:7px;margin-top:12px"><button class="btn" style="flex:1" onclick="editAdmin('${esc(a.id)}')">✎ ویرایش</button><button class="btn btn-d" style="flex:1" onclick="toggleActiveAdmin('${esc(a.id)}',${!a.active})">${a.active?'غیرفعال کردن':'فعال کردن'}</button></div>`;
+function buildAdminPermEditor(a){
+  const box=document.getElementById('adminPerms'),empty=document.getElementById('adminPermEmpty');
+  const save=document.getElementById('saveAdminPermsBtn'),all=document.getElementById('adminAllBtn'),none=document.getElementById('adminNoneBtn');
+  if(!a){if(box)box.innerHTML='';if(empty)empty.style.display='block';[save,all,none].forEach(x=>{if(x)x.disabled=true});return}
+  if(empty)empty.style.display='none';[save,all,none].forEach(x=>{if(x)x.disabled=false});
+  const groups=ADMIN_PERM_GROUPS[lang]||ADMIN_PERM_GROUPS.fa, perms=a.permissions||{};
+  box.innerHTML=groups.map(([title,keys])=>`<div class="admin-perm-group"><h4>${title}</h4>${keys.map(k=>`<div class="admin-perm-item"><span>${(PERM_LABELS[lang]||PERM_LABELS.fa)[k]||k}</span><label class="switch"><input type="checkbox" data-admin-perm="${k}" ${perms[k]?'checked':''}><span class="slider"></span></label></div>`).join('')}</div>`).join('');
 }
-function renderSelectedAdminPerms(){
-  const id=document.getElementById('adminPermTarget')?.value, empty=document.getElementById('adminPermTargetEmpty'), wrap=document.getElementById('adminSelectedPerms'), name=document.getElementById('selectedAdminName'), grid=document.getElementById('selectedPermGrid');
-  const a=__adminsCache.find(x=>x.id===id);
-  if(!a){if(empty)empty.hidden=false;if(wrap)wrap.hidden=true;return}
-  if(empty)empty.hidden=true;if(wrap)wrap.hidden=false;
-  if(name)name.textContent=`${a.label||a.username}  (@${a.username})`;
-  const labels=PERM_LABELS[lang]||PERM_LABELS.fa;
-  if(grid){const labels=PERM_LABELS[lang]||PERM_LABELS.fa;const groups=PERM_GROUPS[lang]||PERM_GROUPS.fa;grid.innerHTML=groups.map(([title,keys])=>`<div class="admin-perm-group"><div class="admin-perm-group-title">${title}</div>${keys.map(p=>`<div class="admin-perm-item"><span>${esc(labels[p]||p)}</span><label class="switch"><input type="checkbox" data-admin-perm="${p}" ${a.permissions&&a.permissions[p]?'checked':''}><span class="slider"></span></label></div>`).join('')}</div>`).join('')}
+function selectAdmin(id){
+  SELECTED_ADMIN_ID=id||'';
+  const a=ADMIN_ITEMS.find(x=>x.id===SELECTED_ADMIN_ID)||null;
+  renderAdminList();renderAdminSelectors();buildAdminPermEditor(a);renderAdminDetails(a);renderAdminActivity(a);
 }
-async function saveSelectedAdminPerms(){
-  const id=document.getElementById('adminPermTarget')?.value;if(!id)return;
-  const permissions={};document.querySelectorAll('#selectedPermGrid input[data-admin-perm]').forEach(x=>permissions[x.dataset.adminPerm]=x.checked);
-  await patchAdmin(id,{permissions},lang==='fa'?'دسترسی‌ها ذخیره شد':'Permissions saved');
+function setAllAdminPerms(on){document.querySelectorAll('#adminPerms input[data-admin-perm]').forEach(x=>x.checked=!!on)}
+function readAdminPerms(){const out={};document.querySelectorAll('#adminPerms input[data-admin-perm]').forEach(x=>out[x.getAttribute('data-admin-perm')]=x.checked);return out}
+async function saveAdminPermissions(){
+  if(!SELECTED_ADMIN_ID)return;
+  const r=await api('/api/admins/'+SELECTED_ADMIN_ID,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({permissions:readAdminPerms()})});
+  if(r){toast('دسترسی‌ها ذخیره شد');await loadAdmins()}
 }
-async function loadAdminActivity(){
-  const box=document.getElementById('adminActivityBox');if(!box)return;
-  const data=await api('/api/activity');const logs=Array.isArray(data)?data:(data&&data.logs)||[];
-  if(!logs.length){box.innerHTML='<div style="text-align:center;color:var(--t3);padding:18px">لاگی ثبت نشده است.</div>';return}
-  box.innerHTML=logs.slice().reverse().slice(0,12).map(l=>`<div style="display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid var(--card-b);font-size:11px"><span style="color:var(--t3);white-space:nowrap">${esc((l.time||l.ts||'').toString().slice(11,19)||'—')}</span><span>${esc(l.message||l.msg||'—')}</span></div>`).join('');
+function renderAdminDetails(a){
+  const box=document.getElementById('adminDetails');if(!box)return;
+  if(!a){box.innerHTML='<div class="admin-empty">برای مشاهده جزئیات، یک ادمین را انتخاب کنید.</div>';return}
+  const exp=a.expires_at?String(a.expires_at).slice(0,19).replace('T',' '):'بدون انقضا';
+  const perms=Object.entries(a.permissions||{}).filter(([,v])=>v).map(([k])=>(PERM_LABELS[lang]||PERM_LABELS.fa)[k]||k);
+  box.innerHTML=`<div class="admin-details-grid">
+    <div class="admin-detail-box"><span>نام کاربری</span><b>${esc(a.username)}</b></div><div class="admin-detail-box"><span>نقش</span><b>${esc(adminRole(a))}</b></div>
+    <div class="admin-detail-box"><span>وضعیت</span><b>${a.blocked?'🔴 مسدود':a.valid?'🟢 فعال':'🟠 نامعتبر'}</b></div><div class="admin-detail-box"><span>آخرین ورود</span><b>${esc(adminLastLogin(a.username))}</b></div>
+    <div class="admin-detail-box"><span>حجم مصرف</span><b>${fmtB(a.used_bytes)}${a.limit_bytes?' / '+fmtB(a.limit_bytes):' / ∞'}</b></div><div class="admin-detail-box"><span>انقضا</span><b>${esc(exp)}</b></div>
+    <div class="admin-detail-box"><span>تاریخ ایجاد</span><b>${esc(String(a.created_at||'—').slice(0,19).replace('T',' '))}</b></div><div class="admin-detail-box"><span>عنوان</span><b>${esc(a.label||'—')}</b></div>
+  </div><div class="admin-detail-perms">${perms.length?perms.map(x=>`<span class="admin-detail-perm">${esc(x)}</span>`).join(''):'<span style="font-size:9px;color:var(--t3)">بدون دسترسی فعال</span>'}</div>`;
 }
+function renderAdminActivity(a){
+  const box=document.getElementById('adminActivity'),sub=document.getElementById('adminActivitySub');if(!box)return;
+  if(!a){box.innerHTML='<div class="admin-empty">برای مشاهده فعالیت، یک ادمین را انتخاب کنید.</div>';if(sub)sub.textContent='فعالیت‌های ثبت‌شده برای ادمین انتخاب‌شده';return}
+  const needle=String(a.username||'').toLowerCase();
+  const logs=(window.__activityLogs||[]).filter(l=>String(l.message||'').toLowerCase().includes(needle));
+  if(sub)sub.textContent=`فعالیت‌های ثبت‌شده برای ${a.username}`;
+  if(!logs.length){box.innerHTML='<div class="admin-empty">هنوز فعالیتی برای این ادمین ثبت نشده است.</div>';return}
+  box.innerHTML=logs.slice().reverse().map(l=>`<div class="admin-activity-item"><div class="admin-activity-time">${esc(String(l.time||'').slice(11,19)||'—')}</div><div class="admin-activity-msg">${esc(l.message||'—')}</div></div>`).join('');
+}
+function focusAdminDetails(){document.getElementById('adminDetails')?.scrollIntoView({behavior:'smooth',block:'center'})}
+function focusAdminCreate(){document.getElementById('adminCreateCard')?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>document.getElementById('adUser')?.focus(),250)}
 async function loadAdmins(){
+  const box=document.getElementById('adminsList');if(box)box.innerHTML='<div class="admin-empty">در حال دریافت...</div>';
   const r=await api('/api/admins');
-  if(!r||!r.admins){const box=document.getElementById('adminsList');if(box)box.innerHTML='<div style="color:var(--t3);text-align:center;padding:20px">—</div>';return}
-  __adminsCache=r.admins||[];
-  renderAdminList();
-  loadAdminActivity();
-  const current=document.getElementById('adminPermTarget')?.value;
-  const target=current && __adminsCache.some(a=>a.id===current) ? current : (__adminsCache[0]?.id||'');
-  const sel=document.getElementById('adminPermTarget');
-  if(sel) sel.value=target;
-  if(target){renderSelectedAdminPerms();showAdminDetails(target)}
+  if(!r||!Array.isArray(r.admins)){if(box)box.innerHTML='<div class="admin-empty">دریافت لیست ادمین‌ها ناموفق بود.</div>';return}
+  ADMIN_ITEMS=r.admins;
+  await loadAdminActivityCache();
+  if(!SELECTED_ADMIN_ID || !ADMIN_ITEMS.some(a=>a.id===SELECTED_ADMIN_ID)) SELECTED_ADMIN_ID=ADMIN_ITEMS[0]?.id||'';
+  renderAdminList();renderAdminSelectors();
+  const a=ADMIN_ITEMS.find(x=>x.id===SELECTED_ADMIN_ID)||null;
+  buildAdminPermEditor(a);renderAdminDetails(a);renderAdminActivity(a);
 }
 async function createAdmin(){
-  const errorBox=document.getElementById('adminCreateError');
-  const btn=document.getElementById('adminCreateBtn');
-  if(errorBox){errorBox.style.display='none';errorBox.textContent='';}
-  if(btn){btn.disabled=true;btn.setAttribute('aria-busy','true');}
-  const body={
-    username:document.getElementById('adUser').value.trim(),
-    label:document.getElementById('adLabel')?.value.trim(),
-    password:document.getElementById('adPw').value,
-    repeat_password:document.getElementById('adPw2').value,
-    limit_value:Number(document.getElementById('adLimit').value)||0,
-    limit_unit:document.getElementById('adUnit').value,
-    expires_days:Number(document.getElementById('adDays').value)||0,
-    role:document.getElementById('adRole')?.value||'admin',
-    active:!!document.getElementById('adActive')?.checked,
-    permissions:readCreateAdminPerms()
-  };
-  if(!body.username){showAdminCreateError('نام کاربری را وارد کنید');if(btn)btn.disabled=false;return}
-  if(!/^[a-z0-9]{3,}$/i.test(body.username)){showAdminCreateError('نام کاربری حداقل ۳ کاراکتر و فقط شامل حروف و اعداد انگلیسی باشد');if(btn)btn.disabled=false;return}
-  if(['admin','root','owner'].includes(body.username)){showAdminCreateError('این نام کاربری رزرو شده است');if(btn)btn.disabled=false;return}
-  if(!body.password || body.password.length<6){showAdminCreateError('رمز عبور حداقل ۶ کاراکتر باشد');if(btn)btn.disabled=false;return}
-  if(body.password!==body.repeat_password){showAdminCreateError('تکرار رمز یکسان نیست');if(btn)btn.disabled=false;return}
+  const user=document.getElementById('adUser').value.trim(),pw=document.getElementById('adPw').value,pw2=document.getElementById('adPw2').value;
+  if(!user||!pw||!pw2){toast('نام کاربری و هر دو رمز را وارد کنید');return}
+  if(pw!==pw2){toast('تکرار رمز یکسان نیست');return}
+  const role=document.getElementById('adRole')?.value||'admin';const permissions={};(ADMIN_ROLE_PRESETS[role]||ADMIN_ROLE_PRESETS.admin).forEach(k=>permissions[k]=true);const body={username:user,label:document.getElementById('adLabel').value.trim()||user,password:pw,repeat_password:pw2,limit_value:Number(document.getElementById('adLimit').value)||0,limit_unit:document.getElementById('adUnit').value,expires_days:Number(document.getElementById('adDays').value)||0,permissions,active:!!document.getElementById('adActive')?.checked};
   const r=await api('/api/admins',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r){
-    toast(lang==='fa'?'اکانت ساخته شد':'Created');
-    ['adUser','adLabel','adPw','adPw2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
-    await loadAdmins();
-    const sel=document.getElementById('adminPermTarget');
-    if(sel && r.id){sel.value=r.id;renderSelectedAdminPerms();showAdminDetails(r.id);document.getElementById('adminSelectedPerms')?.scrollIntoView({behavior:'smooth',block:'center'})}
-    initCreateAdminPerms();
-  }
-  if(btn){btn.disabled=false;btn.removeAttribute('aria-busy')}
-}
-function showAdminCreateError(msg){
-  const box=document.getElementById('adminCreateError');
-  if(box){box.textContent=msg;box.style.display='block';}
-  toast(msg);
-}
-async function patchAdmin(id,payload,okText){
-  const r=await api('/api/admins/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  if(r){toast(okText||'OK');loadAdmins()}
-}
-async function toggleActiveAdmin(id,active){
-  if(!active && !confirm(lang==='fa'?'این ادمین غیرفعال شود؟':'Disable this admin?'))return;
-  await patchAdmin(id,{active},active?(lang==='fa'?'فعال شد':'Enabled'):(lang==='fa'?'غیرفعال شد':'Disabled'));
+  if(r){toast('اکانت ادمین ساخته شد');['adUser','adLabel','adPw','adPw2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});document.getElementById('adLimit').value='0';document.getElementById('adDays').value='0';document.getElementById('adActive').checked=true;await loadAdmins();selectAdmin(r.id)}
 }
 async function toggleBlockAdmin(id,blocked){
-  await patchAdmin(id,{blocked},blocked?(lang==='fa'?'مسدود شد':'Blocked'):(lang==='fa'?'رفع مسدودی شد':'Unblocked'));
-}
-async function editAdmin(id){
-  const a=__adminsCache.find(x=>x.id===id);if(!a)return;
-  const labels=PERM_LABELS[lang]||PERM_LABELS.fa;
-  const body=document.getElementById('panelModalBody');
-  const title=document.getElementById('panelModalTitle');
-  if(!body||!title)return;
-  title.textContent=lang==='fa'?'ویرایش ادمین':'Edit admin';
-  body.innerHTML=`<div class="field"><label>${lang==='fa'?'عنوان نمایشی':'Display label'}</label><input id="edLabel" value="${esc(a.label||'')}"></div>
-    <div class="field"><label>${lang==='fa'?'رمز جدید (اختیاری)':'New password (optional)'}</label><input id="edPw" type="password" autocomplete="new-password"></div>
-    <div class="form-row"><div class="field"><label>${lang==='fa'?'محدودیت حجم':'Traffic limit'}</label><input id="edLimit" type="number" min="0" value="${a.limit_bytes?Math.round(a.limit_bytes/1073741824*100)/100:0}"></div><div class="field"><label>${lang==='fa'?'واحد':'Unit'}</label><select id="edUnit"><option>GB</option><option>MB</option></select></div></div>
-    <div class="field"><label>${lang==='fa'?'انقضا (روز از امروز)':'Expiry (days from today)'}</label><input id="edDays" type="number" min="0" value="0"></div>
-    <div class="card-title" style="margin-top:10px">${lang==='fa'?'دسترسی‌ها':'Permissions'}</div><div id="edPerms" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px"></div>`;
-  document.getElementById('panelModal').classList.add('open');
-  buildPermChecks('edPerms');
-  Object.entries(a.permissions||{}).forEach(([k,v])=>{const el=document.querySelector(`#edPerms input[data-perm="${k}"]`);if(el)el.checked=!!v});
-  document.getElementById('panelModal').dataset.adminId=id;
-  document.getElementById('panelModal').dataset.adminOriginalLimit=a.limit_bytes||0;
-  const actions=document.querySelector('#panelModal .modal-actions');
-  if(actions)actions.innerHTML=`<button class="btn" onclick="document.getElementById('panelModal').classList.remove('open')">${lang==='fa'?'انصراف':'Cancel'}</button><button class="btn btn-p" onclick="saveAdminEdit()">${lang==='fa'?'ذخیره تغییرات':'Save changes'}</button>`;
-}
-async function saveAdminEdit(){
-  const id=document.getElementById('panelModal')?.dataset.adminId;if(!id)return;
-  const body={label:document.getElementById('edLabel')?.value.trim(),permissions:readPermChecks('edPerms')};
-  const pw=document.getElementById('edPw')?.value||'';if(pw)body.password=pw;
-  const lv=Number(document.getElementById('edLimit')?.value)||0;const lu=document.getElementById('edUnit')?.value||'GB';
-  body.limit_value=lv;body.limit_unit=lu;
-  const days=Number(document.getElementById('edDays')?.value)||0;body.expires_days=days;
-  const r=await api('/api/admins/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r){document.getElementById('panelModal').classList.remove('open');toast(lang==='fa'?'تغییرات ذخیره شد':'Changes saved');loadAdmins()}
+  const r=await api('/api/admins/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocked})});
+  if(r){toast(blocked?'ادمین مسدود شد':'مسدودی ادمین برداشته شد');await loadAdmins()}
 }
 async function deleteAdmin(id){
-  const a=__adminsCache.find(x=>x.id===id);
-  if(!confirm(lang==='fa'?`اکانت «${a?.username||''}» حذف شود؟ این عمل قابل بازگشت نیست.`:`Delete “${a?.username||''}”? This cannot be undone.`))return;
+  const a=ADMIN_ITEMS.find(x=>x.id===id);if(!confirm(`اکانت «${a?.username||'ادمین'}» حذف شود؟`))return;
   const r=await api('/api/admins/'+id,{method:'DELETE'});
-  if(r){toast(lang==='fa'?'اکانت حذف شد':'Deleted');loadAdmins()}
+  if(r){if(SELECTED_ADMIN_ID===id)SELECTED_ADMIN_ID='';toast('اکانت حذف شد');await loadAdmins()}
 }
+
 
 async function loadProtocols(){
   const r=await api('/api/protocols');
@@ -10171,8 +9832,6 @@ function closeProtocolPicker(){const bg=document.getElementById('protocolPickerB
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupProtocolPickers);else setupProtocolPickers();setTimeout(setupProtocolPickers,300);setTimeout(setupProtocolPickers,1000);
 
-syncManualAdvancedForProtocol();
-document.getElementById('cProto')?.addEventListener('change',syncManualAdvancedForProtocol);
 applyLang();loadMe();loadProtocols();loadGroups();refreshAll();
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
 setTimeout(()=>checkPanelUpdate(true),2500);

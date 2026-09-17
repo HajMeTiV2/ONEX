@@ -4055,6 +4055,20 @@ async def link_action(
 # DELETE LINK
 # ============================================================
 
+@app.post("/api/links/delete-all")
+async def delete_all_links(_=Depends(require_auth)):
+    """Delete every config/link from the panel and unlink them from subscriptions."""
+    async with LINKS_LOCK:
+        deleted_count = len(LINKS)
+        LINKS.clear()
+    async with SUBS_LOCK:
+        for sub in SUBS.values():
+            sub["link_ids"] = []
+    await save_state()
+    log_activity("link", f"حذف همه کانفیگ‌ها — {deleted_count} مورد", "warn")
+    return {"ok": True, "deleted": deleted_count}
+
+
 @app.delete("/api/links/{uid}")
 async def delete_link(
     uid: str,
@@ -8429,6 +8443,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 
       <button class="btn btn-p btn-sm" onclick="goPage('create')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg></button>
       <button class="btn btn-sm" onclick="refreshAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10"/></svg></button>
+      <button id="deleteAllConfigsBtn" class="btn btn-sm btn-d" onclick="deleteAllConfigs()" title="حذف همه کانفیگ‌ها">🗑 حذف همه</button>
     </div>
   </div>
   <div class="card" style="padding:0">
@@ -9632,6 +9647,24 @@ function toggleSelectAll(on){
 }
 
 function selectedCfgIds(){return [...document.querySelectorAll('.cfg-chk:checked')].map(c=>c.value)}
+async function deleteAllConfigs(){
+  const ok=confirm(lang==='fa'
+    ? '⚠️ همه کانفیگ‌ها از پنل حذف می‌شوند.\n\nاین عملیات قابل بازگشت نیست. ادامه می‌دهید؟'
+    : '⚠️ All configs will be deleted from the panel.\n\nThis action cannot be undone. Continue?');
+  if(!ok)return;
+  const btn=document.getElementById('deleteAllConfigsBtn');
+  if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent=lang==='fa'?'در حال حذف...':'Deleting...';}
+  try{
+    const r=await api('/api/links/delete-all',{method:'POST'});
+    if(r){
+      toast(lang==='fa'?`همه کانفیگ‌ها حذف شد: ${r.deleted}`:`All configs deleted: ${r.deleted}`);
+      clearSelection();
+      refreshAll();
+    }
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'🗑 حذف همه';}
+  }
+}
 async function bulkDelete(){
   const ids=selectedCfgIds();
   if(!ids.length){toast(lang==='fa'?'چیزی انتخاب نشده':'Nothing selected');return}

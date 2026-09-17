@@ -29,6 +29,7 @@ from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
     RedirectResponse,
+    FileResponse,
 )
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -91,6 +92,16 @@ DATA_DIR.mkdir(
 DATA_FILE = DATA_DIR / "pixonpanel_state.json"
 TG_FILE = DATA_DIR / "telegram_settings.json"
 
+# Protocol artwork shipped with the panel UI. These are local static assets
+# so the protocol picker does not depend on an external image host.
+PROTOCOL_ICON_DIR = Path(__file__).resolve().parent / "protocol_icons"
+PROTOCOL_ICON_FILES = {
+    "vless-ws": PROTOCOL_ICON_DIR / "nova-link.png",
+    "xhttp-packet-up": PROTOCOL_ICON_DIR / "xpacket-nova.png",
+    "xhttp-stream-up": PROTOCOL_ICON_DIR / "xstream-pulse.png",
+    "xhttp-stream-one": PROTOCOL_ICON_DIR / "xstream-edge.png",
+}
+
 SECRET_FILE = DATA_DIR / "pixonpanel_secret.key"
 
 # ============================================================
@@ -118,6 +129,15 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
+
+
+@app.get("/api/protocol-icon/{protocol_id}.png", include_in_schema=False)
+async def protocol_icon(protocol_id: str):
+    """Serve a bundled protocol icon for the create-config picker."""
+    path = PROTOCOL_ICON_FILES.get(protocol_id)
+    if not path or not path.is_file():
+        raise HTTPException(status_code=404, detail="Protocol icon not found")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 app.add_middleware(
     CORSMiddleware,
@@ -232,10 +252,10 @@ http_client: httpx.AsyncClient | None = None
 PROTOCOLS: list[str] = []
 
 PROTOCOL_LABELS = {
-    "vless-ws": "Vortex Link",
-    "xhttp-packet-up": "XPacket Flow",
+    "vless-ws": "Nova Link",
+    "xhttp-packet-up": "XPacket Nova",
     "xhttp-stream-up": "XStream Pulse",
-    "xhttp-stream-one": "XStream Core",
+    "xhttp-stream-one": "XStream Edge",
     "trojan": "Trojan",
     "shadowsocks": "Shadowsocks",
     "socks5": "SOCKS5",
@@ -6341,13 +6361,10 @@ async def get_connections(
 try:
     from protocol_core import NativeCore
     NATIVE_CORE = NativeCore(DATA_DIR)
-    for _p in (
-        "trojan", "shadowsocks", "socks5", "http", "hysteria2",
-        "vless-grpc-reality",
-    ):
-        if _p not in PROTOCOLS:
-            PROTOCOLS.append(_p)
-    logger.info("Native sing-box protocol backend registered.")
+    # Native protocols are intentionally not advertised yet.
+    # Keep the creation menu and the "all protocols" subscription limited
+    # to the four currently exposed panel-backed protocols.
+    logger.info("Native sing-box backend loaded but not advertised yet.")
 except Exception as exc:
     NATIVE_CORE = None
     logger.warning("Native protocol backend unavailable: %s", exc)
@@ -8069,6 +8086,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 .protocol-option-icon.proto-3d{width:82px!important;height:82px!important}
 .lego-proto-svg{width:82px!important;height:82px!important;display:block;overflow:visible}
 .proto-3d .static-icon{display:none!important}
+.protocol-art-icon{width:100%;height:100%;display:block;object-fit:contain;filter:drop-shadow(0 7px 10px rgba(0,0,0,.30));}
 #page-create .protocol-trigger-icon{width:44px!important;height:44px!important}
 #page-create .protocol-trigger-icon .protocol-option-icon{width:44px!important;height:44px!important}
 #page-create .protocol-trigger-icon .lego-proto-svg{width:44px!important;height:44px!important}
@@ -9384,35 +9402,35 @@ async function restoreBot(){
    LIGHT STATIC 3D PROTOCOL PICKER
    ============================================================ */
 const PROTOCOL_PICKER_GROUPS=[
-  {title:'',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one','vmess-ws','trojan-ws','shadowsocks','socks5','http','hysteria2','tuic','wireguard']}
+  {title:'',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one','trojan','shadowsocks','socks5','http','hysteria2','vless-grpc-reality']}
 ];
-const PROTOCOL_PICKER_NAMES={"vless-ws":"Vortex Link","xhttp-packet-up":"XPacket Flow","xhttp-stream-up":"XStream Pulse","xhttp-stream-one":"XStream Core","vmess-ws":"VMesh Nova","trojan-ws":"Trojan Glide","shadowsocks":"Shadow Mesh","socks5":"Socket Guard","http":"Web Shield","hysteria2":"Hysteria Nova","tuic":"TUIC Blaze","wireguard":"WireGuard Orbit"};
+const PROTOCOL_PICKER_NAMES={"vless-ws":"Nova Link","xhttp-packet-up":"XPacket Nova","xhttp-stream-up":"XStream Pulse","xhttp-stream-one":"XStream Edge","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
 const PROTOCOL_3D_ICONS={
   "vless-ws":{c1:"#24a9ff",c2:"#1264ff",c3:"#6d3cff",mark:"V",glow:"#168cff"},
   "xhttp-packet-up":{c1:"#35c8ff",c2:"#0877d8",c3:"#3155ff",mark:"XP",glow:"#21b8ff"},
   "xhttp-stream-up":{c1:"#36e6ff",c2:"#0894c9",c3:"#16b7d1",mark:"XS",glow:"#21d9ee"},
   "xhttp-stream-one":{c1:"#b04cff",c2:"#6b1fe1",c3:"#3b25ad",mark:"XC",glow:"#a14cff"},
   "vmess-ws":{c1:"#d05cff",c2:"#7726e8",c3:"#4522a6",mark:"M",glow:"#a54cff"},
-  "trojan-ws":{c1:"#ff6676",c2:"#e51c35",c3:"#a90f2b",mark:"T",glow:"#ff4058"},
+  "trojan":{c1:"#ff6676",c2:"#e51c35",c3:"#a90f2b",mark:"T",glow:"#ff4058"},
   "shadowsocks":{c1:"#54e887",c2:"#11ae57",c3:"#078341",mark:"S",glow:"#22d66c"},
   "socks5":{c1:"#45dfff",c2:"#0b9fc8",c3:"#08779e",mark:"5",glow:"#20d5ff"},
   "http":{c1:"#78a7ff",c2:"#3975e8",c3:"#2448a9",mark:"H",glow:"#4d8cff"},
   "hysteria2":{c1:"#55e9ff",c2:"#08a9c5",c3:"#087b99",mark:"H2",glow:"#21dfff"},
-  "tuic":{c1:"#ff9b39",c2:"#ef6518",c3:"#b93d0e",mark:"T",glow:"#ff8525"},
-  "wireguard":{c1:"#a87bff",c2:"#7138df",c3:"#4120a7",mark:"W",glow:"#985cff"},
+  "vless-grpc-reality":{c1:"#b04cff",c2:"#6b1fe1",c3:"#3b25ad",mark:"GR",glow:"#a14cff"},
 };
 let __protocolPickerTarget='' ;
 let __protocolPickerOptions=[];
 function protocolPickerLabel(id){const p=__protocolPickerOptions.find(x=>x.id===id);return PROTOCOL_PICKER_NAMES[id]||p?.label||id||'Vortex Link'}
 function protocolPickerShort(id){return PROTOCOL_PICKER_NAMES[id]||id}
 function protocolIconMarkup(id){
-  const p=PROTOCOL_3D_ICONS[id]||PROTOCOL_3D_ICONS['vless-ws'];
-  const safe=String(p.mark).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const uid='pi'+String(id).replace(/[^a-z0-9]/gi,'');
-  return `<span class="protocol-option-icon proto-3d" aria-hidden="true"><svg class="lego-proto-svg" viewBox="0 0 100 100" role="img">
-    <defs><linearGradient id="${uid}a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${p.c1}"/><stop offset="1" stop-color="${p.c2}"/></linearGradient><linearGradient id="${uid}b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${p.c2}"/><stop offset="1" stop-color="${p.c3}"/></linearGradient><filter id="${uid}g"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="${p.glow}" flood-opacity=".42"/></filter></defs>
-    <g filter="url(#${uid}g)"><path d="M18 30 49 15 82 30 51 47Z" fill="url(#${uid}a)" stroke="rgba(255,255,255,.35)" stroke-width="1.2"/><path d="M18 30v40l33 18V47Z" fill="url(#${uid}b)" stroke="rgba(255,255,255,.2)" stroke-width="1.2"/><path d="M51 47 82 30v40L51 88Z" fill="${p.c3}" stroke="rgba(255,255,255,.18)" stroke-width="1.2"/><g fill="rgba(255,255,255,.35)"><ellipse cx="31" cy="29" rx="5" ry="2.6"/><ellipse cx="48" cy="22" rx="5" ry="2.6"/><ellipse cx="65" cy="30" rx="5" ry="2.6"/><ellipse cx="39" cy="36" rx="5" ry="2.6"/></g><text x="50" y="64" text-anchor="middle" font-family="Arial,sans-serif" font-size="${safe.length>1?16:25}" font-weight="900" fill="#fff" stroke="rgba(0,0,0,.12)" stroke-width="1">${safe}</text></g>
-  </svg></span>`
+  const srcMap={
+    "vless-ws":"/api/protocol-icon/vless-ws.png",
+    "xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png",
+    "xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png",
+    "xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png"
+  };
+  const src=srcMap[id]||srcMap["vless-ws"];
+  return `<span class="protocol-option-icon proto-3d" aria-hidden="true"><img class="protocol-art-icon" src="${src}" alt="" loading="eager" decoding="async"></span>`
 }
 function setupProtocolPickers(){['cProto','aProto'].forEach(id=>{const sel=document.getElementById(id);if(!sel)return;sel.classList.add('protocol-native');sel.style.setProperty('display','none','important');sel.setAttribute('aria-hidden','true');let trigger=sel.parentNode.querySelector(`.protocol-trigger[data-for="${id}"]`);if(!trigger){trigger=document.createElement('button');trigger.type='button';trigger.className='protocol-trigger';trigger.dataset.for=id;sel.parentNode.insertBefore(trigger,sel.nextSibling)}trigger.onclick=e=>{e.preventDefault();openProtocolPicker(id)};syncProtocolPicker(id)})}
 function syncProtocolPicker(id){const sel=document.getElementById(id),trigger=document.querySelector(`.protocol-trigger[data-for="${id}"]`);if(!sel||!trigger)return;const value=sel.value||'vless-ws';trigger.innerHTML=`<span class="protocol-trigger-main"><span class="protocol-trigger-icon">${protocolIconMarkup(value)}</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">${esc(protocolPickerShort(value))}</span><span class="protocol-trigger-sub">${lang==='fa'?'برای تغییر، انتخاب کنید':'Tap to choose another protocol'}</span></span></span><span class="protocol-trigger-arrow">⌄</span>`}

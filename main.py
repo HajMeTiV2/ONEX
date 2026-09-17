@@ -2291,7 +2291,7 @@ table th:first-child, table td:first-child{overflow:visible}
 
 <div class="brand">
 
-<div class="logo onex-neo-orbit" aria-label="ONEX Neo Orbit logo"><i class="orbit-a"></i><i class="orbit-b"></i><i class="orbit-dot"></i></div>
+<div class="logo">P</div>
 
 <div>
 <div class="brand-name">
@@ -2488,9 +2488,7 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
 .login-card:before{content:"";position:absolute;inset:-2px;background:linear-gradient(120deg,transparent 25%,rgba(43,198,255,.25),transparent 50%);transform:translateX(-100%);animation:sheen 5s ease-in-out infinite;pointer-events:none}
 @keyframes sheen{55%,100%{transform:translateX(120%)}}
 .login-logo{width:76px;height:76px;margin:0 auto 12px;border-radius:24px;display:grid;place-items:center;background:linear-gradient(145deg,#087cff,#21d5ff);box-shadow:0 0 35px rgba(0,153,255,.38);transform-style:preserve-3d;animation:miniLogo 4s ease-in-out infinite}
-.login-logo span{font-family:Inter,sans-serif;font-size:55px;font-weight:900;color:white;text-shadow:4px 5px 0 rgba(0,51,150,.55);transform:translateZ(18px) rotateY(-8deg)}.login-logo{font-size:1px;overflow:visible!important}.login-logo.onex-neo-orbit::after{font-size:55px}.login-logo.onex-neo-orbit .orbit-a{width:112%;height:42%}.login-logo.onex-neo-orbit .orbit-b{width:112%;height:42%}
-.logo.onex-neo-orbit{font-size:1px;overflow:visible}.logo.onex-neo-orbit::after{font-size:18px}.logo.onex-neo-orbit .orbit-a,.logo.onex-neo-orbit .orbit-b{border-width:1.5px}
-
+.login-logo span{font-family:Inter,sans-serif;font-size:55px;font-weight:900;color:white;text-shadow:4px 5px 0 rgba(0,51,150,.55);transform:translateZ(18px) rotateY(-8deg)}
 @keyframes miniLogo{50%{transform:rotateY(12deg) rotateX(6deg) translateY(-4px)}}
 .login-title{text-align:center;font-size:25px;font-weight:900}.login-title b{color:#24c4ff}.login-desc{text-align:center;color:var(--muted);font-size:12px;margin-top:7px;margin-bottom:27px}
 .field{position:relative;margin-bottom:15px}.field svg{position:absolute;right:15px;top:50%;transform:translateY(-50%);width:21px;height:21px;color:#5f9dd8;pointer-events:none}.field input{width:100%;height:58px;padding:0 50px 0 44px;border-radius:17px;border:1px solid rgba(122,180,235,.14);background:rgba(2,11,24,.62);color:#fff;font-family:inherit;font-size:14px;outline:none;direction:ltr;text-align:left;transition:.25s}.field input::placeholder{color:#617a98}.field input:focus{border-color:#168cff;box-shadow:0 0 0 4px rgba(22,140,255,.10),0 0 30px rgba(22,140,255,.10)}
@@ -2630,7 +2628,7 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
 
   <main class="login-side">
     <div class="login-card" id="loginCard">
-      <div class="login-logo onex-neo-orbit" aria-hidden="true"><i class="orbit-a"></i><i class="orbit-b"></i><i class="orbit-dot"></i></div>
+      <div class="login-logo" aria-hidden="true"><span>N</span></div>
       <div class="login-title">به پنل <b>ONEX</b> خوش آمدید</div>
       <div class="login-desc">برای ادامه، اطلاعات حساب کاربری خود را وارد کنید</div>
 
@@ -7417,18 +7415,8 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .sb-toggle:hover{filter:brightness(1.1);transform:translateY(-50%) scale(1.05)}
 .sb-toggle svg{width:14px;height:14px;transition:transform .28s}
 .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
-.onex-neo-orbit{position:relative;isolation:isolate;overflow:visible;display:grid;place-items:center;background:linear-gradient(145deg,#38d8ff 0%,#168cff 42%,#6d3df5 100%);border:1px solid rgba(255,255,255,.28);box-shadow:0 12px 28px rgba(0,122,255,.38),0 0 28px rgba(88,70,255,.22),inset 0 1px rgba(255,255,255,.34);transform-style:preserve-3d;}
-.onex-neo-orbit::before{content:'';position:absolute;inset:6px;border-radius:inherit;background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.03) 42%,rgba(0,0,0,.18));border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 -8px 14px rgba(0,0,0,.14);z-index:-1;}
-.onex-neo-orbit::after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 1em/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.88),6px 6px 0 rgba(30,41,59,.45),0 0 16px rgba(255,255,255,.48);transform:translateZ(16px);}
-.onex-neo-orbit .orbit-a,.onex-neo-orbit .orbit-b{position:absolute;left:50%;top:50%;width:112%;height:42%;border:2px solid rgba(184,246,255,.9);border-radius:50%;transform-style:preserve-3d;pointer-events:none;box-shadow:0 0 8px rgba(35,198,255,.42);}
-.onex-neo-orbit .orbit-a{transform:translate(-50%,-50%) rotate(-27deg) rotateX(63deg);}
-.onex-neo-orbit .orbit-b{transform:translate(-50%,-50%) rotate(27deg) rotateX(63deg);opacity:.55;border-color:rgba(173,132,255,.8);}
-.onex-neo-orbit .orbit-dot{position:absolute;width:8%;height:8%;min-width:3px;min-height:3px;border-radius:50%;background:#9df8ff;box-shadow:0 0 10px 3px rgba(22,168,255,.85);left:8%;top:19%;pointer-events:none;}
-.onex-neo-orbit.small .orbit-dot{width:9%;height:9%;}
 .sb-logo{display:flex;align-items:center;justify-content:center;padding:18px 14px;border-bottom:1px solid var(--card-b)}
 .sb-logo-icon{position:relative;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;font-size:0;font-weight:900;color:#fff;isolation:isolate;transform:perspective(260px) rotateX(7deg) rotateY(-8deg);background:linear-gradient(145deg,#0ea5e9 0%,#2563eb 48%,#7c3aed 100%);border:1px solid rgba(255,255,255,.22);box-shadow:0 16px 30px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.32);animation:onexLogoFloat 3.2s ease-in-out infinite}
-.sb-logo-icon.onex-neo-orbit{font-size:1px;overflow:visible}.sb-logo-icon.onex-neo-orbit::after{font-size:25px}.sb-logo-icon.onex-neo-orbit .orbit-a,.sb-logo-icon.onex-neo-orbit .orbit-b{width:112%;height:42%}
-
 .sb-logo-icon:before{content:'';position:absolute;inset:5px;border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.03) 45%,rgba(0,0,0,.18));border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 -8px 16px rgba(0,0,0,.14),0 0 22px rgba(32,200,255,.18);z-index:-1}
 .sb-logo-icon:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 25px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.38);transform:translateZ(18px);animation:onexLogoGlow 2.8s ease-in-out infinite}
 .sb-logo-text,.sb-logo-name,.sb-logo-ver{display:none!important}
@@ -8383,7 +8371,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand"><div class="mob-brand-icon onex-neo-orbit small" aria-label="ONEX Neo Orbit logo"><i class="orbit-a"></i><i class="orbit-b"></i><i class="orbit-dot"></i></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
+  <div class="mob-brand"><div class="mob-brand-icon">N</div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -8393,7 +8381,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="sb-logo-icon onex-neo-orbit" aria-label="ONEX Neo Orbit 3D logo"><i class="orbit-a"></i><i class="orbit-b"></i><i class="orbit-dot"></i></div>
+    <div class="sb-logo-icon" aria-label="ONEX 3D logo">N</div>
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>
@@ -9002,6 +8990,51 @@ html:not(.light) body:has(.page) .table-wrap{{
   transition:background .12s ease,border-color .12s ease,color .12s ease !important;
 }}
 
+
+/* ============================================================
+   ONEX MOBILE DRAWER + NEO ORBIT VISIBILITY TUNING
+   Narrower drawer on phones and a clearer 3D orbit mark in the
+   mobile header/sidebar without changing page functionality.
+   ============================================================ */
+@media (max-width:768px){
+  .sidebar{
+    width:min(68vw,290px)!important;
+    max-width:290px!important;
+  }
+  .sidebar.collapsed{width:min(68vw,290px)!important}
+
+  .mob-brand-icon{
+    position:relative!important;width:40px!important;height:40px!important;
+    flex:0 0 40px!important;border-radius:12px!important;font-size:0!important;
+    background:
+      radial-gradient(circle at 35% 30%,rgba(255,255,255,.34),transparent 25%),
+      linear-gradient(145deg,#0ea5e9 0%,#2563eb 48%,#7c3aed 100%)!important;
+    border:1px solid rgba(255,255,255,.28)!important;
+    box-shadow:0 9px 24px rgba(37,99,235,.42),inset 0 1px rgba(255,255,255,.32),0 0 18px rgba(59,130,246,.16)!important;
+    transform:perspective(220px) rotateX(7deg) rotateY(-8deg)!important;
+    overflow:visible!important;
+  }
+  .mob-brand-icon:before{
+    content:"";position:absolute;inset:5px;border:2px solid rgba(255,255,255,.62);
+    border-left-color:rgba(34,211,238,.95);border-right-color:rgba(124,58,237,.92);
+    border-radius:50%;transform:rotate(-28deg) skewX(-12deg);
+    box-shadow:0 0 10px rgba(34,211,238,.28);pointer-events:none;
+  }
+  .mob-brand-icon:after{
+    content:"N";position:absolute;inset:0;display:grid;place-items:center;
+    font:900 21px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;
+    text-shadow:2px 2px 0 rgba(29,78,216,.95),4px 4px 0 rgba(30,41,59,.55),0 0 14px rgba(255,255,255,.42);
+    transform:translateZ(13px);pointer-events:none;
+  }
+}
+@media (max-width:480px){
+  .mob-brand-icon{width:38px!important;height:38px!important;flex-basis:38px!important}
+  .mob-brand-icon:after{font-size:20px}
+}
+
+.sb-logo-icon{
+  box-shadow:0 18px 34px rgba(37,99,235,.42),inset 0 1px rgba(255,255,255,.34),0 0 24px rgba(59,130,246,.14)!important;
+}
 </style>
 <section class="page" id="page-news">
   <div class="page-head">

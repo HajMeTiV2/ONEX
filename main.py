@@ -294,11 +294,25 @@ DEFAULT_ALPN_BY_PROTOCOL = {
     "vless-grpc-reality": "h2",
 }
 
-# Advanced client-link settings exposed by the manual creator.  These are
-# deliberately limited to values that the current four panel-backed
-# transports can actually represent in a VLESS URI.
-ALPN_VALUES = ("h2", "h3", "http/1.1")
-ALLOWED_TLS_MODES = {"tls"}
+# Advanced client-link settings exposed by the manual creator. Xray treats
+# ALPN as a string list, so the UI exposes common values plus a custom field.
+ALPN_VALUES = (
+    # Xray-specific / commonly used values
+    "h2", "h3", "http/1.1", "FromMitM",
+    # IANA-registered ALPN protocol IDs
+    "http/0.9", "http/1.0", "spdy/1", "spdy/2", "spdy/3",
+    "stun.turn", "stun.nat-discovery", "h2c", "webrtc", "c-webrtc",
+    "ftp", "imap", "pop3", "managesieve", "coap", "co",
+    "xmpp-client", "xmpp-server", "acme-tls/1", "mqtt", "dot",
+    "ntske/1", "sunrpc", "smb", "irc", "nntp", "nnsp", "doq",
+    "sip/2", "tds/8.0", "dicom", "postgresql", "radius/1.0", "radius/1.1",
+    "netperfmeter/control", "netperfmeter/data", "n-pamp/2", "EoQ", "snifq/1",
+    # Common HTTP/3 draft/version labels seen in clients
+    "h3-29", "h3-30", "h3-31", "h3-32",
+    # Common ready-made combinations
+    "h3,h2", "h2,http/1.1", "h3,h2,http/1.1", "h3,http/1.1"
+)
+ALLOWED_TLS_MODES = {"tls", "reality"}
 FRAGMENT_PRESETS = {
     "off": "",
     "safe": "100-200,10-20",
@@ -1066,8 +1080,8 @@ def generate_vless_link(
     port_value = protocol_public_port(link, protocol, safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT))
     alpn_value = (alpn or link.get("alpn") or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
     if alpn_value:
-        alpn_parts = [x.strip() for x in alpn_value.split(",") if x.strip() in ALPN_VALUES]
-        alpn_value = ",".join(dict.fromkeys(alpn_parts)) or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")
+        alpn_parts = [x.strip() for x in alpn_value.split(",") if x.strip()]
+        alpn_value = ",".join(dict.fromkeys(alpn_parts))[:100] or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")
     sni = str(link.get("sni") or host).strip() or host
     allow_insecure = bool(link.get("allow_insecure", False))
     fragment = str(link.get("fragment") or "off").strip().lower()
@@ -1081,12 +1095,23 @@ def generate_vless_link(
             extra["fragment"] = fragment_value
         return "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in extra.items())
 
+    security = "reality" if str(link.get("tls_mode") or "tls").strip().lower() == "reality" else "tls"
+    reality_extra = {}
+    if security == "reality":
+        if link.get("reality_public_key"):
+            reality_extra["pbk"] = str(link.get("reality_public_key"))
+        if link.get("reality_short_id"):
+            reality_extra["sid"] = str(link.get("reality_short_id"))
+        if link.get("reality_spider_x"):
+            reality_extra["spx"] = str(link.get("reality_spider_x"))
+        if link.get("reality_target"):
+            reality_extra["target"] = str(link.get("reality_target"))
     if protocol == "vless-ws":
-        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":sni,"fp":fp,"alpn":alpn_value}
+        q = {"encryption":"none","security":security,"type":"ws","host":host,"path":f"/ws/{uuid}","sni":sni,"fp":fp,"alpn":alpn_value,**reality_extra}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + _q(q) + "#" + label
     if protocol.startswith("xhttp-"):
         mode = protocol.replace("xhttp-", "")
-        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":sni,"fp":fp,"alpn":alpn_value}
+        q = {"encryption":"none","security":security,"type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":sni,"fp":fp,"alpn":alpn_value,**reality_extra}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + _q(q) + "#" + label
     if protocol == "vmess-ws":
         raw = {"v":"2","ps":remark,"add":host,"port":port_value,"id":uuid,"aid":0,"scy":"auto","net":"ws","type":"none","host":host,"path":f"/ws/{uuid}","tls":"tls","sni":host,"fp":fp}
@@ -1181,6 +1206,10 @@ def get_link_info(
         "sni": link.get("sni", ""),
         "allow_insecure": bool(link.get("allow_insecure", False)),
         "tls_mode": link.get("tls_mode", "tls"),
+        "reality_public_key": link.get("reality_public_key", ""),
+        "reality_short_id": link.get("reality_short_id", ""),
+        "reality_spider_x": link.get("reality_spider_x", ""),
+        "reality_target": link.get("reality_target", ""),
         "network": ("ws" if link.get("protocol") == "vless-ws" else "xhttp" if str(link.get("protocol", "")).startswith("xhttp-") else ""),
         "port": link.get("port", DEFAULT_PORT),
         "note": link.get("note", ""),
@@ -1454,6 +1483,10 @@ async def make_link(
     sni: str = "",
     allow_insecure: bool = False,
     tls_mode: str = "tls",
+    reality_public_key: str = "",
+    reality_short_id: str = "",
+    reality_spider_x: str = "",
+    reality_target: str = "",
     port: int = DEFAULT_PORT,
     ip_limit: int = 0,
     speed_limit_bytes: int = 0,
@@ -1543,7 +1576,19 @@ async def make_link(
             bool(allow_insecure),
 
         "tls_mode":
-            "tls",
+            (tls_mode if tls_mode in ALLOWED_TLS_MODES else "tls"),
+
+        "reality_public_key":
+            (reality_public_key or "").strip()[:128],
+
+        "reality_short_id":
+            (reality_short_id or "").strip()[:64],
+
+        "reality_spider_x":
+            (reality_spider_x or "").strip()[:253],
+
+        "reality_target":
+            (reality_target or "").strip()[:253],
 
         "port":
             port,
@@ -3183,7 +3228,7 @@ async def create_link_api(
         alpn_parts = [str(x).strip() for x in raw_alpn]
     else:
         alpn_parts = [x.strip() for x in str(raw_alpn or "").replace(";", ",").split(",")]
-    alpn_parts = list(dict.fromkeys(x for x in alpn_parts if x in ALPN_VALUES))
+    alpn_parts = list(dict.fromkeys(x for x in alpn_parts if x))
     alpn = ",".join(alpn_parts)[:100] or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")
 
     sni = str(body.get("sni") or "").strip()[:253]
@@ -3191,6 +3236,10 @@ async def create_link_api(
     tls_mode = str(body.get("tls_mode") or "tls").strip().lower()
     if tls_mode not in ALLOWED_TLS_MODES:
         tls_mode = "tls"
+    reality_public_key = str(body.get("reality_public_key") or "").strip()[:128]
+    reality_short_id = str(body.get("reality_short_id") or "").strip()[:64]
+    reality_spider_x = str(body.get("reality_spider_x") or "").strip()[:253]
+    reality_target = str(body.get("reality_target") or "").strip()[:253]
 
     fragment = str(
         body.get(
@@ -3263,6 +3312,10 @@ async def create_link_api(
         sni=sni,
         allow_insecure=allow_insecure,
         tls_mode=tls_mode,
+        reality_public_key=reality_public_key,
+        reality_short_id=reality_short_id,
+        reality_spider_x=reality_spider_x,
+        reality_target=reality_target,
         port=port,
         ip_limit=ip_limit,
         speed_limit_bytes=speed_bytes,
@@ -3681,7 +3734,7 @@ async def update_link(
                 parts = [str(x).strip() for x in raw_alpn]
             else:
                 parts = [x.strip() for x in str(raw_alpn or "").replace(";", ",").split(",")]
-            parts = list(dict.fromkeys(x for x in parts if x in ALPN_VALUES))
+            parts = list(dict.fromkeys(x for x in parts if x))
             link["alpn"] = ",".join(parts)[:100]
 
         if "sni" in body:
@@ -3693,6 +3746,15 @@ async def update_link(
         if "tls_mode" in body:
             mode = str(body.get("tls_mode") or "tls").strip().lower()
             link["tls_mode"] = mode if mode in ALLOWED_TLS_MODES else "tls"
+
+        if "reality_public_key" in body:
+            link["reality_public_key"] = str(body.get("reality_public_key") or "").strip()[:128]
+        if "reality_short_id" in body:
+            link["reality_short_id"] = str(body.get("reality_short_id") or "").strip()[:64]
+        if "reality_spider_x" in body:
+            link["reality_spider_x"] = str(body.get("reality_spider_x") or "").strip()[:253]
+        if "reality_target" in body:
+            link["reality_target"] = str(body.get("reality_target") or "").strip()[:253]
 
         if "port" in body:
 
@@ -8033,7 +8095,7 @@ html.light .top-setting-group,html.light .top-notify-btn{background:#fff!importa
 #page-create .advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 #page-create .advanced-grid .field{margin:0}
 #page-create .advanced-full{grid-column:1/-1}
-#page-create .alpn-choices{display:flex;flex-wrap:wrap;gap:7px}
+#page-create .alpn-choices{display:flex;flex-wrap:wrap;gap:7px;max-height:240px;overflow:auto;padding:4px}
 #page-create .alpn-choice{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--card-b);border-radius:10px;background:var(--input-bg);font-size:11px;cursor:pointer;user-select:none}
 #page-create .alpn-choice input{accent-color:#60a5fa}
 #page-create .advanced-note{font-size:10px;line-height:1.7;color:var(--t3);padding:8px 10px;border-radius:10px;background:rgba(148,163,184,.05);border:1px solid rgba(148,163,184,.10);margin-top:9px}
@@ -8426,21 +8488,80 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="advanced-body">
           <div class="advanced-section-title">امنیت و TLS</div>
           <div class="advanced-grid">
-            <div class="field"><label>TLS</label><select id="cTlsMode"><option value="tls">TLS</option><option value="reality" disabled>Reality — نیازمند سرور Reality</option></select></div>
+            <div class="field"><label>TLS</label><select id="cTlsMode" onchange="toggleManualRealityFields()"><option value="tls">TLS</option><option value="reality">Reality</option></select></div>
+            <div class="field"><label>Port / پورت</label><input id="cPort" type="number" min="1" max="65535" placeholder="پیش‌فرض: 443"></div>
             <div class="field"><label>SNI</label><input id="cSni" type="text" dir="ltr" placeholder="پیش‌فرض: دامنه پنل"></div>
             <div class="field"><label>مجوز SSL ناامن</label><select id="cAllowInsecure"><option value="false">False</option><option value="true">True</option></select></div>
             <div class="field"><label>Fingerprint / اثرانگشت</label><select id="cFingerprint">
               <option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="safari">Safari</option><option value="ios">iOS</option><option value="android">Android</option><option value="edge">Edge</option><option value="360">360</option><option value="qq">QQ</option><option value="random">Random</option><option value="randomized">Randomized</option>
             </select></div>
           </div>
+          <div id="manualRealityFields" class="advanced-grid" style="display:none;margin-top:10px">
+            <div class="field advanced-full"><label>Reality Public Key</label><input id="cRealityPublicKey" type="text" dir="ltr" placeholder="Public Key"></div>
+            <div class="field"><label>Reality Short ID</label><input id="cRealityShortId" type="text" dir="ltr" placeholder="Short ID"></div>
+            <div class="field"><label>SpiderX</label><input id="cRealitySpiderX" type="text" dir="ltr" placeholder="/"></div>
+            <div class="field advanced-full"><label>Reality Target</label><input id="cRealityTarget" type="text" dir="ltr" placeholder="example.com:443"></div>
+          </div>
 
           <div class="advanced-section-title">ALPN</div>
           <div class="alpn-choices" id="cAlpnChoices">
-            <label class="alpn-choice"><input type="checkbox" value="h2"> h2</label>
-            <label class="alpn-choice"><input type="checkbox" value="h3"> h3</label>
-            <label class="alpn-choice"><input type="checkbox" value="http/1.1"> http/1.1</label>
+            <label class="alpn-choice"><input type="checkbox" value="h2"> HTTP/2</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3"> HTTP/3</label>
+            <label class="alpn-choice"><input type="checkbox" value="http/1.1"> HTTP/1.1</label>
+            <label class="alpn-choice"><input type="checkbox" value="FromMitM"> FromMitM</label>
+            <label class="alpn-choice"><input type="checkbox" value="http/0.9"> HTTP/0.9</label>
+            <label class="alpn-choice"><input type="checkbox" value="http/1.0"> HTTP/1.0</label>
+            <label class="alpn-choice"><input type="checkbox" value="spdy/1"> SPDY/1</label>
+            <label class="alpn-choice"><input type="checkbox" value="spdy/2"> SPDY/2</label>
+            <label class="alpn-choice"><input type="checkbox" value="spdy/3"> SPDY/3</label>
+            <label class="alpn-choice"><input type="checkbox" value="stun.turn"> stun.turn</label>
+            <label class="alpn-choice"><input type="checkbox" value="stun.nat-discovery"> stun.nat-discovery</label>
+            <label class="alpn-choice"><input type="checkbox" value="h2c"> h2c</label>
+            <label class="alpn-choice"><input type="checkbox" value="webrtc"> webrtc</label>
+            <label class="alpn-choice"><input type="checkbox" value="c-webrtc"> c-webrtc</label>
+            <label class="alpn-choice"><input type="checkbox" value="ftp"> ftp</label>
+            <label class="alpn-choice"><input type="checkbox" value="imap"> imap</label>
+            <label class="alpn-choice"><input type="checkbox" value="pop3"> pop3</label>
+            <label class="alpn-choice"><input type="checkbox" value="managesieve"> managesieve</label>
+            <label class="alpn-choice"><input type="checkbox" value="coap"> coap</label>
+            <label class="alpn-choice"><input type="checkbox" value="co"> co</label>
+            <label class="alpn-choice"><input type="checkbox" value="xmpp-client"> xmpp-client</label>
+            <label class="alpn-choice"><input type="checkbox" value="xmpp-server"> xmpp-server</label>
+            <label class="alpn-choice"><input type="checkbox" value="acme-tls/1"> acme-tls/1</label>
+            <label class="alpn-choice"><input type="checkbox" value="mqtt"> mqtt</label>
+            <label class="alpn-choice"><input type="checkbox" value="dot"> dot</label>
+            <label class="alpn-choice"><input type="checkbox" value="ntske/1"> ntske/1</label>
+            <label class="alpn-choice"><input type="checkbox" value="sunrpc"> sunrpc</label>
+            <label class="alpn-choice"><input type="checkbox" value="smb"> smb</label>
+            <label class="alpn-choice"><input type="checkbox" value="irc"> irc</label>
+            <label class="alpn-choice"><input type="checkbox" value="nntp"> nntp</label>
+            <label class="alpn-choice"><input type="checkbox" value="nnsp"> nnsp</label>
+            <label class="alpn-choice"><input type="checkbox" value="doq"> doq</label>
+            <label class="alpn-choice"><input type="checkbox" value="sip/2"> sip/2</label>
+            <label class="alpn-choice"><input type="checkbox" value="tds/8.0"> tds/8.0</label>
+            <label class="alpn-choice"><input type="checkbox" value="dicom"> dicom</label>
+            <label class="alpn-choice"><input type="checkbox" value="postgresql"> postgresql</label>
+            <label class="alpn-choice"><input type="checkbox" value="radius/1.0"> radius/1.0</label>
+            <label class="alpn-choice"><input type="checkbox" value="radius/1.1"> radius/1.1</label>
+            <label class="alpn-choice"><input type="checkbox" value="netperfmeter/control"> netperfmeter/control</label>
+            <label class="alpn-choice"><input type="checkbox" value="netperfmeter/data"> netperfmeter/data</label>
+            <label class="alpn-choice"><input type="checkbox" value="n-pamp/2"> n-pamp/2</label>
+            <label class="alpn-choice"><input type="checkbox" value="EoQ"> EoQ</label>
+            <label class="alpn-choice"><input type="checkbox" value="snifq/1"> snifq/1</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3-29"> h3-29</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3-30"> h3-30</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3-31"> h3-31</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3-32"> h3-32</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3,h2"> h3,h2</label>
+            <label class="alpn-choice"><input type="checkbox" value="h2,http/1.1"> h2,http/1.1</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3,h2,http/1.1"> h3,h2,http/1.1</label>
+            <label class="alpn-choice"><input type="checkbox" value="h3,http/1.1"> h3,http/1.1</label>
           </div>
-          <div class="advanced-note">می‌توانی چند مورد را هم‌زمان انتخاب کنی. اگر هیچ‌کدام را انتخاب نکنی، ALPN پیش‌فرض همان پروتکل استفاده می‌شود.</div>
+          <div class="field" style="margin-top:10px">
+            <label>ALPN سفارشی</label>
+            <input id="cAlpnCustom" type="text" dir="ltr" placeholder="مثلاً: acme-tls/1,dot,doh">
+          </div>
+          <div class="advanced-note">هر تعداد ALPN را می‌توانی انتخاب کنی. علاوه بر موارد رایج، مقدار سفارشی هم قابل وارد کردن است؛ مقادیر را با کاما جدا کن. اگر چیزی انتخاب/وارد نکنی، ALPN پیش‌فرض همان پروتکل استفاده می‌شود.</div>
 
           <div class="advanced-section-title">شبکه و انتقال</div>
           <div class="advanced-grid">
@@ -9179,6 +9300,7 @@ function toggleManualAdvanced(){
   if(btn)btn.setAttribute('aria-expanded',open?'true':'false');
 }
 function currentManualProtocol(){return document.getElementById('cProto')?.value||'vless-ws'}
+function toggleManualRealityFields(){const mode=document.getElementById('cTlsMode')?.value||'tls';const box=document.getElementById('manualRealityFields');if(box)box.style.display=mode==='reality'?'grid':'none'}
 function manualProtocolDefaults(id){
   const map={
     'vless-ws':{network:'WebSocket',mode:'ws',path:'/ws/{UUID}',alpn:['http/1.1']},
@@ -9194,7 +9316,7 @@ function syncManualAdvancedForProtocol(){
   if(n)n.value=d.network;if(m)m.value=d.mode;if(p)p.value=d.path;
   document.querySelectorAll('#cAlpnChoices input[type="checkbox"]').forEach(x=>x.checked=d.alpn.includes(x.value));
 }
-function collectManualAlpn(){return [...document.querySelectorAll('#cAlpnChoices input[type="checkbox"]:checked')].map(x=>x.value).join(',')}
+function collectManualAlpn(){const picked=[...document.querySelectorAll('#cAlpnChoices input[type="checkbox"]:checked')].map(x=>x.value);const custom=document.getElementById('cAlpnCustom')?.value||'';return [...picked,...custom.split(',').map(x=>x.trim()).filter(Boolean)].filter((v,i,a)=>a.indexOf(v)===i).join(',')}
 async function doManualCreate(){
   const body={
     label:document.getElementById('cName').value||undefined,
@@ -9212,6 +9334,11 @@ async function doManualCreate(){
     sni:document.getElementById('cSni')?.value.trim()||'',
     allow_insecure:(document.getElementById('cAllowInsecure')?.value||'false')==='true',
     tls_mode:document.getElementById('cTlsMode')?.value||'tls',
+    reality_public_key:document.getElementById('cRealityPublicKey')?.value.trim()||'',
+    reality_short_id:document.getElementById('cRealityShortId')?.value.trim()||'',
+    reality_spider_x:document.getElementById('cRealitySpiderX')?.value.trim()||'',
+    reality_target:document.getElementById('cRealityTarget')?.value.trim()||'',
+    port:Math.max(1,Math.min(65535,Number(document.getElementById('cPort')?.value)||443)),
     fragment:document.getElementById('cFragment')?.value||'off',
     all_protocols:!!document.getElementById('cAllProtocols')?.checked
   };

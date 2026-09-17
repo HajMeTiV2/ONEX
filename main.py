@@ -8900,62 +8900,71 @@ html:not(.light) body:has(.page) .table-wrap{{
   <div class="page-head">
     <div>
       <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg><span data-i18n="nav_admins">مدیریت ادمین‌ها</span></div>
-      <div class="page-sub" data-i18n="admins_sub">مدیریت کاربران مدیریتی، وضعیت، محدودیت و سطح دسترسی آن‌ها</div>
+      <div class="page-sub" data-i18n="admins_sub">مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها</div>
     </div>
     <button class="btn btn-p btn-sm" onclick="document.getElementById('adUser')?.focus()">＋ <span data-i18n="admin_new">ادمین جدید</span></button>
   </div>
 
-  <div class="card" style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div>
-        <div class="card-title" style="margin:0" data-i18n="admin_create">ساخت اکانت ادمین</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:4px" data-i18n="admin_same_url">همه ادمین‌ها با همین آدرس پنل وارد می‌شوند و تفاوت فقط در حساب و دسترسی‌هاست.</div>
-      </div>
-      <span style="font-size:11px;color:var(--t3)">🔐 Owner فقط می‌تواند ادمین بسازد و دسترسی‌ها را تغییر دهد</span>
-    </div>
-    <div class="form-row" style="margin-top:12px">
-      <div class="field"><label data-i18n="admin_user">نام کاربری</label><input id="adUser" placeholder="user1" style="direction:ltr;text-align:left" autocomplete="off"></div>
-      <div class="field"><label data-i18n="admin_label">عنوان نمایشی</label><input id="adLabel" placeholder="اپراتور فروش"></div>
-    </div>
-    <div class="form-row">
-      <div class="field"><label data-i18n="admin_pw">رمز عبور</label><input id="adPw" type="password" autocomplete="new-password"></div>
-      <div class="field"><label data-i18n="admin_pw2">تکرار رمز</label><input id="adPw2" type="password" autocomplete="new-password"></div>
-    </div>
-    <div class="form-row">
-      <div class="field"><label data-i18n="label_limit">محدودیت حجم</label><input id="adLimit" type="number" value="0" min="0"></div>
-      <div class="field"><label data-i18n="label_unit">واحد</label><select id="adUnit"><option>GB</option><option>MB</option></select></div>
-      <div class="field"><label data-i18n="label_days">مدت اعتبار (روز)</label><input id="adDays" type="number" value="0" min="0"></div>
-    </div>
-    <div style="margin-top:6px;border-top:1px solid var(--card-b);padding-top:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-        <div class="card-title" style="margin:0" data-i18n="admin_perms">دسترسی‌ها</div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-sm" type="button" onclick="setAllAdminPerms(true)" data-i18n="perm_all">همه</button>
-          <button class="btn btn-sm" type="button" onclick="setAllAdminPerms(false)" data-i18n="perm_none">هیچ‌کدام</button>
-        </div>
-      </div>
-      <div id="adPerms" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;font-size:12px;margin-top:10px"></div>
-    </div>
-    <button class="btn btn-p" style="width:100%;margin-top:14px" onclick="createAdmin()" data-i18n="admin_btn">ساخت اکانت</button>
-  </div>
-
-  <div class="card" style="padding:0;overflow:hidden">
-    <div style="padding:15px 18px;border-bottom:1px solid var(--card-b)">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <div>
-          <div class="card-title" style="margin:0" data-i18n="admin_list">لیست ادمین‌ها</div>
-          <div id="adminCount" style="font-size:11px;color:var(--t3);margin-top:4px">—</div>
-        </div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
-          <input id="adminSearch" oninput="renderAdminList()" placeholder="جستجوی ادمین..." style="min-width:180px;max-width:260px">
-          <select id="adminStatusFilter" onchange="renderAdminList()" style="min-width:110px">
-            <option value="all">همه وضعیت‌ها</option><option value="active">فعال</option><option value="blocked">مسدود</option><option value="invalid">منقضی/نامعتبر</option>
-          </select>
+  <div style="display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.85fr);gap:14px;align-items:start">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:15px 18px;border-bottom:1px solid var(--card-b)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div><div class="card-title" style="margin:0" data-i18n="admin_list">لیست ادمین‌ها</div><div id="adminCount" style="font-size:11px;color:var(--t3);margin-top:4px">—</div></div>
           <button class="btn btn-sm" onclick="loadAdmins()">↻</button>
         </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 125px;gap:8px;margin-top:10px">
+          <input id="adminSearch" oninput="renderAdminList()" placeholder="جستجوی ادمین...">
+          <select id="adminStatusFilter" onchange="renderAdminList()"><option value="all">همه وضعیت‌ها</option><option value="active">فعال</option><option value="blocked">مسدود</option><option value="invalid">منقضی/نامعتبر</option></select>
+        </div>
+      </div>
+      <div style="overflow:auto">
+        <div style="min-width:620px;display:grid;grid-template-columns:1.6fr .75fr .85fr 1.15fr .95fr;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--card-b);font-size:11px;color:var(--t3);font-weight:700">
+          <span>نام کاربری</span><span>نقش</span><span>وضعیت</span><span>آخرین ورود</span><span>عملیات</span>
+        </div>
+        <div id="adminsList" style="padding:8px"><div style="color:var(--t3);text-align:center;padding:20px">...</div></div>
       </div>
     </div>
-    <div id="adminsList" style="padding:12px;max-height:620px;overflow:auto"><div style="color:var(--t3);text-align:center;padding:20px">...</div></div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div><div class="card-title" style="margin:0" data-i18n="admin_create">افزودن ادمین جدید</div><div style="font-size:10px;color:var(--t3);margin-top:4px">همه ادمین‌ها از همین آدرس پنل استفاده می‌کنند.</div></div>
+        <span style="font-size:20px">＋</span>
+      </div>
+      <div class="field" style="margin-top:12px"><label data-i18n="admin_user">نام کاربری</label><input id="adUser" placeholder="user1" style="direction:ltr;text-align:left" autocomplete="off"></div>
+      <div class="field"><label data-i18n="admin_label">عنوان نمایشی</label><input id="adLabel" placeholder="اپراتور فروش"></div>
+      <div class="field"><label data-i18n="admin_pw">رمز عبور</label><input id="adPw" type="password" autocomplete="new-password"></div>
+      <div class="field"><label data-i18n="admin_pw2">تکرار رمز</label><input id="adPw2" type="password" autocomplete="new-password"></div>
+      <div class="form-row">
+        <div class="field"><label>محدودیت حجم</label><input id="adLimit" type="number" value="0" min="0"></div>
+        <div class="field"><label>واحد</label><select id="adUnit"><option>GB</option><option>MB</option></select></div>
+      </div>
+      <div class="field"><label>انقضا (روز)</label><input id="adDays" type="number" value="0" min="0"></div>
+      <button class="btn btn-p" style="width:100%;margin-top:8px" onclick="createAdmin()" data-i18n="admin_btn">ساخت اکانت</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><div class="card-title" style="margin:0">⚙ دسترسی‌های ادمین</div><div style="font-size:11px;color:var(--t3);margin-top:4px">ادمین را انتخاب کنید و دسترسی‌های او را جداگانه تنظیم کنید.</div></div>
+      <select id="adminPermTarget" onchange="renderSelectedAdminPerms()" style="min-width:180px"><option value="">انتخاب ادمین</option></select>
+    </div>
+    <div id="adminPermTargetEmpty" style="text-align:center;color:var(--t3);padding:20px">ابتدا یک ادمین را از لیست انتخاب کنید.</div>
+    <div id="adminSelectedPerms" hidden>
+      <div id="selectedAdminName" style="font-weight:700;margin:12px 0 8px"></div>
+      <div id="selectedPermGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px"></div>
+      <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="saveSelectedAdminPerms()">ذخیره دسترسی‌ها</button>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:14px;margin-top:14px;align-items:start">
+    <div class="card">
+      <div class="card-title">◷ گزارش فعالیت ادمین‌ها</div>
+      <div id="adminActivityBox" style="max-height:280px;overflow:auto"><div style="text-align:center;color:var(--t3);padding:18px">در حال دریافت...</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">👤 جزئیات ادمین</div>
+      <div id="adminDetails" style="color:var(--t3);font-size:12px;line-height:2.1;text-align:center;padding:10px">برای مشاهده جزئیات، یک ادمین را انتخاب کنید.</div>
+    </div>
   </div>
 </section>
 
@@ -9567,11 +9576,9 @@ function formatAdminDate(v){
   try{return new Date(v).toLocaleString(lang==='fa'?'fa-IR':'en-US',{dateStyle:'short',timeStyle:'short'})}catch(e){return String(v)}
 }
 function renderAdminList(){
-  const box=document.getElementById('adminsList');
-  if(!box)return;
+  const box=document.getElementById('adminsList'); if(!box)return;
   const q=(document.getElementById('adminSearch')?.value||'').trim().toLowerCase();
   const filter=document.getElementById('adminStatusFilter')?.value||'all';
-  const labels=PERM_LABELS[lang]||PERM_LABELS.fa;
   const list=__adminsCache.filter(a=>{
     const hay=[a.username,a.label,a.last_login_ip].filter(Boolean).join(' ').toLowerCase();
     if(q && !hay.includes(q))return false;
@@ -9584,37 +9591,64 @@ function renderAdminList(){
   if(count)count.textContent=(lang==='fa'?`${list.length} مورد نمایش داده می‌شود · ${__adminsCache.length} ادمین`:`Showing ${list.length} of ${__adminsCache.length} admins`);
   if(!list.length){box.innerHTML=`<div style="color:var(--t3);text-align:center;padding:28px">${lang==='fa'?'ادمینی با این فیلتر پیدا نشد':'No admin matches this filter'}</div>`;return}
   box.innerHTML=list.map(a=>{
-    const st=adminStatusText(a);
-    const perms=Object.entries(a.permissions||{}).filter(([,v])=>v).map(([k])=>labels[k]||k);
-    const limit=a.limit_bytes?`${fmtB(a.used_bytes)} / ${fmtB(a.limit_bytes)}`:`${fmtB(a.used_bytes)} / ∞`;
-    return `<div style="border:1px solid var(--card-b);border-radius:16px;padding:14px;margin-bottom:10px;background:var(--bg3)">
-      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
-        <div style="min-width:190px;flex:1">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14px">${esc(a.label||a.username)}</b><span style="font-size:10px;color:var(--t3);direction:ltr">@${esc(a.username)}</span><span style="font-size:10px;border:1px solid;padding:3px 7px;border-radius:999px;${adminStatusClass(a)}">${st}</span></div>
-          <div style="font-size:11px;color:var(--t3);margin-top:8px">${lang==='fa'?'ساخته شده':'Created'}: ${formatAdminDate(a.created_at)} · ${lang==='fa'?'آخرین ورود':'Last login'}: ${formatAdminDate(a.last_login_at)}</div>
-          <div style="font-size:11px;color:var(--t3);margin-top:4px;direction:ltr;text-align:right">${a.last_login_ip?('IP: '+esc(a.last_login_ip)):''}</div>
-        </div>
-        <div class="ops" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-sm" onclick="editAdmin('${esc(a.id)}')">✎ ${lang==='fa'?'ویرایش':'Edit'}</button>
-          <button class="btn btn-sm" onclick="toggleActiveAdmin('${esc(a.id)}',${!a.active})">${a.active?'⏸ '+(lang==='fa'?'غیرفعال':'Disable'):'▶ '+(lang==='fa'?'فعال':'Enable')}</button>
-          <button class="btn btn-sm btn-d" onclick="deleteAdmin('${esc(a.id)}')">🗑 ${lang==='fa'?'حذف':'Delete'}</button>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:12px">
-        <div style="padding:9px;border-radius:10px;background:var(--bg2);font-size:11px"><b>${lang==='fa'?'مصرف':'Usage'}</b><br><span style="color:var(--t2)">${limit}</span></div>
-        <div style="padding:9px;border-radius:10px;background:var(--bg2);font-size:11px"><b>${lang==='fa'?'انقضا':'Expiry'}</b><br><span style="color:var(--t2)">${a.expires_at?formatAdminDate(a.expires_at):(lang==='fa'?'بدون انقضا':'Unlimited')}</span></div>
-        <div style="padding:9px;border-radius:10px;background:var(--bg2);font-size:11px"><b>${lang==='fa'?'دسترسی فعال':'Active permissions'}</b><br><span style="color:var(--t2)">${perms.length} / ${Object.keys(PERM_LABELS.fa||{}).length}</span></div>
-      </div>
-      <div style="font-size:11px;color:var(--t2);margin-top:9px;line-height:1.8">${perms.length?perms.map(x=>`<span style="display:inline-block;padding:2px 7px;margin:2px;border-radius:999px;background:var(--bg2);border:1px solid var(--card-b)">${esc(x)}</span>`).join(''):'—'}</div>
+    const st=adminStatusText(a), stStyle=adminStatusClass(a);
+    const perms=Object.values(a.permissions||{}).filter(Boolean).length;
+    return `<div onclick="showAdminDetails('${esc(a.id)}')" style="min-width:620px;display:grid;grid-template-columns:1.6fr .75fr .85fr 1.15fr .95fr;align-items:center;gap:8px;padding:12px 6px;border-bottom:1px solid var(--card-b);cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#7c3aed);color:white;font-weight:800">${esc((a.username||'A')[0].toUpperCase())}</span><span style="min-width:0"><b style="display:block;font-size:12px">${esc(a.username)}</b><small style="color:var(--t3)">${esc(a.label||'')}</small></span></div>
+      <span><b style="font-size:10px;padding:4px 7px;border-radius:999px;background:rgba(59,130,246,.1);color:#2563eb">Admin</b></span>
+      <span style="font-size:10px;border:1px solid;padding:4px 7px;border-radius:999px;width:max-content;${stStyle}">${st}</span>
+      <span style="font-size:10px;color:var(--t3)">${formatAdminDate(a.last_login_at)}</span>
+      <span style="display:flex;gap:4px" onclick="event.stopPropagation()"><button class="btn btn-sm" onclick="editAdmin('${esc(a.id)}')">✎</button><button class="btn btn-sm" onclick="toggleBlockAdmin('${esc(a.id)}',${!a.blocked})">${a.blocked?'✓':'⊘'}</button><button class="btn btn-sm btn-d" onclick="deleteAdmin('${esc(a.id)}')">🗑</button></span>
+      <div style="grid-column:1/-1;font-size:10px;color:var(--t3);padding-right:42px">مصرف: ${fmtB(a.used_bytes)}${a.limit_bytes?' / '+fmtB(a.limit_bytes):' / ∞'} · دسترسی فعال: ${perms}/${ALL_PERMS.length}${a.last_login_ip?' · IP: '+esc(a.last_login_ip):''}</div>
     </div>`;
   }).join('');
+  populateAdminTarget();
+}
+function populateAdminTarget(){
+  const sel=document.getElementById('adminPermTarget'); if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">انتخاب ادمین</option>'+__adminsCache.map(a=>`<option value="${esc(a.id)}">${esc(a.label||a.username)} (@${esc(a.username)})</option>`).join('');
+  if(__adminsCache.some(a=>a.id===cur))sel.value=cur;
+}
+function showAdminDetails(id){
+  const a=__adminsCache.find(x=>x.id===id); if(!a)return;
+  const sel=document.getElementById('adminPermTarget'); if(sel)sel.value=id;
+  renderSelectedAdminPerms();
+  const perms=Object.values(a.permissions||{}).filter(Boolean).length;
+  const box=document.getElementById('adminDetails'); if(!box)return;
+  box.style.textAlign='right';
+  box.innerHTML=`<div style="text-align:center;margin-bottom:10px"><div style="width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:20px;font-weight:800;margin:auto">${esc((a.username||'A')[0].toUpperCase())}</div><b style="display:block;margin-top:6px">${esc(a.label||a.username)}</b><small style="color:var(--t3);direction:ltr;display:block">@${esc(a.username)}</small></div>
+  <div><b>وضعیت:</b> ${adminStatusText(a)}</div><div><b>آخرین ورود:</b> ${formatAdminDate(a.last_login_at)}</div><div dir="ltr"><b>IP:</b> ${esc(a.last_login_ip||'—')}</div><div><b>تاریخ ایجاد:</b> ${formatAdminDate(a.created_at)}</div><div><b>دسترسی:</b> ${perms}/${ALL_PERMS.length}</div>
+  <div style="display:flex;gap:7px;margin-top:12px"><button class="btn" style="flex:1" onclick="editAdmin('${esc(a.id)}')">✎ ویرایش</button><button class="btn btn-d" style="flex:1" onclick="toggleActiveAdmin('${esc(a.id)}',${!a.active})">${a.active?'غیرفعال کردن':'فعال کردن'}</button></div>`;
+}
+function renderSelectedAdminPerms(){
+  const id=document.getElementById('adminPermTarget')?.value, empty=document.getElementById('adminPermTargetEmpty'), wrap=document.getElementById('adminSelectedPerms'), name=document.getElementById('selectedAdminName'), grid=document.getElementById('selectedPermGrid');
+  const a=__adminsCache.find(x=>x.id===id);
+  if(!a){if(empty)empty.hidden=false;if(wrap)wrap.hidden=true;return}
+  if(empty)empty.hidden=true;if(wrap)wrap.hidden=false;
+  if(name)name.textContent=`${a.label||a.username}  (@${a.username})`;
+  const labels=PERM_LABELS[lang]||PERM_LABELS.fa;
+  if(grid)grid.innerHTML=ALL_PERMS.map(p=>`<label style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 11px;border:1px solid var(--card-b);border-radius:12px;background:var(--bg2);font-size:12px"><span>${esc(labels[p]||p)}</span><label class="switch"><input type="checkbox" data-admin-perm="${p}" ${a.permissions&&a.permissions[p]?'checked':''}><span class="slider"></span></label></label>`).join('');
+}
+async function saveSelectedAdminPerms(){
+  const id=document.getElementById('adminPermTarget')?.value;if(!id)return;
+  const permissions={};document.querySelectorAll('#selectedPermGrid input[data-admin-perm]').forEach(x=>permissions[x.dataset.adminPerm]=x.checked);
+  await patchAdmin(id,{permissions},lang==='fa'?'دسترسی‌ها ذخیره شد':'Permissions saved');
+}
+async function loadAdminActivity(){
+  const box=document.getElementById('adminActivityBox');if(!box)return;
+  const data=await api('/api/activity');const logs=Array.isArray(data)?data:(data&&data.logs)||[];
+  if(!logs.length){box.innerHTML='<div style="text-align:center;color:var(--t3);padding:18px">لاگی ثبت نشده است.</div>';return}
+  box.innerHTML=logs.slice().reverse().slice(0,12).map(l=>`<div style="display:flex;gap:10px;padding:9px 2px;border-bottom:1px solid var(--card-b);font-size:11px"><span style="color:var(--t3);white-space:nowrap">${esc((l.time||l.ts||'').toString().slice(11,19)||'—')}</span><span>${esc(l.message||l.msg||'—')}</span></div>`).join('');
 }
 async function loadAdmins(){
-  buildPermChecks('adPerms');
   const r=await api('/api/admins');
   if(!r||!r.admins){const box=document.getElementById('adminsList');if(box)box.innerHTML='<div style="color:var(--t3);text-align:center;padding:20px">—</div>';return}
   __adminsCache=r.admins||[];
   renderAdminList();
+  loadAdminActivity();
+  const current=document.getElementById('adminPermTarget')?.value;
+  if(current && __adminsCache.some(a=>a.id===current)){renderSelectedAdminPerms();showAdminDetails(current)}
 }
 async function createAdmin(){
   const body={

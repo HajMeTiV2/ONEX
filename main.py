@@ -38,7 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.2.2"
+APP_VERSION = "1.2.4"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -9045,7 +9045,7 @@ html:not(.light) body:has(.page) .table-wrap{{
 
   <div class="card admin-perms-card">
     <div class="admin-perm-toolbar">
-      <div><div class="card-title" style="margin:0">⚙ دسترسی‌های ادمین</div><div style="font-size:10px;color:var(--t3);margin-top:3px">ادمین را انتخاب کنید و دسترسی‌های او را جداگانه تنظیم کنید.</div></div>
+      <div><div class="card-title" style="margin:0">⚙ دسترسی‌های ادمین</div><div style="font-size:10px;color:var(--t3);margin-top:3px">یک ادمین را انتخاب کنید و دسترسی‌های او را جداگانه فعال یا غیرفعال کنید.</div></div>
       <div style="display:flex;align-items:center;gap:7px"><select id="adminPermTarget" onchange="renderSelectedAdminPerms()" style="min-width:160px;height:34px;font-size:10px"><option value="">انتخاب ادمین</option></select><div class="admin-perm-actions"><button class="btn" onclick="setSelectedAdminPerms(true)">همه</button><button class="btn" onclick="setSelectedAdminPerms(false)">هیچ‌کدام</button></div></div>
     </div>
     <div id="adminPermTargetEmpty" style="text-align:center;color:var(--t3);padding:18px">ابتدا یک ادمین را از لیست انتخاب کنید.</div>
@@ -9664,6 +9664,46 @@ function adminStatusClass(a){
 function setAllAdminPerms(value){
   document.querySelectorAll('#adPerms input[data-perm]').forEach(x=>x.checked=!!value);
 }
+function renderAdminList(){
+  const box=document.getElementById('adminsList');
+  const count=document.getElementById('adminCount');
+  const search=(document.getElementById('adminSearch')?.value||'').trim().toLowerCase();
+  const filter=document.getElementById('adminStatusFilter')?.value||'all';
+  const all=Array.isArray(__adminsCache)?__adminsCache:[];
+  const rows=all.filter(a=>{
+    const hay=[a.username,a.label,a.role].map(x=>String(x||'').toLowerCase()).join(' ');
+    if(search && !hay.includes(search)) return false;
+    if(filter==='active' && !a.valid) return false;
+    if(filter==='blocked' && !a.blocked) return false;
+    if(filter==='invalid' && a.valid) return false;
+    return true;
+  });
+  if(count) count.textContent=lang==='fa'?`${rows.length} مورد نمایش داده می‌شود · ${all.length} ادمین`:`${rows.length} shown · ${all.length} admins`;
+  const sel=document.getElementById('adminPermTarget');
+  if(sel){
+    const current=sel.value;
+    sel.innerHTML='<option value="">انتخاب ادمین</option>'+all.map(a=>`<option value="${esc(a.id)}">${esc(a.label||a.username)} (@${esc(a.username)})</option>`).join('');
+    if(current && all.some(a=>a.id===current)) sel.value=current;
+  }
+  if(!box)return;
+  if(!rows.length){box.innerHTML='<div style="color:var(--t3);text-align:center;padding:24px">ادمینی با این فیلتر پیدا نشد.</div>';return}
+  box.innerHTML=rows.map(a=>{
+    const status=adminStatusText(a);
+    const statusStyle=adminStatusClass(a);
+    const role=a.role==='operator'?'Operator':'Admin';
+    return `<div class="admin-row" onclick="showAdminDetails('${esc(a.id)}')">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="admin-avatar">${esc((a.username||'A')[0].toUpperCase())}</span><div style="min-width:0"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(a.username||'—')}</b><span style="font-size:8px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${esc(a.label||'')}</span></div></div>
+      <span class="admin-role">${role}</span>
+      <span class="admin-state" style="${statusStyle}">${status}</span>
+      <span style="font-size:9px;color:var(--t3)">${formatAdminDate(a.last_login_at)}</span>
+      <div class="admin-actions" onclick="event.stopPropagation()">
+        <button class="btn" title="ویرایش" onclick="editAdmin('${esc(a.id)}')">✎</button>
+        <button class="btn btn-d" title="${a.active?'غیرفعال کردن':'فعال کردن'}" onclick="toggleActiveAdmin('${esc(a.id)}',${!a.active})">${a.active?'⊘':'✓'}</button>
+        <button class="btn" title="حذف" onclick="deleteAdmin('${esc(a.id)}')">⋮</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 function setSelectedAdminPerms(value){
   document.querySelectorAll('#selectedPermGrid input[data-admin-perm]').forEach(x=>x.checked=!!value);
 }
@@ -9705,7 +9745,10 @@ async function loadAdmins(){
   renderAdminList();
   loadAdminActivity();
   const current=document.getElementById('adminPermTarget')?.value;
-  if(current && __adminsCache.some(a=>a.id===current)){renderSelectedAdminPerms();showAdminDetails(current)}
+  const target=current && __adminsCache.some(a=>a.id===current) ? current : (__adminsCache[0]?.id||'');
+  const sel=document.getElementById('adminPermTarget');
+  if(sel) sel.value=target;
+  if(target){renderSelectedAdminPerms();showAdminDetails(target)}
 }
 async function createAdmin(){
   const body={
@@ -9720,8 +9763,17 @@ async function createAdmin(){
     active:!!document.getElementById('adActive')?.checked,
     permissions:Object.fromEntries(ALL_PERMS.map(p=>[p, ['dash','configs','create','stats','groups','news'].includes(p)]))
   };
+  if(!body.username){toast(lang==='fa'?'نام کاربری را وارد کنید':'Enter a username');return}
+  if(!body.password || body.password.length<6){toast(lang==='fa'?'رمز عبور حداقل ۶ کاراکتر باشد':'Password must be at least 6 characters');return}
+  if(body.password!==body.repeat_password){toast(lang==='fa'?'تکرار رمز یکسان نیست':'Passwords do not match');return}
   const r=await api('/api/admins',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r){toast(lang==='fa'?'اکانت ساخته شد':'Created');['adUser','adLabel','adPw','adPw2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});loadAdmins()}
+  if(r){
+    toast(lang==='fa'?'اکانت ساخته شد':'Created');
+    ['adUser','adLabel','adPw','adPw2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=''});
+    await loadAdmins();
+    const sel=document.getElementById('adminPermTarget');
+    if(sel && r.id){sel.value=r.id;renderSelectedAdminPerms();showAdminDetails(r.id);document.getElementById('adminSelectedPerms')?.scrollIntoView({behavior:'smooth',block:'center'})}
+  }
 }
 async function patchAdmin(id,payload,okText){
   const r=await api('/api/admins/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});

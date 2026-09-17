@@ -8546,6 +8546,93 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   #page-dash .quick-item{padding:6px}
   #page-dash .quick-icon{width:23px;height:23px;flex-basis:23px}
 }
+
+
+/* ============================================================
+   ONEX DARK PERFORMANCE PATCH 1.1.2
+   Dark mode was using many backdrop-filter blurs + large shadows
+   on scrolling surfaces. On mobile Chromium this can force repeated
+   GPU compositing/repaints, making lower content appear progressively.
+   Keep the dark glass appearance, but use fast opaque-ish surfaces.
+   ============================================================ */
+
+/* Only applies to the actual panel pages, not the login screen. */
+html:not(.light) body:has(.page)::before{{
+  animation:none !important;
+}}
+html:not(.light) body:has(.page) *{{
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}}
+
+/* Replace expensive 25px glass blur with lightweight dark surfaces. */
+html:not(.light) body:has(.page) .sidebar,
+html:not(.light) body:has(.page) .mob-bar,
+html:not(.light) body:has(.page) .onex-topbar,
+html:not(.light) body:has(.page) .onex-control-dock,
+html:not(.light) body:has(.page) .onex-card,
+html:not(.light) body:has(.page) .onex-metric,
+html:not(.light) body:has(.page) .card,
+html:not(.light) body:has(.page) .metric,
+html:not(.light) body:has(.page) .support-tile,
+html:not(.light) body:has(.page) .quick-item,
+html:not(.light) body:has(.page) .table-wrap,
+html:not(.light) body:has(.page) .sub-box,
+html:not(.light) body:has(.page) .link-box,
+html:not(.light) body:has(.page) .modal,
+html:not(.light) body:has(.page) .toast{{
+  box-shadow:
+    0 7px 20px rgba(0,0,0,.18),
+    inset 0 1px rgba(255,255,255,.045) !important;
+}}
+
+/* Keep the panel responsive while preserving the dark blue glass tone. */
+html:not(.light) body:has(.page) .onex-topbar,
+html:not(.light) body:has(.page) .onex-control-dock,
+html:not(.light) body:has(.page) .card,
+html:not(.light) body:has(.page) .metric,
+html:not(.light) body:has(.page) .onex-card,
+html:not(.light) body:has(.page) .onex-metric{{
+  background:linear-gradient(145deg,rgba(12,27,50,.96),rgba(4,12,25,.98)) !important;
+}}
+
+html:not(.light) body:has(.page) .quick-item,
+html:not(.light) body:has(.page) .table-wrap,
+html:not(.light) body:has(.page) .sub-box,
+html:not(.light) body:has(.page) .link-box{{
+  background:linear-gradient(145deg,rgba(10,24,45,.94),rgba(4,12,25,.97)) !important;
+}}
+
+/* Stop decorative continuous repainting in the panel. Functional
+   spinners/loaders are intentionally left untouched. */
+html:not(.light) body:has(.page) .onex-control-dock::before,
+html:not(.light) body:has(.page) .onex-3d-control::after,
+html:not(.light) body:has(.page) .nav-item.on .nav-ico,
+html:not(.light) body:has(.page) .nav-item.on .nav-ico-dash,
+html:not(.light) body:has(.page) .nav-item.on .nav-ico-telegram,
+html:not(.light) body:has(.page) .nav-item.on .nav-ico-settings,
+html:not(.light) body:has(.page) .sb-foot a.danger .logout-ico,
+html:not(.light) body:has(.page) .sb-foot button.danger .logout-ico{{
+  animation:none !important;
+}}
+
+html:not(.light) body:has(.page) .protocol-art-icon{{
+  filter:none !important;
+}}
+
+/* Theme switching should not animate large shadow layers. */
+html:not(.light) body:has(.page) .onex-topbar,
+html:not(.light) body:has(.page) .onex-control-dock,
+html:not(.light) body:has(.page) .onex-card,
+html:not(.light) body:has(.page) .onex-metric,
+html:not(.light) body:has(.page) .card,
+html:not(.light) body:has(.page) .metric,
+html:not(.light) body:has(.page) .support-tile,
+html:not(.light) body:has(.page) .quick-item,
+html:not(.light) body:has(.page) .table-wrap{{
+  transition:background .12s ease,border-color .12s ease,color .12s ease !important;
+}}
+
 </style>
 <section class="page" id="page-news">
   <div class="page-head">

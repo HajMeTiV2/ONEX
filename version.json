@@ -1,10 +1,12 @@
 {
-  "version": "1.0.2",
-  "title": "ONEX 1.0.2",
-  "message": "نسخه پایه سیستم بروزرسانی خودکار ONEX منتشر شد.",
+  "version": "1.1.0",
+  "title": "ONEX 1.1.0",
+  "message": "افزوده شدن backend بومی sing-box برای پروتکل‌های جدید و ساخت اشتراک همه‌پروتکل‌ها.",
   "changelog": [
-    "افزوده شدن بررسی نسخه از GitHub",
-    "افزوده شدن شروع بروزرسانی از داخل پنل در Railway"
+    "افزوده شدن Trojan، Shadowsocks، SOCKS5، HTTP، Hysteria2 و VLESS gRPC Reality با backend واقعی sing-box",
+    "پشتیبانی از پورت جداگانه برای listenerهای native",
+    "اتصال گزینه ساخت همه پروتکل‌ها به Subscription واحد",
+    "پشتیبانی از دانلود خودکار sing-box در Linux amd64/arm64"
   ],
   "published_at": "2026-09-17"
 }

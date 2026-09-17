@@ -8990,51 +8990,6 @@ html:not(.light) body:has(.page) .table-wrap{{
   transition:background .12s ease,border-color .12s ease,color .12s ease !important;
 }}
 
-
-/* ============================================================
-   ONEX MOBILE DRAWER + NEO ORBIT VISIBILITY TUNING
-   Narrower drawer on phones and a clearer 3D orbit mark in the
-   mobile header/sidebar without changing page functionality.
-   ============================================================ */
-@media (max-width:768px){
-  .sidebar{
-    width:min(68vw,290px)!important;
-    max-width:290px!important;
-  }
-  .sidebar.collapsed{width:min(68vw,290px)!important}
-
-  .mob-brand-icon{
-    position:relative!important;width:40px!important;height:40px!important;
-    flex:0 0 40px!important;border-radius:12px!important;font-size:0!important;
-    background:
-      radial-gradient(circle at 35% 30%,rgba(255,255,255,.34),transparent 25%),
-      linear-gradient(145deg,#0ea5e9 0%,#2563eb 48%,#7c3aed 100%)!important;
-    border:1px solid rgba(255,255,255,.28)!important;
-    box-shadow:0 9px 24px rgba(37,99,235,.42),inset 0 1px rgba(255,255,255,.32),0 0 18px rgba(59,130,246,.16)!important;
-    transform:perspective(220px) rotateX(7deg) rotateY(-8deg)!important;
-    overflow:visible!important;
-  }
-  .mob-brand-icon:before{
-    content:"";position:absolute;inset:5px;border:2px solid rgba(255,255,255,.62);
-    border-left-color:rgba(34,211,238,.95);border-right-color:rgba(124,58,237,.92);
-    border-radius:50%;transform:rotate(-28deg) skewX(-12deg);
-    box-shadow:0 0 10px rgba(34,211,238,.28);pointer-events:none;
-  }
-  .mob-brand-icon:after{
-    content:"N";position:absolute;inset:0;display:grid;place-items:center;
-    font:900 21px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;
-    text-shadow:2px 2px 0 rgba(29,78,216,.95),4px 4px 0 rgba(30,41,59,.55),0 0 14px rgba(255,255,255,.42);
-    transform:translateZ(13px);pointer-events:none;
-  }
-}
-@media (max-width:480px){
-  .mob-brand-icon{width:38px!important;height:38px!important;flex-basis:38px!important}
-  .mob-brand-icon:after{font-size:20px}
-}
-
-.sb-logo-icon{
-  box-shadow:0 18px 34px rgba(37,99,235,.42),inset 0 1px rgba(255,255,255,.34),0 0 24px rgba(59,130,246,.14)!important;
-}
 </style>
 <section class="page" id="page-news">
   <div class="page-head">

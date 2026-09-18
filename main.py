@@ -2190,67 +2190,6 @@ table th:first-child, table td:first-child{overflow:visible}
   #page-dash .version-mini-copy strong{font-size:9px!important}
 }
 </style>
-<style>
-.glass-config{margin:18px 0;padding:18px;border:1px solid rgba(100,150,255,.38);border-radius:28px;background:linear-gradient(135deg,rgba(30,50,95,.62),rgba(5,15,35,.62));backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.15)}
-.pro-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-.pro-title{font-size:20px;font-weight:900;display:flex;gap:10px;align-items:center}
-.pro-title span{font-size:12px;padding:5px 10px;border-radius:20px;background:rgba(80,150,255,.25)}
-.pro-actions{display:flex;gap:8px}
-.glass-item{box-shadow:0 12px 35px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08)}
-.adv-fields input,.adv-fields select{font-size:15px;font-weight:600;min-height:45px}
-
-.glass-grid{display:grid;gap:12px;margin-top:14px}
-.glass-item{border:1px solid rgba(130,170,255,.22);border-radius:18px;padding:14px;background:rgba(255,255,255,.04)}
-.glass-item summary{font-weight:700;font-size:17px;cursor:pointer}
-.adv-fields{display:grid;gap:10px;margin-top:14px}
-.adv-fields input,.adv-fields select{width:100%;padding:13px;border-radius:14px;border:1px solid rgba(120,160,255,.25);background:rgba(0,0,0,.18);color:inherit}
-/* final glass layout */
-.create-glass-layout{display:grid!important;grid-template-columns:1.1fr .9fr;gap:20px}
-.glass-item{transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.18)}
-.glass-item[open]{border-color:rgba(80,170,255,.65);background:rgba(40,70,130,.18)}
-.glass-item summary{display:flex;align-items:center;gap:10px;min-height:32px}
-#configLivePreview{position:sticky;top:20px}
-@media(max-width:1000px){.create-glass-layout{grid-template-columns:1fr!important}#configLivePreview{position:static}}
-
-</style>
-<style id="onex-futuristic-create-theme">
-/* ==========================================================
-   ONEX FUTURISTIC CONFIG BUILDER — scoped to Create page
-   ========================================================== */
-#page-create{--fx-blue:#35a7ff;--fx-cyan:#22f4ff;--fx-purple:#8b5cff;--fx-pink:#e45cff;--fx-green:#00f0b5;--fx-bg:rgba(5,12,30,.74);--fx-line:rgba(92,155,255,.22);--fx-text:#f6f9ff;--fx-muted:#91a4c7;position:relative}
-#page-create .page-head{margin-bottom:14px}
-#page-create .create-page-subtitle{font-size:11px;color:var(--fx-muted);margin-top:5px;font-weight:600}
-#page-create .create-head-chip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid rgba(50,220,255,.22);background:rgba(20,55,100,.24);font-size:9px;letter-spacing:1.4px;color:#9fdfff;box-shadow:0 0 20px rgba(40,150,255,.08) inset}
-#page-create .create-head-chip i,#page-create .panel-live i{width:7px;height:7px;border-radius:50%;background:var(--fx-green);box-shadow:0 0 10px var(--fx-green);display:inline-block}
-#page-create .create-neon-hero{position:relative;overflow:hidden;min-height:150px;border:1px solid rgba(54,158,255,.5);border-radius:27px;padding:22px 24px;margin-bottom:18px;background:linear-gradient(135deg,rgba(8,28,65,.9),rgba(11,9,38,.8) 55%,rgba(19,13,60,.86));box-shadow:0 24px 70px rgba(0,0,0,.35),0 0 45px rgba(36,119,255,.12),inset 0 1px 0 rgba(255,255,255,.12)}
-#page-create .create-neon-hero:before{content:"";position:absolute;inset:-50%;background:radial-gradient(circle at 15% 50%,rgba(0,220,255,.17),transparent 25%),radial-gradient(circle at 80% 20%,rgba(140,70,255,.2),transparent 28%),repeating-linear-gradient(120deg,transparent 0 20px,rgba(65,150,255,.035) 21px 22px);transform:rotate(-8deg);pointer-events:none}
-#page-create .create-hero-orb{position:absolute;border-radius:50%;filter:blur(4px);pointer-events:none}.create-hero-orb.orb-one{width:150px;height:150px;left:-55px;top:-45px;background:radial-gradient(circle,rgba(0,210,255,.35),transparent 65%)}.create-hero-orb.orb-two{width:180px;height:180px;right:8%;bottom:-110px;background:radial-gradient(circle,rgba(148,66,255,.35),transparent 65%)}
-#page-create .create-hero-copy{position:relative;z-index:1;max-width:64%}.create-kicker{font-size:9px;letter-spacing:2px;color:#8bcfff;font-weight:800;margin-bottom:7px}.create-kicker span{color:var(--fx-cyan);font-size:14px}.create-hero-copy h2{margin:0;font-size:25px;font-weight:950;letter-spacing:-.4px}.create-hero-copy h2 span{color:var(--fx-cyan);text-shadow:0 0 18px rgba(34,244,255,.55)}.create-hero-copy p{margin:7px 0 0;color:#a5b8da;font-size:11px;line-height:1.8;max-width:650px}
-#page-create .create-hero-stats{position:absolute;left:24px;right:auto;bottom:22px;display:flex;gap:8px;z-index:2}.create-stat{min-width:88px;padding:9px 11px;border:1px solid rgba(79,157,255,.25);border-radius:14px;background:rgba(4,15,35,.48);backdrop-filter:blur(10px);display:grid;grid-template-columns:24px 1fr;grid-template-rows:auto auto;column-gap:6px}.create-stat .stat-icon{grid-row:1/3;align-self:center;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;color:var(--fx-cyan);background:rgba(35,168,255,.12);box-shadow:inset 0 0 12px rgba(0,196,255,.08)}.create-stat b{font-size:10px}.create-stat small{font-size:8px;color:#7e94b9}
-#page-create .create-glass-layout{display:grid!important;grid-template-columns:minmax(0,1.14fr) minmax(310px,.86fr);gap:18px;align-items:start}.create-builder-column,.create-preview-column{min-width:0}
-#page-create .create-panel{margin:0;padding:16px;border-radius:26px;border:1px solid rgba(80,151,255,.28);background:linear-gradient(145deg,rgba(9,25,55,.78),rgba(3,10,25,.72));box-shadow:0 22px 60px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.09);backdrop-filter:blur(22px)}
-#page-create .panel-heading{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:3px 2px 14px;border-bottom:1px solid rgba(100,150,255,.1)}.panel-eyebrow{font-size:8px;letter-spacing:1.7px;color:#6faef0;font-weight:900;margin-bottom:4px}.panel-title{font-size:18px;font-weight:900}.panel-title-icon{color:var(--fx-cyan);text-shadow:0 0 14px rgba(34,244,255,.7);margin-left:4px}.panel-subtitle{font-size:9px;color:#7f94b9;margin-top:4px}.panel-live{font-size:8px;color:#69efca;border:1px solid rgba(0,240,181,.18);background:rgba(0,240,181,.06);padding:6px 8px;border-radius:999px;display:flex;align-items:center;gap:6px;white-space:nowrap}
-#page-create .builder-section{padding:15px 2px 2px}.builder-section+.builder-section{border-top:1px solid rgba(100,150,255,.08);margin-top:10px}.builder-section-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}.section-number{font:800 9px/1 monospace;color:#61b8ff;width:26px;height:26px;border-radius:9px;display:grid;place-items:center;background:rgba(40,135,255,.1);border:1px solid rgba(40,135,255,.18)}.builder-section-head b{font-size:12px}.builder-section-head small{display:block;color:#6f83a5;font-size:8px;margin-top:2px}
-#page-create .field label{font-size:9px;color:#8fa5c8;font-weight:700;margin-bottom:6px;display:block}.neon-input-row{display:flex;gap:7px;align-items:center}.icon-action{width:42px;height:42px;flex:0 0 42px;border-radius:13px;border:1px solid rgba(71,159,255,.2);background:rgba(25,65,115,.25);color:#8bcfff;display:grid;place-items:center;cursor:pointer;transition:.22s}.icon-action:hover{border-color:#3fd8ff;box-shadow:0 0 20px rgba(37,177,255,.2)}
-#page-create input,#page-create select{min-height:42px;border-radius:13px!important;border:1px solid rgba(103,151,220,.18)!important;background:linear-gradient(180deg,rgba(10,25,50,.68),rgba(3,12,28,.7))!important;color:var(--fx-text)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)!important;outline:none;transition:border-color .2s,box-shadow .2s,transform .2s}#page-create input:focus,#page-create select:focus{border-color:rgba(47,202,255,.65)!important;box-shadow:0 0 0 3px rgba(42,182,255,.08),0 0 22px rgba(42,182,255,.09)!important;transform:translateY(-1px)}
-#page-create .protocol-trigger{min-height:52px!important;border-radius:15px!important;border:1px solid rgba(75,155,255,.2)!important;background:linear-gradient(135deg,rgba(11,39,78,.65),rgba(18,16,52,.65))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)!important}.protocol-trigger-icon{filter:drop-shadow(0 0 8px rgba(55,190,255,.45))}.protocol-trigger-name{font-size:11px!important}.protocol-trigger-sub{font-size:8px!important;color:#6f86ac!important}
-#page-create .builder-grid-2{gap:9px}.neon-toggle{margin:9px 0!important;padding:11px 12px!important;border:1px solid rgba(77,153,255,.15)!important;border-radius:14px!important;background:rgba(11,29,58,.4)!important}.neon-toggle:hover{border-color:rgba(59,203,255,.35)!important}
-#page-create .pro-config-panel{margin:12px 0 0;padding:13px;border-radius:22px;background:linear-gradient(145deg,rgba(9,26,56,.78),rgba(6,12,31,.82));border:1px solid rgba(83,150,255,.2);box-shadow:0 15px 40px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.06)}
-#page-create .pro-head{margin-bottom:10px}.pro-kicker{font-size:7px;letter-spacing:1.5px;color:#6d9ed5;font-weight:900}.pro-title{font-size:13px!important;gap:7px}.pro-title-mark{color:#9b72ff;text-shadow:0 0 13px rgba(151,89,255,.65)}.pro-title span:last-child{font-size:7px!important;letter-spacing:1px;padding:4px 6px!important;color:#9fbaff!important;background:rgba(75,105,200,.12)!important;border:1px solid rgba(95,142,255,.12)}.compact-actions{gap:5px}.neon-secondary,.neon-ghost{border-radius:10px!important;font-size:8px!important;padding:6px 8px!important}.neon-secondary{border-color:rgba(47,190,255,.2)!important}.neon-ghost{opacity:.8}
-#page-create .advanced-status-strip{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 10px;border-radius:13px;background:rgba(2,12,29,.48);border:1px solid rgba(73,132,220,.11);margin-bottom:9px}.advanced-status-strip>div:first-child{display:flex;align-items:center;gap:7px;font-size:9px}.advanced-status-strip small{display:block;color:#6d83a6;font-size:7px;font-weight:500}.status-pulse{width:7px;height:7px;border-radius:50%;background:#2ff2bd;box-shadow:0 0 11px #2ff2bd}.advanced-mini-stats{display:flex;gap:10px;font-size:7px;color:#7890b7}.advanced-mini-stats b{color:#d9ecff;margin-right:3px}
-#page-create .advanced-shell{border:0!important;background:transparent!important;padding:0!important}.advanced-shell-summary{list-style:none;display:flex!important;align-items:center;gap:8px;padding:9px 4px!important;border:0!important;color:#e7f1ff!important}.advanced-shell-summary::-webkit-details-marker{display:none}.advanced-shell-summary>span{width:27px;height:27px;border-radius:9px;display:grid;place-items:center;color:#8f74ff;background:rgba(123,77,255,.11);border:1px solid rgba(141,98,255,.18)}.advanced-shell-summary>div{flex:1}.advanced-shell-summary b{font-size:10px}.advanced-shell-summary small{display:block;font-size:7px;color:#7187aa;margin-top:2px}.advanced-shell-summary em{font-style:normal;color:#7590b7;transition:.2s}.advanced-shell[open] .advanced-shell-summary em{transform:rotate(180deg)}
-#page-create .advanced-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:3px}.neon-card{position:relative;overflow:hidden;border-radius:16px!important;padding:10px!important;background:linear-gradient(145deg,rgba(16,36,70,.52),rgba(5,13,30,.62))!important;border:1px solid rgba(80,150,255,.13)!important;transition:.25s!important}.neon-card:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 15% 20%,rgba(42,165,255,.11),transparent 45%);pointer-events:none}.neon-card:hover{transform:translateY(-1px);border-color:rgba(70,190,255,.32)!important;box-shadow:0 10px 28px rgba(0,0,0,.2),0 0 20px rgba(38,155,255,.06)}.tls-card:before{background:radial-gradient(circle at 15% 20%,rgba(164,80,255,.13),transparent 45%)}.transport-card:before{background:radial-gradient(circle at 15% 20%,rgba(255,71,190,.1),transparent 45%)}.performance-card:before{background:radial-gradient(circle at 15% 20%,rgba(0,239,205,.1),transparent 45%)}.neon-card summary{position:relative;z-index:1;display:grid!important;grid-template-columns:32px 1fr 15px;align-items:center;gap:7px;min-height:34px;cursor:pointer}.neon-card summary::-webkit-details-marker{display:none}.adv-icon{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:rgba(37,141,255,.11);border:1px solid rgba(50,165,255,.17);font-size:15px}.tls-card .adv-icon{background:rgba(137,69,255,.11);border-color:rgba(154,83,255,.2)}.transport-card .adv-icon{background:rgba(255,63,177,.1);border-color:rgba(255,83,184,.18)}.performance-card .adv-icon{background:rgba(0,226,193,.1);border-color:rgba(0,226,193,.18)}.neon-card summary b{font-size:9px}.neon-card summary small{display:block;color:#6d82a5;font-size:7px;margin-top:2px;font-weight:500}.neon-card summary em{font-style:normal;font-size:17px;color:#7597cf;transition:.2s}.neon-card[open] summary em{transform:rotate(90deg);color:#8de7ff}.neon-card[open]{border-color:rgba(66,182,255,.35)!important}.adv-fields{position:relative;z-index:1;display:grid!important;gap:6px!important;margin-top:9px!important}.adv-fields input,.adv-fields select{min-height:36px!important;padding:8px 9px!important;border-radius:10px!important;font-size:9px!important}
-#page-create .smart-optimize-card{position:relative;overflow:hidden;display:grid;grid-template-columns:43px 1fr auto;align-items:center;gap:10px;margin-top:10px;padding:11px;border-radius:17px;border:1px solid rgba(111,69,255,.55);background:linear-gradient(105deg,rgba(24,21,86,.8),rgba(16,32,93,.72),rgba(46,20,88,.76));box-shadow:0 0 30px rgba(88,62,255,.11),inset 0 1px 0 rgba(255,255,255,.08)}.smart-glow{position:absolute;inset:auto -15% -80% 20%;height:130px;background:radial-gradient(ellipse,rgba(53,143,255,.3),transparent 65%);pointer-events:none}.smart-icon{position:relative;width:43px;height:43px;border-radius:14px;display:grid;place-items:center;font-size:21px;color:#fff;background:linear-gradient(145deg,#6247ff,#1f7cff);box-shadow:0 0 24px rgba(76,94,255,.42);text-shadow:0 0 10px white}.smart-label{font-size:7px;letter-spacing:1.4px;color:#a99aff;font-weight:900}.smart-copy h3{margin:2px 0;font-size:12px}.smart-copy p{margin:0;font-size:7px;color:#90a5ca}.smart-button{position:relative;z-index:1;border:1px solid rgba(255,255,255,.24);border-radius:12px;padding:9px 11px;color:#fff;background:linear-gradient(100deg,#315ff2,#9144ee);box-shadow:0 0 20px rgba(83,76,255,.25);font-family:inherit;font-size:8px;font-weight:800;cursor:pointer;white-space:nowrap}.smart-button b{margin-right:7px;font-size:13px}
-#page-create .advanced-tool-row{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:8px}.tool-btn{min-height:34px;border:1px solid rgba(76,143,230,.15);border-radius:10px;background:rgba(10,25,50,.42);color:#a8bce0;font-family:inherit;font-size:7px;font-weight:700;cursor:pointer;transition:.2s}.tool-btn span{font-size:11px;margin-left:3px}.tool-btn:hover{border-color:rgba(50,193,255,.36);color:#dff8ff;background:rgba(25,67,110,.35)}
-#page-create .advanced-status-card{display:grid;grid-template-columns:1.2fr 1fr auto;gap:8px;align-items:center;margin-top:8px;padding:10px;border-radius:15px;background:linear-gradient(135deg,rgba(0,44,55,.35),rgba(6,23,46,.58));border:1px solid rgba(0,230,196,.15);min-height:58px}.status-card-main{display:flex;align-items:center;gap:8px}.status-check{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:#00efbc;border:1px solid rgba(0,239,188,.25);background:rgba(0,239,188,.08);box-shadow:0 0 16px rgba(0,239,188,.1)}.status-card-main b{font-size:9px}.status-card-main small{display:block;color:#6d86a7;font-size:7px;margin-top:2px}.status-card-metrics{display:flex;gap:8px}.status-card-metrics span{display:flex;flex-direction:column;min-width:42px}.status-card-metrics small{font-size:6px;color:#6680a6}.status-card-metrics b{font-size:8px;color:#d8edff;margin-top:2px;overflow:hidden;text-overflow:ellipsis;max-width:70px}.status-refresh{border:1px solid rgba(42,168,255,.22);border-radius:10px;background:rgba(26,83,135,.2);color:#8bd8ff;padding:7px 8px;font-family:inherit;font-size:7px;cursor:pointer}
-#page-create .create-primary-action{margin-top:12px!important;min-height:48px!important;border-radius:15px!important;font-size:11px!important;box-shadow:0 0 30px rgba(68,97,255,.25),inset 0 1px 0 rgba(255,255,255,.18)!important}.create-primary-action .create-action-spark{font-size:17px;margin-left:7px}.create-primary-action b{font-size:17px;margin-right:8px}
-#page-create .create-preview-column{position:sticky;top:18px;display:grid;gap:12px}.create-preview-panel{position:relative;overflow:hidden;margin:0!important;padding:15px!important;border-radius:24px!important;border:1px solid rgba(79,150,255,.25)!important;background:linear-gradient(145deg,rgba(8,23,50,.8),rgba(3,11,26,.8))!important;box-shadow:0 22px 60px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.07)!important}.create-preview-panel:after{content:"";position:absolute;width:170px;height:170px;right:-80px;top:-100px;border-radius:50%;background:radial-gradient(circle,rgba(72,116,255,.17),transparent 70%);pointer-events:none}.preview-heading{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:8px}.preview-heading .card-title{font-size:13px!important;margin:0!important}.copy-json-btn{border:1px solid rgba(68,155,255,.2);background:rgba(29,76,125,.2);color:#a4dfff;border-radius:10px;padding:7px 9px;font-family:inherit;font-size:7px;cursor:pointer}.preview-meta{display:flex;gap:6px;margin:10px 0 8px}.preview-meta span{font-size:7px;color:#7d95bb;padding:4px 7px;border-radius:999px;background:rgba(23,50,91,.4);border:1px solid rgba(80,142,220,.12)}.preview-meta span:first-child{color:#66efca}.preview-meta i{display:inline-block;width:5px;height:5px;border-radius:50%;background:#28efba;box-shadow:0 0 7px #28efba;margin-left:3px}.json-window{overflow:hidden;border:1px solid rgba(74,135,215,.17);border-radius:15px;background:rgba(1,7,18,.72);box-shadow:inset 0 0 30px rgba(22,92,164,.04)}.json-topbar{height:29px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;border-bottom:1px solid rgba(88,145,220,.11);font:700 7px monospace;color:#6882a7;direction:ltr}.json-topbar span:first-child{display:flex;gap:4px}.json-topbar i{width:6px;height:6px;border-radius:50%;background:#324b6f;display:block}.json-window pre{margin:0!important;padding:12px!important;min-height:250px!important;max-height:360px;overflow:auto;background:transparent!important;color:#8fdcff!important;font:10px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace!important;direction:ltr!important;text-align:left!important;white-space:pre-wrap!important}.preview-footer{display:flex;justify-content:space-between;padding-top:8px;font-size:7px;color:#61799e}.preview-footer span:first-child{color:#61e8c3}
-#page-create .connection-preview-card{position:relative;overflow:hidden;display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:center;padding:13px;border-radius:20px;border:1px solid rgba(0,225,202,.16);background:linear-gradient(135deg,rgba(4,42,51,.5),rgba(5,21,44,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}.connection-art{position:relative;width:52px;height:52px;display:grid;place-items:center}.connection-core{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#00efc0;border:1px solid rgba(0,239,192,.45);background:rgba(0,239,192,.09);box-shadow:0 0 22px rgba(0,239,192,.2);z-index:2}.ring{position:absolute;border:1px solid rgba(0,214,255,.24);border-radius:50%;inset:4px;animation:fxPulse 2.8s infinite}.ring.r2{inset:10px;border-color:rgba(135,91,255,.3);animation-delay:-1.1s}.connection-preview-card h3{font-size:12px;margin:0}.connection-preview-card p{font-size:7px;color:#7087a9;margin:4px 0 0}.connection-preview-card>button{grid-column:1/-1;border:1px solid rgba(30,195,255,.2);border-radius:11px;background:rgba(25,91,138,.2);color:#9fe5ff;padding:8px;font-family:inherit;font-size:8px;cursor:pointer}.connection-preview-card .panel-eyebrow{margin-bottom:3px}
-@keyframes fxPulse{0%,100%{transform:scale(.92);opacity:.65}50%{transform:scale(1.06);opacity:1}}
-@media(max-width:1000px){#page-create .create-glass-layout{grid-template-columns:1fr!important}#page-create .create-preview-column{position:static}#page-create .create-neon-hero{min-height:145px}}
-@media(max-width:650px){#page-create .create-neon-hero{padding:18px 16px;min-height:205px;border-radius:22px}#page-create .create-hero-copy{max-width:100%}.create-hero-copy h2{font-size:21px}.create-hero-copy p{font-size:9px;line-height:1.75}.create-hero-stats{left:16px!important;right:16px!important;bottom:15px!important;justify-content:stretch}.create-stat{flex:1;min-width:0}.create-stat b{font-size:9px}.create-stat small{font-size:7px}#page-create .create-panel{padding:11px;border-radius:20px}.advanced-card-grid{grid-template-columns:1fr!important}.smart-optimize-card{grid-template-columns:38px 1fr!important}.smart-icon{width:38px;height:38px}.smart-button{grid-column:1/-1;width:100%}.advanced-tool-row{grid-template-columns:repeat(3,1fr)!important}.advanced-status-card{grid-template-columns:1fr!important}.status-card-metrics{justify-content:space-between}.status-refresh{width:100%}.create-head-chip{display:none!important}.create-page-subtitle{font-size:9px!important}}
-@media(max-width:400px){#page-create .advanced-tool-row{grid-template-columns:repeat(2,1fr)!important}.panel-title{font-size:15px!important}.create-hero-copy h2{font-size:18px}.create-stat{padding:8px}.create-stat .stat-icon{width:21px;height:21px}.create-stat b{font-size:8px}}
-</style>
 </head>
 
 <body>
@@ -8365,160 +8304,54 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 </section>
 
 <section class="page" id="page-create">
-  <div class="page-head create-page-head">
-    <div>
-      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="nav_create">ساخت کانفیگ</span></div>
-      <div class="create-page-subtitle">ساخت، بهینه‌سازی و مدیریت پارامترهای اتصال در یک محیط حرفه‌ای</div>
-    </div>
-    <div class="create-head-chip"><i></i><span>CONFIG BUILDER</span></div>
+  <div class="page-head">
+    <div><div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="nav_create">ساخت کانفیگ</span></div></div>
   </div>
-
-  <div class="create-neon-hero">
-    <div class="create-hero-orb orb-one"></div>
-    <div class="create-hero-orb orb-two"></div>
-    <div class="create-hero-copy">
-      <div class="create-kicker"><span>✦</span> NEXT-GEN CONFIGURATION</div>
-      <h2>تنظیمات حرفه‌ای کانفیگ <span>⚙</span></h2>
-      <p>پارامترهای اتصال را تنظیم کنید، بهینه‌سازی هوشمند را اجرا کنید و قبل از ساخت، خروجی را بررسی کنید.</p>
-    </div>
-    <div class="create-hero-stats">
-      <div class="create-stat"><span class="stat-icon">◉</span><b>فعال</b><small>اتصال</small></div>
-      <div class="create-stat"><span class="stat-icon">♢</span><b>TLS</b><small>امن</small></div>
-      <div class="create-stat"><span class="stat-icon">ϟ</span><b>Optimal</b><small>Performance</small></div>
-    </div>
-  </div>
-
-  <div class="create-glass-layout">
-    <div class="create-builder-column">
-      <div class="create-panel glass-config">
-        <div class="panel-heading">
-          <div>
-            <div class="panel-eyebrow">MANUAL BUILDER</div>
-            <div class="panel-title"><span class="panel-title-icon">✦</span><span data-i18n="manual_create">ساخت دستی</span></div>
-            <div class="panel-subtitle">مشخصات اصلی کانفیگ را تعریف کنید</div>
-          </div>
-          <div class="panel-live"><i></i> READY</div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title" data-i18n="manual_create">ساخت دستی</div>
+      <div class="field"><label data-i18n="label_name">نام</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="cName" placeholder="auto" style="flex:1">
+          <button type="button" class="btn btn-sm" onclick="randomName()" title="Random" style="min-width:44px;height:42px">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+          </button>
         </div>
-
-        <div class="builder-section">
-          <div class="builder-section-head"><span class="section-number">01</span><div><b>مشخصات اصلی</b><small>نام و پروتکل اتصال</small></div></div>
-          <div class="field"><label data-i18n="label_name">نام کانفیگ</label>
-            <div class="neon-input-row">
-              <input id="cName" placeholder="auto" autocomplete="off">
-              <button type="button" class="icon-action" onclick="randomName()" title="Random" aria-label="نام تصادفی"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
-            </div>
-          </div>
-          <div class="field protocol-field" data-protocol-picker="cProto">
-            <label data-i18n="label_proto">پروتکـل</label>
-            <select id="cProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select>
-            <button type="button" class="protocol-trigger neon-select" data-for="cProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('cProto')">
-              <span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span>
-            </button>
-          </div>
-          <div class="field"><label>گروه</label><select id="cGroup"></select></div>
-        </div>
-
-        <div class="builder-section">
-          <div class="builder-section-head"><span class="section-number">02</span><div><b>محدودیت و ظرفیت</b><small>تعداد، انقضا، حجم و سرعت</small></div></div>
-          <div class="form-row builder-grid-2">
-            <div class="field"><label data-i18n="label_count">تعداد کانفیگ در ساب (۱–۴۰)</label><input id="cCount" type="number" value="1" min="1" max="40"></div>
-            <div class="field"><label data-i18n="label_days">انقضـا (روز)</label><input id="cDays" type="number" value="0" min="0"></div>
-          </div>
-          <label class="all-proto-toggle neon-toggle" title="یک اکانت با همه پروتکل‌ها و یک ساب"><span><b>همه پروتکل‌ها در یک ساب</b><small>یک اکانت · همه پروتکل‌های پنل · یک لینک اشتراک</small></span><input id="cAllProtocols" type="checkbox"><i aria-hidden="true"></i></label>
-          <div class="form-row builder-grid-2">
-            <div class="field"><label data-i18n="label_limit">محدودیت حجم</label><input id="cLimit" type="number" value="0" min="0"></div>
-            <div class="field"><label data-i18n="label_unit">واحد</label><select id="cUnit"><option>GB</option><option>MB</option><option>KB</option></select></div>
-          </div>
-          <div class="form-row builder-grid-2">
-            <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
-            <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
-          </div>
-        </div>
-
-        <div class="advanced-pro-config glass-config pro-config-panel">
-          <div class="pro-head">
-            <div class="pro-title-wrap"><div class="pro-kicker">ADVANCED CONTROL</div><div class="pro-title"><span class="pro-title-mark">⚙</span> تنظیمات حرفه‌ای کانفیگ <span>GLASS CONTROL</span></div></div>
-            <div class="pro-actions compact-actions">
-              <button type="button" class="btn btn-sm neon-secondary" onclick="saveAdvConfig()">💾 ذخیره</button>
-              <button type="button" class="btn btn-sm neon-ghost" onclick="resetAdvConfig()">↺ ریست</button>
-            </div>
-          </div>
-
-          <div class="advanced-status-strip">
-            <div><span class="status-pulse"></span><b>Advanced Engine</b><small>12 پارامتر قابل تنظیم</small></div>
-            <div class="advanced-mini-stats"><span>Port <b id="advMiniPort">443</b></span><span>TLS <b id="advMiniTls">—</b></span></div>
-          </div>
-
-          <details open class="advanced-shell"><summary class="advanced-shell-summary"><span>⚙</span><div><b>کنترل حرفه‌ای</b><small>پارامترهای اتصال را بر اساس نیاز خود تنظیم کنید</small></div><em>⌄</em></summary>
-            <div class="glass-grid advanced-card-grid">
-              <details class="glass-item neon-card network-card"><summary><span class="adv-icon">🌐</span><span><b>شبکه و اتصال</b><small>Network</small></span><em>›</em></summary>
-                <div class="adv-fields"><input id="advPort" placeholder="Port (443)"><input id="advSni" placeholder="SNI / Host"><input id="advCleanIp" placeholder="Clean IP"></div>
-              </details>
-              <details class="glass-item neon-card tls-card"><summary><span class="adv-icon">🔐</span><span><b>TLS و امنیت</b><small>Security</small></span><em>›</em></summary>
-                <div class="adv-fields"><select id="advFp"><option>Chrome</option><option>Firefox</option><option>Safari</option><option>Random</option></select><input id="advAlpn" placeholder="ALPN auto"><input id="advTls" placeholder="TLS Version"></div>
-              </details>
-              <details class="glass-item neon-card transport-card"><summary><span class="adv-icon">🚀</span><span><b>Transport</b><small>Protocol Layer</small></span><em>›</em></summary>
-                <div class="adv-fields"><input id="advPath" placeholder="Path"><input id="advService" placeholder="Service Name"><input id="advHeader" placeholder="Header"></div>
-              </details>
-              <details class="glass-item neon-card performance-card"><summary><span class="adv-icon">⚡</span><span><b>Performance</b><small>Optimization</small></span><em>›</em></summary>
-                <div class="adv-fields"><input id="advFragment" placeholder="Fragment"><input id="advMtu" placeholder="MTU"><input id="advKeep" placeholder="Keep Alive"></div>
-              </details>
-              <details class="glass-item neon-card user-card"><summary><span class="adv-icon">👤</span><span><b>محدودیت کاربر</b><small>User Limits</small></span><em>›</em></summary>
-                <div class="adv-fields"><input placeholder="حجم"><input placeholder="سرعت"><input placeholder="اتصال همزمان"></div>
-              </details>
-              <details class="glass-item neon-card output-card"><summary><span class="adv-icon">📦</span><span><b>خروجی کانفیگ</b><small>Output</small></span><em>›</em></summary>
-                <div class="adv-fields"><input placeholder="Remark"><input placeholder="تعداد ساخت"><input placeholder="فرمت خروجی"></div>
-              </details>
-            </div>
-
-            <div class="smart-optimize-card">
-              <div class="smart-glow"></div>
-              <div class="smart-icon">✦</div>
-              <div class="smart-copy"><div class="smart-label">SMART OPTIMIZATION</div><h3>بهینه‌سازی هوشمند</h3><p>تنظیمات پیشنهادی را بر اساس پارامترهای فعلی کانفیگ اعمال کن.</p></div>
-              <button type="button" class="smart-button" onclick="smartOptimize()"><span>اجرای بهینه‌سازی</span><b>→</b></button>
-            </div>
-
-            <div class="advanced-tool-row">
-              <button type="button" class="tool-btn" onclick="exportAdvConfig()"><span>📤</span> خروجی</button>
-              <button type="button" class="tool-btn" onclick="importAdvConfig()"><span>📥</span> ورود</button>
-              <button type="button" class="tool-btn" onclick="undoAdvConfig()"><span>↶</span> بازگشت</button>
-              <button type="button" class="tool-btn" onclick="testAdvNetwork()"><span>📡</span> تست</button>
-              <button type="button" class="tool-btn" onclick="showTlsStatus()"><span>🔐</span> TLS</button>
-              <button type="button" class="tool-btn" onclick="generateQrPreview()"><span>▣</span> QR</button>
-            </div>
-
-            <div id="advStatusBox" class="advanced-status-card">
-              <div class="status-card-main"><span class="status-check">✓</span><div><b>وضعیت اتصال</b><small>تست داخلی آماده اجراست</small></div></div>
-              <div class="status-card-metrics"><span><small>Port</small><b id="statusPort">443</b></span><span><small>TLS</small><b id="statusTls">—</b></span><span><small>SNI</small><b id="statusSni">—</b></span></div>
-              <button type="button" class="status-refresh" onclick="testAdvNetwork()">↻ تست مجدد</button>
-            </div>
-          </details>
-        </div>
-
-        <button class="btn btn-p create-primary-action" style="width:100%" onclick="doManualCreate()">
-          <span class="create-action-spark">✦</span><span data-i18n="btn_create">ساخت کانفیگ</span><b>→</b>
-        </button>
       </div>
-    </div>
-
-    <div class="create-preview-column">
-      <div class="card create-preview-panel" id="configLivePreview">
-        <div class="preview-heading"><div><div class="panel-eyebrow">LIVE OUTPUT</div><div class="card-title">📄 پیش‌نمایش تنظیمات کانفیگ</div></div><button class="copy-json-btn" type="button" onclick="navigator.clipboard.writeText(document.getElementById('configJsonPreview').innerText);toast('JSON کپی شد')">⧉ کپی</button></div>
-        <div class="preview-meta"><span><i></i> LIVE</span><span id="advParamCount">12 پارامتر</span><span id="advJsonState">JSON آماده</span></div>
-        <div class="json-window"><div class="json-topbar"><span><i></i><i></i><i></i></span><b>onex-config.json</b><span>UTF-8</span></div><pre id="configJsonPreview">{
-  "status": "ready",
-  "message": "تنظیمات پیش‌فرض"
-}</pre></div>
-        <div class="preview-footer"><span>✓ Valid configuration</span><span>Auto preview enabled</span></div>
+            <div class="field protocol-field" data-protocol-picker="cProto"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="cProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('cProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
+      <div class="field"><label>گروه</label><select id="cGroup"></select></div>
+<div class="form-row">
+        <div class="field"><label data-i18n="label_count">تعداد کانفیگ در ساب (۱–۴۰)</label><input id="cCount" type="number" value="1" min="1" max="40"></div>
+        <label class="all-proto-toggle" title="یک اکانت با همه پروتکل‌ها و یک ساب"><span><b>همه پروتکل‌ها در یک ساب</b><small>یک اکانت · همه پروتکل‌های پنل · یک لینک اشتراک</small></span><input id="cAllProtocols" type="checkbox"><i aria-hidden="true"></i></label>
+         <div class="field"><label data-i18n="label_days">انقضـا (روز)</label><input id="cDays" type="number" value="0" min="0"></div>
       </div>
-
-      <div class="connection-preview-card">
-        <div class="connection-art"><span class="ring r1"></span><span class="ring r2"></span><span class="connection-core">✓</span></div>
-        <div><div class="panel-eyebrow">CONNECTION TEST</div><h3>وضعیت اتصال</h3><p>پارامترهای کلیدی را قبل از ساخت بررسی کنید.</p></div>
-        <button type="button" onclick="testAdvNetwork()">📡 تست اتصال</button>
+      <div class="form-row">
+        <div class="field"><label data-i18n="label_limit">محدودیت حجم</label><input id="cLimit" type="number" value="0" min="0"></div>
+        <div class="field"><label data-i18n="label_unit">واحد</label><select id="cUnit"><option>GB</option><option>MB</option><option>KB</option></select></div>
       </div>
+      <div class="form-row">
+        <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
+        <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
+      </div>
+      <details class="advanced-pro-config" style="margin:18px 0;padding:14px;border:1px solid rgba(100,150,255,.25);border-radius:18px;background:rgba(10,20,40,.35)">
+        <summary style="font-size:18px;font-weight:700;cursor:pointer">⚙️ تنظیمات حرفه‌ای کانفیگ</summary>
+        <div style="margin-top:14px;display:grid;gap:12px">
+          <details><summary>🌐 شبکه و اتصال</summary><p>Port، SNI، Host، Clean IP و تنظیمات اتصال</p></details>
+          <details><summary>🔐 TLS و امنیت</summary><p>Fingerprint، ALPN، TLS و تنظیمات امنیتی</p></details>
+          <details><summary>🚀 Transport</summary><p>WS، XHTTP، gRPC، Path، Service Name و Header</p></details>
+          <details><summary>⚡ Performance</summary><p>Fragment، MTU، Keep Alive و بهینه‌سازی اتصال</p></details>
+          <details><summary>👤 محدودیت کاربر</summary><p>حجم، سرعت، IP، اتصال همزمان و انقضا</p></details>
+          <details><summary>📦 خروجی کانفیگ</summary><p>Remark، تعداد ساخت، لینک اشتراک و QR</p></details>
+        </div>
+        <button type="button" class="btn btn-p" style="margin-top:12px" onclick="toast(lang==='fa'?'تنظیمات هوشمند آماده شد':'Smart settings ready')">✨ بهینه‌سازی هوشمند</button>
+      </details>
+
+      <button class="btn btn-p" style="width:100%" onclick="doManualCreate">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+        <span data-i18n="btn_create">ساخت</span>
+      </button>
     </div>
-  </div>
+    
 </section>
 
 
@@ -9342,89 +9175,6 @@ function showResult(data){
 function closeResult(){document.getElementById('resultModal').classList.remove('open')}
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeResult()});
 
-
-function saveAdvConfig(){
- const ids=['advPort','advSni','advCleanIp','advFp','advAlpn','advTls','advPath','advService','advHeader','advFragment','advMtu','advKeep'];
- const data={time:new Date().toISOString()}; ids.forEach(i=>{const e=document.getElementById(i); if(e)data[i]=e.value;});
- localStorage.setItem('onex_adv_history',localStorage.getItem('onex_adv_config')||'{}');
- localStorage.setItem('onex_adv_config',JSON.stringify(data));
- updateConfigPreview(); toast('تنظیمات حرفه‌ای ذخیره شد');
-}
-function smartOptimize(){
- const btn=document.querySelector('#page-create .smart-button');
- const set=(id,v)=>{let e=document.getElementById(id);if(e)e.value=v};
- if(btn){btn.disabled=true;btn.dataset.old=btn.innerHTML;btn.innerHTML='<span>در حال بهینه‌سازی...</span><b>ϟ</b>'}
- set('advPort','443');set('advFp','Chrome');set('advAlpn','h2,http/1.1');set('advTls','1.3');set('advMtu','1400');set('advKeep','30');
- updateConfigPreview();
- setTimeout(()=>{
-   saveAdvConfig();
-   const box=document.getElementById('advStatusBox');
-   if(box) box.innerHTML='<div class="status-card-main"><span class="status-check">✓</span><div><b>بهینه‌سازی انجام شد</b><small>پارامترهای پیشنهادی اعمال شدند</small></div></div><div class="status-card-metrics"><span><small>Port</small><b>443</b></span><span><small>TLS</small><b>1.3</b></span><span><small>Fingerprint</small><b>Chrome</b></span></div><button type="button" class="status-refresh" onclick="testAdvNetwork()">↻ تست مجدد</button>';
-   if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.old||'<span>اجرای بهینه‌سازی</span><b>→</b>'}
- },420);
-}
-function exportAdvConfig(){
- const data=localStorage.getItem('onex_adv_config')||'{}';
- const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);a.download='onex-advanced-config.json';a.click();
-}
-function importAdvConfig(){
- const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{const r=new FileReader();r.onload=()=>{localStorage.setItem('onex_adv_config',r.result);loadAdvConfig();toast('تنظیمات وارد شد')};r.readAsText(e.target.files[0])};i.click();
-}
-function undoAdvConfig(){
- const h=localStorage.getItem('onex_adv_history');if(h){localStorage.setItem('onex_adv_config',h);loadAdvConfig();toast('آخرین تغییر برگشت')};
-}
-function testAdvNetwork(){
- const box=document.getElementById('advStatusBox');
- const port=document.getElementById('advPort')?.value||'443';
- const tls=document.getElementById('advTls')?.value||'پیش‌فرض';
- const sni=document.getElementById('advSni')?.value||'—';
- if(box) box.innerHTML='<div class="status-card-main"><span class="status-check" style="color:#8bd8ff">ϟ</span><div><b>در حال بررسی اتصال...</b><small>Local configuration check</small></div></div><div class="status-card-metrics"><span><small>Port</small><b>'+esc(String(port))+'</b></span><span><small>TLS</small><b>'+esc(String(tls))+'</b></span><span><small>SNI</small><b>'+esc(String(sni))+'</b></span></div><button type="button" class="status-refresh">…</button>';
- setTimeout(()=>{
-   if(box) box.innerHTML='<div class="status-card-main"><span class="status-check">✓</span><div><b>بررسی داخلی انجام شد</b><small>تنظیمات برای ساخت آماده است</small></div></div><div class="status-card-metrics"><span><small>Port</small><b>'+esc(String(port))+'</b></span><span><small>TLS</small><b>'+esc(String(tls))+'</b></span><span><small>SNI</small><b>'+esc(String(sni))+'</b></span></div><button type="button" class="status-refresh" onclick="testAdvNetwork()">↻ تست مجدد</button>';
- },700);
-}
-function showTlsStatus(){
- const tls=document.getElementById('advTls')?.value||'پیش‌فرض';
- const sni=document.getElementById('advSni')?.value||'وارد نشده';
- const box=document.getElementById('advStatusBox');
- if(box) box.innerHTML='<div class="status-card-main"><span class="status-check">🔐</span><div><b>وضعیت TLS</b><small>بررسی پارامترهای امنیتی</small></div></div><div class="status-card-metrics"><span><small>TLS</small><b>'+esc(String(tls))+'</b></span><span><small>SNI</small><b>'+esc(String(sni))+'</b></span><span><small>Mode</small><b>Secure</b></span></div><button type="button" class="status-refresh" onclick="testAdvNetwork()">↻ تست مجدد</button>';
-}
-function generateQrPreview(){
- const text=document.getElementById('resVless')?.textContent||document.getElementById('configJsonPreview')?.innerText||'';
- if(!text){toast('ابتدا کانفیگ بسازید');return}
- const url='https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(text);
- const box=document.getElementById('advStatusBox'); box.innerHTML='<img style="border-radius:16px" src="'+url+'"><br>QR ساخته شد';
-}
-
-function resetAdvConfig(){
- if(!confirm('همه تنظیمات حرفه‌ای پاک شود؟')) return;
- localStorage.removeItem('onex_adv_config');
- document.querySelectorAll('.advanced-pro-config input,.advanced-pro-config select').forEach(e=>e.value='');
- updateConfigPreview(); toast('ریست انجام شد');
-}
-function loadAdvConfig(){
- try{
- const d=JSON.parse(localStorage.getItem('onex_adv_config')||'{}');
- Object.keys(d).forEach(k=>{const e=document.getElementById(k); if(e)e.value=d[k];});
- }catch(e){}
- updateConfigPreview();
-}
-document.addEventListener('DOMContentLoaded',loadAdvConfig);
-
-function updateConfigPreview(){
- const ids=['advPort','advSni','advCleanIp','advFp','advAlpn','advTls','advPath','advService','advHeader','advFragment','advMtu','advKeep'];
- const o={}; ids.forEach(i=>{let e=document.getElementById(i);if(e)o[i]=e.value||'default'});
- let p=document.getElementById('configJsonPreview'); if(p)p.textContent=JSON.stringify(o,null,2);
- const count=document.getElementById('advParamCount'); if(count) count.textContent=ids.length+' پارامتر';
- const state=document.getElementById('advJsonState'); if(state) state.textContent='JSON آماده';
- const port=document.getElementById('advMiniPort'); if(port) port.textContent=document.getElementById('advPort')?.value||'443';
- const tls=document.getElementById('advMiniTls'); if(tls) tls.textContent=document.getElementById('advTls')?.value||'—';
- const statusPort=document.getElementById('statusPort'); if(statusPort) statusPort.textContent=document.getElementById('advPort')?.value||'443';
- const statusTls=document.getElementById('statusTls'); if(statusTls) statusTls.textContent=document.getElementById('advTls')?.value||'—';
- const statusSni=document.getElementById('statusSni'); if(statusSni) statusSni.textContent=document.getElementById('advSni')?.value||'—';
-}
-document.addEventListener('input',e=>{if(e.target&&e.target.id&&e.target.id.startsWith('adv'))updateConfigPreview()});
-
 async function doManualCreate(){
   const body={
     label:document.getElementById('cName').value||undefined,
@@ -9437,20 +9187,6 @@ async function doManualCreate(){
     ip_limit:Number(document.getElementById('cIp').value)||0,
     speed_limit_value:Number(document.getElementById('cSpeed').value)||0,
     speed_limit_unit:'MBIT',
-    advanced:{
-      port:document.getElementById('advPort')?.value||'',
-      sni:document.getElementById('advSni')?.value||'',
-      clean_ip:document.getElementById('advCleanIp')?.value||'',
-      fingerprint:document.getElementById('advFp')?.value||'',
-      alpn:document.getElementById('advAlpn')?.value||'',
-      tls:document.getElementById('advTls')?.value||'',
-      path:document.getElementById('advPath')?.value||'',
-      service_name:document.getElementById('advService')?.value||'',
-      header:document.getElementById('advHeader')?.value||'',
-      fragment:document.getElementById('advFragment')?.value||'',
-      mtu:document.getElementById('advMtu')?.value||'',
-      keep_alive:document.getElementById('advKeep')?.value||''
-    },
     all_protocols:!!document.getElementById('cAllProtocols')?.checked
   };
   const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

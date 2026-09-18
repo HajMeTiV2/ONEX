@@ -135,7 +135,7 @@ app = FastAPI(
 @app.get("/api/onex-logo-3d.png", include_in_schema=False)
 async def onex_logo_3d():
     """Serve the approved high-detail ONEX 3D brand mark."""
-    path = BASE_DIR / "onex-logo-3d.png"
+    path = Path(__file__).resolve().parent / "onex-logo-3d.png"
     if not path.is_file():
         raise HTTPException(status_code=404, detail="ONEX logo not found")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})

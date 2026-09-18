@@ -4964,315 +4964,98 @@ async def info_page(
     .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box::before{{animation:none!important;}}
   }}
 
+
+  .onex-sub-page{{position:relative;}}
+  .sub-glass{{position:relative;overflow:hidden;border:1px solid rgba(83,150,255,.24);border-radius:24px;background:linear-gradient(145deg,rgba(25,45,78,.78),rgba(10,17,34,.88) 65%,rgba(24,10,34,.78));box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 16px 40px rgba(0,0,0,.28);}}
+  .sub-glass:before{{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,.07),transparent 24%,transparent 72%,rgba(96,165,250,.05));}}
+  .sub-hero{{position:relative;overflow:hidden;border-radius:26px;border:1px solid rgba(255,31,92,.30);background:radial-gradient(circle at 15% 50%,rgba(255,31,92,.16),transparent 30%),radial-gradient(circle at 85% 20%,rgba(59,130,246,.16),transparent 34%),linear-gradient(135deg,#091326,#120b1e);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 18px 50px rgba(0,0,0,.30);}}
+  .sub-hero-glow{{position:absolute;width:260px;height:260px;border-radius:50%;right:-110px;top:-130px;background:rgba(255,31,92,.14);filter:blur(45px);}}
+  .sub-hero-content{{position:relative;display:flex;align-items:center;gap:16px;padding:20px 22px;}}
+  .sub-brand-icon,.section-icon{{display:grid;place-items:center;flex:0 0 auto;border-radius:17px;}}
+  .sub-brand-icon{{width:62px;height:62px;color:#ff4778;background:linear-gradient(145deg,rgba(255,31,92,.20),rgba(90,20,50,.24));border:1px solid rgba(255,71,120,.35);box-shadow:0 0 28px rgba(255,31,92,.16);}}
+  .sub-brand-icon svg{{width:32px;height:32px;}}
+  .sub-hero-copy{{min-width:0;flex:1}}.sub-eyebrow,.section-kicker{{font-size:9px;letter-spacing:.16em;color:rgba(255,255,255,.38);font-weight:900;}}.sub-hero h1{{margin:4px 0 2px;font-size:21px;font-weight:900;}}.sub-hero p{{margin:0;color:rgba(255,255,255,.45);font-size:11px;}}.sub-status{{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap;}}.sub-status span{{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor;}}
+  .section-head{{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px;}}.section-head h2{{margin:4px 0 0;font-size:14px;font-weight:900;}}.section-icon{{width:38px;height:38px;border:1px solid rgba(255,255,255,.09);}}.section-icon svg{{width:18px;height:18px;}}.section-icon.red{{color:#ff4778;background:rgba(255,31,92,.09);border-color:rgba(255,71,120,.22);}}.section-icon.blue{{color:#60a5fa;background:rgba(59,130,246,.09);border-color:rgba(96,165,250,.20);}}.section-icon.purple{{color:#a78bfa;background:rgba(139,92,246,.09);border-color:rgba(167,139,250,.20);}}
+  .sub-url-box{{position:relative;padding:14px 15px;border-radius:16px;border:1px solid rgba(255,71,120,.17);background:linear-gradient(135deg,rgba(255,31,92,.055),rgba(5,10,20,.42));color:#f5a1b8;font:11px/1.8 ui-monospace,Consolas,monospace;word-break:break-all;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);}}.sub-actions{{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px;}}.sub-action{{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 14px;border-radius:13px;border:1px solid rgba(96,165,250,.20);background:rgba(59,130,246,.08);color:#cfe2ff;font-size:11px;font-weight:800;cursor:pointer;transition:.18s ease;}}.sub-action svg{{width:15px;height:15px;}}.sub-action:hover{{transform:translateY(-1px);background:rgba(59,130,246,.15);}}.sub-action.primary{{color:#fff;border-color:rgba(255,71,120,.42);background:linear-gradient(135deg,#ff1f5c,#c91550);box-shadow:0 7px 22px rgba(255,31,92,.18);}}.sub-action.primary:hover{{background:linear-gradient(135deg,#ff3a70,#df1b59);}}
+  .telegram-sub-card{{position:relative;display:flex;align-items:center;gap:14px;padding:17px 18px;border-radius:22px;border:1px solid rgba(255,71,120,.24);background:linear-gradient(120deg,rgba(255,31,92,.10),rgba(19,33,60,.76),rgba(10,17,32,.86));box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 14px 34px rgba(0,0,0,.25);overflow:hidden;}}.telegram-sub-card:after{{content:"";position:absolute;inset:auto -15% -60% 30%;height:130px;background:rgba(255,31,92,.10);filter:blur(40px);pointer-events:none;}}.tg-sub-icon{{width:50px;height:50px;flex:0 0 50px;border-radius:16px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,#ff1f5c,#c91550);box-shadow:0 8px 24px rgba(255,31,92,.22);}}.tg-sub-icon svg{{width:26px;height:26px;}}.tg-sub-copy{{min-width:0;flex:1;position:relative;z-index:1;}}.tg-sub-copy>span{{display:block;font-size:8px;letter-spacing:.13em;color:rgba(255,255,255,.38);font-weight:900;}}.tg-sub-copy strong{{display:block;margin-top:3px;font-size:13px;font-weight:900;}}.tg-sub-copy small{{display:block;margin-top:3px;color:rgba(255,255,255,.45);font-size:10px;}}.tg-sub-copy b{{display:inline-block;margin-top:5px;color:#ff6b92;font-size:11px;}}.tg-sub-join{{position:relative;z-index:1;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:13px;color:#fff;text-decoration:none;font-size:11px;font-weight:900;border:1px solid rgba(255,71,120,.38);background:rgba(255,31,92,.13);}}.tg-sub-join svg{{width:15px;height:15px;}}
+  .usage-row{{position:relative;display:flex;align-items:center;gap:22px;}}.usage-ring{{position:relative;width:122px;height:122px;flex:0 0 122px;}}.usage-ring>div{{position:absolute;inset:0;display:grid;place-content:center;text-align:center;}}.usage-ring b{{font-size:19px;font-weight:900;}}.usage-ring span{{display:block;margin-top:3px;color:rgba(255,255,255,.40);font-size:9px;}}.usage-main{{min-width:0;flex:1}}.usage-main>strong{{display:block;font-size:21px;font-weight:900;}}.usage-main>strong i{{font-size:12px;color:rgba(255,255,255,.40);font-style:normal;font-weight:700;}}.usage-mini{{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:10px;}}.usage-mini span{{color:rgba(255,255,255,.42);}}.usage-mini b{{color:rgba(255,255,255,.82);font-weight:800;}}.service-list{{position:relative;display:grid;gap:0;}}.service-list div{{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:10px;}}.service-list div:last-child{{border-bottom:0;}}.service-list span{{color:rgba(255,255,255,.42);}}.service-list b{{font-size:10px;font-weight:800;text-align:left;}}.tech-grid{{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}}.tech-grid>div{{padding:12px;border-radius:15px;border:1px solid rgba(255,255,255,.06);background:rgba(3,8,17,.25);}}.tech-grid span{{display:block;color:rgba(255,255,255,.36);font-size:9px;}}.tech-grid b{{display:block;margin-top:6px;color:#d7caff;font-size:11px;word-break:break-word;}}.direct-config{{position:relative;display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;border:1px solid rgba(255,255,255,.07);background:rgba(3,8,17,.25);}}.direct-config>div{{min-width:0;flex:1;}}.direct-config span{{display:block;color:rgba(255,255,255,.36);font-size:9px;margin-bottom:5px;}}.direct-config code{{display:block;color:#f0a1ba;font:10px/1.8 ui-monospace,Consolas,monospace;word-break:break-all;}}.download-grid{{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}}.download-grid a{{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border-radius:16px;border:1px solid rgba(96,165,250,.15);background:rgba(59,130,246,.055);color:#fff;text-decoration:none;transition:.18s ease;}}.download-grid a:hover{{border-color:rgba(255,71,120,.30);transform:translateY(-1px);}}.app-icon{{width:38px;height:38px;flex:0 0 38px;border-radius:12px;display:grid;place-items:center;color:#ff5d88;font-size:10px;font-weight:900;border:1px solid rgba(255,71,120,.25);background:rgba(255,31,92,.09);}}.download-grid b{{display:block;font-size:11px;}}.download-grid span{{display:block;margin-top:3px;color:rgba(255,255,255,.38);font-size:8px;line-height:1.4;}}.download-grid i{{margin-right:auto;color:#ff5d88;font-style:normal;font-size:9px;font-weight:900;white-space:nowrap;}}
+  @media (max-width:700px){{.sub-hero-content{{padding:16px;gap:11px;flex-wrap:wrap;}}.sub-brand-icon{{width:50px;height:50px;border-radius:14px;}}.sub-brand-icon svg{{width:27px;height:27px;}}.sub-hero h1{{font-size:17px}}.sub-hero p{{font-size:9px}}.sub-status{{margin-right:auto;font-size:9px;padding:6px 9px}}.sub-actions{{display:grid;grid-template-columns:1fr 1fr;}}.sub-actions .sub-action:last-child{{grid-column:1/-1}}.telegram-sub-card{{align-items:flex-start;flex-wrap:wrap;padding:14px}}.tg-sub-copy{{width:calc(100% - 64px)}}.tg-sub-join{{width:100%;justify-content:center}}.usage-row{{gap:13px}}.usage-ring{{width:105px;height:105px;flex-basis:105px}}.usage-ring svg{{width:105px;height:105px}}.tech-grid{{grid-template-columns:1fr}}.direct-config{{align-items:stretch;flex-direction:column}}.direct-config .sub-action{{width:100%}}.download-grid{{grid-template-columns:1fr}}.download-grid a{{padding:11px}}.sub-glass{{border-radius:20px}}.sub-url-box{{font-size:10px;}}}}
 </style>
 </head>
-<body class="font-vazir text-slate-100 antialiased min-h-screen py-8 px-3 sm:px-4 md:py-14">
+<body class="font-vazir text-slate-100 antialiased min-h-screen py-6 px-3 sm:px-4 md:py-10">
 
-<div class="w-full max-w-4xl mx-auto space-y-5 sm:space-y-6 md:space-y-8">
+<div class="onex-sub-page w-full max-w-4xl mx-auto space-y-4 sm:space-y-5">
 
-  <!-- Top Bar Theme Toggle Button -->
-  <div class="flex justify-end">
-    <button type="button" onclick="toggleTheme()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold text-amber-300 border border-amber-400/30 bg-amber-400/10 hover:bg-amber-400/20 transition-colors shadow-lg">
-      <svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-      تغییر تم
-    </button>
-  </div>
-
-  <!-- Telegram Channel Hero -->
-  <section class="tg-hero" aria-label="عضویت در کانال تلگرام">
-    <div class="tg-particle tg-p1"></div><div class="tg-particle tg-p2"></div><div class="tg-particle tg-p3"></div>
-    <div class="tg-bell" aria-hidden="true"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></div>
-    <div class="tg-hero-inner">
-      <div class="tg-visual" aria-hidden="true"><div class="tg-orbit"></div><div class="tg-logo-wrap"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 3.1 18.2 19c-.26 1.16-.95 1.45-1.92.9l-5.22-3.84-2.52 2.43c-.28.28-.51.51-1.05.51l.37-5.32 9.68-8.75c.42-.37-.09-.58-.65-.21L4.92 12.86.14 11.34c-1.04-.33-1.06-1.04.22-1.54L19.04 2.56c.88-.33 1.65.2 1.56.54Z"/></svg></div></div>
-      <div class="tg-copy"><div class="tg-kicker">OFFICIAL TELEGRAM CHANNEL</div><div class="tg-title">به کانال تلگرام <em>ما بپیوندید</em></div><div class="tg-desc">آخرین اخبار، آپدیت‌ها و اطلاع‌رسانی‌ها را مستقیم دریافت کنید.</div><div class="tg-handle"><span class="tg-handle-dot"></span>@V2rayTun0</div></div>
-      <a class="tg-join" href="https://t.me/V2rayTun0" target="_blank" rel="noopener noreferrer" aria-label="عضویت در کانال تلگرام V2rayTun0"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 3.1 18.2 19c-.26 1.16-.95 1.45-1.92.9l-5.22-3.84-2.52 2.43c-.28.28-.51.51-1.05.51l.37-5.32 9.68-8.75c.42-.37-.09-.58-.65-.21L4.92 12.86.14 11.34c-1.04-.33-1.06-1.04.22-1.54L19.04 2.56c.88-.33 1.65.2 1.56.54Z"/></svg><span>عضویت در کانال</span></a>
+  <!-- Subscription Hero -->
+  <section class="sub-hero">
+    <div class="sub-hero-glow"></div>
+    <div class="sub-hero-content">
+      <div class="sub-brand-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 20 7v5c0 4.8-3.1 8.1-8 9-4.9-.9-8-4.2-8-9V7l8-4Z"/><path d="m8.8 12.2 2.1 2.1 4.5-4.6"/></svg>
+      </div>
+      <div class="sub-hero-copy">
+        <span class="sub-eyebrow">ONEX SUBSCRIPTION</span>
+        <h1>{label_escaped}</h1>
+        <p>اشتراک شما آماده است؛ لینک را در کلاینت دلخواه وارد کنید.</p>
+      </div>
+      <div class="sub-status {status_badge_html}"><span></span>{status_text}</div>
     </div>
   </section>
 
-  <!-- Hero -->
-  <section class="rounded-[26px] sm:rounded-[28px] border dynamic-card backdrop-blur-2xl p-5 sm:p-6 md:p-8">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-      <div class="flex items-center gap-4">
-        <div class="w-13 h-13 sm:w-14 sm:h-14 shrink-0 rounded-2xl grid place-items-center bg-gradient-to-br from-blue-400/20 to-purple-400/10 border border-blue-400/25 text-blue-300">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5.2-3.4 9-8 10-4.6-1-8-4.8-8-10V6l8-4z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>
-        </div>
-        <div class="min-w-0">
-          <h1 class="text-lg sm:text-xl md:text-2xl font-black tracking-tight truncate">{label_escaped}</h1>
-          <p class="mt-1.5 text-[10.5px] sm:text-[11px] text-white/40 break-all">UUID: {uid_escaped}</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
-        <button type="button" onclick="openQrModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-extrabold text-purple-300 border border-purple-400/30 bg-purple-400/10 hover:bg-purple-400/20 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          QR Code
-        </button>
-        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-extrabold {status_badge_html}">
-          <span class="status-dot w-2 h-2 rounded-full bg-current"></span>
-          {status_text}
-        </div>
-      </div>
+  <!-- Subscription link -->
+  <section class="sub-glass sub-link-card">
+    <div class="section-head">
+      <div><span class="section-kicker">SUBSCRIPTION LINK</span><h2>لینک اشتراک</h2></div>
+      <div class="section-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.1 0l2.8-2.8a5 5 0 0 0-7.1-7.1L11.4 4.5"/><path d="M14 11a5 5 0 0 0-7.1 0L4.1 13.8a5 5 0 0 0 7.1 7.1l1.4-1.4"/></svg></div>
+    </div>
+    <div class="sub-url-box" dir="ltr"><span id="subLinkText">{sub_url_escaped}</span></div>
+    <div class="sub-actions">
+      <button class="sub-action primary" id="subCopyBtn" type="button" onclick="copySubLink()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>کپی لینک</span></button>
+      <button class="sub-action" type="button" onclick="openQrFor(subUrlData,'QR اشتراک')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>QR Code</span></button>
+      <button class="sub-action" type="button" onclick="copySubLink(true)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span>کپی برای کلاینت</span></button>
     </div>
   </section>
 
-  <!-- Usage overview -->
-  <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 sm:gap-6">
-
-    <div class="rounded-[22px] border dynamic-card backdrop-blur-2xl p-5 sm:p-6 md:p-7">
-      <div class="flex items-center gap-2.5">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-white/35"><path d="M3 3v18h18"/><path d="M7 15l4-6 3 3 4-7"/></svg>
-        <div>
-          <p class="text-[10px] font-extrabold tracking-widest uppercase text-white/30">Traffic Overview</p>
-          <p class="mt-0.5 text-sm font-black">مصرف سرویس</p>
-        </div>
-      </div>
-
-      <div class="mt-6 flex flex-col sm:flex-row items-center sm:items-start gap-6">
-        <div class="relative shrink-0 w-[128px] h-[128px]">
-          <svg width="128" height="128" viewBox="0 0 132 132" class="-rotate-90">
-            <circle cx="66" cy="66" r="54" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"/>
-            <circle cx="66" cy="66" r="54" fill="none" stroke="url(#usageRingGradient)" stroke-width="10" stroke-linecap="round"
-              stroke-dasharray="339.29" stroke-dashoffset="{dash_calc_offset}"/>
-            <defs>
-              <linearGradient id="usageRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#34d399"/>
-                <stop offset="100%" stop-color="#f59e0b"/>
-              </linearGradient>
-            </defs>
-          </svg>
-          <div class="absolute inset-0 grid place-items-center">
-            <div class="text-center">
-              <p class="text-xl font-black leading-none">{usage_percent}%</p>
-              <p class="mt-1.5 text-[10px] text-white/40">مصرف‌شده</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex-1 w-full min-w-0">
-          <div class="text-xl sm:text-2xl font-black tracking-tight">
-            {used_bytes_str}
-            <span class="text-sm font-semibold text-white/40"> / {limit_bytes_str}</span>
-          </div>
-
-          <div class="mt-4 rounded-xl border border-white/[0.05] sub-box px-3 pt-3 pb-1.5">
-            <p class="flex items-center gap-1.5 text-[10px] text-white/35 mb-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/></svg>
-              روند مصرف
-            </p>
-            <svg viewBox="0 0 300 64" class="w-full h-14" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.35"/>
-                  <stop offset="100%" stop-color="#60a5fa" stop-opacity="0"/>
-                </linearGradient>
-              </defs>
-              <path d="M0,64 L{svg_points} L300,64 Z" fill="url(#trendFill)"/>
-              <path d="M{svg_points}" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-
-          <div class="mt-4 flex items-center justify-between text-[11px] text-white/40 flex-wrap gap-2">
-            <span class="inline-flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-              باقی‌مانده: <b class="text-white/70 font-bold">{remaining_value_escaped}</b>
-            </span>
-            <span class="inline-flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
-              زمان: <b class="text-white/70 font-bold">{expiry_remaining_escaped}</b>
-            </span>
-
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="rounded-[22px] border dynamic-card backdrop-blur-2xl p-5 sm:p-6 md:p-7">
-      <div class="flex items-center gap-2.5">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-white/35"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
-        <p class="text-[10px] font-extrabold tracking-widest uppercase text-white/30">Service</p>
-      </div>
-      <div class="mt-4 divide-y divide-white/[0.06]">
-        <div class="flex items-center justify-between py-3 first:pt-0">
-          <span class="inline-flex items-center gap-2 text-[11px] text-white/45">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
-            انقضا
-          </span>
-          <span class="text-xs font-extrabold">{expiry_display_escaped}</span>
-        </div>
-        <div class="flex items-center justify-between py-3">
-          <span class="inline-flex items-center gap-2 text-[11px] text-white/45">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14 0"/><path d="M8.5 16a6 6 0 0 1 7 0"/><path d="M12 20h.01"/></svg>
-            IP Limit
-          </span>
-          <span class="text-xs font-extrabold">{ip_limit_escaped}</span>
-        </div>
-        <div class="flex items-center justify-between py-3">
-          <span class="inline-flex items-center gap-2 text-[11px] text-white/45">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"/><rect x="2" y="9" width="20" height="8" rx="2"/><path d="M6 17v2M18 17v2"/></svg>
-            Connection
-          </span>
-          <span class="text-xs font-extrabold">{connection_limit_escaped}</span>
-        </div>
-        <div class="flex items-center justify-between py-3 last:pb-0">
-          <span class="inline-flex items-center gap-2 text-[11px] text-white/45">
-            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-            Speed
-          </span>
-          <span class="text-xs font-extrabold">{speed_limit_escaped}</span>
-        </div>
-      </div>
-    </div>
-
+  <!-- Telegram channel -->
+  <section class="telegram-sub-card">
+    <div class="tg-sub-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 3.1 18.2 19c-.26 1.16-.95 1.45-1.92.9l-5.22-3.84-2.52 2.43c-.28.28-.51.51-1.05.51l.37-5.32 9.68-8.75c.42-.37-.09-.58-.65-.21L4.92 12.86.14 11.34c-1.04-.33-1.06-1.04.22-1.54L19.04 2.56c.88-.33 1.65.2 1.56.54Z"/></svg></div>
+    <div class="tg-sub-copy"><span>OFFICIAL TELEGRAM CHANNEL</span><strong>عضویت در کانال تلگرام ONEX</strong><small>اخبار، آپدیت‌ها و اطلاع‌رسانی‌های سرویس را مستقیم دریافت کنید.</small><b dir="ltr">@V2rayTun0</b></div>
+    <a class="tg-sub-join" href="https://t.me/V2rayTun0" target="_blank" rel="noopener noreferrer"><span>عضویت در کانال</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 14-9-4 18-4-7-6-2Z"/><path d="m11 14 4-6"/></svg></a>
   </section>
 
-  <!-- Stats -->
-  <section class="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4 md:gap-5">
-
-    <div class="rounded-2xl border dynamic-card backdrop-blur-xl p-4 sm:p-5 hover:border-emerald-400/20 transition-colors duration-200">
-      <div class="w-9 h-9 rounded-xl grid place-items-center bg-emerald-400/10 border border-emerald-400/20 text-emerald-300">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg>
+  <!-- Usage + service -->
+  <section class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 sm:gap-5">
+    <div class="sub-glass p-5 sm:p-6">
+      <div class="section-head"><div><span class="section-kicker">TRAFFIC OVERVIEW</span><h2>مصرف سرویس</h2></div><div class="section-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m7 15 4-6 3 3 4-7"/></svg></div></div>
+      <div class="usage-row">
+        <div class="usage-ring"><svg width="122" height="122" viewBox="0 0 132 132" class="-rotate-90"><circle cx="66" cy="66" r="54" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="10"/><circle cx="66" cy="66" r="54" fill="none" stroke="url(#usageRingGradient)" stroke-width="10" stroke-linecap="round" stroke-dasharray="339.29" stroke-dashoffset="{dash_calc_offset}"/><defs><linearGradient id="usageRingGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff1f5c"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs></svg><div><b>{usage_percent}%</b><span>مصرف‌شده</span></div></div>
+        <div class="usage-main"><strong>{used_bytes_str}<i> / {limit_bytes_str}</i></strong><div class="usage-mini"><span>باقی‌مانده</span><b>{remaining_value_escaped}</b></div><div class="usage-mini"><span>زمان باقی‌مانده</span><b>{expiry_remaining_escaped}</b></div></div>
       </div>
-      <p class="mt-4 text-[11px] text-white/45">مصرف فعلی</p>
-      <p class="mt-1 text-[14px] sm:text-[15px] font-black text-emerald-300 break-words">{used_bytes_str}</p>
     </div>
-
-    <div class="rounded-2xl border dynamic-card backdrop-blur-xl p-4 sm:p-5 hover:border-amber-400/20 transition-colors duration-200">
-      <div class="w-9 h-9 rounded-xl grid place-items-center bg-amber-400/10 border border-amber-400/20 text-amber-300">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-      </div>
-      <p class="mt-4 text-[11px] text-white/45">باقی‌مانده</p>
-      <p class="mt-1 text-[14px] sm:text-[15px] font-black text-amber-300 break-words">{remaining_value_escaped}</p>
-    </div>
-
-    <div class="rounded-2xl border dynamic-card backdrop-blur-xl p-4 sm:p-5 hover:border-blue-400/20 transition-colors duration-200">
-      <div class="w-9 h-9 rounded-xl grid place-items-center bg-blue-400/10 border border-blue-400/20 text-blue-300">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 4v16M4 9h16"/></svg>
-      </div>
-      <p class="mt-4 text-[11px] text-white/45">اتصالات فعال</p>
-      <p class="mt-1 text-[14px] sm:text-[15px] font-black text-blue-300 break-words">{len(unique_ips_for_uuid(uid))}</p>
-    </div>
-
-    <div class="rounded-2xl border dynamic-card backdrop-blur-xl p-4 sm:p-5 hover:border-purple-400/20 transition-colors duration-200">
-      <div class="w-9 h-9 rounded-xl grid place-items-center bg-purple-400/10 border border-purple-400/20 text-purple-300">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 4.5v6c0 5-3.6 8.7-9 9.5-5.4-.8-9-4.5-9-9.5v-6L12 2z"/></svg>
-      </div>
-      <p class="mt-4 text-[11px] text-white/45">زمان باقی‌مانده</p>
-      <p class="mt-1 text-[14px] sm:text-[15px] font-black text-purple-300 break-words">{expiry_remaining_escaped}</p>
-    </div>
-
+    <div class="sub-glass p-5 sm:p-6"><div class="section-head"><div><span class="section-kicker">SERVICE</span><h2>وضعیت سرویس</h2></div><div class="section-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></div></div><div class="service-list"><div><span>انقضا</span><b>{expiry_display_escaped}</b></div><div><span>محدودیت IP</span><b>{ip_limit_escaped}</b></div><div><span>اتصال همزمان</span><b>{connection_limit_escaped}</b></div><div><span>سرعت</span><b>{speed_limit_escaped}</b></div></div></div>
   </section>
 
   <!-- Technical details -->
-  <section class="rounded-[22px] border dynamic-card backdrop-blur-2xl p-5 sm:p-6 md:p-7">
-    <div class="flex items-center justify-between gap-3 mb-5">
-      <p class="flex items-center gap-2 text-sm font-black">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-white/40"><path d="M4 21v-7M4 10V3M12 21v-11M12 6V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>
-        جزئیات فنی
-      </p>
-      <p class="text-[11px] text-white/40">Configuration Details</p>
-    </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-      <div class="rounded-2xl border border-white/[0.06] sub-box p-4">
-        <p class="text-[11px] text-white/45">Protocol</p>
-        <p class="mt-2 text-[11px] font-medium text-purple-300 tracking-wide" dir="ltr" style="font-family:ui-monospace,Consolas,monospace">{protocol_escaped}</p>
-      </div>
-      <div class="rounded-2xl border border-white/[0.06] sub-box p-4">
-        <p class="text-[11px] text-white/45">Fingerprint</p>
-        <p class="mt-2 text-[11px] font-medium text-purple-300 tracking-wide" dir="ltr" style="font-family:ui-monospace,Consolas,monospace">{fingerprint_escaped}</p>
-      </div>
-      <div class="rounded-2xl border border-white/[0.06] sub-box p-4">
-        <p class="text-[11px] text-white/45">IP Limit</p>
-        <p class="mt-2 text-xs font-bold text-white/85">{ip_limit_escaped}</p>
-      </div>
-      <div class="rounded-2xl border border-white/[0.06] sub-box p-4">
-        <p class="text-[11px] text-white/45">Connection Limit</p>
-        <p class="mt-2 text-xs font-bold text-white/85">{connection_limit_escaped}</p>
-      </div>
-      <div class="rounded-2xl border border-white/[0.06] sub-box p-4">
-        <p class="text-[11px] text-white/45">Speed Limit</p>
-        <p class="mt-2 text-xs font-bold text-white/85">{speed_limit_escaped}</p>
-      </div>
-      <div class="rounded-2xl border border-white/[0.06] sub-box p-4">
-        <p class="text-[11px] text-white/45">تاریخ انقضا</p>
-        <p class="mt-2 text-xs font-bold text-white/85">{expiry_display_escaped}</p>
-      </div>
-    </div>
+  <section class="sub-glass p-5 sm:p-6">
+    <div class="section-head"><div><span class="section-kicker">CONFIGURATION</span><h2>جزئیات فنی</h2></div><div class="section-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-11M12 6V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg></div></div>
+    <div class="tech-grid"><div><span>Protocol</span><b dir="ltr">{protocol_escaped}</b></div><div><span>Fingerprint</span><b dir="ltr">{fingerprint_escaped}</b></div><div><span>IP Limit</span><b>{ip_limit_escaped}</b></div><div><span>Connection</span><b>{connection_limit_escaped}</b></div></div>
   </section>
 
-  <!-- Links -->
-  <section class="rounded-[22px] border dynamic-card backdrop-blur-2xl p-5 sm:p-6 md:p-7">
-    <div class="flex items-center justify-between gap-3 mb-5">
-      <p class="flex items-center gap-2 text-sm font-black">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-white/40"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11.5 4.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-2.83 2.83a5 5 0 0 0 7.07 7.07l1.41-1.41"/></svg>
-        لینک‌های سرویس
-      </p>
-      <p class="text-[11px] text-white/40">Copy / Import</p>
-    </div>
-
-    <div class="space-y-3">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-2xl border border-white/[0.06] sub-box p-4 hover:border-purple-400/25 transition-colors duration-200">
-        <div class="min-w-0 flex-1">
-          <p class="text-[11px] font-extrabold text-white/45 tracking-wide">VLESS</p>
-          <p id="vlessLinkText" class="mt-1.5 text-[11px] text-purple-300 break-all leading-6" dir="ltr" style="font-family:ui-monospace,Consolas,monospace">{vless_url_escaped}</p>
-        </div>
-        <button id="vlessCopyBtn" type="button" onclick="pxCopy('vlessLinkText','vlessCopyBtn')"
-          class="copy-btn shrink-0 self-start sm:self-center inline-flex items-center gap-1.5 text-[11px] font-bold text-white/60 px-3.5 py-2 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.1] hover:text-white transition-colors duration-200">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-          <span>کپی</span>
-        </button>
-      </div>
-
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-2xl border border-white/[0.06] sub-box p-4 hover:border-purple-400/25 transition-colors duration-200">
-        <div class="min-w-0 flex-1">
-          <p class="text-[11px] font-extrabold text-white/45 tracking-wide">SUBSCRIPTION</p>
-          <p id="subLinkText" class="mt-1.5 text-[11px] text-purple-300 break-all leading-6" dir="ltr" style="font-family:ui-monospace,Consolas,monospace">{sub_url_escaped}</p>
-        </div>
-        <button id="subCopyBtn" type="button" onclick="pxCopy('subLinkText','subCopyBtn')"
-          class="copy-btn shrink-0 self-start sm:self-center inline-flex items-center gap-1.5 text-[11px] font-bold text-white/60 px-3.5 py-2 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.1] hover:text-white transition-colors duration-200">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-          <span>کپی</span>
-        </button>
-      </div>
-    </div>
+  <!-- Direct config -->
+  <section class="sub-glass p-5 sm:p-6">
+    <div class="section-head"><div><span class="section-kicker">DIRECT CONFIG</span><h2>کانفیگ مستقیم</h2></div><div class="section-icon red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9h8M8 13h5"/><path d="M5 3h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5l-4 4v-4H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/></svg></div></div>
+    <div class="direct-config"><div><span>VLESS / ONEX</span><code id="vlessLinkText">{vless_url_escaped}</code></div><button class="sub-action primary" id="vlessCopyBtn" type="button" onclick="pxCopy('vlessLinkText','vlessCopyBtn')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>کپی</span></button></div>
   </section>
 
   <!-- Downloads -->
-  <section class="rounded-[22px] border dynamic-card backdrop-blur-2xl p-5 sm:p-6 md:p-7">
-    <div class="flex items-center justify-between gap-3 mb-5">
-      <p class="flex items-center gap-2 text-sm font-black">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-white/40"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-        دانلود برنامه‌ها
-      </p>
-      <p class="text-[11px] text-white/40">Official Releases</p>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-      <a href="https://github.com/2dust/v2rayNG/releases/latest" target="_blank" rel="noopener noreferrer"
-         class="flex items-center gap-3 rounded-2xl border border-white/10 sub-box p-4 hover:border-blue-400/25 transition-colors duration-200">
-        <div class="w-10 h-10 shrink-0 rounded-xl grid place-items-center bg-blue-400/10 border border-blue-400/20 text-blue-300 font-black text-[11px]">NG</div>
-        <div class="min-w-0">
-          <p class="text-xs font-extrabold">v2rayNG</p>
-          <p class="mt-0.5 text-[10px] text-white/40">Android</p>
-        </div>
-      </a>
-      <a href="https://github.com/2dust/v2rayN/releases/latest" target="_blank" rel="noopener noreferrer"
-         class="flex items-center gap-3 rounded-2xl border border-white/10 sub-box p-4 hover:border-blue-400/25 transition-colors duration-200">
-        <div class="w-10 h-10 shrink-0 rounded-xl grid place-items-center bg-blue-400/10 border border-blue-400/20 text-blue-300 font-black text-[11px]">N</div>
-        <div class="min-w-0">
-          <p class="text-xs font-extrabold">v2rayN</p>
-          <p class="mt-0.5 text-[10px] text-white/40">Windows / macOS / Linux</p>
-        </div>
-      </a>
-      <a href="https://github.com/hiddify/hiddify-app/releases/latest" target="_blank" rel="noopener noreferrer"
-         class="flex items-center gap-3 rounded-2xl border border-white/10 sub-box p-4 hover:border-blue-400/25 transition-colors duration-200">
-        <div class="w-10 h-10 shrink-0 rounded-xl grid place-items-center bg-blue-400/10 border border-blue-400/20 text-blue-300 font-black text-[11px]">H</div>
-        <div class="min-w-0">
-          <p class="text-xs font-extrabold">Hiddify</p>
-          <p class="mt-0.5 text-[10px] text-white/40">Android / Windows / macOS / Linux</p>
-        </div>
-      </a>
+  <section class="sub-glass p-5 sm:p-6">
+    <div class="section-head"><div><span class="section-kicker">OFFICIAL RELEASES</span><h2>دانلود برنامه‌ها</h2></div><div class="section-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></div></div>
+    <div class="download-grid">
+      <a href="https://github.com/2dust/v2rayNG/releases/latest" target="_blank" rel="noopener noreferrer"><div class="app-icon">NG</div><div><b>v2rayNG</b><span>Android</span></div><i>دانلود</i></a>
+      <a href="https://github.com/2dust/v2rayN/releases/latest" target="_blank" rel="noopener noreferrer"><div class="app-icon">N</div><div><b>v2rayN</b><span>Windows / macOS / Linux</span></div><i>دانلود</i></a>
+      <a href="https://github.com/hiddify/hiddify-app/releases/latest" target="_blank" rel="noopener noreferrer"><div class="app-icon">H</div><div><b>Hiddify</b><span>Android / Windows / macOS / Linux</span></div><i>دانلود</i></a>
     </div>
   </section>
-
 
 </div>
 
@@ -5331,6 +5114,21 @@ function closeQrModal() {{
 document.getElementById('qrModal').addEventListener('click', function(e) {{
   if (e.target === this) closeQrModal();
 }});
+
+const subUrlData = "{sub_url}";
+function openQrFor(value,label) {{
+  var modal=document.getElementById('qrModal'), container=document.getElementById('qrcodeContainer'), txt=document.getElementById('qrModalText');
+  if(!modal||!container) return;
+  container.innerHTML=''; txt.textContent=value;
+  var title=modal.querySelector('p'); if(title) title.textContent=label||'QR Code';
+  modal.classList.remove('hidden');
+  try {{ var qr=qrcode(0,'L'); qr.addData(value); qr.make(); container.innerHTML=qr.createImgTag(5,8); }} catch(e) {{ container.innerHTML='<p class="text-xs text-black">خطا در تولید QR Code</p>'; }}
+}}
+function copySubLink() {{
+  var text=subUrlData, btn=document.getElementById('subCopyBtn');
+  var done=function(){{ if(!btn)return; var old=btn.innerHTML; btn.innerHTML='<span>✓ کپی شد</span>'; setTimeout(function(){{btn.innerHTML=old;}},1600); }};
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(function(){{fallbackCopy(text,done);}}); else fallbackCopy(text,done);
+}}
 
 function pxCopy(textId, btnId) {{
   var el = document.getElementById(textId);

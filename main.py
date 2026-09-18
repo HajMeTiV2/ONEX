@@ -8119,6 +8119,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
       <span class="onex-brand-orbit orbit-a"></span><span class="onex-brand-orbit orbit-b"></span>
       <img src="/api/onex-logo-3d.png" alt="ONEX" class="onex-brand-img">
     </div>
+    <strong class="mob-onex-word">ONEX</strong>
   </div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
@@ -8728,6 +8729,89 @@ html:not(.light) body:has(.page) .table-wrap{{
   .admin-perm-groups{grid-template-columns:1fr}.admin-list-controls{grid-template-columns:1fr 92px}.admin-table-wrap{overflow-x:auto}.admin-op{width:32px;height:32px}.admin-create-card .form-row{grid-template-columns:1fr 1fr}.admin-create-card .field input,.admin-create-card .field select{font-size:10px}
 }
 
+
+/* ============================================================
+   ONEX 3D LOGO — HARD SIZE/STACK FIX
+   Prevent the logo asset from ever expanding into the page.
+   ============================================================ */
+body .onex-brand-3d{
+  position:relative!important;
+  display:block!important;
+  flex:0 0 auto!important;
+  width:78px!important;
+  height:58px!important;
+  min-width:0!important;
+  min-height:0!important;
+  max-width:78px!important;
+  max-height:58px!important;
+  overflow:visible!important;
+  box-sizing:border-box!important;
+  isolation:isolate!important;
+  transform-style:preserve-3d!important;
+  contain:layout paint!important;
+}
+body .onex-brand-img{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  width:58px!important;
+  height:58px!important;
+  min-width:58px!important;
+  min-height:58px!important;
+  max-width:58px!important;
+  max-height:58px!important;
+  margin:0!important;
+  padding:0!important;
+  display:block!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  transform:translate(-50%,-50%)!important;
+  border:0!important;
+  background:none!important;
+  background-image:none!important;
+  z-index:4!important;
+  pointer-events:none!important;
+  box-sizing:border-box!important;
+  animation:onexBrandFloat 4.8s ease-in-out infinite,onexBrandTilt 7s ease-in-out infinite!important;
+}
+body .onex-brand-orbit{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  width:52px!important;
+  height:18px!important;
+  margin:0!important;
+  z-index:2!important;
+  pointer-events:none!important;
+  box-sizing:border-box!important;
+  overflow:visible!important;
+}
+body .onex-brand-3d-topbar{width:68px!important;height:58px!important;max-width:68px!important;max-height:58px!important}
+body .onex-brand-3d-topbar .onex-brand-img{width:56px!important;height:56px!important;min-width:56px!important;min-height:56px!important;max-width:56px!important;max-height:56px!important}
+body .onex-brand-3d-mobile{width:52px!important;height:48px!important;max-width:52px!important;max-height:48px!important}
+body .onex-brand-3d-mobile .onex-brand-img{width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;max-width:48px!important;max-height:48px!important}
+body .onex-brand-3d-sidebar{width:88px!important;height:88px!important;max-width:88px!important;max-height:88px!important}
+body .onex-brand-3d-sidebar .onex-brand-img{width:78px!important;height:78px!important;min-width:78px!important;min-height:78px!important;max-width:78px!important;max-height:78px!important}
+body .onex-topbar-brand{z-index:200!important;overflow:visible!important;white-space:nowrap!important}
+body .top-onex-word{display:inline-block!important;position:relative!important;z-index:6!important;font:900 18px/1 Inter,system-ui,sans-serif!important;letter-spacing:.05em!important;color:#eaf6ff!important;text-shadow:0 0 16px rgba(32,200,255,.35)!important}
+body .mob-brand{display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;width:auto!important;height:52px!important;z-index:1450!important;overflow:visible!important}
+body .mob-onex-word{display:inline-block!important;position:relative!important;z-index:6!important;font:900 13px/1 Inter,system-ui,sans-serif!important;letter-spacing:.04em!important;color:#eaf6ff!important;text-shadow:0 0 12px rgba(32,200,255,.42)!important}
+@media(max-width:768px){
+  body .onex-brand-3d{contain:layout paint!important}
+  body .onex-brand-3d-mobile{width:50px!important;height:46px!important;max-width:50px!important;max-height:46px!important}
+  body .onex-brand-3d-mobile .onex-brand-img{width:46px!important;height:46px!important;min-width:46px!important;min-height:46px!important;max-width:46px!important;max-height:46px!important}
+  body .onex-brand-3d-mobile .onex-brand-orbit{width:44px!important;height:15px!important;border-width:1.5px!important}
+  body .mob-onex-word{font-size:12px!important}
+  body .onex-brand-3d-sidebar{width:82px!important;height:82px!important;max-width:82px!important;max-height:82px!important}
+  body .onex-brand-3d-sidebar .onex-brand-img{width:72px!important;height:72px!important;min-width:72px!important;min-height:72px!important;max-width:72px!important;max-height:72px!important}
+  body .onex-brand-3d-sidebar .onex-brand-orbit{width:68px!important;height:22px!important}
+  body .onex-topbar-brand{display:none!important}
+}
+@media(max-width:420px){
+  body .mob-onex-word{font-size:11px!important}
+  body .onex-brand-3d-mobile{width:46px!important;height:44px!important}
+  body .onex-brand-3d-mobile .onex-brand-img{width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;max-width:42px!important;max-height:42px!important}
+}
 </style>
 <section class="page" id="page-news">
   <div class="page-head">

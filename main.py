@@ -2577,6 +2577,99 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
   .login-title{font-size:19px}.login-desc{font-size:10px;margin-bottom:13px}
   .field input{height:50px}.primary{height:51px}
 }
+/* ============================================================
+   ONEX RED ACCENT + MOBILE DRAWER FIX
+   Requested visual-only theme refinements:
+   - Advanced settings uses the same neon-red glass accent.
+   - Logout uses the same red glass treatment.
+   - Mobile drawer is narrower and stays below the mobile top bar,
+     so its logo never sits behind the hamburger button.
+   ============================================================ */
+.advanced-config-card{
+  border-color:rgba(255,55,101,.30) !important;
+}
+.advanced-config-card.open{
+  border-color:rgba(255,55,101,.48) !important;
+  box-shadow:0 16px 42px rgba(255,31,92,.10),inset 0 1px rgba(255,255,255,.055) !important;
+}
+.advanced-toggle{
+  background:linear-gradient(135deg,rgba(84,9,34,.72),rgba(28,7,24,.58)) !important;
+  border:1px solid rgba(255,55,101,.44) !important;
+  color:#fff !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.07),inset 0 0 30px rgba(255,31,92,.055),0 8px 24px rgba(255,31,92,.07) !important;
+}
+.advanced-toggle:hover{
+  background:linear-gradient(135deg,rgba(106,11,42,.78),rgba(35,8,29,.64)) !important;
+  border-color:rgba(255,73,117,.72) !important;
+}
+.advanced-toggle-icon{
+  background:rgba(255,39,91,.12) !important;
+  border-color:rgba(255,65,111,.38) !important;
+  color:#ff5b7e !important;
+  box-shadow:0 0 20px rgba(255,35,91,.14) !important;
+}
+.advanced-toggle-copy b{color:#ff7895 !important}
+.advanced-toggle-state{
+  color:#ff7895 !important;
+  background:rgba(255,39,91,.10) !important;
+  border-color:rgba(255,65,111,.28) !important;
+}
+.advanced-chevron{color:#ff6687 !important}
+.advanced-config-card.open .advanced-toggle-icon{
+  box-shadow:0 0 24px rgba(255,35,91,.24) !important;
+}
+
+.sb-foot button.danger,
+.sb-foot a.danger{
+  background:linear-gradient(135deg,rgba(84,9,34,.68),rgba(28,7,24,.58)) !important;
+  border-color:rgba(255,55,101,.48) !important;
+  color:#ff6687 !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.06),inset 0 0 24px rgba(255,31,92,.05),0 8px 24px rgba(255,31,92,.08) !important;
+}
+.sb-foot button.danger:hover,
+.sb-foot a.danger:hover{
+  background:linear-gradient(135deg,rgba(106,11,42,.76),rgba(35,8,29,.64)) !important;
+  border-color:rgba(255,73,117,.74) !important;
+  color:#ff8ca5 !important;
+}
+.sb-foot button.danger .logout-ico,
+.sb-foot a.danger .logout-ico{color:#ff4d76 !important}
+
+@media (max-width:700px){
+  /* Keep the mobile top bar above the drawer. */
+  .mob-bar{
+    z-index:1250 !important;
+  }
+  .mob-menu-btn{
+    position:relative;
+    z-index:1300 !important;
+  }
+  .sidebar{
+    top:58px !important;
+    width:min(68vw,290px) !important;
+    max-width:290px !important;
+    z-index:1200 !important;
+    border-top-left-radius:18px;
+    border-top-right-radius:0;
+  }
+  .sidebar.mobile-open{transform:translateX(0) !important}
+  .sidebar.collapsed{
+    width:min(68vw,290px) !important;
+  }
+  .sidebar .sb-logo{
+    padding:14px 12px !important;
+  }
+  .sidebar .sb-logo-icon{
+    width:48px !important;
+    height:48px !important;
+  }
+  .sidebar .nav{
+    padding-top:6px !important;
+  }
+  .overlay{
+    z-index:1100 !important;
+  }
+}
 </style>
 </head>
 <body>

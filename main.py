@@ -1052,13 +1052,15 @@ def generate_vless_link(
     if fp not in FINGERPRINTS: fp = DEFAULT_FINGERPRINT
     port_value = protocol_public_port(link, protocol, safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT))
     alpn_value = (alpn or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
+    custom_sni = str((link or {}).get("sni") or host).strip()
+    custom_path = str((link or {}).get("path") or "").strip()
     label = quote(str(remark or "ONEX"), safe="")
     if protocol == "vless-ws":
-        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
+        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":(custom_path if custom_path and custom_path != "auto" else f"/ws/{uuid}"),"sni":custom_sni,"fp":fp,"alpn":alpn_value}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol.startswith("xhttp-"):
         mode = protocol.replace("xhttp-", "")
-        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
+        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":(custom_path if custom_path and custom_path != "auto" else f"/xhttp-siz10/{mode}/{uuid}"),"sni":custom_sni,"fp":fp,"alpn":alpn_value}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol == "vmess-ws":
         raw = {"v":"2","ps":remark,"add":host,"port":port_value,"id":uuid,"aid":0,"scy":"auto","net":"ws","type":"none","host":host,"path":f"/ws/{uuid}","tls":"tls","sni":host,"fp":fp}
@@ -1424,6 +1426,8 @@ async def make_link(
     speed_limit_bytes: int = 0,
     connection_limit: int = 0,
     fragment: str = "off",
+    sni: str = "",
+    path: str = "",
     clean_ips=None,
     alarm_enabled: bool = False,
     category_id: str = "0",
@@ -1527,6 +1531,12 @@ async def make_link(
                 fragment
                 or "off"
             ).strip().lower(),
+
+        "sni":
+            (sni or "").strip()[:255],
+
+        "path":
+            (path or "").strip()[:255],
 
         "security_profile": "balanced",
         "multi_login": False,
@@ -3142,6 +3152,9 @@ async def create_link_api(
         or "off"
     ).strip().lower()
 
+    sni = str(body.get("sni", "") or "").strip()
+    path = str(body.get("path", "") or "").strip()
+
     allowed_fragments = {
         "off",
         "safe",
@@ -3213,6 +3226,8 @@ async def create_link_api(
         speed_limit_bytes=speed_bytes,
         connection_limit=connection_limit,
         fragment=fragment,
+        sni=sni,
+        path=path,
         clean_ips=clean_ips,
         alarm_enabled=alarm_enabled,
         category_id=category_id,
@@ -9197,6 +9212,8 @@ async function doManualCreate(){
     fingerprint:document.getElementById('cFingerprint')?.value||'chrome',
     alpn:document.getElementById('cAlpn')?.value||'',
     fragment:document.getElementById('cFragment')?.value||'off',
+    sni:document.getElementById('cSni')?.value||'',
+    path:document.getElementById('cPath')?.value||'',
     clean_ips:(document.getElementById('cCleanIps')?.value||'').split(',').map(x=>x.trim()).filter(Boolean),
     all_protocols:!!document.getElementById('cAllProtocols')?.checked
   };

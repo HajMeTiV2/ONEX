@@ -95,7 +95,6 @@ TG_FILE = DATA_DIR / "telegram_settings.json"
 # Protocol artwork shipped with the panel UI. These are local static assets
 # so the protocol picker does not depend on an external image host.
 PROTOCOL_ICON_DIR = Path(__file__).resolve().parent / "protocol_icons"
-ONEX_LOGO_PATH = Path(__file__).resolve().parent / "assets" / "onex-3d-logo.png"
 PROTOCOL_ICON_FILES = {
     "vless-ws": PROTOCOL_ICON_DIR / "nova-link.png",
     "xhttp-packet-up": PROTOCOL_ICON_DIR / "xpacket-nova.png",
@@ -140,13 +139,14 @@ async def protocol_icon(protocol_id: str):
         raise HTTPException(status_code=404, detail="Protocol icon not found")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
+ONEX_LOGO_FILE = Path(__file__).resolve().parent / "onex-logo-3d.png"
 
-@app.get("/api/onex-logo.png", include_in_schema=False)
-async def onex_logo():
-    """Serve the bundled 3D ONEX logo used by the dashboard navigation."""
-    if not ONEX_LOGO_PATH.is_file():
+@app.get("/api/onex-logo-3d.png", include_in_schema=False)
+async def onex_logo_3d():
+    """Serve the bundled ONEX 3D logo used by the desktop and mobile panel chrome."""
+    if not ONEX_LOGO_FILE.is_file():
         raise HTTPException(status_code=404, detail="ONEX logo not found")
-    return FileResponse(ONEX_LOGO_PATH, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    return FileResponse(ONEX_LOGO_FILE, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 app.add_middleware(
     CORSMiddleware,
@@ -2198,20 +2198,6 @@ table th:first-child, table td:first-child{overflow:visible}
   #page-dash .version-mini-copy b{font-size:6px!important}
   #page-dash .version-mini-copy strong{font-size:9px!important}
 }
-
-
-/* ONEX MOBILE DRAWER FINAL FIX — compact, crisp, and above the mobile bar */
-@media (max-width:768px){
-  .mob-bar{z-index:1300!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 6px 18px rgba(0,0,0,.22)!important}
-  .sidebar{width:min(72vw,280px)!important;max-width:280px!important;z-index:1400!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:-16px 0 42px rgba(0,0,0,.42)!important}
-  .sidebar.collapsed{width:min(72vw,280px)!important}
-  .overlay{z-index:1350!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-  .sb-logo-icon{width:58px!important;height:58px!important}
-  .mob-brand-icon{width:42px!important;height:42px!important;flex-basis:42px!important}
-}
-@media (max-width:480px){
-  .mob-brand-icon{width:38px!important;height:38px!important;flex-basis:38px!important}
-}
 </style>
 </head>
 
@@ -2535,7 +2521,6 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
   .login-title{font-size:19px}.login-desc{font-size:10px;margin-bottom:13px}
   .field input{height:50px}.primary{height:51px}
 }
-
 </style>
 </head>
 <body>
@@ -4669,7 +4654,6 @@ async def info_page(
     .w-full.max-w-4xl.mx-auto.space-y-5 .sub-box::before{{animation:none!important;}}
   }}
 
-
 </style>
 </head>
 <body class="font-vazir text-slate-100 antialiased min-h-screen py-8 px-3 sm:px-4 md:py-14">
@@ -5624,7 +5608,6 @@ h1{
     color:#60a5fa;
     font-size:11px;
 }
-
 
 </style>
 </head>
@@ -7298,8 +7281,9 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .sb-toggle svg{width:14px;height:14px;transition:transform .28s}
 .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
 .sb-logo{display:flex;align-items:center;justify-content:center;padding:18px 14px;border-bottom:1px solid var(--card-b)}
-.sb-logo-icon{position:relative;width:58px;height:58px;border-radius:17px;display:grid;place-items:center;flex-shrink:0;isolation:isolate;overflow:visible;transform:perspective(420px) rotateX(5deg) rotateY(-7deg);filter:drop-shadow(0 12px 22px rgba(37,99,235,.28));animation:onexLogoFloat 4.6s ease-in-out infinite}
-.sb-logo-icon img{width:100%;height:100%;display:block;object-fit:contain;pointer-events:none;user-select:none;transform:translateZ(12px);animation:onexLogoGlow 3.4s ease-in-out infinite}
+.sb-logo-icon{position:relative;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;font-size:0;font-weight:900;color:#fff;isolation:isolate;transform:perspective(260px) rotateX(7deg) rotateY(-8deg);background:linear-gradient(145deg,#0ea5e9 0%,#2563eb 48%,#7c3aed 100%);border:1px solid rgba(255,255,255,.22);box-shadow:0 16px 30px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.32);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.sb-logo-icon:before{content:'';position:absolute;inset:5px;border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.03) 45%,rgba(0,0,0,.18));border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 -8px 16px rgba(0,0,0,.14),0 0 22px rgba(32,200,255,.18);z-index:-1}
+.sb-logo-icon:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 25px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.38);transform:translateZ(18px);animation:onexLogoGlow 2.8s ease-in-out infinite}
 .sb-logo-text,.sb-logo-name,.sb-logo-ver{display:none!important}
 .sidebar.collapsed .sb-logo{justify-content:center;padding:14px 8px}
 .sidebar.collapsed .sb-logo-icon{margin:0 auto}
@@ -7597,21 +7581,20 @@ tr:hover td{background:var(--hover)}
     background:var(--bg3);color:var(--t1);display:flex;align-items:center;justify-content:center;cursor:pointer}
   .mob-menu-btn svg{width:22px;height:22px}
   .mob-brand{display:flex;align-items:center;gap:9px;margin-right:auto;margin-left:auto;min-width:0}
-  .mob-brand-icon{position:relative;width:42px;height:42px;border-radius:13px;display:grid;place-items:center;flex:0 0 42px;
-    background:transparent;font-size:0;color:#fff;filter:drop-shadow(0 7px 15px rgba(37,99,235,.28));
-    transform:perspective(300px) rotateX(5deg) rotateY(-7deg);animation:onexLogoFloat 4.6s ease-in-out infinite}
-  .mob-brand-icon img{width:100%;height:100%;display:block;object-fit:contain;transform:translateZ(10px);animation:onexLogoGlow 3.4s ease-in-out infinite}
+  .mob-brand-icon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:0 0 36px;
+    background:linear-gradient(145deg,#0ea5e9,#2563eb 50%,#7c3aed);font:900 18px Inter,sans-serif;color:#fff;
+    box-shadow:0 7px 20px rgba(37,99,235,.35)}
   .mob-brand-text{min-width:0;line-height:1.05}
   .mob-brand-text b{display:block;font:700 12px Inter,sans-serif;white-space:nowrap}
   .mob-brand-text span{display:block;font-size:8px;color:var(--t3);margin-top:3px;white-space:nowrap}
   .mob-status{display:flex;align-items:center;gap:5px;font-size:8px;color:var(--t2);white-space:nowrap}
   .mob-status i{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 9px #22c55e}
 
-  .sidebar{position:fixed;top:0;right:0;bottom:0;width:min(72vw,280px)!important;
-    max-width:280px;transform:translateX(105%);transition:transform .25s ease;width:min(72vw,280px);
-    z-index:1400;box-shadow:-18px 0 50px rgba(0,0,0,.55);overflow-y:auto}
+  .sidebar{position:fixed;top:0;right:0;bottom:0;width:min(84vw,320px)!important;
+    max-width:320px;transform:translateX(105%);transition:transform .25s ease;width:min(84vw,320px);
+    z-index:1200;box-shadow:-18px 0 50px rgba(0,0,0,.55);overflow-y:auto}
   .sidebar.mobile-open{transform:translateX(0)}
-  .sidebar.collapsed{width:min(72vw,280px)!important}
+  .sidebar.collapsed{width:min(84vw,320px)!important}
   .sidebar .sb-toggle{display:none}
   .sidebar .sb-logo{padding:18px 14px}
   .sidebar .sb-logo-icon{width:54px;height:54px;border-radius:16px}
@@ -7623,7 +7606,7 @@ tr:hover td{background:var(--hover)}
   .sidebar .sb-foot button,.sidebar .sb-foot a.btn{font-size:12px;padding:10px}
   .sidebar .nav-label,.sidebar .sb-foot span,.sidebar .nav-sec,.sidebar .sb-logo-text{display:block!important}
   .sidebar.collapsed .nav-label,.sidebar.collapsed .sb-foot span,.sidebar.collapsed .nav-sec,.sidebar.collapsed .sb-logo-text{display:block!important}
-  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:1350}
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:1100}
   .overlay.show{display:block!important}
 
   .main,.main.expanded{width:100%;max-width:100%;min-width:0;margin:0!important;padding:12px 12px 40px}
@@ -7681,7 +7664,7 @@ tr:hover td{background:var(--hover)}
   body{padding-top:56px}
   .mob-bar{height:56px;padding:0 9px}
   .mob-menu-btn{width:40px;height:40px}
-  .mob-brand-icon{width:38px;height:38px;flex-basis:38px}
+  .mob-brand-icon{width:32px;height:32px;flex-basis:32px;font-size:16px}
   .mob-brand-text b{font-size:11px}.mob-brand-text span{font-size:7px}
   .mob-status{font-size:7px}
   .main,.main.expanded{padding:10px 9px 34px}
@@ -7731,6 +7714,55 @@ tr:hover td{background:var(--hover)}
    The opened dashboard menu intentionally uses the exact same
    glass recipe as .login-card for a consistent visual language.
    ============================================================ */
+/* ============================================================
+   ONEX LOGO FIX — bundled 3D artwork for sidebar + mobile bar
+   ============================================================ */
+.onex-logo-img{
+  display:block;
+  object-fit:contain;
+  object-position:center;
+  background:transparent !important;
+  border:0 !important;
+  outline:0 !important;
+}
+.sb-logo .sb-logo-icon.onex-logo-img{
+  width:76px !important;height:76px !important;
+  flex:0 0 76px !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  transform:none !important;
+  animation:onexLogoImageFloat 4s ease-in-out infinite !important;
+}
+.mob-brand .mob-brand-icon.onex-logo-img{
+  width:58px !important;height:58px !important;
+  flex:0 0 58px !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  transform:none !important;
+  animation:onexLogoImageFloat 4s ease-in-out infinite !important;
+}
+.sb-logo .sb-logo-icon.onex-logo-img::before,.sb-logo .sb-logo-icon.onex-logo-img::after{content:none !important}
+@keyframes onexLogoImageFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.025)}}
+
+@media (max-width:768px){
+  .mob-bar{z-index:1250 !important}
+  .sidebar{
+    width:min(68vw,280px) !important;
+    max-width:280px !important;
+    z-index:1400 !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    box-shadow:-18px 0 48px rgba(0,0,0,.48) !important;
+  }
+  .sidebar.collapsed{width:min(68vw,280px) !important}
+  .sidebar .sb-logo{padding:12px 10px !important;min-height:88px}
+  .sidebar .sb-logo-icon.onex-logo-img{width:72px !important;height:72px !important;flex-basis:72px !important}
+  .mob-brand{gap:0 !important}
+  .mob-brand .mob-brand-icon.onex-logo-img{width:52px !important;height:52px !important;flex-basis:52px !important}
+  .mob-brand-text{display:none !important}
+}
+@media (prefers-reduced-motion:reduce){.onex-logo-img{animation:none !important}}
+
 .sidebar{
   background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
   border-left:1px solid rgba(122,180,235,.14) !important;
@@ -7749,26 +7781,26 @@ tr:hover td{background:var(--hover)}
 @media (max-width:768px){
   .sidebar{
     position:fixed !important; top:0 !important; right:0 !important; bottom:0 !important; left:auto !important;
-    width:min(72vw,280px) !important; max-width:280px !important; min-width:0 !important;
+    width:min(86vw,340px) !important; max-width:340px !important; min-width:0 !important;
     transform:translateX(105%) !important;
     transition:transform .24s cubic-bezier(.2,.8,.2,1) !important;
     background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
     border-left:1px solid rgba(88,180,255,.22) !important;
     border-right:0 !important;
-    box-shadow:-16px 0 48px rgba(0,0,0,.42),0 0 35px rgba(0,119,255,.06) !important;
-    backdrop-filter:none !important;
-    -webkit-backdrop-filter:none !important;
+    box-shadow:0 30px 100px rgba(0,0,0,.55),0 0 80px rgba(0,119,255,.10) !important;
+    backdrop-filter:blur(25px) !important;
+    -webkit-backdrop-filter:blur(25px) !important;
     overflow-y:auto !important;
   }
   .sidebar.mobile-open{transform:translateX(0) !important}
-  .sidebar.collapsed{width:min(72vw,280px) !important}
-  .mob-bar{display:flex !important;position:fixed !important;top:0;left:0;right:0;height:58px;z-index:1300;
+  .sidebar.collapsed{width:min(86vw,340px) !important}
+  .mob-bar{display:flex !important;position:fixed !important;top:0;left:0;right:0;height:58px;z-index:1250;
     background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
     border-bottom:1px solid rgba(88,180,255,.22) !important;
-    backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+    backdrop-filter:blur(25px) !important;-webkit-backdrop-filter:blur(25px) !important;
     box-shadow:0 12px 35px rgba(0,0,0,.35),0 0 40px rgba(0,119,255,.08) !important;
   }
-  .overlay{display:none !important;position:fixed !important;inset:0 !important;background:rgba(1,6,16,.62) !important;backdrop-filter:blur(3px);z-index:1350 !important}
+  .overlay{display:none !important;position:fixed !important;inset:0 !important;background:rgba(1,6,16,.62) !important;backdrop-filter:blur(3px);z-index:1150 !important}
   .overlay.show{display:block !important}
   .main,.main.expanded{width:100% !important;max-width:100% !important;margin:0 !important;padding:70px 12px 40px !important}
 }
@@ -8123,7 +8155,6 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 
 .all-proto-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 14px;padding:12px 14px;border:1px solid rgba(34,197,94,.22);border-radius:14px;background:rgba(34,197,94,.035);cursor:pointer;user-select:none}
 .all-proto-toggle span{display:block;min-width:0}.all-proto-toggle b{display:block;font-size:12px}.all-proto-toggle small{display:block;color:var(--t3);font-size:10px;margin-top:4px;line-height:1.6}.all-proto-toggle input{position:absolute;opacity:0;pointer-events:none}.all-proto-toggle i{position:relative;flex:0 0 48px;width:48px;height:28px;border-radius:999px;background:#4b5563;transition:.2s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.all-proto-toggle i:before{content:"";position:absolute;top:4px;right:24px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:.2s}.all-proto-toggle:has(input:checked) i{background:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.28)}.all-proto-toggle:has(input:checked) i:before{right:4px}.all-proto-toggle:focus-within{outline:2px solid rgba(34,197,94,.35);outline-offset:2px}
-
 </style>
 </head>
 <body>
@@ -8132,7 +8163,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand"><div class="mob-brand-icon"><img src="/api/onex-logo.png" alt="ONEX" loading="eager"></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
+  <div class="mob-brand"><img class="mob-brand-icon onex-logo-img" src="/api/onex-logo-3d.png" alt="ONEX"></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -8142,7 +8173,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="sb-logo-icon" aria-label="ONEX 3D logo"><img src="/api/onex-logo.png" alt="ONEX" loading="eager"></div>
+    <img class="sb-logo-icon onex-logo-img" src="/api/onex-logo-3d.png" alt="ONEX 3D logo">
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>

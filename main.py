@@ -9288,6 +9288,100 @@ html:not(.light) body:has(.page) .table-wrap{{
 
 
 /* ============================================================
+   ONEX FINAL VISUAL OVERRIDES — RED GLASS + MOBILE DRAWER
+   These rules intentionally live at the END of the dashboard style
+   block so later theme/component rules cannot overwrite them.
+   ============================================================ */
+html:not(.light) body:has(.page) .advanced-config-card{
+  background:linear-gradient(145deg,rgba(72,8,30,.72),rgba(8,10,22,.86)) !important;
+  border:1px solid rgba(255,45,96,.68) !important;
+  box-shadow:0 18px 55px rgba(0,0,0,.35),0 0 34px rgba(255,31,92,.13),inset 0 1px rgba(255,255,255,.075),inset 0 0 42px rgba(255,31,92,.055) !important;
+}
+html:not(.light) body:has(.page) .advanced-toggle{
+  background:linear-gradient(135deg,rgba(92,8,38,.90),rgba(35,6,27,.78)) !important;
+  border:1px solid rgba(255,53,104,.78) !important;
+  color:#fff !important;
+  box-shadow:0 8px 28px rgba(255,31,92,.16),inset 0 1px rgba(255,255,255,.08),inset 0 0 34px rgba(255,31,92,.10) !important;
+}
+html:not(.light) body:has(.page) .advanced-toggle:hover,
+html:not(.light) body:has(.page) .advanced-config-card.open .advanced-toggle{
+  background:linear-gradient(135deg,rgba(112,10,45,.96),rgba(42,7,31,.86)) !important;
+  border-color:rgba(255,76,121,.95) !important;
+  box-shadow:0 10px 34px rgba(255,31,92,.22),inset 0 1px rgba(255,255,255,.09),inset 0 0 38px rgba(255,31,92,.13) !important;
+}
+html:not(.light) body:has(.page) .advanced-toggle-icon{
+  background:linear-gradient(145deg,rgba(255,38,91,.24),rgba(255,38,91,.09)) !important;
+  border:1px solid rgba(255,80,120,.70) !important;
+  color:#ff6b8c !important;
+  box-shadow:0 0 24px rgba(255,35,91,.25),inset 0 0 16px rgba(255,35,91,.08) !important;
+}
+html:not(.light) body:has(.page) .advanced-toggle-copy b,
+html:not(.light) body:has(.page) .advanced-toggle-state,
+html:not(.light) body:has(.page) .advanced-chevron{
+  color:#ff6f91 !important;
+}
+html:not(.light) body:has(.page) .advanced-toggle-state{
+  background:rgba(255,39,91,.12) !important;
+  border-color:rgba(255,70,112,.38) !important;
+}
+html:not(.light) body:has(.page) .advanced-config-card.open .advanced-toggle-icon{
+  box-shadow:0 0 30px rgba(255,35,91,.38),inset 0 0 18px rgba(255,35,91,.11) !important;
+}
+
+/* Logout: compact red glass, not just a red icon. */
+html:not(.light) body:has(.page) .sidebar .sb-foot button.danger,
+html:not(.light) body:has(.page) .sidebar .sb-foot a.danger{
+  background:linear-gradient(135deg,rgba(88,8,36,.90),rgba(31,6,25,.82)) !important;
+  border:1px solid rgba(255,48,100,.72) !important;
+  color:#ff6f91 !important;
+  box-shadow:0 8px 28px rgba(255,31,92,.16),inset 0 1px rgba(255,255,255,.07),inset 0 0 28px rgba(255,31,92,.08) !important;
+}
+html:not(.light) body:has(.page) .sidebar .sb-foot button.danger:hover,
+html:not(.light) body:has(.page) .sidebar .sb-foot a.danger:hover{
+  background:linear-gradient(135deg,rgba(112,10,45,.96),rgba(40,7,31,.88)) !important;
+  border-color:rgba(255,82,126,.95) !important;
+  color:#ff9bb1 !important;
+}
+html:not(.light) body:has(.page) .sidebar .sb-foot .danger .logout-ico{
+  color:#ff4d76 !important;
+  stroke:#ff4d76 !important;
+  filter:drop-shadow(0 0 8px rgba(255,55,101,.45)) !important;
+}
+
+/* Mobile drawer: narrower, starts below the top bar, and cannot cover the hamburger/logo bar. */
+@media (max-width:768px){
+  html:not(.light) body:has(.page) .mob-bar{
+    top:0 !important;right:0;left:0;height:58px !important;z-index:5000 !important;
+  }
+  html:not(.light) body:has(.page) .mob-menu-btn{
+    position:relative !important;z-index:5100 !important;
+  }
+  html:not(.light) body:has(.page) .sidebar,
+  html:not(.light) body:has(.page) .sidebar.collapsed{
+    top:58px !important;
+    bottom:0 !important;
+    width:min(68vw,290px) !important;
+    max-width:290px !important;
+    min-width:0 !important;
+    z-index:4900 !important;
+    border-top-left-radius:18px !important;
+    transform:translateX(105%) !important;
+  }
+  html:not(.light) body:has(.page) .sidebar.mobile-open{
+    transform:translateX(0) !important;
+  }
+  html:not(.light) body:has(.page) .sidebar .sb-logo{
+    padding:14px 12px !important;
+  }
+  html:not(.light) body:has(.page) .sidebar .sb-logo-icon{
+    width:48px !important;height:48px !important;
+  }
+  html:not(.light) body:has(.page) .overlay{
+    z-index:4800 !important;
+  }
+}
+
+/* ============================================================
    ONEX ADMIN MANAGEMENT — COMPACT / RESPONSIVE
    ============================================================ */
 .admin-page{max-width:1120px;margin:0 auto;padding-bottom:24px}

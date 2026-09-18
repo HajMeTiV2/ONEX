@@ -1779,6 +1779,10 @@ async def create_sub_group(
 
         "link_ids":
             [],
+
+        # Protocol visibility rules for this subscription group.
+        # Existing groups without this field remain backward-compatible (all protocols).
+        "protocols": list(PROTOCOLS),
     }
 
     async with SUBS_LOCK:
@@ -5250,27 +5254,21 @@ async def list_subs_api(
             [],
         )
 
+        group_protocols = set(sub.get("protocols", PROTOCOLS))
+        visible_ids = [
+            lid for lid in link_ids
+            if lid in snapshot_links
+            and snapshot_links[lid].get("protocol") in group_protocols
+        ]
         active_count = sum(
             1
-            for lid in link_ids
-            if is_link_allowed(
-                snapshot_links.get(
-                    lid
-                )
-            )
+            for lid in visible_ids
+            if is_link_allowed(snapshot_links.get(lid))
         )
 
         total_used = sum(
-            snapshot_links[
-                lid
-            ].get(
-                "used_bytes",
-                0,
-            )
-
-            for lid in link_ids
-
-            if lid in snapshot_links
+            snapshot_links[lid].get("used_bytes", 0)
+            for lid in visible_ids
         )
 
         result.append(
@@ -5287,6 +5285,8 @@ async def list_subs_api(
                     sub.get(
                         "password_hash"
                     ) is not None,
+
+                "protocols": list(sub.get("protocols", PROTOCOLS)),
 
                 "links_count":
                     len(link_ids),
@@ -5380,11 +5380,12 @@ async def update_sub_api(
                 else None
             )
 
-        if "link_ids" in body:
-
-            sub["link_ids"] = list(
-                body["link_ids"]
-            )
+        if "protocols" in body:
+            raw_protocols = body.get("protocols") or []
+            if not isinstance(raw_protocols, list):
+                raw_protocols = []
+            allowed = {str(p) for p in PROTOCOLS}
+            sub["protocols"] = [str(p) for p in raw_protocols if str(p) in allowed]
 
     await save_state()
 
@@ -5469,6 +5470,53 @@ async def assign_link_to_sub(
     }
 
 
+@app.post("/api/subs/{sub_id}/sync")
+async def sync_sub_links(
+    sub_id: str,
+    request: Request,
+    _=Depends(require_auth),
+):
+    """Synchronize a subscription group's config membership in one request."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON نامعتبر است")
+
+    raw_ids = body.get("link_ids") or []
+    if not isinstance(raw_ids, list):
+        raise HTTPException(status_code=400, detail="link_ids نامعتبر است")
+
+    desired = [str(x) for x in raw_ids if str(x)]
+    async with SUBS_LOCK:
+        if sub_id not in SUBS:
+            raise HTTPException(status_code=404, detail="sub not found")
+        previous = {str(x) for x in SUBS[sub_id].get("link_ids", [])}
+
+    async with LINKS_LOCK:
+        valid = [uid for uid in desired if uid in LINKS]
+        current_owner = {uid: LINKS[uid].get("sub_id") for uid in valid}
+
+    async with SUBS_LOCK:
+        # Remove desired links from any previous subscription group.
+        for other_id, other in SUBS.items():
+            if other_id == sub_id:
+                continue
+            ids = other.get("link_ids", [])
+            other["link_ids"] = [uid for uid in ids if str(uid) not in set(valid)]
+        SUBS[sub_id]["link_ids"] = valid
+
+    async with LINKS_LOCK:
+        for uid in valid:
+            if uid in LINKS:
+                LINKS[uid]["sub_id"] = sub_id
+        for uid in (previous - set(valid)):
+            if uid in LINKS and LINKS[uid].get("sub_id") == sub_id:
+                LINKS[uid]["sub_id"] = None
+
+    await save_state()
+    return {"ok": True, "link_ids": valid, "count": len(valid), "moved": len([u for u,v in current_owner.items() if v and v != sub_id])}
+
+
 # ============================================================
 # GROUP SUB
 # ============================================================
@@ -5537,9 +5585,8 @@ async def sub_group_subscription(
 
             if (
                 link
-                and is_link_allowed(
-                    link
-                )
+                and is_link_allowed(link)
+                and link.get("protocol") in set(sub.get("protocols", PROTOCOLS))
             ):
 
                 lines.append(
@@ -5568,7 +5615,11 @@ async def sub_group_subscription(
     async with LINKS_LOCK:
         for link_id in valid_ids:
             link = LINKS.get(link_id)
-            if not link or not is_link_allowed(link):
+            if (
+                not link
+                or not is_link_allowed(link)
+                or link.get("protocol") not in set(sub.get("protocols", PROTOCOLS))
+            ):
                 continue
             total_used += int(link.get("used_bytes", 0) or 0)
             total_limit += int(link.get("limit_bytes", 0) or 0)
@@ -5894,6 +5945,10 @@ async def public_sub_data(
         )
 
         if not link:
+            continue
+
+        protocols = set(sub.get("protocols") or PROTOCOLS)
+        if link.get("protocol") not in protocols:
             continue
 
         allowed = is_link_allowed(
@@ -7542,6 +7597,16 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .card{background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow);backdrop-filter:var(--glass);transition:border-color .2s,box-shadow .2s}
 .card-title{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .card-title svg{width:16px;height:16px;color:var(--accent2)}
+
+/* ============================================================
+   ONEX GROUP MANAGER — fast glass / neon red + blue
+   ============================================================ */
+.group-manager{min-width:0}.group-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 20px;margin-bottom:14px;border:1px solid rgba(59,130,246,.24);border-radius:22px;background:linear-gradient(135deg,rgba(7,24,49,.96),rgba(7,13,27,.96));box-shadow:0 12px 30px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.04)}
+.group-hero-copy{display:flex;align-items:center;gap:13px;min-width:0}.group-hero-icon{width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;border-radius:17px;color:#60a5fa;background:rgba(37,99,235,.13);border:1px solid rgba(96,165,250,.32);box-shadow:0 0 24px rgba(37,99,235,.12)}.group-hero-icon svg{width:31px;height:31px}.group-hero-kicker{font-size:9px;letter-spacing:.16em;color:#60a5fa;font-weight:900}.group-hero h1{font-size:22px;font-weight:900;margin-top:3px}.group-hero p{font-size:10px;color:var(--t3);margin-top:4px}.group-stats{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}.group-stat{min-width:116px;height:58px;padding:9px 11px;border:1px solid rgba(96,165,250,.18);border-radius:15px;background:rgba(10,25,48,.78);display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr;column-gap:8px}.group-stat span{font-size:9px;color:var(--t3)}.group-stat b{font-size:18px;line-height:1.1;align-self:end}.group-stat i{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;color:#60a5fa;font-size:20px}.group-stat:nth-child(2) i{color:#22c55e}.group-create-btn{height:58px;padding:0 20px;border:1px solid rgba(255,38,104,.8);border-radius:15px;background:linear-gradient(135deg,#f43f70,#db185f);color:#fff;font:800 11px Vazirmatn,sans-serif;box-shadow:0 8px 24px rgba(225,29,72,.24);cursor:pointer}.group-create-btn span{font-size:18px;vertical-align:-2px;margin-left:5px}.group-create-btn:hover{filter:brightness(1.08)}
+.group-workspace{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(360px,.72fr);gap:14px;align-items:stretch}.group-list-pane,.group-detail-pane{min-width:0;border:1px solid rgba(59,130,246,.18);border-radius:21px;background:linear-gradient(145deg,rgba(7,19,39,.94),rgba(5,11,23,.94));box-shadow:0 12px 30px rgba(0,0,0,.22);overflow:hidden}.group-list-toolbar{padding:12px;border-bottom:1px solid rgba(96,165,250,.12);display:flex;gap:10px;align-items:center;flex-wrap:wrap}.group-search{flex:1;min-width:190px;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid rgba(59,130,246,.32);border-radius:13px;background:rgba(2,9,22,.7)}.group-search svg{width:17px;color:#60a5fa;flex:0 0 auto}.group-search input{width:100%;border:0;background:none;outline:0;color:var(--t1);font:600 11px Vazirmatn,sans-serif}.group-filters{display:flex;gap:5px}.group-filter{height:34px;padding:0 11px;border:1px solid rgba(96,165,250,.16);border-radius:10px;background:rgba(255,255,255,.025);color:var(--t3);font:700 9px Vazirmatn,sans-serif;cursor:pointer}.group-filter.on{background:linear-gradient(135deg,#f43f70,#d61f61);border-color:#ff356f;color:#fff;box-shadow:0 5px 15px rgba(225,29,72,.2)}.group-filter em{display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:3px}.group-filter[data-filter="inactive"] em{background:#ef4444}.group-cards-list{padding:11px;max-height:650px;overflow:auto}.group-card{position:relative;padding:14px;margin-bottom:9px;border:1px solid rgba(59,130,246,.28);border-radius:18px;background:linear-gradient(145deg,rgba(5,22,48,.94),rgba(4,12,27,.94));cursor:pointer;transition:border-color .16s,transform .16s,box-shadow .16s}.group-card:last-child{margin-bottom:0}.group-card:hover{border-color:rgba(96,165,250,.58);transform:translateY(-1px)}.group-card.selected{border-color:#21b9ff;box-shadow:0 0 0 1px rgba(33,185,255,.16),0 8px 22px rgba(37,99,235,.12)}.group-card-top{display:flex;align-items:center;gap:10px}.group-card-icon{width:48px;height:48px;flex:0 0 48px;border-radius:14px;display:grid;place-items:center;color:#ff2d73;border:1px solid rgba(255,45,115,.7);background:rgba(255,45,115,.06)}.group-card-icon svg{width:25px;height:25px}.group-card-main{min-width:0;flex:1}.group-card-title{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.group-card-title b{font-size:13px}.group-status{font-size:8px;font-weight:900;padding:3px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:#34d399;border:1px solid rgba(34,197,94,.22)}.group-status.off{background:rgba(239,68,68,.11);color:#fb7185;border-color:rgba(239,68,68,.22)}.group-card-desc{font-size:9px;color:var(--t3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-card-menu{font-size:18px;color:var(--t3);padding:0 3px}.group-card-meta{display:flex;gap:12px;flex-wrap:wrap;margin:9px 0 10px 58px;color:var(--t3);font-size:9px}.group-card-meta strong{color:var(--t2);font-weight:800}.group-card-actions{display:grid;grid-template-columns:1.15fr 1fr 42px 42px;gap:7px;margin-right:58px}.group-action{height:34px;border-radius:10px;border:1px solid rgba(59,130,246,.28);background:rgba(14,45,90,.45);color:var(--t1);font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-action.primary{background:linear-gradient(135deg,#168fff,#5146e5);border-color:rgba(70,150,255,.6);color:#fff}.group-action.red{background:linear-gradient(135deg,#f43f70,#d81b60);border-color:#ff356f;color:#fff}.group-action.icon{display:grid;place-items:center;padding:0}.group-action:hover{filter:brightness(1.08)}
+.group-detail-pane{padding:14px;overflow:auto}.group-detail{display:flex;flex-direction:column;gap:10px}.group-detail-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid rgba(96,165,250,.12)}.group-detail-icon{width:53px;height:53px;border-radius:15px;display:grid;place-items:center;color:#ff2d73;border:1px solid rgba(255,45,115,.7);background:rgba(255,45,115,.07)}.group-detail-icon svg{width:28px;height:28px}.group-detail-title{min-width:0;flex:1}.group-detail-title h2{font-size:15px;font-weight:900}.group-detail-title p{font-size:9px;color:var(--t3);margin-top:3px}.group-three-dot{width:34px;height:34px;border:1px solid rgba(59,130,246,.25);border-radius:10px;background:rgba(255,255,255,.025);color:var(--t2);font-size:18px}.group-info-card,.group-link-card,.group-proto-card,.group-manage-card{border:1px solid rgba(59,130,246,.22);border-radius:16px;background:rgba(3,13,29,.7);padding:12px}.group-section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}.group-section-head b{font-size:11px}.group-section-head span{font-size:8px;color:var(--t3)}.group-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.group-info-item{padding:8px 9px;border-radius:10px;background:rgba(15,42,78,.3);border:1px solid rgba(96,165,250,.1)}.group-info-item small{display:block;color:var(--t3);font-size:8px;margin-bottom:3px}.group-info-item b{font-size:10px}.group-link-line{display:grid;grid-template-columns:1fr 58px;gap:7px}.group-link-url{min-width:0;height:37px;padding:0 10px;display:flex;align-items:center;border:1px solid rgba(59,130,246,.28);border-radius:10px;background:rgba(2,8,20,.7);color:#9bd2ff;font:9px Inter,system-ui,sans-serif;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-copy-btn{height:37px;border:1px solid rgba(255,45,115,.55);border-radius:10px;background:rgba(225,29,72,.16);color:#ff5a8d;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-link-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}.group-link-actions button{height:35px;border-radius:10px;border:1px solid rgba(96,165,250,.25);background:rgba(37,99,235,.13);color:#b9ddff;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-link-actions button:last-child{background:rgba(225,29,72,.12);border-color:rgba(255,45,115,.42);color:#ff6a98}.group-proto-list{display:flex;flex-direction:column}.group-proto-row{display:flex;align-items:center;gap:8px;min-height:38px;border-top:1px solid rgba(96,165,250,.09)}.group-proto-row:first-child{border-top:0}.group-proto-icon{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;background:rgba(37,99,235,.12);color:#60a5fa;overflow:hidden}.group-proto-icon img{width:22px;height:22px;object-fit:contain}.group-proto-copy{min-width:0;flex:1}.group-proto-copy b{display:block;font-size:9px}.group-proto-copy small{font-size:7px;color:var(--t3)}.group-proto-tag{font-size:7px;padding:3px 6px;border-radius:7px;background:rgba(37,99,235,.13);color:#93c5fd}.group-switch{position:relative;width:35px;height:20px;flex:0 0 35px}.group-switch input{display:none}.group-switch span{position:absolute;inset:0;border-radius:99px;background:#334155;cursor:pointer;transition:.15s}.group-switch span:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.15s}.group-switch input:checked+span{background:#f43f70}.group-switch input:checked+span:before{transform:translateX(15px)}.group-manage-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}.group-manage-actions button{height:36px;border-radius:10px;font:800 9px Vazirmatn,sans-serif;cursor:pointer;border:1px solid rgba(59,130,246,.3);background:rgba(37,99,235,.13);color:#8fc8ff}.group-manage-actions button:nth-child(2),.group-manage-actions button:nth-child(3){background:rgba(225,29,72,.12);border-color:rgba(255,45,115,.4);color:#ff6a98}.group-configs-card{border:1px solid rgba(59,130,246,.22);border-radius:16px;background:rgba(3,13,29,.7);padding:12px}.group-config-list{max-height:190px;overflow:auto}.group-config-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(96,165,250,.08);font-size:9px}.group-config-row:first-child{border-top:0}.group-config-row input{accent-color:#f43f70}.group-config-row span{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-config-row small{color:var(--t3)}.group-config-save{margin-top:8px;width:100%;height:34px;border:1px solid rgba(255,45,115,.5);border-radius:10px;background:linear-gradient(135deg,#f43f70,#d61f61);color:#fff;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-empty,.group-detail-empty{text-align:center;color:var(--t3);padding:45px 20px;font-size:10px}.group-detail-empty{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:400px;justify-content:center}.group-detail-empty-icon{width:52px;height:52px;display:grid;place-items:center;border-radius:15px;color:#60a5fa;border:1px solid rgba(96,165,250,.25);background:rgba(37,99,235,.1);font-size:22px;margin-bottom:5px}.group-detail-empty b{color:var(--t2);font-size:12px}.group-modal{width:min(460px,100%)}.group-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.modal-x{width:32px;height:32px;border:1px solid var(--card-b);border-radius:9px;background:rgba(255,255,255,.025);color:var(--t2);font-size:20px;cursor:pointer}.group-qr-modal{width:min(390px,100%)}.group-qr-box{display:grid;place-items:center;background:#fff;border-radius:15px;padding:15px;min-height:250px}.group-qr-box img{max-width:220px;height:auto}.group-qr-text{margin-top:9px;padding:9px;border-radius:10px;background:rgba(2,8,20,.8);border:1px solid rgba(96,165,250,.15);font:8px Inter,system-ui,sans-serif;color:#9bd2ff;word-break:break-all;text-align:center}
+@media(max-width:900px){.group-hero{align-items:flex-start;flex-direction:column}.group-stats{width:100%;justify-content:stretch}.group-stat{flex:1}.group-create-btn{flex:1}.group-workspace{grid-template-columns:1fr}.group-detail-pane{min-height:520px}.group-cards-list{max-height:none}}
+@media(max-width:600px){.group-hero{padding:13px;border-radius:16px}.group-hero-icon{width:44px;height:44px;flex-basis:44px;border-radius:13px}.group-hero-icon svg{width:24px}.group-hero h1{font-size:16px}.group-hero p{font-size:8px}.group-stats{display:grid;grid-template-columns:1fr 1fr}.group-create-btn{grid-column:1/-1;width:100%}.group-workspace{gap:9px}.group-list-pane,.group-detail-pane{border-radius:15px}.group-list-toolbar{padding:8px}.group-search{min-width:100%;height:38px}.group-filters{width:100%}.group-filter{flex:1}.group-card{padding:10px;border-radius:14px}.group-card-meta{margin-right:0;margin-left:0}.group-card-actions{margin:0;grid-template-columns:1fr 1fr 38px 38px}.group-detail-pane{padding:9px}.group-info-grid{grid-template-columns:1fr 1fr}}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .action-card{cursor:pointer;transition:.2s;border:1px solid var(--card-b)}
 .action-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px);box-shadow:0 12px 28px rgba(59,130,246,.12)}
@@ -7593,23 +7658,6 @@ tr:hover td{background:var(--hover)}
 
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(90px);background:var(--bg2);border:1px solid var(--card-b);color:var(--t1);padding:13px 22px;border-radius:14px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:.3s;pointer-events:none;box-shadow:var(--shadow)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-/* ONEX PERFORMANCE MODE — keep the visual language, remove GPU-heavy effects */
-html{scroll-behavior:auto!important}
-body:before{animation:none!important}
-.sidebar,.metric,.card,.support-tile,.modal,.sb-logo-icon{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-.sidebar{box-shadow:0 8px 28px rgba(0,0,0,.20)!important}
-.metric,.card,.support-tile{box-shadow:0 6px 22px rgba(0,0,0,.16)!important}
-.page{animation:none!important}
-.action-card:hover,.support-tile:hover{transform:none!important}
-.sb-logo-icon{animation:none!important;transform:none!important}
-.sb-logo-icon:after{animation:none!important}
-.modal-bg{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-.toast{box-shadow:0 8px 24px rgba(0,0,0,.22)!important}
-.table-wrap{contain:layout paint}
-.card,.metric,.support-tile{contain:layout paint}
-@media(max-width:700px){.main{padding:18px 12px 48px}.card,.metric,.support-tile{box-shadow:0 4px 16px rgba(0,0,0,.14)!important}}
-
 
 .switch{position:relative;display:inline-block;width:44px;height:26px;vertical-align:middle}
 .switch input{opacity:0;width:0;height:0}
@@ -8738,21 +8786,49 @@ Cache-Control: no-cache"></textarea></div>
 
 
 <section class="page" id="page-groups">
-  <div class="page-head">
-    <div>
-      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span data-i18n="nav_groups">گروه‌ها</span></div>
-      <div class="page-sub">ساخـت گـروه و اختصـاص کانفیـگ هـای دستـی و خودکـار</div>
+  <div class="group-manager">
+    <div class="group-hero">
+      <div class="group-hero-copy">
+        <div class="group-hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 20c.5-3.1 2.4-4.7 5.5-4.7s5 1.6 5.5 4.7"/><path d="M14 15.8c2.8-.8 5 .5 6 3.2"/></svg></div>
+        <div><div class="group-hero-kicker">ONEX GROUP MANAGER</div><h1>مدیریت گروه‌ها</h1><p>ساخت گروه‌های اشتراک، مدیریت کانفیگ‌ها و کنترل پروتکل‌های قابل ارائه</p></div>
+      </div>
+      <div class="group-stats">
+        <div class="group-stat"><span>کل گروه‌ها</span><b id="groupTotal">0</b><i>◉</i></div>
+        <div class="group-stat"><span>کاربران فعال</span><b id="groupActiveUsers">0</b><i>●</i></div>
+        <button class="group-create-btn" type="button" onclick="openGroupModal()"><span>＋</span>ساخت گروه جدید</button>
+      </div>
+    </div>
+
+    <div class="group-workspace">
+      <div class="group-list-pane">
+        <div class="group-list-toolbar">
+          <div class="group-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="groupSearch" placeholder="جستجوی گروه..." oninput="renderGroupList()"></div>
+          <div class="group-filters"><button type="button" class="group-filter on" data-filter="all" onclick="setGroupFilter('all',this)">همه</button><button type="button" class="group-filter" data-filter="active" onclick="setGroupFilter('active',this)">فعال <em></em></button><button type="button" class="group-filter" data-filter="inactive" onclick="setGroupFilter('inactive',this)">غیرفعال <em></em></button></div>
+        </div>
+        <div id="groupsList" class="group-cards-list"><div class="group-empty">در حال بارگذاری گروه‌ها...</div></div>
+      </div>
+
+      <aside class="group-detail-pane" id="groupDetailPane">
+        <div class="group-detail-empty"><div class="group-detail-empty-icon">◉</div><b>یک گروه را انتخاب کنید</b><span>برای مشاهده لینک اشتراک، پروتکل‌ها و کانفیگ‌های گروه</span></div>
+      </aside>
     </div>
   </div>
-  <div class="g2">
-    <div class="card">
-      <div class="card-title">ساخت گروه جدیـد</div>
-      <div class="field"><label>نام گروه</label><input id="grpName" placeholder="مثلا اختصاصـی"></div>
-      <button class="btn btn-p" style="width:100%" onclick="createGroup()">ساخـت گروه</button>
+
+  <div class="modal-bg" id="groupModal" hidden>
+    <div class="modal group-modal" role="dialog" aria-modal="true">
+      <div class="modal-head"><div><div class="card-title" id="groupModalTitle">ساخت گروه جدید</div><div class="page-sub">اطلاعات گروه اشتراک</div></div><button class="modal-x" type="button" onclick="closeGroupModal()">×</button></div>
+      <div class="field"><label>نام گروه</label><input id="groupFormName" maxlength="60" placeholder="مثلاً ONEX VIP"></div>
+      <div class="field"><label>توضیحات</label><input id="groupFormDesc" maxlength="200" placeholder="توضیح کوتاه برای این گروه"></div>
+      <div class="field"><label>رمز عبور اشتراک <small>(اختیاری)</small></label><input id="groupFormPassword" type="password" placeholder="خالی = بدون رمز"></div>
+      <div class="group-modal-actions"><button class="btn" type="button" onclick="closeGroupModal()">لغو</button><button class="btn btn-p" type="button" id="groupModalSave" onclick="saveGroupForm()">ساخت گروه</button></div>
     </div>
-    <div class="card" style="padding:0">
-      <div style="padding:16px 18px;border-bottom:1px solid var(--card-b);font-weight:700">لیست گروه‌ها</div>
-      <div id="groupsList" style="padding:12px;max-height:480px;overflow:auto">...</div>
+  </div>
+
+  <div class="modal-bg" id="groupQrModal" hidden>
+    <div class="modal group-qr-modal" role="dialog" aria-modal="true">
+      <div class="modal-head"><div><div class="card-title">QR Code گروه</div><div class="page-sub" id="groupQrTitle">لینک اشتراک</div></div><button class="modal-x" type="button" onclick="closeGroupQr()">×</button></div>
+      <div id="groupQrBox" class="group-qr-box"></div><div id="groupQrText" class="group-qr-text" dir="ltr"></div>
+      <div class="group-modal-actions"><button class="btn" onclick="copyText(document.getElementById('groupQrText').textContent)">کپی لینک</button><button class="btn btn-p" onclick="closeGroupQr()">بستن</button></div>
     </div>
   </div>
 </section>
@@ -9489,6 +9565,7 @@ html:not(.light) .range-tab.on,html.light .range-tab.on{
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script>
 const I18N={
 fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
@@ -9552,6 +9629,7 @@ function goPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-'+name));
   window.scrollTo({top:0,behavior:'smooth'});
   if(name==='logs')loadLogs();
+  if(name==='groups')loadGroups();
   if(name==='configs'||name==='dash'||name==='stats')refreshAll();
 }
 document.querySelectorAll('.nav-item').forEach(el=>el.addEventListener('click',()=>goPage(el.dataset.page)));
@@ -9591,11 +9669,8 @@ async function api(url,opts={}){
 function fmtB(b){b=Number(b)||0;if(b<1024)return b+' B';if(b<1024**2)return (b/1024).toFixed(1)+' KB';if(b<1024**3)return (b/1024**2).toFixed(2)+' MB';return (b/1024**3).toFixed(2)+' GB'}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
-let __refreshBusy=false;
 async function refreshAll(){
-  if(__refreshBusy || document.hidden)return;
-  __refreshBusy=true;
-  try{
+  if(typeof loadCategories==='function') try{await loadCategories()}catch(e){}
   const links=await api('/api/links');
   if(!links)return;
   const arr=Array.isArray(links.links)?links.links:(Array.isArray(links)?links:[]);
@@ -10186,8 +10261,9 @@ async function deleteAdmin(id){
 
 
 async function loadProtocols(){
+  window.__protocolList=window.__protocolList||[];
   const r=await api('/api/protocols');
-  const list=(r&&r.protocols)||[];
+  const list=(r&&r.protocols)||[]; window.__protocolList=list;
   const def=(r&&r.default)||'vless-ws';
   __protocolPickerOptions=list;
   ['cProto','aProto'].forEach(id=>{
@@ -10272,7 +10348,7 @@ async function bulkMoveGroup(){
   const r=await api('/api/links/bulk-category',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,category_id:cid})});
   if(r){toast(lang==='fa'?'به گروه منتقل شد':'Moved');refreshAll()}
 }
-async function loadGroups(){
+async function loadCategories(){
   const r=await api('/api/categories');
   const list=(r&&r.categories)||[];
   window.__catMap={};
@@ -10282,31 +10358,115 @@ async function loadGroups(){
   const opts=list.map(g=>`<option value="${esc(g.id)}">${esc(g.name||g.id)}</option>`).join('');
   if(bulk) bulk.innerHTML=opts||'<option value="0">عمومی</option>';
   if(cGroup) cGroup.innerHTML=opts||'<option value="0">عمومی</option>';
-  const box=document.getElementById('groupsList');
-  if(box){
-    if(!list.length){box.innerHTML='<div style="color:var(--t3);text-align:center;padding:16px">—</div>';}
-    else{
-      box.innerHTML=list.map(g=>{
-        const cnt=(__allLinks||[]).filter(l=>String(l.category_id||'0')===String(g.id)).length;
-        return `<div style="border:1px solid var(--card-b);border-radius:12px;padding:12px;margin-bottom:8px;background:var(--bg3);display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
-          <div><b>${esc(g.name)}</b> <span style="font-size:11px;color:var(--t3)">${cnt} کانفیگ</span></div>
-          <button class="btn btn-sm btn-d" onclick="deleteGroup('${esc(g.id)}')">حذف</button>
-        </div>`;
-      }).join('');
-    }
-  }
 }
-async function createGroup(){
-  const name=document.getElementById('grpName').value.trim();
-  if(!name){toast('نام لازم است');return}
-  const r=await api('/api/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
-  if(r){toast('گروه ساخته شد');document.getElementById('grpName').value='';loadGroups()}
+
+let __subGroups=[];
+let __selectedSubId='';
+let __groupFilter='all';
+let __groupProtocols=[];
+
+function groupProtocolLabel(id){
+  const labels={'vless-ws':'ONEX WB','xhttp-packet-up':'ONEX Xhttp','xhttp-stream-up':'ONEX Gamig','xhttp-stream-one':'ONEX Stream','trojan':'Trojan','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria2','vless-grpc-reality':'VLESS gRPC Reality','wireguard':'WireGuard'};
+  return labels[id]||id;
 }
-async function deleteGroup(id){
-  if(!confirm('حذف گروه؟'))return;
-  const r=await api('/api/categories/'+id,{method:'DELETE'});
-  if(r){toast('حذف شد');loadGroups();refreshAll()}
+function groupProtocolIcon(id){
+  const map={'vless-ws':'/api/protocol-icon/vless-ws.png','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png'};
+  return map[id]||'';
 }
+function setGroupFilter(f,btn){__groupFilter=f;document.querySelectorAll('.group-filter').forEach(x=>x.classList.toggle('on',x===btn));renderGroupList()}
+function selectedSub(){return __subGroups.find(g=>String(g.sub_id)===String(__selectedSubId))||null}
+function groupIsActive(g){return Number(g.active_count||0)>0}
+async function loadGroups(){
+  const r=await api('/api/subs');
+  __subGroups=(r&&r.subs)||[];
+  const activeUsers=__subGroups.reduce((n,g)=>n+Number(g.active_count||0),0);
+  const total=document.getElementById('groupTotal'); if(total) total.textContent=__subGroups.length;
+  const au=document.getElementById('groupActiveUsers'); if(au) au.textContent=activeUsers;
+  const af=document.querySelector('.group-filter[data-filter="active"] em'); if(af) af.title=String(__subGroups.filter(groupIsActive).length);
+  const inf=document.querySelector('.group-filter[data-filter="inactive"] em'); if(inf) inf.title=String(__subGroups.filter(g=>!groupIsActive(g)).length);
+  if(!__selectedSubId || !selectedSub()) __selectedSubId=__subGroups[0]?.sub_id||'';
+  renderGroupList();
+  if(__selectedSubId) await loadGroupDetail(__selectedSubId);
+  else renderGroupDetail(null);
+}
+function renderGroupList(){
+  const box=document.getElementById('groupsList'); if(!box)return;
+  const q=(document.getElementById('groupSearch')?.value||'').trim().toLowerCase();
+  const list=__subGroups.filter(g=>{const active=groupIsActive(g); if(__groupFilter==='active'&&!active)return false; if(__groupFilter==='inactive'&&active)return false; return !q||String(g.name||'').toLowerCase().includes(q)||String(g.desc||'').toLowerCase().includes(q)});
+  if(!list.length){box.innerHTML='<div class="group-empty">گروهی مطابق جستجو پیدا نشد</div>';return}
+  box.innerHTML=list.map(g=>{
+    const on=groupIsActive(g), selected=String(g.sub_id)===String(__selectedSubId);
+    return `<article class="group-card ${selected?'selected':''}" onclick="selectGroup('${esc(g.sub_id)}')">
+      <div class="group-card-top"><div class="group-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 20c.5-3.1 2.4-4.7 5.5-4.7s5 1.6 5.5 4.7"/><path d="M14 15.8c2.8-.8 5 .5 6 3.2"/></svg></div><div class="group-card-main"><div class="group-card-title"><b>${esc(g.name||'گروه')}</b><span class="group-status ${on?'':'off'}">${on?'● فعال':'● غیرفعال'}</span></div><div class="group-card-desc">${esc(g.desc||'گروه اشتراک ONEX')}</div></div><div class="group-card-menu">•••</div></div>
+      <div class="group-card-meta"><span><strong>${Number(g.active_count||0)}</strong> کاربر فعال</span><span>•</span><span><strong>${Number(g.links_count||0)}</strong> کانفیگ</span><span>•</span><span>${g.has_password?'🔒 رمزدار':'عمومی'}</span></div>
+      <div class="group-card-actions"><button class="group-action primary" onclick="event.stopPropagation();copyText('${esc(g.sub_url||'')}')">🔗 لینک اشتراک</button><button class="group-action" onclick="event.stopPropagation();openGroupQr('${esc(g.sub_url||'')}','${esc(g.name||'')}')">▦ QR کد</button><button class="group-action icon" title="مدیریت" onclick="event.stopPropagation();selectGroup('${esc(g.sub_id)}')">♙</button><button class="group-action icon" title="باز کردن" onclick="event.stopPropagation();window.open('${esc(g.public_url||g.sub_url||'')}','_blank')">↗</button></div>
+    </article>`;
+  }).join('');
+}
+async function selectGroup(id){__selectedSubId=id;renderGroupList();await loadGroupDetail(id)}
+async function loadGroupDetail(id){
+  const g=__subGroups.find(x=>String(x.sub_id)===String(id)); if(!g){renderGroupDetail(null);return}
+  let links=window.__allLinks;
+  if(!Array.isArray(links)||!links.length){const r=await api('/api/links');links=(r&&r.links)||[];window.__allLinks=links}
+  if(!Array.isArray(window.__protocolList)||!window.__protocolList.length){try{await loadProtocols()}catch(e){}}
+  __groupProtocols=Array.isArray(g.protocols)?g.protocols.slice():((window.__protocolList||[]).map(x=>x.id));
+  renderGroupDetail(g,links||[]);
+}
+function renderGroupDetail(g,links){
+  const pane=document.getElementById('groupDetailPane'); if(!pane)return;
+  if(!g){pane.innerHTML='<div class="group-detail-empty"><div class="group-detail-empty-icon">◉</div><b>یک گروه را انتخاب کنید</b><span>برای مشاهده لینک اشتراک، پروتکل‌ها و کانفیگ‌های گروه</span></div>';return}
+  const protocols=(window.__protocolList&&window.__protocolList.length?window.__protocolList.map(x=>x.id):['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one','trojan','shadowsocks','socks5','http','hysteria2','vless-grpc-reality','wireguard']);
+  const current=new Set(__groupProtocols.length?__groupProtocols:protocols);
+  const memberIds=new Set((g.link_ids||[]).map(String));
+  const allLinks=Array.isArray(links)?links:[];
+  const protoRows=protocols.map(id=>{const checked=current.has(id),icon=groupProtocolIcon(id);return `<div class="group-proto-row"><div class="group-proto-icon">${icon?`<img src="${icon}" alt="">`:'◈'}</div><div class="group-proto-copy"><b>${esc(groupProtocolLabel(id))}</b><small>${checked?'پروتکل مجاز برای این گروه':'در این گروه نمایش داده نمی‌شود'}</small></div><span class="group-proto-tag">${id.startsWith('vless')||id.startsWith('xhttp')?'ONEX':'Native'}</span><label class="group-switch"><input type="checkbox" ${checked?'checked':''} onchange="toggleGroupProtocol('${esc(id)}',this.checked)"><span></span></label></div>`}).join('');
+  const configRows=allLinks.slice().sort((a,b)=>String(a.label||'').localeCompare(String(b.label||''))).map(l=>{const id=String(l.uuid||l.id||'');const checked=memberIds.has(id);return `<label class="group-config-row"><input type="checkbox" class="group-config-check" value="${esc(id)}" ${checked?'checked':''}><span>${esc(l.label||id)}</span><small>${esc(groupProtocolLabel(l.protocol||''))}</small></label>`}).join('');
+  pane.innerHTML=`<div class="group-detail">
+    <div class="group-detail-head"><div class="group-detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 20c.5-3.1 2.4-4.7 5.5-4.7s5 1.6 5.5 4.7"/><path d="M14 15.8c2.8-.8 5 .5 6 3.2"/></svg></div><div class="group-detail-title"><h2>${esc(g.name||'گروه')}</h2><p>${esc(g.desc||'گروه ویژه با بالاترین سرعت و پایداری')}</p></div><button class="group-three-dot" onclick="openGroupModal('${esc(g.sub_id)}')">•••</button></div>
+    <div class="group-info-card"><div class="group-section-head"><b>⚙ اطلاعات گروه</b><span>Group profile</span></div><div class="group-info-grid"><div class="group-info-item"><small>نام گروه</small><b>${esc(g.name||'—')}</b></div><div class="group-info-item"><small>وضعیت</small><b style="color:${groupIsActive(g)?'#34d399':'#fb7185'}">${groupIsActive(g)?'فعال':'غیرفعال'}</b></div><div class="group-info-item"><small>کاربران فعال</small><b>${Number(g.active_count||0)}</b></div><div class="group-info-item"><small>تعداد کانفیگ‌ها</small><b>${Number(g.links_count||0)}</b></div></div></div>
+    <div class="group-link-card"><div class="group-section-head"><b>◉ لینک اشتراک گروه</b><span>${g.has_password?'🔒 محافظت‌شده':'Public'}</span></div><div class="group-link-line"><div class="group-link-url">${esc(g.sub_url||'—')}</div><button class="group-copy-btn" onclick="copyText('${esc(g.sub_url||'')}')">کپی</button></div><div class="group-link-actions"><button onclick="openGroupQr('${esc(g.sub_url||'')}','${esc(g.name||'')}')">▦ QR کد</button><button onclick="window.open('${esc(g.public_url||g.sub_url||'')}','_blank')">↗ باز کردن لینک</button></div></div>
+    <div class="group-proto-card"><div class="group-section-head"><b>⚙ پروتکل‌های فعال</b><span>کنترل خروجی اشتراک</span></div><div class="group-proto-list">${protoRows}</div></div>
+    <div class="group-configs-card"><div class="group-section-head"><b>کانفیگ‌های گروه</b><span>${Number(g.links_count||0)} مورد</span></div><div class="group-config-list">${configRows||'<div class="group-empty" style="padding:18px">هنوز کانفیگی به این گروه اضافه نشده</div>'}</div><button class="group-config-save" onclick="saveGroupConfigs('${esc(g.sub_id)}')">ذخیره کانفیگ‌های گروه</button></div>
+    <div class="group-manage-card"><div class="group-section-head"><b>مدیریت گروه</b><span>Group actions</span></div><div class="group-manage-actions"><button onclick="openGroupModal('${esc(g.sub_id)}')">✎ ویرایش</button><button onclick="toggleGroupMembership('${esc(g.sub_id)}')">${groupIsActive(g)?'⏸ غیرفعال کردن':'▶ فعال کردن'}</button><button onclick="deleteSubGroup('${esc(g.sub_id)}')">♜ حذف</button></div></div>
+  </div>`;
+}
+async function saveGroupConfigs(subId){
+  const ids=[...document.querySelectorAll('.group-config-check:checked')].map(x=>x.value);
+  const r=await api('/api/subs/'+encodeURIComponent(subId)+'/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({link_ids:ids})});
+  if(r){toast(lang==='fa'?'کانفیگ‌های گروه ذخیره شد':'Group configs saved');await loadGroups();}
+}
+async function toggleGroupProtocol(id,state){
+  const g=selectedSub(); if(!g)return;
+  const current=new Set(Array.isArray(g.protocols)?g.protocols:(window.__protocolList||[]).map(x=>x.id));
+  if(state) current.add(id); else current.delete(id);
+  const protocols=[...current];
+  const r=await api('/api/subs/'+encodeURIComponent(g.sub_id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({protocols})});
+  if(r){g.protocols=protocols;__groupProtocols=protocols;toast(state?'پروتکل فعال شد':'پروتکل غیرفعال شد');renderGroupDetail(g,window.__allLinks||[])}
+}
+async function toggleGroupMembership(subId){
+  const g=__subGroups.find(x=>String(x.sub_id)===String(subId));if(!g)return;
+  const ids=(g.link_ids||[]).map(String);if(!ids.length){toast('برای فعال‌سازی حداقل یک کانفیگ اضافه کنید');return}
+  // Group activity is derived from allowed configs; this action opens the config list rather than fabricating a new backend state.
+  document.querySelector('.group-configs-card')?.scrollIntoView({behavior:'smooth',block:'center'});toast('وضعیت گروه از کانفیگ‌های فعال محاسبه می‌شود');
+}
+function openGroupModal(subId=''){
+  const modal=document.getElementById('groupModal');if(!modal)return;
+  modal.hidden=false;modal.classList.add('open');
+  const g=__subGroups.find(x=>String(x.sub_id)===String(subId));
+  document.getElementById('groupModalTitle').textContent=g?'ویرایش گروه':'ساخت گروه جدید';
+  document.getElementById('groupFormName').value=g?.name||'';document.getElementById('groupFormDesc').value=g?.desc||'';document.getElementById('groupFormPassword').value='';
+  modal.dataset.subId=g?.sub_id||'';
+}
+function closeGroupModal(){const m=document.getElementById('groupModal');if(m){m.hidden=true;m.classList.remove('open')}}
+async function saveGroupForm(){
+  const m=document.getElementById('groupModal');const name=document.getElementById('groupFormName').value.trim();if(!name){toast('نام گروه لازم است');return}
+  const subId=m?.dataset.subId||'';const body={name,desc:document.getElementById('groupFormDesc').value.trim()};const pw=document.getElementById('groupFormPassword').value.trim();if(pw)body.password=pw;
+  const r=await api(subId?'/api/subs/'+encodeURIComponent(subId):'/api/subs',{method:subId?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r){closeGroupModal();toast(subId?'گروه ویرایش شد':'گروه ساخته شد');await loadGroups()}
+}
+async function deleteSubGroup(id){if(!confirm('این گروه حذف شود؟ کانفیگ‌ها حذف نمی‌شوند و فقط از گروه خارج می‌شوند.'))return;const r=await api('/api/subs/'+encodeURIComponent(id),{method:'DELETE'});if(r){toast('گروه حذف شد');__selectedSubId='';await loadGroups()}}
+function openGroupQr(url,label){const m=document.getElementById('groupQrModal'),box=document.getElementById('groupQrBox'),txt=document.getElementById('groupQrText');if(!m||!box||!url)return;txt.textContent=url;document.getElementById('groupQrTitle').textContent=label||'لینک اشتراک';box.innerHTML='';try{if(typeof qrcode==='function'){const qr=qrcode(0,'M');qr.addData(url);qr.make();box.innerHTML=qr.createImgTag(6,8)}else{box.innerHTML='<div style="color:#111;font:12px sans-serif;padding:30px">QR آماده نشد</div>'}}catch(e){box.innerHTML='<div style="color:#111;font:12px sans-serif;padding:30px">خطا در تولید QR</div>'}m.hidden=false;m.classList.add('open')}
+function closeGroupQr(){const m=document.getElementById('groupQrModal');if(m){m.hidden=true;m.classList.remove('open')}}
 
 
 async function loadSecurity(){
@@ -10416,7 +10576,7 @@ function closeProtocolPicker(){const bg=document.getElementById('protocolPickerB
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupProtocolPickers);else setupProtocolPickers();setTimeout(setupProtocolPickers,300);setTimeout(setupProtocolPickers,1000);
 
-applyLang();loadMe();loadProtocols();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]});loadAdvancedCapabilities(document.getElementById('cProto')?.value||'vless-ws')},250);
+applyLang();loadMe();loadProtocols();loadCategories();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]});loadAdvancedCapabilities(document.getElementById('cProto')?.value||'vless-ws')},250);
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
 setTimeout(()=>checkPanelUpdate(true),2500);
 setInterval(()=>checkPanelUpdate(true),10*60*1000);
@@ -10425,16 +10585,7 @@ function bootProtocolPickers(){ try{ setupProtocolPickers(); }catch(e){ console.
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootProtocolPickers); else bootProtocolPickers();
 setTimeout(bootProtocolPickers,300);
 setTimeout(bootProtocolPickers,1000);
-let __panelRefreshTimer=null;
-let __groupRefreshTimer=null;
-function startLightPolling(){
-  if(__panelRefreshTimer)clearInterval(__panelRefreshTimer);
-  if(__groupRefreshTimer)clearInterval(__groupRefreshTimer);
-  __panelRefreshTimer=setInterval(()=>{if(!document.hidden)refreshAll()},4000);
-  __groupRefreshTimer=setInterval(()=>{if(!document.hidden && typeof loadGroups==='function')loadGroups()},20000);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshAll()},{passive:true});
-}
-startLightPolling();
+setInterval(refreshAll,1000);
 
 
 </script>

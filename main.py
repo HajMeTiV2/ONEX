@@ -2577,99 +2577,6 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
   .login-title{font-size:19px}.login-desc{font-size:10px;margin-bottom:13px}
   .field input{height:50px}.primary{height:51px}
 }
-/* ============================================================
-   ONEX RED ACCENT + MOBILE DRAWER FIX
-   Requested visual-only theme refinements:
-   - Advanced settings uses the same neon-red glass accent.
-   - Logout uses the same red glass treatment.
-   - Mobile drawer is narrower and stays below the mobile top bar,
-     so its logo never sits behind the hamburger button.
-   ============================================================ */
-.advanced-config-card{
-  border-color:rgba(255,55,101,.30) !important;
-}
-.advanced-config-card.open{
-  border-color:rgba(255,55,101,.48) !important;
-  box-shadow:0 16px 42px rgba(255,31,92,.10),inset 0 1px rgba(255,255,255,.055) !important;
-}
-.advanced-toggle{
-  background:linear-gradient(135deg,rgba(84,9,34,.72),rgba(28,7,24,.58)) !important;
-  border:1px solid rgba(255,55,101,.44) !important;
-  color:#fff !important;
-  box-shadow:inset 0 1px rgba(255,255,255,.07),inset 0 0 30px rgba(255,31,92,.055),0 8px 24px rgba(255,31,92,.07) !important;
-}
-.advanced-toggle:hover{
-  background:linear-gradient(135deg,rgba(106,11,42,.78),rgba(35,8,29,.64)) !important;
-  border-color:rgba(255,73,117,.72) !important;
-}
-.advanced-toggle-icon{
-  background:rgba(255,39,91,.12) !important;
-  border-color:rgba(255,65,111,.38) !important;
-  color:#ff5b7e !important;
-  box-shadow:0 0 20px rgba(255,35,91,.14) !important;
-}
-.advanced-toggle-copy b{color:#ff7895 !important}
-.advanced-toggle-state{
-  color:#ff7895 !important;
-  background:rgba(255,39,91,.10) !important;
-  border-color:rgba(255,65,111,.28) !important;
-}
-.advanced-chevron{color:#ff6687 !important}
-.advanced-config-card.open .advanced-toggle-icon{
-  box-shadow:0 0 24px rgba(255,35,91,.24) !important;
-}
-
-.sb-foot button.danger,
-.sb-foot a.danger{
-  background:linear-gradient(135deg,rgba(84,9,34,.68),rgba(28,7,24,.58)) !important;
-  border-color:rgba(255,55,101,.48) !important;
-  color:#ff6687 !important;
-  box-shadow:inset 0 1px rgba(255,255,255,.06),inset 0 0 24px rgba(255,31,92,.05),0 8px 24px rgba(255,31,92,.08) !important;
-}
-.sb-foot button.danger:hover,
-.sb-foot a.danger:hover{
-  background:linear-gradient(135deg,rgba(106,11,42,.76),rgba(35,8,29,.64)) !important;
-  border-color:rgba(255,73,117,.74) !important;
-  color:#ff8ca5 !important;
-}
-.sb-foot button.danger .logout-ico,
-.sb-foot a.danger .logout-ico{color:#ff4d76 !important}
-
-@media (max-width:700px){
-  /* Keep the mobile top bar above the drawer. */
-  .mob-bar{
-    z-index:1250 !important;
-  }
-  .mob-menu-btn{
-    position:relative;
-    z-index:1300 !important;
-  }
-  .sidebar{
-    top:58px !important;
-    width:min(68vw,290px) !important;
-    max-width:290px !important;
-    z-index:1200 !important;
-    border-top-left-radius:18px;
-    border-top-right-radius:0;
-  }
-  .sidebar.mobile-open{transform:translateX(0) !important}
-  .sidebar.collapsed{
-    width:min(68vw,290px) !important;
-  }
-  .sidebar .sb-logo{
-    padding:14px 12px !important;
-  }
-  .sidebar .sb-logo-icon{
-    width:48px !important;
-    height:48px !important;
-  }
-  .sidebar .nav{
-    padding-top:6px !important;
-  }
-  .overlay{
-    z-index:1100 !important;
-  }
-}
 </style>
 </head>
 <body>
@@ -9288,100 +9195,6 @@ html:not(.light) body:has(.page) .table-wrap{{
 
 
 /* ============================================================
-   ONEX FINAL VISUAL OVERRIDES — RED GLASS + MOBILE DRAWER
-   These rules intentionally live at the END of the dashboard style
-   block so later theme/component rules cannot overwrite them.
-   ============================================================ */
-html:not(.light) body:has(.page) .advanced-config-card{
-  background:linear-gradient(145deg,rgba(72,8,30,.72),rgba(8,10,22,.86)) !important;
-  border:1px solid rgba(255,45,96,.68) !important;
-  box-shadow:0 18px 55px rgba(0,0,0,.35),0 0 34px rgba(255,31,92,.13),inset 0 1px rgba(255,255,255,.075),inset 0 0 42px rgba(255,31,92,.055) !important;
-}
-html:not(.light) body:has(.page) .advanced-toggle{
-  background:linear-gradient(135deg,rgba(92,8,38,.90),rgba(35,6,27,.78)) !important;
-  border:1px solid rgba(255,53,104,.78) !important;
-  color:#fff !important;
-  box-shadow:0 8px 28px rgba(255,31,92,.16),inset 0 1px rgba(255,255,255,.08),inset 0 0 34px rgba(255,31,92,.10) !important;
-}
-html:not(.light) body:has(.page) .advanced-toggle:hover,
-html:not(.light) body:has(.page) .advanced-config-card.open .advanced-toggle{
-  background:linear-gradient(135deg,rgba(112,10,45,.96),rgba(42,7,31,.86)) !important;
-  border-color:rgba(255,76,121,.95) !important;
-  box-shadow:0 10px 34px rgba(255,31,92,.22),inset 0 1px rgba(255,255,255,.09),inset 0 0 38px rgba(255,31,92,.13) !important;
-}
-html:not(.light) body:has(.page) .advanced-toggle-icon{
-  background:linear-gradient(145deg,rgba(255,38,91,.24),rgba(255,38,91,.09)) !important;
-  border:1px solid rgba(255,80,120,.70) !important;
-  color:#ff6b8c !important;
-  box-shadow:0 0 24px rgba(255,35,91,.25),inset 0 0 16px rgba(255,35,91,.08) !important;
-}
-html:not(.light) body:has(.page) .advanced-toggle-copy b,
-html:not(.light) body:has(.page) .advanced-toggle-state,
-html:not(.light) body:has(.page) .advanced-chevron{
-  color:#ff6f91 !important;
-}
-html:not(.light) body:has(.page) .advanced-toggle-state{
-  background:rgba(255,39,91,.12) !important;
-  border-color:rgba(255,70,112,.38) !important;
-}
-html:not(.light) body:has(.page) .advanced-config-card.open .advanced-toggle-icon{
-  box-shadow:0 0 30px rgba(255,35,91,.38),inset 0 0 18px rgba(255,35,91,.11) !important;
-}
-
-/* Logout: compact red glass, not just a red icon. */
-html:not(.light) body:has(.page) .sidebar .sb-foot button.danger,
-html:not(.light) body:has(.page) .sidebar .sb-foot a.danger{
-  background:linear-gradient(135deg,rgba(88,8,36,.90),rgba(31,6,25,.82)) !important;
-  border:1px solid rgba(255,48,100,.72) !important;
-  color:#ff6f91 !important;
-  box-shadow:0 8px 28px rgba(255,31,92,.16),inset 0 1px rgba(255,255,255,.07),inset 0 0 28px rgba(255,31,92,.08) !important;
-}
-html:not(.light) body:has(.page) .sidebar .sb-foot button.danger:hover,
-html:not(.light) body:has(.page) .sidebar .sb-foot a.danger:hover{
-  background:linear-gradient(135deg,rgba(112,10,45,.96),rgba(40,7,31,.88)) !important;
-  border-color:rgba(255,82,126,.95) !important;
-  color:#ff9bb1 !important;
-}
-html:not(.light) body:has(.page) .sidebar .sb-foot .danger .logout-ico{
-  color:#ff4d76 !important;
-  stroke:#ff4d76 !important;
-  filter:drop-shadow(0 0 8px rgba(255,55,101,.45)) !important;
-}
-
-/* Mobile drawer: narrower, starts below the top bar, and cannot cover the hamburger/logo bar. */
-@media (max-width:768px){
-  html:not(.light) body:has(.page) .mob-bar{
-    top:0 !important;right:0;left:0;height:58px !important;z-index:5000 !important;
-  }
-  html:not(.light) body:has(.page) .mob-menu-btn{
-    position:relative !important;z-index:5100 !important;
-  }
-  html:not(.light) body:has(.page) .sidebar,
-  html:not(.light) body:has(.page) .sidebar.collapsed{
-    top:58px !important;
-    bottom:0 !important;
-    width:min(68vw,290px) !important;
-    max-width:290px !important;
-    min-width:0 !important;
-    z-index:4900 !important;
-    border-top-left-radius:18px !important;
-    transform:translateX(105%) !important;
-  }
-  html:not(.light) body:has(.page) .sidebar.mobile-open{
-    transform:translateX(0) !important;
-  }
-  html:not(.light) body:has(.page) .sidebar .sb-logo{
-    padding:14px 12px !important;
-  }
-  html:not(.light) body:has(.page) .sidebar .sb-logo-icon{
-    width:48px !important;height:48px !important;
-  }
-  html:not(.light) body:has(.page) .overlay{
-    z-index:4800 !important;
-  }
-}
-
-/* ============================================================
    ONEX ADMIN MANAGEMENT — COMPACT / RESPONSIVE
    ============================================================ */
 .admin-page{max-width:1120px;margin:0 auto;padding-bottom:24px}
@@ -9461,6 +9274,110 @@ html:not(.light) body:has(.page) .sidebar .sb-foot .danger .logout-ico{
   .admin-perm-groups{grid-template-columns:1fr}.admin-list-controls{grid-template-columns:1fr 92px}.admin-table-wrap{overflow-x:auto}.admin-op{width:32px;height:32px}.admin-create-card .form-row{grid-template-columns:1fr 1fr}.admin-create-card .field input,.admin-create-card .field select{font-size:10px}
 }
 
+
+
+/* ============================================================
+   ONEX RED ACTION PALETTE — FINAL
+   Keep the navy/blue glass surfaces, but make primary/action
+   controls red so the panel has a deliberate blue + red identity.
+   This block is intentionally last to prevent older blue rules
+   from overriding the action palette.
+   ============================================================ */
+:root{
+  --action-red:#ff315d;
+  --action-red-2:#d91f55;
+  --action-red-soft:rgba(255,49,93,.12);
+  --action-red-border:rgba(255,82,120,.62);
+  --action-red-glow:rgba(255,31,92,.24);
+}
+
+/* Primary/create/save/update buttons */
+html:not(.light) .btn-p,
+html:not(.light) .btn-primary,
+html:not(.light) .primary,
+html.light .btn-p,
+html.light .btn-primary,
+html.light .primary{
+  color:#fff !important;
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;
+  border:1px solid rgba(255,108,137,.72) !important;
+  box-shadow:0 8px 24px var(--action-red-glow),inset 0 1px rgba(255,255,255,.14) !important;
+}
+html:not(.light) .btn-p:hover,
+html:not(.light) .btn-primary:hover,
+html:not(.light) .primary:hover,
+html.light .btn-p:hover,
+html.light .btn-primary:hover,
+html.light .primary:hover{
+  filter:brightness(1.10) !important;
+  border-color:rgba(255,135,158,.88) !important;
+  box-shadow:0 11px 30px rgba(255,31,92,.30),inset 0 1px rgba(255,255,255,.18) !important;
+}
+
+/* Mobile hamburger */
+.mob-menu-btn{
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;
+  border-color:rgba(255,92,126,.78) !important;
+  color:#fff !important;
+  box-shadow:0 8px 24px rgba(255,31,92,.24),inset 0 1px rgba(255,255,255,.14) !important;
+}
+.mob-menu-btn:hover{filter:brightness(1.10) !important;box-shadow:0 10px 28px rgba(255,31,92,.30),inset 0 1px rgba(255,255,255,.18) !important}
+
+/* Active navigation item: blue glass stays around it, red is the action accent. */
+html:not(.light) .nav-item.on,
+html.light .nav-item.on{
+  background:linear-gradient(135deg,rgba(255,49,93,.16),rgba(255,49,93,.07)) !important;
+  color:#ff6d8d !important;
+  box-shadow:inset -3px 0 0 var(--action-red),inset 0 0 24px rgba(255,31,92,.07) !important;
+}
+html:not(.light) .nav-item.on .nav-ico,
+html.light .nav-item.on .nav-ico{color:#ff6d8d !important;filter:drop-shadow(0 3px 8px rgba(255,31,92,.46)) !important}
+
+/* Advanced settings is an action bar, so it uses the same red accent. */
+.advanced-toggle{
+  background:linear-gradient(120deg,rgba(92,12,34,.58),rgba(20,8,24,.42)) !important;
+  border:1px solid rgba(255,62,105,.42) !important;
+  color:#ff91a8 !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 24px rgba(255,31,92,.08) !important;
+}
+.advanced-toggle:hover{background:linear-gradient(120deg,rgba(116,15,43,.68),rgba(24,8,27,.50)) !important;border-color:rgba(255,92,126,.72) !important}
+.advanced-toggle-icon{background:rgba(255,49,93,.12) !important;border-color:rgba(255,82,120,.42) !important;color:#ff6d8d !important;box-shadow:0 0 20px rgba(255,31,92,.10) !important}
+.advanced-toggle-state{color:#ff91a8 !important;background:rgba(255,49,93,.10) !important;border-color:rgba(255,82,120,.28) !important}
+
+/* Protocol picker confirmation / other explicit action buttons */
+.protocol-picker-confirm{
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;
+  box-shadow:0 8px 22px rgba(255,31,92,.22) !important;
+}
+
+/* Any button explicitly using Tailwind blue background/gradient utilities.
+   We only recolor actual buttons; blue cards and decorative elements remain blue. */
+button[class*="bg-blue-"],
+button[class*="from-blue-"],
+button[class*="to-blue-"],
+a.btn[class*="bg-blue-"],
+a.btn[class*="from-blue-"]{
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;
+  border-color:rgba(255,92,126,.72) !important;
+  color:#fff !important;
+  box-shadow:0 8px 24px rgba(255,31,92,.22),inset 0 1px rgba(255,255,255,.12) !important;
+}
+
+/* Active range tab is a primary control too. */
+html:not(.light) .range-tab.on,
+html.light .range-tab.on{
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;
+  color:#fff !important;
+  border-color:rgba(255,92,126,.70) !important;
+  box-shadow:0 7px 20px rgba(255,31,92,.18) !important;
+}
+
+/* Delete-all keeps its existing stronger red treatment. */
+.delete-all-configs-glass,
+.delete-all-confirm{background:linear-gradient(135deg,#ff315d,#d91f55) !important;color:#fff !important}
+
+/* Light mode should retain the same blue + red visual language. */
+html.light .mob-menu-btn{color:#fff !important}
 </style>
 <section class="page" id="page-news">
   <div class="page-head">

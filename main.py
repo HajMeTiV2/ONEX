@@ -2190,7 +2190,14 @@ table th:first-child, table td:first-child{overflow:visible}
   #page-dash .version-mini-copy strong{font-size:9px!important}
 }
 </style>
-</head>
+<style>
+.glass-config{margin:18px 0;padding:14px;border:1px solid rgba(100,150,255,.28);border-radius:22px;background:linear-gradient(180deg,rgba(20,35,70,.55),rgba(5,15,35,.55));backdrop-filter:blur(14px)}
+.glass-grid{display:grid;gap:12px;margin-top:14px}
+.glass-item{border:1px solid rgba(130,170,255,.22);border-radius:18px;padding:14px;background:rgba(255,255,255,.04)}
+.glass-item summary{font-weight:700;font-size:17px;cursor:pointer}
+.adv-fields{display:grid;gap:10px;margin-top:14px}
+.adv-fields input,.adv-fields select{width:100%;padding:13px;border-radius:14px;border:1px solid rgba(120,160,255,.25);background:rgba(0,0,0,.18);color:inherit}
+</style></head>
 
 <body>
 
@@ -8333,20 +8340,33 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
         <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
       </div>
-      <details class="advanced-pro-config" style="margin:18px 0;padding:14px;border:1px solid rgba(100,150,255,.25);border-radius:18px;background:rgba(10,20,40,.35)">
-        <summary style="font-size:18px;font-weight:700;cursor:pointer">⚙️ تنظیمات حرفه‌ای کانفیگ</summary>
-        <div style="margin-top:14px;display:grid;gap:12px">
-          <details><summary>🌐 شبکه و اتصال</summary><p>Port، SNI، Host، Clean IP و تنظیمات اتصال</p></details>
-          <details><summary>🔐 TLS و امنیت</summary><p>Fingerprint، ALPN، TLS و تنظیمات امنیتی</p></details>
-          <details><summary>🚀 Transport</summary><p>WS، XHTTP، gRPC، Path، Service Name و Header</p></details>
-          <details><summary>⚡ Performance</summary><p>Fragment، MTU، Keep Alive و بهینه‌سازی اتصال</p></details>
-          <details><summary>👤 محدودیت کاربر</summary><p>حجم، سرعت، IP، اتصال همزمان و انقضا</p></details>
-          <details><summary>📦 خروجی کانفیگ</summary><p>Remark، تعداد ساخت، لینک اشتراک و QR</p></details>
-        </div>
-        <button type="button" class="btn btn-p" style="margin-top:12px" onclick="toast(lang==='fa'?'تنظیمات هوشمند آماده شد':'Smart settings ready')">✨ بهینه‌سازی هوشمند</button>
-      </details>
+      <div class="advanced-pro-config glass-config">
+        <details open><summary>⚙️ تنظیمات حرفه‌ای کانفیگ</summary>
+          <div class="glass-grid">
+            <details class="glass-item"><summary>🌐 شبکه و اتصال</summary>
+              <div class="adv-fields"><input id="advPort" placeholder="Port (443)"><input id="advSni" placeholder="SNI / Host"><input id="advCleanIp" placeholder="Clean IP"></div>
+            </details>
+            <details class="glass-item"><summary>🔐 TLS و امنیت</summary>
+              <div class="adv-fields"><select id="advFp"><option>Chrome</option><option>Firefox</option><option>Safari</option><option>Random</option></select><input id="advAlpn" placeholder="ALPN auto"><input id="advTls" placeholder="TLS Version"></div>
+            </details>
+            <details class="glass-item"><summary>🚀 Transport</summary>
+              <div class="adv-fields"><input id="advPath" placeholder="Path"><input id="advService" placeholder="Service Name"><input id="advHeader" placeholder="Header"></div>
+            </details>
+            <details class="glass-item"><summary>⚡ Performance</summary>
+              <div class="adv-fields"><input id="advFragment" placeholder="Fragment"><input id="advMtu" placeholder="MTU"><input id="advKeep" placeholder="Keep Alive"></div>
+            </details>
+            <details class="glass-item"><summary>👤 محدودیت کاربر</summary>
+              <div class="adv-fields"><input placeholder="حجم"><input placeholder="سرعت"><input placeholder="اتصال همزمان"></div>
+            </details>
+            <details class="glass-item"><summary>📦 خروجی کانفیگ</summary>
+              <div class="adv-fields"><input placeholder="Remark"><input placeholder="تعداد ساخت"><input placeholder="فرمت خروجی"></div>
+            </details>
+          </div>
+          <button type="button" class="btn btn-p" style="margin-top:12px" onclick="toast(lang==='fa'?'تنظیمات هوشمند آماده شد':'Smart settings ready')">✨ بهینه‌سازی هوشمند</button>
+        </details>
+      </div>
 
-      <button class="btn btn-p" style="width:100%" onclick="doManualCreate">
+      <button class="btn btn-p" style="width:100%" onclick="doManualCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
         <span data-i18n="btn_create">ساخت</span>
       </button>

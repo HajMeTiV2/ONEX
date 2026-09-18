@@ -8550,7 +8550,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand"><div class="mob-brand-icon"><img src="/api/onex-logo-3d.png" alt="ONEX" /></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
+  <div class="mob-brand"><div class="mob-brand-icon" aria-label="ONEX 3D logo"><div class="onex-mark"><i class="onex-ring ring-a"></i><i class="onex-ring ring-b"></i><i class="onex-core"></i><b class="onex-n">N</b><i class="onex-glint"></i></div></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -8560,7 +8560,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="sb-logo-icon" aria-label="ONEX 3D logo"><img src="/api/onex-logo-3d.png" alt="ONEX" /></div>
+    <div class="sb-logo-icon" aria-label="ONEX 3D logo"><div class="onex-mark"><i class="onex-ring ring-a"></i><i class="onex-ring ring-b"></i><i class="onex-core"></i><b class="onex-n">N</b><i class="onex-glint"></i></div></div>
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>
@@ -9571,6 +9571,33 @@ html:not(.light) .range-tab.on,html.light .range-tab.on{
   .sidebar .nav-item .nav-ico{width:20px !important;height:20px !important;min-width:20px !important}
   .sidebar .sb-foot{padding:10px !important}
 }
+
+/* ============================================================
+   ONEX TRUE CSS 3D BRAND MARK — NO RASTER IMAGE
+   Animated depth/orbits/glass lighting. Used in header + sidebar.
+   ============================================================ */
+.sb-logo-icon,.mob-brand-icon{perspective:900px!important;transform-style:preserve-3d!important;}
+.onex-mark{position:relative;width:82px;height:82px;display:block;transform-style:preserve-3d;perspective:900px;animation:onexMarkFloat 4.8s ease-in-out infinite;}
+.mob-brand-icon .onex-mark{width:50px;height:50px;}
+.onex-core{position:absolute;inset:10%;border-radius:27% 35% 28% 34%;background:linear-gradient(145deg,#0e9fff 0%,#1267ee 45%,#3036d9 72%,#7b22f2 100%);border:1px solid rgba(255,255,255,.42);box-shadow:inset 3px 4px 8px rgba(255,255,255,.25),inset -7px -9px 15px rgba(0,19,88,.45),0 13px 24px rgba(0,92,255,.34),0 0 28px rgba(0,207,255,.24);transform:translateZ(8px) rotateX(5deg) rotateY(-7deg);animation:onexCore 5.4s ease-in-out infinite;}
+.onex-core:before{content:"";position:absolute;inset:6%;border-radius:24% 31% 23% 29%;background:linear-gradient(135deg,rgba(255,255,255,.22),transparent 37%,rgba(0,0,0,.12));border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 0 16px rgba(130,225,255,.12);}
+.onex-n{position:absolute;inset:13%;display:grid;place-items:center;font:900 55px/1 Inter,system-ui,sans-serif;letter-spacing:-.10em;color:#e9fbff;text-shadow:2px 2px 0 #1264ce,4px 4px 0 #0b3d9a,7px 7px 0 rgba(4,24,78,.58),0 0 18px rgba(205,250,255,.72);transform:translateZ(30px) rotateX(2deg) rotateY(-7deg);animation:onexN 4.6s ease-in-out infinite;}
+.mob-brand-icon .onex-n{font-size:33px;}
+.onex-ring{position:absolute;left:50%;top:50%;width:104%;height:38%;border-radius:50%;border:2px solid rgba(51,220,255,.95);box-shadow:0 0 8px rgba(0,209,255,.75),0 0 18px rgba(0,110,255,.34),inset 0 0 5px rgba(255,255,255,.22);transform-style:preserve-3d;pointer-events:none;z-index:5;}
+.ring-a{transform:translate(-50%,-50%) rotateX(67deg) rotateZ(-17deg) translateZ(20px);animation:onexRingA 4.2s linear infinite;}
+.ring-b{width:88%;height:31%;border-color:rgba(244,63,255,.92);box-shadow:0 0 8px rgba(236,72,255,.72),0 0 18px rgba(168,85,247,.30);transform:translate(-50%,-50%) rotateY(65deg) rotateZ(25deg) translateZ(12px);animation:onexRingB 6.5s linear infinite reverse;}
+.onex-glint{position:absolute;width:30%;height:10%;left:12%;top:22%;border-radius:999px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);filter:blur(1px);opacity:.75;transform:translateZ(42px) rotate(-20deg);animation:onexGlint 3.4s ease-in-out infinite;z-index:8;}
+.onex-mark:after{content:"";position:absolute;left:14%;right:14%;bottom:2%;height:16%;border-radius:50%;background:radial-gradient(ellipse,rgba(0,170,255,.40),rgba(161,70,255,.16) 45%,transparent 75%);filter:blur(5px);transform:translateZ(-10px);animation:onexMarkShadow 4.8s ease-in-out infinite;}
+@keyframes onexMarkFloat{0%,100%{transform:translateY(0) rotateX(2deg) rotateY(-4deg) scale(1)}50%{transform:translateY(-3px) rotateX(-4deg) rotateY(6deg) scale(1.035)}}
+@keyframes onexCore{0%,100%{transform:translateZ(8px) rotateX(5deg) rotateY(-7deg)}50%{transform:translateZ(18px) rotateX(-4deg) rotateY(9deg)}}
+@keyframes onexN{0%,100%{transform:translateZ(30px) rotateX(2deg) rotateY(-7deg)}50%{transform:translateZ(40px) rotateX(-3deg) rotateY(8deg)}}
+@keyframes onexRingA{0%{transform:translate(-50%,-50%) rotateX(67deg) rotateZ(-17deg) translateZ(20px)}100%{transform:translate(-50%,-50%) rotateX(67deg) rotateZ(343deg) translateZ(20px)}}
+@keyframes onexRingB{0%{transform:translate(-50%,-50%) rotateY(65deg) rotateZ(25deg) translateZ(12px)}100%{transform:translate(-50%,-50%) rotateY(65deg) rotateZ(-335deg) translateZ(12px)}}
+@keyframes onexGlint{0%,100%{transform:translate3d(-5px,0,42px) rotate(-20deg);opacity:.25}45%{transform:translate3d(26px,13px,52px) rotate(-20deg);opacity:.9}70%{opacity:.2}}
+@keyframes onexMarkShadow{0%,100%{transform:translateZ(-10px) scale(.88);opacity:.25}50%{transform:translateZ(-10px) scale(1.12);opacity:.55}}
+@media(max-width:700px){.onex-mark{width:76px;height:76px}.mob-brand-icon .onex-mark{width:48px;height:48px}.mob-brand-icon .onex-n{font-size:31px}.onex-ring{border-width:1.5px}}
+@media(prefers-reduced-motion:reduce){.onex-mark,.onex-core,.onex-n,.onex-ring,.onex-glint,.onex-mark:after{animation:none!important}}
+
 </style>
 <section class="page" id="page-news">
   <div class="page-head">

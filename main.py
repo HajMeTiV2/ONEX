@@ -2320,31 +2320,46 @@ table th:first-child, table td:first-child{overflow:visible}
 
 
 <style>
-/* ONEX animated 3D logo — approved brand mark */
+/* ONEX animated 3D logo — approved high-detail brand mark */
 .sb-logo-icon,
 .mob-brand-icon{
   position:relative!important;
   overflow:visible!important;
-  background:linear-gradient(145deg,rgba(8,24,58,.72),rgba(6,12,30,.48))!important;
-  border:1px solid rgba(91,190,255,.28)!important;
-  box-shadow:0 12px 30px rgba(0,96,255,.28),inset 0 1px rgba(255,255,255,.22),0 0 24px rgba(32,200,255,.12)!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
   transform-style:preserve-3d!important;
-  perspective:700px!important;
+  perspective:900px!important;
+  isolation:isolate!important;
 }
 .sb-logo-icon:before,
 .mob-brand-icon:before{
   content:""!important;
   position:absolute!important;
-  inset:-7px!important;
-  border-radius:inherit!important;
-  background:conic-gradient(from 0deg,rgba(32,200,255,0),rgba(32,200,255,.45),rgba(168,85,247,.45),rgba(32,200,255,0))!important;
-  filter:blur(9px)!important;
+  inset:-18%!important;
+  border-radius:50%!important;
+  background:conic-gradient(from 0deg,rgba(0,210,255,0),rgba(0,210,255,.22),rgba(168,85,247,.24),rgba(255,45,140,.18),rgba(0,210,255,0))!important;
+  filter:blur(14px)!important;
   opacity:.55!important;
-  z-index:-2!important;
-  animation:onexAura 4.5s linear infinite!important;
+  z-index:-1!important;
+  animation:onexAura 5.5s linear infinite!important;
+  pointer-events:none!important;
 }
 .sb-logo-icon:after,
-.mob-brand-icon:after{content:none!important;display:none!important}
+.mob-brand-icon:after{
+  content:""!important;
+  position:absolute!important;
+  left:10%!important;
+  right:10%!important;
+  bottom:-3%!important;
+  height:16%!important;
+  border-radius:50%!important;
+  background:radial-gradient(ellipse,rgba(0,140,255,.34),rgba(168,85,247,.12) 45%,transparent 72%)!important;
+  filter:blur(7px)!important;
+  z-index:-1!important;
+  animation:onexShadow 4.8s ease-in-out infinite!important;
+  pointer-events:none!important;
+}
 .sb-logo-icon img,
 .mob-brand-icon img{
   position:relative!important;
@@ -2354,23 +2369,24 @@ table th:first-child, table td:first-child{overflow:visible}
   object-fit:contain!important;
   object-position:center!important;
   display:block!important;
-  border-radius:inherit!important;
+  border-radius:0!important;
   background:transparent!important;
-  filter:drop-shadow(0 9px 12px rgba(0,70,255,.32)) drop-shadow(0 0 13px rgba(0,200,255,.20))!important;
+  filter:drop-shadow(0 10px 13px rgba(0,65,255,.28)) drop-shadow(0 0 15px rgba(0,210,255,.18))!important;
   transform-style:preserve-3d!important;
   transform-origin:center center!important;
-  animation:onexLogo3D 4.8s ease-in-out infinite!important;
+  animation:onexLogo3D 5.8s cubic-bezier(.45,.05,.55,.95) infinite!important;
   will-change:transform,filter!important;
 }
-.sb-logo-icon:after{content:none!important}
 @keyframes onexLogo3D{
-  0%,100%{transform:perspective(700px) rotateX(3deg) rotateY(-8deg) translate3d(0,0,0) scale(1);filter:drop-shadow(0 9px 12px rgba(0,70,255,.32)) drop-shadow(0 0 13px rgba(0,200,255,.20));}
-  25%{transform:perspective(700px) rotateX(-2deg) rotateY(8deg) translate3d(1px,-3px,14px) scale(1.025);filter:drop-shadow(-5px 11px 13px rgba(0,70,255,.38)) drop-shadow(0 0 20px rgba(0,210,255,.32));}
-  50%{transform:perspective(700px) rotateX(5deg) rotateY(12deg) translate3d(0,-5px,20px) scale(1.04);filter:drop-shadow(-7px 13px 15px rgba(0,70,255,.42)) drop-shadow(0 0 24px rgba(168,85,247,.28));}
-  75%{transform:perspective(700px) rotateX(-3deg) rotateY(-9deg) translate3d(-1px,-2px,10px) scale(1.02);filter:drop-shadow(5px 10px 13px rgba(0,70,255,.36)) drop-shadow(0 0 18px rgba(0,210,255,.28));}
+  0%,100%{transform:perspective(900px) rotateX(2deg) rotateY(-10deg) rotateZ(-1deg) translate3d(0,0,0) scale(1);filter:drop-shadow(0 10px 13px rgba(0,65,255,.28)) drop-shadow(0 0 15px rgba(0,210,255,.18));}
+  20%{transform:perspective(900px) rotateX(-4deg) rotateY(7deg) rotateZ(1deg) translate3d(1px,-2px,8px) scale(1.025);filter:drop-shadow(-4px 12px 15px rgba(0,65,255,.34)) drop-shadow(0 0 20px rgba(0,210,255,.30));}
+  40%{transform:perspective(900px) rotateX(5deg) rotateY(13deg) rotateZ(0deg) translate3d(0,-5px,18px) scale(1.055);filter:drop-shadow(-7px 15px 18px rgba(0,65,255,.38)) drop-shadow(0 0 25px rgba(168,85,247,.28));}
+  60%{transform:perspective(900px) rotateX(-3deg) rotateY(-5deg) rotateZ(-1deg) translate3d(-1px,-3px,12px) scale(1.035);filter:drop-shadow(5px 13px 16px rgba(0,65,255,.34)) drop-shadow(0 0 21px rgba(255,45,140,.22));}
+  80%{transform:perspective(900px) rotateX(3deg) rotateY(-13deg) rotateZ(1deg) translate3d(0,-1px,6px) scale(1.018);filter:drop-shadow(7px 11px 14px rgba(0,65,255,.32)) drop-shadow(0 0 19px rgba(0,210,255,.28));}
 }
-@keyframes onexAura{0%{transform:rotate(0deg) scale(.92);opacity:.35}50%{transform:rotate(180deg) scale(1.08);opacity:.68}100%{transform:rotate(360deg) scale(.92);opacity:.35}}
-@media (prefers-reduced-motion:reduce){.sb-logo-icon:before,.mob-brand-icon:before,.sb-logo-icon img,.mob-brand-icon img{animation:none!important}}
+@keyframes onexAura{0%{transform:rotate(0deg) scale(.88);opacity:.30}50%{transform:rotate(180deg) scale(1.12);opacity:.68}100%{transform:rotate(360deg) scale(.88);opacity:.30}}
+@keyframes onexShadow{0%,100%{transform:scale(.88);opacity:.28}50%{transform:scale(1.12);opacity:.52}}
+@media (prefers-reduced-motion:reduce){.sb-logo-icon:before,.sb-logo-icon:after,.mob-brand-icon:before,.mob-brand-icon:after,.sb-logo-icon img,.mob-brand-icon img{animation:none!important}}
 </style>
 
 </head>
@@ -9326,15 +9342,13 @@ html:not(.light) body:has(.page) .table-wrap{{
    like a broken rectangular image on light/dark themes.
    ============================================================ */
 .sb-logo{padding:14px 12px!important;min-height:88px;}
-.sb-logo-icon{position:relative!important;width:92px!important;height:66px!important;border-radius:22px!important;display:grid!important;place-items:center!important;flex:0 0 auto!important;overflow:hidden!important;background:linear-gradient(145deg,rgba(3,24,58,.96),rgba(5,42,91,.92) 48%,rgba(28,16,73,.94))!important;border:1px solid rgba(74,180,255,.55)!important;box-shadow:inset 0 1px rgba(255,255,255,.16),inset 0 -10px 22px rgba(0,0,0,.22),0 10px 28px rgba(0,102,255,.28),0 0 28px rgba(40,170,255,.18)!important;transform:none!important;isolation:isolate!important;}
-.sb-logo-icon:before,.sb-logo-icon:after{display:none!important;content:none!important;}
-.sb-logo-icon img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;border-radius:18px!important;filter:drop-shadow(0 6px 10px rgba(0,120,255,.30))!important;}
+.sb-logo-icon{position:relative!important;width:92px!important;height:66px!important;border-radius:22px!important;display:grid!important;place-items:center!important;flex:0 0 auto!important;overflow:visible!important;background:transparent!important;border:0!important;box-shadow:none!important;transform-style:preserve-3d!important;isolation:isolate!important;}
+.sb-logo-icon img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;border-radius:0!important;}
 .sidebar.collapsed .sb-logo{padding:12px 8px!important;min-height:84px;}
 .sidebar.collapsed .sb-logo-icon{width:72px!important;height:54px!important;margin:0 auto!important;border-radius:19px!important;}
 .mob-brand{display:flex!important;align-items:center!important;gap:9px!important;}
-.mob-brand-icon{position:relative!important;width:58px!important;height:44px!important;display:grid!important;place-items:center!important;flex:0 0 auto!important;border-radius:15px!important;overflow:hidden!important;background:linear-gradient(145deg,rgba(3,24,58,.97),rgba(8,47,98,.94) 50%,rgba(29,17,74,.96))!important;border:1px solid rgba(74,180,255,.52)!important;box-shadow:inset 0 1px rgba(255,255,255,.14),0 7px 18px rgba(0,102,255,.24),0 0 20px rgba(40,170,255,.14)!important;}
-.mob-brand-icon:before,.mob-brand-icon:after{display:none!important;content:none!important;}
-.mob-brand-icon img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;border-radius:12px!important;filter:drop-shadow(0 4px 8px rgba(0,120,255,.26))!important;}
+.mob-brand-icon{position:relative!important;width:58px!important;height:44px!important;display:grid!important;place-items:center!important;flex:0 0 auto!important;border-radius:15px!important;overflow:visible!important;background:transparent!important;border:0!important;box-shadow:none!important;transform-style:preserve-3d!important;isolation:isolate!important;}
+.mob-brand-icon img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;border-radius:0!important;}
 @media(max-width:700px){
   .sb-logo{min-height:82px!important;padding:12px 10px!important;}
   .sb-logo-icon{width:88px!important;height:64px!important;border-radius:21px!important;}

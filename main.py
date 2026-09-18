@@ -95,7 +95,6 @@ TG_FILE = DATA_DIR / "telegram_settings.json"
 # Protocol artwork shipped with the panel UI. These are local static assets
 # so the protocol picker does not depend on an external image host.
 PROTOCOL_ICON_DIR = Path(__file__).resolve().parent / "protocol_icons"
-ONEX_LOGO_PATH = Path(__file__).resolve().parent / "onex_logo_3d.png"
 PROTOCOL_ICON_FILES = {
     "vless-ws": PROTOCOL_ICON_DIR / "nova-link.png",
     "xhttp-packet-up": PROTOCOL_ICON_DIR / "xpacket-nova.png",
@@ -139,14 +138,6 @@ async def protocol_icon(protocol_id: str):
     if not path or not path.is_file():
         raise HTTPException(status_code=404, detail="Protocol icon not found")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
-
-
-@app.get("/api/onex-logo-3d.png", include_in_schema=False)
-async def onex_logo_3d():
-    """Serve the bundled ONEX 3D logo used by the dashboard header and drawer."""
-    if not ONEX_LOGO_PATH.is_file():
-        raise HTTPException(status_code=404, detail="ONEX logo not found")
-    return FileResponse(ONEX_LOGO_PATH, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 app.add_middleware(
     CORSMiddleware,
@@ -3416,7 +3407,7 @@ async def link_info_api(
 
 
 @app.post("/api/links/reorder")
-async def reorder_links(request: Request, _=Depends(require_perm("configs"))):
+async def reorder_links(request: Request, _=Depends(require_auth)):
     try:
         body = await request.json()
     except Exception:
@@ -3435,32 +3426,8 @@ async def reorder_links(request: Request, _=Depends(require_perm("configs"))):
     return {"ok": True, "count": n}
 
 
-@app.post("/api/links/delete-all")
-async def delete_all_links(_=Depends(require_perm("configs"))):
-    """Delete every config in one atomic state update.
-
-    This is intentionally separate from the selected/bulk delete endpoint so
-    the dashboard can require an explicit confirmation before invoking it.
-    Subscription groups are kept, but their link references are cleared.
-    """
-    async with LINKS_LOCK:
-        deleted_count = len(LINKS)
-        if not deleted_count:
-            return {"ok": True, "deleted": 0}
-        LINKS.clear()
-
-    async with SUBS_LOCK:
-        for sub in SUBS.values():
-            if isinstance(sub, dict):
-                sub["link_ids"] = []
-
-    await save_state()
-    log_activity("link", f"حذف همه کانفیگ‌ها — {deleted_count} مورد", "warn")
-    return {"ok": True, "deleted": deleted_count}
-
-
 @app.post("/api/links/bulk-delete")
-async def bulk_delete_links(request: Request, _=Depends(require_perm("configs"))):
+async def bulk_delete_links(request: Request, _=Depends(require_auth)):
     try:
         body = await request.json()
     except Exception:
@@ -3479,7 +3446,7 @@ async def bulk_delete_links(request: Request, _=Depends(require_perm("configs"))
 
 
 @app.post("/api/links/bulk-category")
-async def bulk_category(request: Request, _=Depends(require_perm("configs"))):
+async def bulk_category(request: Request, _=Depends(require_auth)):
     try:
         body = await request.json()
     except Exception:
@@ -3963,7 +3930,7 @@ async def link_action(
 @app.delete("/api/links/{uid}")
 async def delete_link(
     uid: str,
-    _=Depends(require_perm("configs")),
+    _=Depends(require_auth),
 ):
 
     label = await remove_link(uid)
@@ -7305,15 +7272,13 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .sb-toggle svg{width:14px;height:14px;transition:transform .28s}
 .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
 .sb-logo{display:flex;align-items:center;justify-content:center;padding:18px 14px;border-bottom:1px solid var(--card-b)}
-.sb-logo-icon{position:relative;width:70px;height:70px;border-radius:20px;display:grid;place-items:center;flex-shrink:0;isolation:isolate;transform-style:preserve-3d;animation:onexLogoFloat 3.2s ease-in-out infinite;filter:drop-shadow(0 12px 24px rgba(37,99,235,.30))}
-.sb-logo-icon:before{content:'';position:absolute;inset:-7px;border:1px solid rgba(59,180,255,.35);border-radius:50%;transform:rotateX(68deg) rotateZ(-12deg);box-shadow:0 0 16px rgba(0,174,255,.22);animation:onexLogoOrbit 4.8s linear infinite;pointer-events:none}
-.sb-logo-icon:after{content:'';position:absolute;inset:4px;border-radius:18px;background:radial-gradient(circle,rgba(32,200,255,.12),transparent 68%);animation:onexLogoGlow 2.8s ease-in-out infinite;pointer-events:none}
-.sb-logo-icon img{width:100%;height:100%;object-fit:contain;display:block;position:relative;z-index:2}
+.sb-logo-icon{position:relative;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;font-size:0;font-weight:900;color:#fff;isolation:isolate;transform:perspective(260px) rotateX(7deg) rotateY(-8deg);background:linear-gradient(145deg,#0ea5e9 0%,#2563eb 48%,#7c3aed 100%);border:1px solid rgba(255,255,255,.22);box-shadow:0 16px 30px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.32);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.sb-logo-icon:before{content:'';position:absolute;inset:5px;border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.03) 45%,rgba(0,0,0,.18));border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 -8px 16px rgba(0,0,0,.14),0 0 22px rgba(32,200,255,.18);z-index:-1}
+.sb-logo-icon:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 25px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.38);transform:translateZ(18px);animation:onexLogoGlow 2.8s ease-in-out infinite}
 .sb-logo-text,.sb-logo-name,.sb-logo-ver{display:none!important}
 .sidebar.collapsed .sb-logo{justify-content:center;padding:14px 8px}
 .sidebar.collapsed .sb-logo-icon{margin:0 auto}
 @keyframes onexLogoFloat{0%,100%{transform:perspective(260px) rotateX(7deg) rotateY(-8deg) translateY(0)}50%{transform:perspective(260px) rotateX(10deg) rotateY(-13deg) translateY(-4px)}}
-@keyframes onexLogoOrbit{from{transform:rotateX(68deg) rotateZ(0deg)}to{transform:rotateX(68deg) rotateZ(360deg)}}
 @keyframes onexLogoGlow{0%,100%{filter:brightness(1);text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.38)}50%{filter:brightness(1.18);text-shadow:4px 4px 0 rgba(29,78,216,.95),7px 7px 0 rgba(30,41,59,.5),0 0 26px rgba(32,200,255,.75)}}
 .sidebar.collapsed .sb-logo-text,
 .sidebar.collapsed .nav-label,
@@ -7365,31 +7330,6 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .btn-p{background:linear-gradient(135deg,#3b82f6,#6366f1);border:none;color:#fff;box-shadow:0 6px 20px rgba(59,130,246,.35)}
 .btn-p:hover{filter:brightness(1.08);color:#fff}
 .btn-d{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.25);color:var(--red)}
-.btn-danger-all{
-  background:linear-gradient(135deg,#ef4444,#dc2626);
-  border-color:rgba(255,255,255,.18);
-  color:#fff;
-  box-shadow:0 8px 24px rgba(239,68,68,.24), inset 0 1px rgba(255,255,255,.22);
-  font-weight:800;
-}
-.btn-danger-all:hover{
-  transform:translateY(-1px);
-  box-shadow:0 11px 28px rgba(239,68,68,.34), inset 0 1px rgba(255,255,255,.25);
-}
-.btn-danger-all:active{transform:translateY(0) scale(.98)}
-.btn-danger-all:disabled{opacity:.65;cursor:not-allowed;transform:none;box-shadow:none}
-.delete-all-icon{
-  width:48px;height:48px;border-radius:16px;display:flex;align-items:center;justify-content:center;
-  margin:0 auto 14px;background:rgba(239,68,68,.10);color:#ef4444;
-  border:1px solid rgba(239,68,68,.18);box-shadow:0 8px 22px rgba(239,68,68,.12);
-}
-.delete-all-title{text-align:center;font-size:18px;font-weight:900;margin-bottom:8px}
-.delete-all-text{text-align:center;color:var(--t2);font-size:13px;line-height:1.9}
-.delete-all-count{color:#ef4444;font-weight:900}
-.delete-all-actions{display:flex;gap:10px;margin-top:20px}
-.delete-all-actions .btn{flex:1;min-height:42px}
-.delete-all-cancel{justify-content:center}
-.delete-all-confirm{background:linear-gradient(135deg,#ef4444,#dc2626)!important;color:#fff!important;border-color:transparent!important;font-weight:800;box-shadow:0 8px 22px rgba(239,68,68,.25)}
 .btn-sm{padding:7px 11px;font-size:11px;border-radius:9px}
 .btn svg{width:15px;height:15px}
 
@@ -7460,10 +7400,9 @@ tr:hover td{background:var(--hover)}
    ONEX DASHBOARD REDESIGN
    ========================================================= */
 .mob-brand{display:flex;align-items:center;gap:9px}
-.mob-brand-mark{position:relative;width:48px;height:48px;border-radius:15px;display:grid;place-items:center;flex:0 0 48px;isolation:isolate;transform-style:preserve-3d;animation:onexLogoFloat 3.2s ease-in-out infinite;filter:drop-shadow(0 7px 15px rgba(37,99,235,.30))}
-.mob-brand-mark:before{content:'';position:absolute;inset:-5px;border:1px solid rgba(59,180,255,.42);border-radius:50%;transform:rotateX(68deg) rotateZ(-15deg);animation:onexLogoOrbit 4.8s linear infinite;pointer-events:none}
-.mob-brand-mark:after{content:'';position:absolute;inset:2px;border-radius:14px;background:radial-gradient(circle,rgba(32,200,255,.12),transparent 70%);animation:onexLogoGlow 2.8s ease-in-out infinite;pointer-events:none}
-.mob-brand-mark img{width:100%;height:100%;object-fit:contain;display:block;position:relative;z-index:2}
+.mob-brand-mark{position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:0;font-weight:900;isolation:isolate;background:linear-gradient(145deg,#0ea5e9,#2563eb 52%,#7c3aed);border:1px solid rgba(255,255,255,.22);box-shadow:0 10px 24px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.28);transform:perspective(220px) rotateX(7deg) rotateY(-8deg);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.mob-brand-mark:before{content:'';position:absolute;inset:4px;border-radius:9px;background:linear-gradient(145deg,rgba(255,255,255,.25),rgba(255,255,255,.03) 50%,rgba(0,0,0,.18));z-index:-1}
+.mob-brand-mark:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 18px/1 Inter,system-ui,sans-serif;color:#fff;text-shadow:2px 2px 0 rgba(29,78,216,.95),4px 4px 0 rgba(30,41,59,.5),0 0 13px rgba(255,255,255,.35);transform:translateZ(12px)}
 .onex-topbar{height:66px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;padding:10px 14px 10px 16px;border:1px solid rgba(96,165,250,.14);border-radius:20px;background:linear-gradient(180deg,rgba(17,24,39,.82),rgba(8,12,23,.72));backdrop-filter:blur(18px);box-shadow:0 12px 35px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.04)}
 /* ONEX floating glass control dock */
 .onex-control-dock{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:-4px 0 18px;padding:9px;border:1px solid rgba(148,163,184,.16);border-radius:22px;background:linear-gradient(135deg,rgba(15,23,42,.72),rgba(9,13,25,.58));backdrop-filter:blur(22px) saturate(135%);-webkit-backdrop-filter:blur(22px) saturate(135%);box-shadow:0 18px 45px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.07)}
@@ -7633,21 +7572,24 @@ tr:hover td{background:var(--hover)}
     background:var(--bg3);color:var(--t1);display:flex;align-items:center;justify-content:center;cursor:pointer}
   .mob-menu-btn svg{width:22px;height:22px}
   .mob-brand{display:flex;align-items:center;gap:9px;margin-right:auto;margin-left:auto;min-width:0}
-  .mob-brand-icon{width:44px;height:44px;flex:0 0 44px}
+  .mob-brand-icon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:0 0 36px;
+    background:linear-gradient(145deg,#0ea5e9,#2563eb 50%,#7c3aed);font:900 18px Inter,sans-serif;color:#fff;
+    box-shadow:0 7px 20px rgba(37,99,235,.35)}
   .mob-brand-text{min-width:0;line-height:1.05}
   .mob-brand-text b{display:block;font:700 12px Inter,sans-serif;white-space:nowrap}
   .mob-brand-text span{display:block;font-size:8px;color:var(--t3);margin-top:3px;white-space:nowrap}
   .mob-status{display:flex;align-items:center;gap:5px;font-size:8px;color:var(--t2);white-space:nowrap}
   .mob-status i{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 9px #22c55e}
 
-  .sidebar{position:fixed;top:0;right:0;bottom:0;width:min(78vw,280px)!important;
-    max-width:280px;transform:translateX(105%);transition:transform .25s ease;width:min(78vw,280px);
+  .sidebar{position:fixed;top:0;right:0;bottom:0;width:min(84vw,320px)!important;
+    max-width:320px;transform:translateX(105%);transition:transform .25s ease;width:min(84vw,320px);
     z-index:1200;box-shadow:-18px 0 50px rgba(0,0,0,.55);overflow-y:auto}
   .sidebar.mobile-open{transform:translateX(0)}
-  .sidebar.collapsed{width:min(78vw,280px)!important}
+  .sidebar.collapsed{width:min(84vw,320px)!important}
   .sidebar .sb-toggle{display:none}
   .sidebar .sb-logo{padding:18px 14px}
-  .sidebar .sb-logo-icon{width:64px;height:64px;border-radius:18px}
+  .sidebar .sb-logo-icon{width:54px;height:54px;border-radius:16px}
+  .sidebar .sb-logo-icon:after{font-size:25px}
   .sidebar .nav-item{font-size:13px;padding:11px 16px;margin:2px 10px;width:calc(100% - 20px);gap:11px;border-radius:12px}
   .sidebar .nav-item svg{width:18px;height:18px;min-width:18px}
   .sidebar .nav-sec{padding:14px 18px 6px;font-size:9px}
@@ -7713,7 +7655,7 @@ tr:hover td{background:var(--hover)}
   body{padding-top:56px}
   .mob-bar{height:56px;padding:0 9px}
   .mob-menu-btn{width:40px;height:40px}
-  .mob-brand-icon{width:40px;height:40px;flex-basis:40px}
+  .mob-brand-icon{width:32px;height:32px;flex-basis:32px;font-size:16px}
   .mob-brand-text b{font-size:11px}.mob-brand-text span{font-size:7px}
   .mob-status{font-size:7px}
   .main,.main.expanded{padding:10px 9px 34px}
@@ -8155,17 +8097,6 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 
 .all-proto-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 14px;padding:12px 14px;border:1px solid rgba(34,197,94,.22);border-radius:14px;background:rgba(34,197,94,.035);cursor:pointer;user-select:none}
 .all-proto-toggle span{display:block;min-width:0}.all-proto-toggle b{display:block;font-size:12px}.all-proto-toggle small{display:block;color:var(--t3);font-size:10px;margin-top:4px;line-height:1.6}.all-proto-toggle input{position:absolute;opacity:0;pointer-events:none}.all-proto-toggle i{position:relative;flex:0 0 48px;width:48px;height:28px;border-radius:999px;background:#4b5563;transition:.2s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.all-proto-toggle i:before{content:"";position:absolute;top:4px;right:24px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:.2s}.all-proto-toggle:has(input:checked) i{background:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.28)}.all-proto-toggle:has(input:checked) i:before{right:4px}.all-proto-toggle:focus-within{outline:2px solid rgba(34,197,94,.35);outline-offset:2px}
-/* ---------- FINAL ONEX HEADER / DRAWER POLISH ---------- */
-@keyframes onexLogoOrbit{from{transform:rotateX(68deg) rotateZ(0deg)}to{transform:rotateX(68deg) rotateZ(360deg)}}
-@media (max-width:768px){
-  .mob-bar{z-index:1400;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important;box-shadow:0 6px 20px rgba(0,0,0,.22)!important}
-  .mob-brand{position:relative;z-index:1402}
-  .mob-menu-btn,.mob-status{position:relative;z-index:1402}
-  .sidebar{z-index:1500!important;box-shadow:-12px 0 28px rgba(0,0,0,.38)!important;backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
-  .overlay{z-index:1450!important;background:rgba(0,0,0,.42)!important}
-  .sidebar .sb-logo-icon{width:64px;height:64px}
-}
-@media (prefers-reduced-motion:reduce){.sb-logo-icon,.sb-logo-icon:before,.sb-logo-icon:after,.mob-brand-mark,.mob-brand-mark:before,.mob-brand-mark:after{animation:none!important}}
 </style>
 </head>
 <body>
@@ -8174,7 +8105,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand"><div class="mob-brand-icon mob-brand-mark"><img src="/api/onex-logo-3d.png" alt="ONEX" width="44" height="44"></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
+  <div class="mob-brand"><div class="mob-brand-icon">N</div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -8184,7 +8115,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="sb-logo-icon" aria-label="ONEX 3D logo"><img src="/api/onex-logo-3d.png" alt="ONEX" width="70" height="70"></div>
+    <div class="sb-logo-icon" aria-label="ONEX 3D logo">N</div>
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>
@@ -8350,10 +8281,6 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <input id="cfgSearch" placeholder="جستجو..." oninput="filterConfigs()" style="padding:8px 12px;border-radius:10px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:12px;min-width:140px">
 
-      <button id="deleteAllConfigsBtn" class="btn btn-danger-all btn-sm" onclick="openDeleteAllModal()" style="display:none" title="حذف همه کانفیگ‌ها">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5M14 11v5"/></svg>
-        <span data-i18n="delete_all_configs">حذف همه</span>
-      </button>
       <button class="btn btn-p btn-sm" onclick="goPage('create')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg></button>
       <button class="btn btn-sm" onclick="refreshAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10"/></svg></button>
     </div>
@@ -8903,27 +8830,6 @@ html:not(.light) body:has(.page) .table-wrap{{
 
 </main>
 
-<!-- Delete-all confirmation modal -->
-<div class="modal-bg" id="deleteAllModal" onclick="if(event.target===this)closeDeleteAllModal()">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteAllTitle">
-    <div class="delete-all-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.5 2.8 17a2 2 0 0 0 1.75 3h14.9a2 2 0 0 0 1.75-3l-7.5-13.5a2 2 0 0 0-3.5 0Z"/></svg>
-    </div>
-    <div class="delete-all-title" id="deleteAllTitle">حذف همه کانفیگ‌ها</div>
-    <div class="delete-all-text" id="deleteAllText">
-      آیا مطمئن هستید که می‌خواهید <span class="delete-all-count" id="deleteAllCount">همه</span> کانفیگ‌ها را حذف کنید؟<br>
-      این عملیات <b>غیرقابل بازگشت</b> است و تمام کانفیگ‌های فعلی حذف خواهند شد.
-    </div>
-    <div class="delete-all-actions">
-      <button class="btn delete-all-cancel" onclick="closeDeleteAllModal()">انصراف</button>
-      <button id="deleteAllConfirmBtn" class="btn delete-all-confirm" onclick="deleteAllConfigs()">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-        بله، حذف کن
-      </button>
-    </div>
-  </div>
-</div>
-
 <!-- Result modal after create -->
 <div class="modal-bg" id="resultModal">
   <div class="modal">
@@ -8959,8 +8865,8 @@ html:not(.light) body:has(.page) .table-wrap{{
 
 <script>
 const I18N={
-fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن',delete_all_configs:'حذف همه'},
-en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Manage admin users and their access levels',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription',delete_all_configs:'Delete all'},
+fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
+en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Manage admin users and their access levels',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
 };
 let lang=localStorage.getItem('px_lang')||'fa';
 let statRange='month';
@@ -9065,11 +8971,6 @@ async function refreshAll(){
   if(!links)return;
   const arr=Array.isArray(links.links)?links.links:(Array.isArray(links)?links:[]);
   document.getElementById('mLinks').textContent=arr.length;
-  const deleteAllBtn=document.getElementById('deleteAllConfigsBtn');
-  if(deleteAllBtn){
-    deleteAllBtn.style.display=arr.length?'inline-flex':'none';
-    deleteAllBtn.disabled=false;
-  }
   let active=0,used=0;
   arr.forEach(l=>{if(l.active!==false)active++;used+=Number(l.used_bytes||0)});
   document.getElementById('mTraffic').textContent=fmtB(used);
@@ -9177,8 +9078,6 @@ function patchLinkRow(tr, l){
 }
 function renderLinks(arr){
   const tb=document.getElementById('linksTable');
-  const deleteAllBtn=document.getElementById('deleteAllConfigsBtn');
-  if(deleteAllBtn)deleteAllBtn.style.display=arr.length?'inline-flex':'none';
   if(!arr.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:28px">${lang==='fa'?'کانفیگی نیست':'No configs'}</td></tr>`;updateBulkBar();return}
   window.__linksMap={};
   const catMap=window.__catMap||{};
@@ -9669,39 +9568,6 @@ function toggleSelectAll(on){
 }
 
 function selectedCfgIds(){return [...document.querySelectorAll('.cfg-chk:checked')].map(c=>c.value)}
-function openDeleteAllModal(){
-  const count=Array.isArray(window.__allLinks)?window.__allLinks.length:document.querySelectorAll('#linksTable tr[data-uid]').length;
-  if(!count){toast(lang==='fa'?'کانفیگی برای حذف وجود ندارد':'No configs to delete');return}
-  const modal=document.getElementById('deleteAllModal');
-  const countEl=document.getElementById('deleteAllCount');
-  const text=document.getElementById('deleteAllText');
-  const confirmBtn=document.getElementById('deleteAllConfirmBtn');
-  if(countEl)countEl.textContent=lang==='fa'?`${count} کانفیگ`:`${count} configs`;
-  if(text)text.innerHTML=lang==='fa'
-    ?`آیا مطمئن هستید که می‌خواهید <span class="delete-all-count">${count} کانفیگ</span> را حذف کنید؟<br>این عملیات <b>غیرقابل بازگشت</b> است و تمام کانفیگ‌های فعلی حذف خواهند شد.`
-    :`Are you sure you want to delete <span class="delete-all-count">all ${count} configs</span>?<br>This action is <b>irreversible</b> and all current configs will be deleted.`;
-  if(confirmBtn){confirmBtn.disabled=false;confirmBtn.innerHTML=lang==='fa'?'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg> بله، حذف کن':'Delete all';}
-  if(modal){modal.classList.add('open');setTimeout(()=>confirmBtn?.focus(),60)}
-}
-function closeDeleteAllModal(){
-  const modal=document.getElementById('deleteAllModal');
-  if(modal)modal.classList.remove('open');
-}
-async function deleteAllConfigs(){
-  const btn=document.getElementById('deleteAllConfirmBtn');
-  if(btn?.disabled)return;
-  if(btn){btn.disabled=true;btn.innerHTML=lang==='fa'?'در حال حذف...':'Deleting...'}
-  const r=await api('/api/links/delete-all',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
-  if(r){
-    closeDeleteAllModal();
-    clearSelection();
-    toast(lang==='fa'?`همه ${r.deleted} کانفیگ حذف شد`:`All ${r.deleted} configs deleted`);
-    await refreshAll();
-  }else if(btn){
-    btn.disabled=false;
-    btn.innerHTML=lang==='fa'?'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg> بله، حذف کن':'Delete all';
-  }
-}
 async function bulkDelete(){
   const ids=selectedCfgIds();
   if(!ids.length){toast(lang==='fa'?'چیزی انتخاب نشده':'Nothing selected');return}

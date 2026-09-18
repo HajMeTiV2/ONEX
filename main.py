@@ -135,7 +135,7 @@ app = FastAPI(
 @app.get("/api/onex-logo-3d.png", include_in_schema=False)
 async def onex_logo_3d():
     """Serve the approved high-detail ONEX 3D brand mark."""
-    path = Path(__file__).resolve().parent / "onex-logo-3d.png"
+    path = BASE_DIR / "onex-logo-3d.png"
     if not path.is_file():
         raise HTTPException(status_code=404, detail="ONEX logo not found")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
@@ -9263,6 +9263,28 @@ html:not(.light) body:has(.page) .table-wrap{{
 .mob-brand-icon{position:relative!important;display:grid!important;place-items:center!important;font-size:0!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
 .mob-brand-icon:before,.mob-brand-icon:after{display:none!important}
 .mob-brand-icon img{width:54px!important;height:42px!important;object-fit:contain!important;display:block!important;filter:drop-shadow(0 4px 8px rgba(0,120,255,.30))!important}
+
+/* ============================================================
+   ONEX 3D LOGO — CLEAN GLASS PRESENTATION
+   Keep the approved 3D artwork, but present it inside a
+   controlled glass badge so the raster background never looks
+   like a broken rectangular image on light/dark themes.
+   ============================================================ */
+.sb-logo{padding:14px 12px!important;min-height:88px;}
+.sb-logo-icon{position:relative!important;width:92px!important;height:66px!important;border-radius:22px!important;display:grid!important;place-items:center!important;flex:0 0 auto!important;overflow:hidden!important;background:linear-gradient(145deg,rgba(3,24,58,.96),rgba(5,42,91,.92) 48%,rgba(28,16,73,.94))!important;border:1px solid rgba(74,180,255,.55)!important;box-shadow:inset 0 1px rgba(255,255,255,.16),inset 0 -10px 22px rgba(0,0,0,.22),0 10px 28px rgba(0,102,255,.28),0 0 28px rgba(40,170,255,.18)!important;transform:none!important;isolation:isolate!important;}
+.sb-logo-icon:before,.sb-logo-icon:after{display:none!important;content:none!important;}
+.sb-logo-icon img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;border-radius:18px!important;filter:drop-shadow(0 6px 10px rgba(0,120,255,.30))!important;}
+.sidebar.collapsed .sb-logo{padding:12px 8px!important;min-height:84px;}
+.sidebar.collapsed .sb-logo-icon{width:72px!important;height:54px!important;margin:0 auto!important;border-radius:19px!important;}
+.mob-brand{display:flex!important;align-items:center!important;gap:9px!important;}
+.mob-brand-icon{position:relative!important;width:58px!important;height:44px!important;display:grid!important;place-items:center!important;flex:0 0 auto!important;border-radius:15px!important;overflow:hidden!important;background:linear-gradient(145deg,rgba(3,24,58,.97),rgba(8,47,98,.94) 50%,rgba(29,17,74,.96))!important;border:1px solid rgba(74,180,255,.52)!important;box-shadow:inset 0 1px rgba(255,255,255,.14),0 7px 18px rgba(0,102,255,.24),0 0 20px rgba(40,170,255,.14)!important;}
+.mob-brand-icon:before,.mob-brand-icon:after{display:none!important;content:none!important;}
+.mob-brand-icon img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;border-radius:12px!important;filter:drop-shadow(0 4px 8px rgba(0,120,255,.26))!important;}
+@media(max-width:700px){
+  .sb-logo{min-height:82px!important;padding:12px 10px!important;}
+  .sb-logo-icon{width:88px!important;height:64px!important;border-radius:21px!important;}
+  .mob-brand-icon{width:56px!important;height:43px!important;border-radius:15px!important;}
+}
 
 /* ============================================================
    ONEX RED ACTION PALETTE — FINAL

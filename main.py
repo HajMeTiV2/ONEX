@@ -132,6 +132,15 @@ app = FastAPI(
 )
 
 
+@app.get("/api/onex-logo-3d.png", include_in_schema=False)
+async def onex_logo_3d():
+    """Serve the approved high-detail ONEX 3D brand mark."""
+    path = BASE_DIR / "onex-logo-3d.png"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="ONEX logo not found")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
 @app.get("/api/protocol-icon/{protocol_id}.png", include_in_schema=False)
 async def protocol_icon(protocol_id: str):
     """Serve a bundled protocol icon for the create-config picker."""
@@ -7616,9 +7625,9 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .sb-toggle svg{width:14px;height:14px;transition:transform .28s}
 .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
 .sb-logo{display:flex;align-items:center;justify-content:center;padding:18px 14px;border-bottom:1px solid var(--card-b)}
-.sb-logo-icon{position:relative;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;font-size:0;font-weight:900;color:#fff;isolation:isolate;overflow:visible;transform:perspective(260px) rotateX(7deg) rotateY(-8deg);background:linear-gradient(145deg,#18cfff 0%,#1677ee 42%,#4038d8 72%,#9b2cff 100%);border:1px solid rgba(255,255,255,.26);box-shadow:0 16px 30px rgba(37,99,235,.35),0 0 26px rgba(0,200,255,.16),inset 0 1px rgba(255,255,255,.36);animation:onexLogoFloat 3.2s ease-in-out infinite}
-.sb-logo-icon:before{content:'';position:absolute;inset:-5px;border-radius:19px;border:2px solid rgba(28,211,255,.78);border-left-color:rgba(173,45,255,.88);border-bottom-color:rgba(255,49,174,.62);transform:rotate(-24deg) scaleX(1.18);box-shadow:0 0 12px rgba(0,194,255,.55),0 0 22px rgba(180,35,255,.28);pointer-events:none;z-index:0}
-.sb-logo-icon:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 25px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.45);transform:translateZ(18px);animation:onexLogoGlow 2.8s ease-in-out infinite;z-index:2}
+.sb-logo-icon{position:relative;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;font-size:0;font-weight:900;color:#fff;isolation:isolate;transform:perspective(260px) rotateX(7deg) rotateY(-8deg);background:linear-gradient(145deg,#0ea5e9 0%,#2563eb 48%,#7c3aed 100%);border:1px solid rgba(255,255,255,.22);box-shadow:0 16px 30px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.32);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.sb-logo-icon:before{content:'';position:absolute;inset:5px;border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.03) 45%,rgba(0,0,0,.18));border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 -8px 16px rgba(0,0,0,.14),0 0 22px rgba(32,200,255,.18);z-index:-1}
+.sb-logo-icon:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 25px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.38);transform:translateZ(18px);animation:onexLogoGlow 2.8s ease-in-out infinite}
 .sb-logo-text,.sb-logo-name,.sb-logo-ver{display:none!important}
 .sidebar.collapsed .sb-logo{justify-content:center;padding:14px 8px}
 .sidebar.collapsed .sb-logo-icon{margin:0 auto}
@@ -7754,9 +7763,9 @@ tr:hover td{background:var(--hover)}
    ONEX DASHBOARD REDESIGN
    ========================================================= */
 .mob-brand{display:flex;align-items:center;gap:9px}
-.mob-brand-mark{position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:0;font-weight:900;isolation:isolate;overflow:visible;background:linear-gradient(145deg,#18cfff,#1677ee 42%,#4038d8 72%,#9b2cff);border:1px solid rgba(255,255,255,.26);box-shadow:0 10px 24px rgba(37,99,235,.35),0 0 22px rgba(0,200,255,.16),inset 0 1px rgba(255,255,255,.34);transform:perspective(220px) rotateX(7deg) rotateY(-8deg);animation:onexLogoFloat 3.2s ease-in-out infinite}
-.mob-brand-mark:before{content:'';position:absolute;inset:-4px;border-radius:15px;border:1.7px solid rgba(28,211,255,.82);border-left-color:rgba(173,45,255,.88);border-bottom-color:rgba(255,49,174,.65);transform:rotate(-24deg) scaleX(1.18);box-shadow:0 0 10px rgba(0,194,255,.5),0 0 18px rgba(180,35,255,.25);pointer-events:none;z-index:0}
-.mob-brand-mark:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 18px/1 Inter,system-ui,sans-serif;color:#fff;text-shadow:2px 2px 0 rgba(29,78,216,.95),4px 4px 0 rgba(30,41,59,.5),0 0 13px rgba(255,255,255,.42);transform:translateZ(12px);z-index:2}
+.mob-brand-mark{position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:0;font-weight:900;isolation:isolate;background:linear-gradient(145deg,#0ea5e9,#2563eb 52%,#7c3aed);border:1px solid rgba(255,255,255,.22);box-shadow:0 10px 24px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.28);transform:perspective(220px) rotateX(7deg) rotateY(-8deg);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.mob-brand-mark:before{content:'';position:absolute;inset:4px;border-radius:9px;background:linear-gradient(145deg,rgba(255,255,255,.25),rgba(255,255,255,.03) 50%,rgba(0,0,0,.18));z-index:-1}
+.mob-brand-mark:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 18px/1 Inter,system-ui,sans-serif;color:#fff;text-shadow:2px 2px 0 rgba(29,78,216,.95),4px 4px 0 rgba(30,41,59,.5),0 0 13px rgba(255,255,255,.35);transform:translateZ(12px)}
 .onex-topbar{height:66px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;padding:10px 14px 10px 16px;border:1px solid rgba(96,165,250,.14);border-radius:20px;background:linear-gradient(180deg,rgba(17,24,39,.82),rgba(8,12,23,.72));backdrop-filter:blur(18px);box-shadow:0 12px 35px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.04)}
 /* ONEX floating glass control dock */
 .onex-control-dock{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:-4px 0 18px;padding:9px;border:1px solid rgba(148,163,184,.16);border-radius:22px;background:linear-gradient(135deg,rgba(15,23,42,.72),rgba(9,13,25,.58));backdrop-filter:blur(22px) saturate(135%);-webkit-backdrop-filter:blur(22px) saturate(135%);box-shadow:0 18px 45px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.07)}
@@ -8470,7 +8479,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand"><div class="mob-brand-icon">N</div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
+  <div class="mob-brand"><div class="mob-brand-icon"><img src="/api/onex-logo-3d.png" alt="ONEX" /></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -8480,7 +8489,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="sb-logo-icon" aria-label="ONEX 3D logo">N</div>
+    <div class="sb-logo-icon" aria-label="ONEX 3D logo"><img src="/api/onex-logo-3d.png" alt="ONEX" /></div>
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>
@@ -9244,6 +9253,16 @@ html:not(.light) body:has(.page) .table-wrap{{
 }
 
 
+
+/* ============================================================
+   ONEX 3D BRAND MARK — APPROVED FINAL ASSET
+   ============================================================ */
+.sb-logo-icon{font-size:0!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+.sb-logo-icon:before,.sb-logo-icon:after{display:none!important}
+.sb-logo-icon img{width:78px!important;height:58px!important;object-fit:contain!important;display:block!important;filter:drop-shadow(0 5px 10px rgba(0,120,255,.30))!important}
+.mob-brand-icon{position:relative!important;display:grid!important;place-items:center!important;font-size:0!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+.mob-brand-icon:before,.mob-brand-icon:after{display:none!important}
+.mob-brand-icon img{width:54px!important;height:42px!important;object-fit:contain!important;display:block!important;filter:drop-shadow(0 4px 8px rgba(0,120,255,.30))!important}
 
 /* ============================================================
    ONEX RED ACTION PALETTE — FINAL

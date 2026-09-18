@@ -7594,6 +7594,23 @@ tr:hover td{background:var(--hover)}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(90px);background:var(--bg2);border:1px solid var(--card-b);color:var(--t1);padding:13px 22px;border-radius:14px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:.3s;pointer-events:none;box-shadow:var(--shadow)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* ONEX PERFORMANCE MODE — keep the visual language, remove GPU-heavy effects */
+html{scroll-behavior:auto!important}
+body:before{animation:none!important}
+.sidebar,.metric,.card,.support-tile,.modal,.sb-logo-icon{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.sidebar{box-shadow:0 8px 28px rgba(0,0,0,.20)!important}
+.metric,.card,.support-tile{box-shadow:0 6px 22px rgba(0,0,0,.16)!important}
+.page{animation:none!important}
+.action-card:hover,.support-tile:hover{transform:none!important}
+.sb-logo-icon{animation:none!important;transform:none!important}
+.sb-logo-icon:after{animation:none!important}
+.modal-bg{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.toast{box-shadow:0 8px 24px rgba(0,0,0,.22)!important}
+.table-wrap{contain:layout paint}
+.card,.metric,.support-tile{contain:layout paint}
+@media(max-width:700px){.main{padding:18px 12px 48px}.card,.metric,.support-tile{box-shadow:0 4px 16px rgba(0,0,0,.14)!important}}
+
+
 .switch{position:relative;display:inline-block;width:44px;height:26px;vertical-align:middle}
 .switch input{opacity:0;width:0;height:0}
 .slider{position:absolute;cursor:pointer;inset:0;background:rgba(148,163,184,.35);border-radius:26px;transition:.2s}
@@ -9574,8 +9591,11 @@ async function api(url,opts={}){
 function fmtB(b){b=Number(b)||0;if(b<1024)return b+' B';if(b<1024**2)return (b/1024).toFixed(1)+' KB';if(b<1024**3)return (b/1024**2).toFixed(2)+' MB';return (b/1024**3).toFixed(2)+' GB'}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
+let __refreshBusy=false;
 async function refreshAll(){
-  if(typeof loadGroups==='function') try{await loadGroups()}catch(e){}
+  if(__refreshBusy || document.hidden)return;
+  __refreshBusy=true;
+  try{
   const links=await api('/api/links');
   if(!links)return;
   const arr=Array.isArray(links.links)?links.links:(Array.isArray(links)?links:[]);
@@ -10405,7 +10425,16 @@ function bootProtocolPickers(){ try{ setupProtocolPickers(); }catch(e){ console.
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootProtocolPickers); else bootProtocolPickers();
 setTimeout(bootProtocolPickers,300);
 setTimeout(bootProtocolPickers,1000);
-setInterval(refreshAll,1000);
+let __panelRefreshTimer=null;
+let __groupRefreshTimer=null;
+function startLightPolling(){
+  if(__panelRefreshTimer)clearInterval(__panelRefreshTimer);
+  if(__groupRefreshTimer)clearInterval(__groupRefreshTimer);
+  __panelRefreshTimer=setInterval(()=>{if(!document.hidden)refreshAll()},4000);
+  __groupRefreshTimer=setInterval(()=>{if(!document.hidden && typeof loadGroups==='function')loadGroups()},20000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshAll()},{passive:true});
+}
+startLightPolling();
 
 
 </script>

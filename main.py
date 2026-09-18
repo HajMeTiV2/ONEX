@@ -2253,7 +2253,8 @@ table th:first-child, table td:first-child{overflow:visible}
   #page-dash .version-mini-copy b{font-size:6px!important}
   #page-dash .version-mini-copy strong{font-size:9px!important}
 }
-</style>
+
+
 </head>
 
 <body>
@@ -3690,6 +3691,40 @@ async def bulk_delete_links(request: Request, _=Depends(require_auth)):
             deleted.append(uid)
     log_activity("link", f"حذف گروهی {len(deleted)} کانفیگ", "warn")
     return {"ok": True, "deleted": len(deleted)}
+
+
+@app.post("/api/links/delete-all")
+async def delete_all_links(_=Depends(require_auth)):
+    """Delete every saved config atomically, with native-runtime rollback on failure."""
+    async with LINKS_LOCK:
+        previous_links = deepcopy(LINKS)
+        if not previous_links:
+            return {"ok": True, "deleted": 0}
+        LINKS.clear()
+
+    async with SUBS_LOCK:
+        previous_subs = deepcopy(SUBS)
+        # Subscription groups in this panel are derived from saved links.
+        # Once every link is deleted, their generated link lists are empty.
+        for sub in SUBS.values():
+            if isinstance(sub, dict):
+                sub["link_ids"] = []
+
+    await save_state()
+
+    if NATIVE_CORE and not await sync_native_core():
+        async with LINKS_LOCK:
+            LINKS.clear()
+            LINKS.update(previous_links)
+        async with SUBS_LOCK:
+            SUBS.clear()
+            SUBS.update(previous_subs)
+        await save_state()
+        raise HTTPException(409, NATIVE_CORE.last_error or "Native runtime reload failed; previous configuration restored")
+
+    deleted = len(previous_links)
+    log_activity("link", f"حذف همه کانفیگ‌ها · {deleted} مورد", "warn")
+    return {"ok": True, "deleted": deleted}
 
 
 @app.post("/api/links/bulk-category")
@@ -7576,6 +7611,39 @@ DASHBOARD_HTML = r"""
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* ---------- Delete-all configs glass action ---------- */
+.delete-all-configs-glass{
+  width:100%;display:flex;align-items:center;gap:14px;text-align:right;direction:rtl;
+  margin:0 0 14px;padding:15px 17px;border-radius:20px;cursor:pointer;
+  color:#ff6687;background:linear-gradient(135deg,rgba(72,8,29,.56),rgba(18,7,20,.62));
+  border:1px solid rgba(255,55,101,.42);
+  box-shadow:0 12px 38px rgba(255,31,92,.10),inset 0 1px rgba(255,255,255,.07),inset 0 0 28px rgba(255,31,92,.045);
+  backdrop-filter:blur(18px) saturate(125%);-webkit-backdrop-filter:blur(18px) saturate(125%);
+  transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease,background .2s ease;
+}
+.delete-all-configs-glass:hover{transform:translateY(-1px);border-color:rgba(255,65,111,.72);box-shadow:0 16px 46px rgba(255,31,92,.17),inset 0 1px rgba(255,255,255,.08),inset 0 0 34px rgba(255,31,92,.08)}
+.delete-all-icon{width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;border-radius:14px;color:#ff426e;background:rgba(255,48,94,.10);border:1px solid rgba(255,65,111,.30);box-shadow:0 0 20px rgba(255,40,90,.13)}
+.delete-all-icon svg{width:21px;height:21px}
+.delete-all-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.delete-all-copy b{font-size:14px;font-weight:900;color:#ff6687}
+.delete-all-copy small{font-size:10px;color:rgba(255,198,210,.62)}
+.delete-all-arrow{margin-right:auto;font-size:26px;line-height:1;color:#ff6d8d;transform:translateY(-1px)}
+.delete-all-modal{position:relative;width:min(510px,100%);padding:30px 26px 24px;border-radius:28px;text-align:center;background:linear-gradient(145deg,rgba(8,21,43,.90),rgba(3,9,20,.92));border:1px solid rgba(59,166,255,.35);box-shadow:0 30px 90px rgba(0,0,0,.62),0 0 45px rgba(30,128,255,.09),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(24px) saturate(130%);-webkit-backdrop-filter:blur(24px) saturate(130%);overflow:hidden}
+.delete-all-modal:before{content:"";position:absolute;inset:-35%;background:radial-gradient(circle at 50% 0%,rgba(255,38,92,.10),transparent 38%);pointer-events:none}
+.delete-all-modal-close{position:absolute;top:12px;left:14px;width:34px;height:34px;border:0;border-radius:10px;background:rgba(255,255,255,.04);color:#9fb6d3;font-size:26px;line-height:1;cursor:pointer}
+.delete-all-modal-icon{position:relative;z-index:1;width:76px;height:76px;margin:2px auto 15px;display:grid;place-items:center;border-radius:50%;color:#ff4d76;border:1px solid rgba(255,64,105,.70);background:rgba(255,39,91,.08);box-shadow:0 0 28px rgba(255,35,91,.25),inset 0 0 24px rgba(255,35,91,.08)}
+.delete-all-modal-icon svg{width:32px;height:32px}
+.delete-all-modal-title{position:relative;z-index:1;font-size:21px;font-weight:950;color:#f8fbff;margin-bottom:10px}
+.delete-all-modal-text{position:relative;z-index:1;color:#a9bdd5;font-size:13px;line-height:2;margin-bottom:20px}.delete-all-modal-text b{color:#ff879f;font-weight:800}
+.delete-all-modal-actions{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.delete-all-cancel,.delete-all-confirm{min-height:46px;border-radius:14px;font-family:inherit;font-weight:900;cursor:pointer}
+.delete-all-cancel{background:rgba(12,31,55,.70);border:1px solid rgba(59,166,255,.45);color:#dcecff}
+.delete-all-confirm{display:flex;align-items:center;justify-content:center;gap:7px;background:linear-gradient(135deg,#ff315d,#d91f55);border:1px solid rgba(255,104,133,.75);color:white;box-shadow:0 10px 28px rgba(255,31,92,.22)}
+.delete-all-confirm svg{width:17px;height:17px}
+.delete-all-confirm:disabled{opacity:.65;cursor:wait}
+@media(max-width:600px){.delete-all-configs-glass{border-radius:17px;padding:13px 14px}.delete-all-modal{padding:27px 17px 18px;border-radius:22px}.delete-all-modal-title{font-size:18px}.delete-all-modal-text{font-size:12px}.delete-all-modal-actions{grid-template-columns:1fr 1fr}}
+
+
 :root{
   --bg:#06060b;--bg2:#0b0b12;--bg3:#12121c;--card:rgba(18,18,28,.92);--card-b:rgba(255,255,255,.08);
   --accent:#3b82f6;--accent2:#60a5fa;--purple:#8b5cf6;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;
@@ -8658,6 +8726,11 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
       </table>
     </div>
   </div>
+  <button type="button" class="delete-all-configs-glass" onclick="openDeleteAllConfigs()" aria-label="حذف همه کانفیگ‌ها">
+    <span class="delete-all-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></span>
+    <span class="delete-all-copy"><b>حذف همه کانفیگ‌ها</b><small>تمام کانفیگ‌های ساخته‌شده را پاک می‌کند</small></span>
+    <span class="delete-all-arrow">‹</span>
+  </button>
 </section>
 
 <section class="page" id="page-create">
@@ -8678,9 +8751,8 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
             <div class="field protocol-field" data-protocol-picker="cProto"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="cProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('cProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">VLESS WebSocket</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
       <div class="field"><label>گروه</label><select id="cGroup"></select></div>
 <div class="form-row">
-        <div class="field"><label data-i18n="label_count">تعداد کانفیگ در ساب (۱–۴۰)</label><input id="cCount" type="number" value="1" min="1" max="40"></div>
         <label class="all-proto-toggle" title="یک اکانت با همه پروتکل‌ها و یک ساب"><span><b>همه پروتکل‌ها در یک ساب</b><small>یک اکانت · همه پروتکل‌های پنل · یک لینک اشتراک</small></span><input id="cAllProtocols" type="checkbox"><i aria-hidden="true"></i></label>
-         <div class="field"><label data-i18n="label_days">انقضـا (روز)</label><input id="cDays" type="number" value="0" min="0"></div>
+        <div class="field"><label data-i18n="label_days">انقضـا (روز)</label><input id="cDays" type="number" value="0" min="0"></div>
       </div>
       <div class="form-row">
         <div class="field"><label data-i18n="label_limit">محدودیت حجم</label><input id="cLimit" type="number" value="0" min="0"></div>
@@ -9359,12 +9431,25 @@ html:not(.light) body:has(.page) .table-wrap{{
     </div>
   </div>
 </div>
+
+<div class="modal-bg" id="deleteAllConfigsModal" aria-hidden="true">
+  <div class="delete-all-modal" role="dialog" aria-modal="true" aria-labelledby="deleteAllConfigsTitle">
+    <button type="button" class="delete-all-modal-close" onclick="closeDeleteAllConfigs()" aria-label="بستن">×</button>
+    <div class="delete-all-modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></div>
+    <div class="delete-all-modal-title" id="deleteAllConfigsTitle">حذف همه کانفیگ‌ها</div>
+    <div class="delete-all-modal-text">آیا مطمئن هستید که می‌خواهید تمام کانفیگ‌های ساخته‌شده را حذف کنید؟<br><b>این عملیات قابل بازگشت نیست.</b></div>
+    <div class="delete-all-modal-actions">
+      <button type="button" class="btn delete-all-cancel" onclick="closeDeleteAllConfigs()">لغو</button>
+      <button type="button" class="btn delete-all-confirm" id="deleteAllConfigsConfirm" onclick="confirmDeleteAllConfigs()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg> حذف همه</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
 const I18N={
-fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت، تعداد و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_count:'تعداد کانفیگ در ساب (۱–۴۰)',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
-en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Manage admin users and their access levels',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed, count and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_count:'Configs in sub (1–40)',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
+fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
+en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Manage admin users and their access levels',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
 };
 let lang=localStorage.getItem('px_lang')||'fa';
 let statRange='month';
@@ -9646,6 +9731,37 @@ async function toggleLink(uid,state){
   }
   toast(state?(lang==='fa'?'فعال شد':'Enabled'):(lang==='fa'?'غیرفعال شد':'Disabled'));
 }
+function openDeleteAllConfigs(){
+  const modal=document.getElementById('deleteAllConfigsModal');
+  if(!modal)return;
+  modal.classList.add('open');modal.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+}
+function closeDeleteAllConfigs(){
+  const modal=document.getElementById('deleteAllConfigsModal');
+  if(!modal)return;
+  modal.classList.remove('open');modal.setAttribute('aria-hidden','true');
+  document.body.style.overflow='';
+}
+async function confirmDeleteAllConfigs(){
+  const btn=document.getElementById('deleteAllConfigsConfirm');
+  if(!btn)return;
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin" style="width:15px;height:15px;border-width:2px"></span> در حال حذف...';
+  const r=await api('/api/links/delete-all',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  btn.disabled=false;
+  btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg> حذف همه';
+  if(r){
+    closeDeleteAllConfigs();
+    if(window.__linksMap)window.__linksMap={};
+    if(typeof __allLinks!=='undefined'&&Array.isArray(__allLinks))__allLinks.length=0;
+    clearSelection();
+    toast(lang==='fa'?`همه کانفیگ‌ها حذف شدند (${Number(r.deleted||0)})`:`All configs deleted (${Number(r.deleted||0)})`);
+    await refreshAll();
+  }
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDeleteAllConfigs()});
+document.getElementById('deleteAllConfigsModal')?.addEventListener('click',e=>{if(e.target.id==='deleteAllConfigsModal')closeDeleteAllConfigs()});
 async function deleteLink(uid){
   if(!confirm(lang==='fa'?'حذف شود؟':'Delete?'))return;
   const r=await api('/api/links/'+uid,{method:'DELETE'});
@@ -9702,7 +9818,7 @@ function copyAdvancedPreview(){if(__advancedPreview)copyText(JSON.stringify(__ad
 async function doManualCreate(){
   const valid=await validateAdvancedConfig(false); if(!valid)return;
   const advanced=advancedFormObject(); const ports=advanced.ports.length?advanced.ports:[443];
-  const body={label:document.getElementById('cName').value||undefined,protocol:document.getElementById('cProto')?.value||undefined,category_id:document.getElementById('cGroup')?.value||'0',config_count:Math.max(1,Math.min(40,Number(document.getElementById('cCount').value)||1)),limit_value:Number(document.getElementById('cLimit').value)||0,limit_unit:document.getElementById('cUnit').value||'GB',expires_days:Number(document.getElementById('cDays').value)||0,ip_limit:Number(document.getElementById('cIp').value)||0,speed_limit_value:Number(document.getElementById('cSpeed').value)||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
+  const body={label:document.getElementById('cName').value||undefined,protocol:document.getElementById('cProto')?.value||undefined,category_id:document.getElementById('cGroup')?.value||'0',limit_value:Number(document.getElementById('cLimit').value)||0,limit_unit:document.getElementById('cUnit').value||'GB',expires_days:Number(document.getElementById('cDays').value)||0,ip_limit:Number(document.getElementById('cIp').value)||0,speed_limit_value:Number(document.getElementById('cSpeed').value)||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
   const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); if(r){showResult(r);refreshAll();saveAdvancedDraft()}
 }
 document.addEventListener('change',e=>{if(e.target?.id==='advTlsMode')updateRealityVisibility();if(e.target?.id==='cProto')loadAdvancedCapabilities(e.target.value)});

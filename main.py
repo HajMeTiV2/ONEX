@@ -238,7 +238,6 @@ CATEGORIES: dict = {}
 
 stats = {
     "total_bytes": 0,
-    "upload_bytes": 0,
     "total_requests": 0,
     "total_errors": 0,
     "start_time": time.time(),
@@ -248,7 +247,6 @@ error_logs = deque(maxlen=100)
 activity_logs = deque(maxlen=250)
 
 hourly_traffic = defaultdict(int)
-traffic_history = {}
 
 http_client: httpx.AsyncClient | None = None
 
@@ -266,7 +264,7 @@ PROTOCOLS: list[str] = []
 PROTOCOL_LABELS = {
     "vless-ws": "ONEX WB",
     "xhttp-packet-up": "ONEX Xhttp",
-    "xhttp-stream-up": "ONEX Gaming",
+    "xhttp-stream-up": "ONEX Gamig",
     "xhttp-stream-one": "ONEX Stream",
     "trojan": "Trojan",
     "shadowsocks": "Shadowsocks",
@@ -6440,12 +6438,6 @@ async def get_stats(
                 2,
             ),
 
-        "upload_bytes":
-            stats["upload_bytes"],
-
-        "download_bytes":
-            stats["total_bytes"],
-
         "total_traffic_bytes":
             stats[
                 "total_bytes"
@@ -6471,12 +6463,6 @@ async def get_stats(
             dict(
                 hourly_traffic
             ),
-
-        "history":
-            [
-                {"hour": k, **v}
-                for k, v in sorted(traffic_history.items())[-744:]
-            ],
 
         "recent_errors":
             list(
@@ -7563,24 +7549,19 @@ async def http_proxy(
             content=body,
         )
 
-        upload_len = len(body)
-        download_len = len(response.content)
-        stats["upload_bytes"] += upload_len
-
-        stats["total_bytes"] += download_len
+        stats["total_bytes"] += len(
+            response.content
+        )
 
         stats["total_requests"] += 1
 
-        hour_key = now_ir().strftime("%Y-%m-%d %H:00")
         hourly_traffic[
-            now_ir().strftime("%H:00")
-        ] += download_len
-        bucket = traffic_history.setdefault(hour_key, {"download": 0, "upload": 0})
-        bucket["download"] += download_len
-        bucket["upload"] += upload_len
-        if len(traffic_history) > 744:
-            for old_key in sorted(traffic_history)[:-744]:
-                traffic_history.pop(old_key, None)
+            now_ir().strftime(
+                "%H:00"
+            )
+        ] += len(
+            response.content
+        )
 
         output_headers = {
             key: value
@@ -7763,13 +7744,6 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .card{background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow);backdrop-filter:var(--glass);transition:border-color .2s,box-shadow .2s}
 .card-title{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .card-title svg{width:16px;height:16px;color:var(--accent2)}
-
-/* ============================================================
-   ONEX STATISTICS — HIGH DENSITY GLASS DASHBOARD
-   ============================================================ */
-.onex-stats-page{max-width:100%;padding-bottom:24px}.stats-head{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;margin-bottom:14px}.stats-title{font-size:27px!important;font-weight:900!important;display:flex;align-items:center;gap:9px}.stats-title svg{width:34px!important;height:34px;color:#20c8ff;filter:drop-shadow(0 0 9px rgba(32,200,255,.42))}.stats-sub{font-size:13px!important;margin-top:5px}.stats-live{display:flex;align-items:center;gap:8px;color:#22e6a8;font-size:13px;font-weight:800}.stats-live i{width:11px;height:11px;border-radius:50%;background:#22e6a8;box-shadow:0 0 16px rgba(34,230,168,.8);animation:onexPulse 1.7s infinite}.stats-range{width:100%;height:58px;display:grid;grid-template-columns:repeat(4,1fr);padding:4px;border-radius:17px;margin-bottom:16px;background:linear-gradient(145deg,rgba(6,22,48,.92),rgba(2,10,24,.82));border:1px solid rgba(46,139,255,.25);box-shadow:inset 0 1px rgba(255,255,255,.04),0 10px 30px rgba(0,0,0,.2)}.stats-range .range-tab{font-size:13px;height:48px;border-radius:13px}.stats-range .range-tab.on{background:linear-gradient(135deg,#ff2670,#ed1674);box-shadow:0 8px 24px rgba(255,38,112,.35);color:#fff}.stats-grid-6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}.stats-tile{position:relative;min-height:156px;overflow:hidden;padding:18px 20px;border-radius:22px;background:linear-gradient(145deg,rgba(8,25,52,.93),rgba(2,11,26,.9));border:1px solid rgba(44,137,255,.55);box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.25)}.stats-tile:after{content:'';position:absolute;right:-55px;bottom:-75px;width:190px;height:150px;border-radius:50%;background:rgba(20,123,255,.09);filter:blur(22px)}.stats-tile.tile-pink{border-color:rgba(255,38,144,.62)}.stats-tile.tile-pink:after{background:rgba(255,31,135,.1)}.stats-tile.tile-violet{border-color:rgba(105,77,255,.65)}.stats-tile.tile-green{border-color:rgba(34,230,168,.52)}.stats-icon{width:50px;height:50px;display:grid;place-items:center;border-radius:50%;font-size:27px;font-weight:900;color:#20c8ff;border:2px solid currentColor;box-shadow:0 0 18px currentColor;background:rgba(8,41,83,.52);position:relative;z-index:1}.tile-pink .stats-icon{color:#ff2b91}.tile-violet .stats-icon{color:#6f55ff}.tile-green .stats-icon{color:#22e6a8}.stats-label{position:absolute;right:20px;top:25px;font-size:15px;color:#eef5ff;font-weight:800}.stats-value{position:absolute;right:20px;top:57px;font-size:28px;font-weight:900;letter-spacing:-.02em;color:#f8fbff}.stats-online{color:#22e6a8!important;font-size:22px}.stats-trend{position:absolute;right:20px;bottom:21px;color:#20e6a8;font-size:11px;font-weight:900}.stats-spark{position:absolute;left:20px;right:42%;bottom:18px;height:35px;opacity:.9;background:linear-gradient(180deg,rgba(32,200,255,.18),transparent);clip-path:polygon(0 72%,8% 55%,16% 67%,25% 38%,34% 55%,44% 28%,54% 48%,64% 20%,74% 39%,83% 17%,92% 35%,100% 10%,100% 100%,0 100%)}.tile-pink .stats-spark{background:linear-gradient(180deg,rgba(255,43,145,.2),transparent)}.tile-violet .stats-spark{background:linear-gradient(180deg,rgba(111,85,255,.22),transparent)}.stats-chart-card,.stats-bottom-card,.stats-panel-info{border-radius:22px;background:linear-gradient(145deg,rgba(7,23,49,.94),rgba(2,10,24,.9));border:1px solid rgba(42,136,255,.5);box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.25)}.stats-chart-card{overflow:hidden;margin-bottom:16px}.stats-chart-head{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:18px 20px;border-bottom:1px solid rgba(96,165,250,.13)}.stats-chart-head b{display:block;font-size:20px}.stats-chart-head span{display:block;margin-top:4px;color:rgba(219,234,254,.58);font-size:11px}.chart-legend{display:flex;align-items:center;gap:16px;font-size:11px;color:#dbeafe}.chart-legend span{display:flex;align-items:center;gap:6px}.chart-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}.legend-down{background:#20c8ff;box-shadow:0 0 9px #20c8ff}.legend-up{background:#ff2b91;box-shadow:0 0 9px #ff2b91}.chart-legend em{font-style:normal;padding:7px 11px;border-radius:10px;background:rgba(37,99,235,.13);border:1px solid rgba(96,165,250,.2);color:#a9d8ff}.stats-chart-wrap{height:360px;padding:10px 16px 15px}.stats-chart-wrap svg{width:100%;height:100%;display:block;overflow:visible}.stats-chart-wrap .grid{stroke:rgba(148,163,184,.12);stroke-width:1}.stats-chart-wrap .axis{fill:rgba(203,213,225,.55);font:11px sans-serif}.stats-chart-wrap .down-fill{fill:url(#downFill)}.stats-chart-wrap .up-fill{fill:url(#upFill)}.stats-chart-wrap .down-line{fill:none;stroke:#20c8ff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 7px rgba(32,200,255,.55))}.stats-chart-wrap .up-line{fill:none;stroke:#ff2b91;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 7px rgba(255,43,145,.5))}.stats-chart-wrap .chart-dot{stroke-width:2;fill:#fff}.stats-bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}.stats-bottom-card{min-height:185px;padding:20px}.bottom-title{display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:900}.bottom-title b{font-size:24px;color:#20c8ff}.uptime-body{display:flex;align-items:center;gap:30px;margin-top:20px}.uptime-ring{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at center,#07162e 57%,transparent 58%),conic-gradient(#22e6a8 99.9%,rgba(34,230,168,.1) 0);box-shadow:0 0 24px rgba(34,230,168,.14)}.uptime-ring span{font-size:16px;font-weight:900;color:#eafff7}.uptime-body small{display:block;color:rgba(219,234,254,.58);font-size:12px;margin-bottom:9px}.uptime-body strong{display:block;font-size:24px;letter-spacing:.02em}.server-location{margin-top:27px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}.server-location strong{font-size:20px;color:#67b8ff}.server-location small{font-size:12px;color:rgba(219,234,254,.55)}.server-location b{font-size:27px}.stats-panel-info{padding:18px 20px}.stats-panel-info .panel-info-grid{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-top:16px;color:#cbd5e1;font-size:13px}.panel-info-grid b{color:#f8fbff;font-size:18px}.panel-info-item{display:flex;align-items:center;gap:7px}.panel-info-item i{font-style:normal;color:#20c8ff}.panel-info-item.pink i{color:#ff2b91}.panel-info-item.green i{color:#22e6a8}.panel-info-item.violet i{color:#8b7cff}@keyframes onexPulse{0%,100%{opacity:.65;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}
-@media(max-width:900px){.stats-grid-6{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stats-tile{min-height:130px;padding:13px 14px}.stats-icon{width:40px;height:40px;font-size:21px}.stats-label{right:14px;top:18px;font-size:12px}.stats-value{right:14px;top:48px;font-size:22px}.stats-trend{right:14px;bottom:15px;font-size:9px}.stats-spark{left:14px;bottom:14px}.stats-chart-wrap{height:260px}.stats-bottom-grid{gap:9px}.stats-bottom-card{min-height:155px;padding:15px}.uptime-ring{width:85px;height:85px}.uptime-body{gap:16px}.uptime-body strong{font-size:18px}.stats-title{font-size:22px!important}}
-@media(max-width:600px){.stats-head{align-items:flex-start}.stats-title{font-size:21px!important}.stats-title svg{width:27px!important;height:27px}.stats-sub{font-size:9px!important}.stats-live{font-size:9px}.stats-live i{width:8px;height:8px}.stats-range{height:48px;margin-bottom:10px}.stats-range .range-tab{height:40px;font-size:10px}.stats-grid-6{gap:7px;margin-bottom:10px}.stats-tile{min-height:104px;padding:10px 11px;border-radius:15px}.stats-icon{width:31px;height:31px;font-size:16px}.stats-label{right:11px;top:13px;font-size:9px}.stats-value{right:11px;top:37px;font-size:17px}.stats-online{font-size:14px!important}.stats-trend{right:11px;bottom:10px;font-size:7px}.stats-spark{left:11px;right:48%;bottom:10px;height:24px}.stats-chart-card,.stats-bottom-card,.stats-panel-info{border-radius:15px}.stats-chart-head{padding:12px}.stats-chart-head b{font-size:13px}.stats-chart-head span{font-size:8px}.chart-legend{gap:6px;font-size:7px}.chart-legend em{padding:5px 7px}.stats-chart-wrap{height:205px;padding:5px 6px 9px}.stats-bottom-grid{grid-template-columns:1fr 1fr;gap:7px}.stats-bottom-card{min-height:125px;padding:11px}.bottom-title{font-size:10px}.bottom-title b{font-size:17px}.uptime-body{margin-top:12px;gap:8px}.uptime-ring{width:58px;height:58px}.uptime-ring span{font-size:9px}.uptime-body small{font-size:7px;margin-bottom:4px}.uptime-body strong{font-size:12px}.server-location{margin-top:14px;gap:5px}.server-location strong{font-size:12px}.server-location small{font-size:7px}.server-location b{font-size:18px}.stats-panel-info{padding:11px 12px}.stats-panel-info .panel-info-grid{margin-top:10px;font-size:8px;gap:8px}.panel-info-grid b{font-size:11px}}
 
 /* ============================================================
    ONEX GROUP MANAGER — fast glass / neon red + blue
@@ -8411,7 +8385,8 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
 .top-notify-panel{position:absolute;top:calc(100% + 9px);right:0;width:300px;max-width:min(300px,calc(100vw - 24px));z-index:1200;border:1px solid rgba(88,180,255,.24);border-radius:16px;background:linear-gradient(145deg,rgba(9,22,43,.96),rgba(2,9,20,.94));box-shadow:0 22px 70px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.07);backdrop-filter:blur(25px) saturate(130%);overflow:hidden}.top-notify-panel[hidden]{display:none}.notify-panel-head{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid rgba(122,180,235,.12);color:var(--t1);font-size:12px}.notify-panel-head button{border:0;background:transparent;color:var(--t3);font-size:20px;cursor:pointer;line-height:1}.notify-list{padding:8px;max-height:360px;overflow:auto}.notify-empty{padding:18px 10px;text-align:center;color:var(--t3);font-size:11px}.notify-item{padding:11px 12px;border:1px solid rgba(88,180,255,.15);border-radius:12px;background:rgba(22,140,255,.045);margin-bottom:7px}.notify-item-title{font-weight:800;color:var(--t1);font-size:12px;margin-bottom:5px}.notify-item-text{color:var(--t2);font-size:11px;line-height:1.8}.notify-item-meta{color:var(--t3);font-size:9px;margin-top:5px}.notify-update-btn{width:100%;border:0;border-radius:9px;padding:8px;background:linear-gradient(135deg,#2563eb,#6366f1);color:#fff;font:inherit;font-size:10px;font-weight:800;cursor:pointer;margin-top:9px}
 html.light .top-setting-group,html.light .top-notify-btn{background:#fff!important;border-color:rgba(15,23,42,.10)!important}html.light .top-setting-btn{color:#64748b}html.light .top-setting-btn:hover{background:#f1f5f9;color:#0f172a}html.light .top-notify-panel{background:#fff!important;border-color:rgba(15,23,42,.10)!important;box-shadow:0 18px 50px rgba(15,23,42,.14)!important;backdrop-filter:none}
 @media(max-width:700px){.notify-label{display:none}.top-notify-btn{padding:7px 8px}.top-notify-panel{right:-42px;width:290px}}
-\n/* ============================================================\n   ONEX THEME ENFORCER — SECONDARY PAGES + NESTED COMPONENTS\n   This block intentionally comes last so old hard-coded dashboard\n   colors cannot win over the selected global theme.\n   ============================================================ */\n\n/* DARK: login glass recipe applied to every structural surface. */\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric,\nhtml:not(.light) .page .table-wrap,\nhtml:not(.light) .page .support-tile,\nhtml:not(.light) .page .link-box,\nhtml:not(.light) .page .sub-box,\nhtml:not(.light) .page .quick-item,\nhtml:not(.light) .page .range-tabs,\nhtml:not(.light) .page .range-mini,\nhtml:not(.light) .page .mini-action,\nhtml:not(.light) .page .chart-badge,\nhtml:not(.light) .page .health-track,\nhtml:not(.light) .page .xray-state,\nhtml:not(.light) .page .recent-table,\nhtml:not(.light) .page .recent-table th,\nhtml:not(.light) .page .recent-table td,\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n  border-color:rgba(88,180,255,.18) !important;\n  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 32px rgba(22,140,255,.035),0 14px 38px rgba(0,0,0,.18) !important;\n  backdrop-filter:blur(25px) saturate(120%) !important;\n  -webkit-backdrop-filter:blur(25px) saturate(120%) !important;\n}\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric{\n  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(22,140,255,.045) !important;\n}\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(2,11,24,.68),rgba(4,14,29,.52)) !important;\n  color:#f8fbff !important;\n}\nhtml:not(.light) .page .page-title,\nhtml:not(.light) .page .card-title,\nhtml:not(.light) .page .metric-val,\nhtml:not(.light) .page .quick-name{color:#f8fbff !important}\nhtml:not(.light) .page .page-sub,\nhtml:not(.light) .page .field label,\nhtml:not(.light) .page .metric-label,\nhtml:not(.light) .page .quick-desc{color:rgba(248,250,252,.55) !important}\n\n/* Preserve intentional accent controls/badges in dark mode. */\nhtml:not(.light) .page .btn-p,\nhtml:not(.light) .page .btn-d,\nhtml:not(.light) .page .range-tab.on,\nhtml:not(.light) .page .conn-badge,\nhtml:not(.light) .page .support-icon,\nhtml:not(.light) .page .quick-icon,\nhtml:not(.light) .page .metric-icon{\n  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\n\n/* LIGHT: every structural panel becomes pure white, not gray. */\nhtml.light .page,\nhtml.light .page.on{color:#0f172a !important}\nhtml.light .page .card,\nhtml.light .page .metric,\nhtml.light .page .table-wrap,\nhtml.light .page .support-tile,\nhtml.light .page .link-box,\nhtml.light .page .sub-box,\nhtml.light .page .quick-item,\nhtml.light .page .range-tabs,\nhtml.light .page .range-mini,\nhtml.light .page .mini-action,\nhtml.light .page .chart-badge,\nhtml.light .page .health-track,\nhtml.light .page .xray-state,\nhtml.light .page .recent-table,\nhtml.light .page .recent-table th,\nhtml.light .page .recent-table td,\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea,\nhtml.light .page .onex-topbar,\nhtml.light .page .onex-control-dock,\nhtml.light .page .onex-card,\nhtml.light .page .onex-metric{\n  background:#fff !important;\n  color:#0f172a !important;\n  border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 10px 30px rgba(15,23,42,.07),inset 0 1px rgba(255,255,255,.98) !important;\n  backdrop-filter:none !important;\n  -webkit-backdrop-filter:none !important;\n}\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.14) !important;\n}\nhtml.light .page .page-title,\nhtml.light .page .card-title,\nhtml.light .page .metric-val,\nhtml.light .page .quick-name,\nhtml.light .page .support-val{color:#0f172a !important}\nhtml.light .page .page-sub,\nhtml.light .page .field label,\nhtml.light .page .metric-label,\nhtml.light .page .quick-desc,\nhtml.light .page .support-label,\nhtml.light .page .log-time,\nhtml.light .page .health-name,\nhtml.light .page .health-pct{color:#64748b !important}\nhtml.light .page .log-msg{color:#334155 !important}\nhtml.light .page .onex-card-head,\nhtml.light .page .sb-foot{border-color:rgba(15,23,42,.08) !important}\nhtml.light .page th{background:#fff !important;color:#64748b !important}\nhtml.light .page td{background:#fff !important;color:#334155 !important;border-color:rgba(15,23,42,.08) !important}\nhtml.light .page tr:hover td{background:#f8fafc !important}\n\n/* Inline background declarations on secondary pages: normalize containers\n   while leaving action buttons, badges and icons untouched. */\nhtml.light .page div[style*="background:"],\nhtml.light .page section[style*="background:"],\nhtml.light .page article[style*="background:"],\nhtml.light .page aside[style*="background:"]{\n  background:#fff !important;\n  color:inherit;\n}\nhtml:not(.light) .page div[style*="background:"],\nhtml:not(.light) .page section[style*="background:"],\nhtml:not(.light) .page article[style*="background:"],\nhtml:not(.light) .page aside[style*="background:"]{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n/* Re-apply accent colors to controls after the broad inline rule. */\nhtml.light .page .btn-p{background:linear-gradient(135deg,#3b82f6,#6366f1) !important;color:#fff !important;border-color:transparent !important}\nhtml.light .page .btn-d{background:rgba(239,68,68,.08) !important;color:#dc2626 !important;border-color:rgba(239,68,68,.20) !important}\nhtml.light .page .range-tab.on{background:#2563eb !important;color:#fff !important}\nhtml.light .page .switch .slider{background:rgba(148,163,184,.35) !important}\nhtml.light .page .switch input:checked + .slider{background:#16a34a !important}\nhtml.light .page .quick-icon,\nhtml.light .page .support-icon,\nhtml.light .page .metric-icon{background:#f1f5f9 !important}\n\n/* Drawer and mobile top bar use exactly the same theme surfaces. */\nhtml.light .sidebar,html.light .mob-bar{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 18px 50px rgba(15,23,42,.12) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\nhtml:not(.light) .sidebar,html:not(.light) .mob-bar{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n\n/* Theme switch itself is instant enough that pages never look half-painted. */\nhtml,body,.sidebar,.mob-bar,.main,.page,.page .card,.page .metric,.page .onex-card,.page .onex-metric,\n.page .field input,.page .field select,.page .field textarea,.page .table-wrap,.page .link-box,.page .sub-box{\n  transition:background-color .12s ease,background .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease !important;\n}\n/* ============================================================
+\n.cfg-page-hero{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}.cfg-hero-actions{display:flex;gap:8px}.cfg-hero-actions .btn{height:42px;width:42px;padding:0;display:grid;place-items:center}.cfg-primary-btn{height:42px;padding:0 16px;border-radius:13px;border:1px solid rgba(255,92,126,.75);background:linear-gradient(135deg,#ff315f,#d91f61);color:#fff;font:900 11px Vazirmatn,sans-serif;box-shadow:0 10px 26px rgba(255,31,92,.24);cursor:pointer}.cfg-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}.cfg-stat-card{min-height:92px;padding:13px;border-radius:18px;border:1px solid rgba(74,151,255,.24);background:linear-gradient(145deg,rgba(8,27,56,.9),rgba(3,12,27,.86));box-shadow:0 12px 28px rgba(0,0,0,.2);display:flex;align-items:center;gap:11px}.cfg-stat-icon{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:20px;font-weight:900;background:rgba(37,99,235,.12);border:1px solid rgba(96,165,250,.28);color:#63c8ff}.cfg-stat-card.purple .cfg-stat-icon{color:#b48cff}.cfg-stat-card.blue .cfg-stat-icon{color:#60a5fa}.cfg-stat-card.pink .cfg-stat-icon{color:#ff67a4}.cfg-stat-card small{display:block;color:var(--t3);font-size:9px;margin-bottom:4px}.cfg-stat-card b{display:block;font-size:20px;color:#f8fbff}.cfg-tools{display:flex;gap:8px;margin-bottom:9px}.cfg-search-box{height:48px;flex:1;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid rgba(64,155,255,.3);border-radius:15px;background:linear-gradient(145deg,rgba(5,21,43,.82),rgba(2,10,24,.68))}.cfg-search-box>span{font-size:23px;color:#70b6ff}.cfg-search-box input{width:100%;border:0;outline:0;background:none;color:var(--t1);font:600 11px Vazirmatn,sans-serif}.cfg-filter-btn{width:48px;height:48px;border-radius:15px;border:1px solid rgba(64,155,255,.3);background:linear-gradient(145deg,rgba(5,21,43,.82),rgba(2,10,24,.68));color:#7fbfff;font-size:20px;cursor:pointer}.cfg-filter-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}.cfg-select{height:42px;border-radius:13px;border:1px solid rgba(64,155,255,.25);background:rgba(4,17,36,.72);color:var(--t2);font:700 9px Vazirmatn,sans-serif;cursor:pointer}.cfg-select b{color:#f8fbff;margin:0 5px}.cfg-select.on{border-color:rgba(64,155,255,.62)}.cfg-filter-row .cfg-select:nth-child(n+3){display:none}.cfg-filter-row.open .cfg-select:nth-child(n+3){display:block}.cfg-list-shell{border:1px solid rgba(64,155,255,.23);border-radius:21px;background:linear-gradient(145deg,rgba(5,20,42,.72),rgba(2,10,23,.76));box-shadow:0 18px 42px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.045);overflow:hidden;padding-bottom:10px}.cfg-list-head{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid rgba(96,165,250,.12)}.cfg-list-head b{font-size:13px;color:#f8fbff}.cfg-list-head small{color:var(--t3);font-size:9px;margin-right:8px}.cfg-check-all{display:flex;align-items:center;gap:6px;color:var(--t3);font-size:9px}.cfg-check-all input{width:15px;height:15px;accent-color:#ff2d68}.cfg-cards{padding:11px}.cfg-card{position:relative;display:grid;grid-template-columns:58px minmax(0,1fr) 190px 30px;align-items:center;gap:12px;padding:12px 10px;margin-bottom:9px;border:1px solid rgba(41,133,245,.38);border-radius:18px;background:linear-gradient(145deg,rgba(4,23,50,.92),rgba(3,12,28,.94));box-shadow:inset 0 1px rgba(255,255,255,.035),0 9px 25px rgba(0,0,0,.16)}.cfg-card:last-child{margin-bottom:0}.cfg-card:hover{border-color:rgba(70,168,255,.62);transform:translateY(-1px)}.cfg-card.expired{border-color:rgba(255,45,112,.42)}.cfg-proto-icon{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:rgba(1,9,22,.78);border:1px solid rgba(52,148,255,.48);overflow:hidden}.cfg-proto-icon img{width:100%;height:100%;object-fit:contain}.cfg-main{min-width:0}.cfg-name-row{display:flex;gap:7px}.cfg-name-row b{font-size:13px;color:#f8fbff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cfg-edit-dot{color:#59adff}.cfg-proto{font-size:10px;color:#79baff;margin-top:3px}.cfg-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;color:#8fa6c3;font-size:9px}.cfg-meta span{display:inline-flex;gap:4px}.cfg-meta i{color:#55a9ff;font-style:normal}.cfg-side{border-right:1px solid rgba(96,165,250,.12);padding-right:13px}.cfg-status{display:inline-flex;gap:5px;padding:5px 10px;border-radius:999px;font-size:9px;font-weight:900;background:rgba(16,185,129,.12);border:1px solid rgba(52,211,153,.27);color:#38e0ad}.cfg-status i{width:6px;height:6px;border-radius:50%;background:#34e3b0}.cfg-status.bad{background:rgba(255,31,92,.11);border-color:rgba(255,69,112,.35);color:#ff7198}.cfg-status.bad i{background:#ff5b83}.cfg-usage{display:flex;align-items:center;gap:7px;margin-top:9px}.cfg-usage-ring{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#b84cff var(--pct),rgba(49,82,125,.32) 0);position:relative;flex:0 0 30px}.cfg-usage-ring:after{content:'';position:absolute;inset:5px;border-radius:50%;background:#06162d}.cfg-usage-ring span{position:relative;z-index:1;font-size:7px;color:#eaf4ff}.cfg-usage-copy b{font-size:10px;color:#f1f6ff;white-space:nowrap}.cfg-usage-track{height:6px;width:110px;border-radius:99px;background:rgba(39,73,120,.45);overflow:hidden;margin-top:5px}.cfg-usage-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#8b5cf6,#ec35b8)}.cfg-menu-btn{width:28px;height:50px;border:0;background:none;color:#5baaff;font-size:24px;cursor:pointer}.cfg-menu{position:absolute;right:10px;top:58px;z-index:20;width:160px;padding:6px;border:1px solid rgba(74,151,255,.35);border-radius:13px;background:rgba(4,15,31,.98);box-shadow:0 18px 40px rgba(0,0,0,.4);display:none}.cfg-menu.open{display:block}.cfg-menu button{width:100%;height:34px;border:0;border-radius:8px;background:none;color:#d9e8fb;text-align:right;padding:0 9px;font:700 9px Vazirmatn,sans-serif;cursor:pointer}.cfg-menu button.danger{color:#ff7898}.cfg-card-check{position:absolute;left:9px;top:9px}.cfg-card-check input{width:15px;height:15px;accent-color:#ff2d68}.cfg-empty{text-align:center;padding:42px 20px;color:var(--t3);font-size:11px}@media(max-width:800px){.cfg-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cfg-card{grid-template-columns:50px minmax(0,1fr) 118px 24px;gap:8px}.cfg-proto-icon{width:48px;height:48px}.cfg-side{padding-right:8px}.cfg-usage-track{width:78px}}@media(max-width:560px){.cfg-page-hero{align-items:flex-start}.cfg-hero-actions .btn{display:none}.cfg-primary-btn{height:38px;padding:0 11px;font-size:9px}.cfg-stat-card{min-height:78px;padding:9px}.cfg-stat-icon{width:32px;height:32px;flex-basis:32px;font-size:16px}.cfg-stat-card b{font-size:16px}.cfg-stat-card small{font-size:8px}.cfg-search-box,.cfg-filter-btn{height:43px}.cfg-card{grid-template-columns:45px minmax(0,1fr) 28px;align-items:start}.cfg-proto-icon{width:43px;height:43px}.cfg-side{grid-column:2/-1;border-right:0;border-top:1px solid rgba(96,165,250,.1);padding:8px 0 0}.cfg-menu-btn{grid-column:3;grid-row:1}.cfg-meta{font-size:8px}.cfg-name-row b{font-size:11px}.cfg-proto{font-size:8px}.cfg-list-head{padding:11px 12px}}
+/* ============================================================\n   ONEX THEME ENFORCER — SECONDARY PAGES + NESTED COMPONENTS\n   This block intentionally comes last so old hard-coded dashboard\n   colors cannot win over the selected global theme.\n   ============================================================ */\n\n/* DARK: login glass recipe applied to every structural surface. */\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric,\nhtml:not(.light) .page .table-wrap,\nhtml:not(.light) .page .support-tile,\nhtml:not(.light) .page .link-box,\nhtml:not(.light) .page .sub-box,\nhtml:not(.light) .page .quick-item,\nhtml:not(.light) .page .range-tabs,\nhtml:not(.light) .page .range-mini,\nhtml:not(.light) .page .mini-action,\nhtml:not(.light) .page .chart-badge,\nhtml:not(.light) .page .health-track,\nhtml:not(.light) .page .xray-state,\nhtml:not(.light) .page .recent-table,\nhtml:not(.light) .page .recent-table th,\nhtml:not(.light) .page .recent-table td,\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n  border-color:rgba(88,180,255,.18) !important;\n  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 32px rgba(22,140,255,.035),0 14px 38px rgba(0,0,0,.18) !important;\n  backdrop-filter:blur(25px) saturate(120%) !important;\n  -webkit-backdrop-filter:blur(25px) saturate(120%) !important;\n}\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric{\n  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(22,140,255,.045) !important;\n}\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(2,11,24,.68),rgba(4,14,29,.52)) !important;\n  color:#f8fbff !important;\n}\nhtml:not(.light) .page .page-title,\nhtml:not(.light) .page .card-title,\nhtml:not(.light) .page .metric-val,\nhtml:not(.light) .page .quick-name{color:#f8fbff !important}\nhtml:not(.light) .page .page-sub,\nhtml:not(.light) .page .field label,\nhtml:not(.light) .page .metric-label,\nhtml:not(.light) .page .quick-desc{color:rgba(248,250,252,.55) !important}\n\n/* Preserve intentional accent controls/badges in dark mode. */\nhtml:not(.light) .page .btn-p,\nhtml:not(.light) .page .btn-d,\nhtml:not(.light) .page .range-tab.on,\nhtml:not(.light) .page .conn-badge,\nhtml:not(.light) .page .support-icon,\nhtml:not(.light) .page .quick-icon,\nhtml:not(.light) .page .metric-icon{\n  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\n\n/* LIGHT: every structural panel becomes pure white, not gray. */\nhtml.light .page,\nhtml.light .page.on{color:#0f172a !important}\nhtml.light .page .card,\nhtml.light .page .metric,\nhtml.light .page .table-wrap,\nhtml.light .page .support-tile,\nhtml.light .page .link-box,\nhtml.light .page .sub-box,\nhtml.light .page .quick-item,\nhtml.light .page .range-tabs,\nhtml.light .page .range-mini,\nhtml.light .page .mini-action,\nhtml.light .page .chart-badge,\nhtml.light .page .health-track,\nhtml.light .page .xray-state,\nhtml.light .page .recent-table,\nhtml.light .page .recent-table th,\nhtml.light .page .recent-table td,\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea,\nhtml.light .page .onex-topbar,\nhtml.light .page .onex-control-dock,\nhtml.light .page .onex-card,\nhtml.light .page .onex-metric{\n  background:#fff !important;\n  color:#0f172a !important;\n  border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 10px 30px rgba(15,23,42,.07),inset 0 1px rgba(255,255,255,.98) !important;\n  backdrop-filter:none !important;\n  -webkit-backdrop-filter:none !important;\n}\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.14) !important;\n}\nhtml.light .page .page-title,\nhtml.light .page .card-title,\nhtml.light .page .metric-val,\nhtml.light .page .quick-name,\nhtml.light .page .support-val{color:#0f172a !important}\nhtml.light .page .page-sub,\nhtml.light .page .field label,\nhtml.light .page .metric-label,\nhtml.light .page .quick-desc,\nhtml.light .page .support-label,\nhtml.light .page .log-time,\nhtml.light .page .health-name,\nhtml.light .page .health-pct{color:#64748b !important}\nhtml.light .page .log-msg{color:#334155 !important}\nhtml.light .page .onex-card-head,\nhtml.light .page .sb-foot{border-color:rgba(15,23,42,.08) !important}\nhtml.light .page th{background:#fff !important;color:#64748b !important}\nhtml.light .page td{background:#fff !important;color:#334155 !important;border-color:rgba(15,23,42,.08) !important}\nhtml.light .page tr:hover td{background:#f8fafc !important}\n\n/* Inline background declarations on secondary pages: normalize containers\n   while leaving action buttons, badges and icons untouched. */\nhtml.light .page div[style*="background:"],\nhtml.light .page section[style*="background:"],\nhtml.light .page article[style*="background:"],\nhtml.light .page aside[style*="background:"]{\n  background:#fff !important;\n  color:inherit;\n}\nhtml:not(.light) .page div[style*="background:"],\nhtml:not(.light) .page section[style*="background:"],\nhtml:not(.light) .page article[style*="background:"],\nhtml:not(.light) .page aside[style*="background:"]{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n/* Re-apply accent colors to controls after the broad inline rule. */\nhtml.light .page .btn-p{background:linear-gradient(135deg,#3b82f6,#6366f1) !important;color:#fff !important;border-color:transparent !important}\nhtml.light .page .btn-d{background:rgba(239,68,68,.08) !important;color:#dc2626 !important;border-color:rgba(239,68,68,.20) !important}\nhtml.light .page .range-tab.on{background:#2563eb !important;color:#fff !important}\nhtml.light .page .switch .slider{background:rgba(148,163,184,.35) !important}\nhtml.light .page .switch input:checked + .slider{background:#16a34a !important}\nhtml.light .page .quick-icon,\nhtml.light .page .support-icon,\nhtml.light .page .metric-icon{background:#f1f5f9 !important}\n\n/* Drawer and mobile top bar use exactly the same theme surfaces. */\nhtml.light .sidebar,html.light .mob-bar{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 18px 50px rgba(15,23,42,.12) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\nhtml:not(.light) .sidebar,html:not(.light) .mob-bar{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n\n/* Theme switch itself is instant enough that pages never look half-painted. */\nhtml,body,.sidebar,.mob-bar,.main,.page,.page .card,.page .metric,.page .onex-card,.page .onex-metric,\n.page .field input,.page .field select,.page .field textarea,.page .table-wrap,.page .link-box,.page .sub-box{\n  transition:background-color .12s ease,background .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease !important;\n}\n/* ============================================================
    LIGHT STATIC 3D PROTOCOL PICKER
    ============================================================ */
 #page-create select.protocol-native,#page-create .protocol-field select{display:none!important;position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important}
@@ -8548,6 +8523,9 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   .protocol-option{min-height:112px !important;}
 }
 
+/* CONFIG MANAGER FINAL UI — legacy table is data-only, cards are the visible manager. */
+#linksTable{display:none!important;width:0!important;height:0!important;overflow:hidden!important;position:absolute!important;pointer-events:none!important}
+#cfgCards{display:grid!important;gap:10px!important}
 /* FINAL PROTOCOL DESIGN: one unified grid, no separator bars, true inline 3D protocol cubes */
 .protocol-picker-scroll{padding:16px!important;overflow:auto}
 .protocol-section{margin:0!important}
@@ -8744,39 +8722,13 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 </section>
 
 <section class="page" id="page-configs">
-  <div class="page-head">
-    <div>
-      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span data-i18n="nav_configs">کانفیگ‌ها</span></div>
-      <div class="page-sub" data-i18n="configs_sub">مدیریـت لینک‌هــا · VLESS و سـاب</div>
-    </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <input id="cfgSearch" placeholder="جستجو..." oninput="filterConfigs()" style="padding:8px 12px;border-radius:10px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:12px;min-width:140px">
-
-      <button class="btn btn-p btn-sm" onclick="goPage('create')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg></button>
-      <button class="btn btn-sm" onclick="refreshAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10"/></svg></button>
-    </div>
-  </div>
-  <div class="card" style="padding:0">
-    <div class="table-wrap">
-      <div id="bulkBar" style="display:none"></div>
-      <table>
-        <thead><tr>
-          <th style="width:40px;text-align:center;padding:10px 8px">
-            <input type="checkbox" id="chkAll" onchange="toggleSelectAll(this.checked);updateBulkBar()" title="انتخاب همه" style="width:16px;height:16px;margin:0;vertical-align:middle;cursor:pointer">
-          </th>
-          <th style="width:28px;padding:10px 4px"></th>
-          <th data-i18n="th_name">نـام</th><th data-i18n="th_proto">پروتکـل</th><th data-i18n="th_status">وضعیت</th>
-          <th data-i18n="th_usage">مصـرف</th><th data-i18n="th_ops">عملیـات</th>
-        </tr></thead>
-        <tbody id="linksTable"><tr><td colspan="7" style="text-align:center;color:var(--t3);padding:32px">...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-  <button type="button" class="delete-all-configs-glass" onclick="openDeleteAllConfigs()" aria-label="حذف همه کانفیگ‌ها">
-    <span class="delete-all-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></span>
-    <span class="delete-all-copy"><b>حذف همه کانفیگ‌ها</b><small>تمام کانفیگ‌های ساخته‌شده را پاک می‌کند</small></span>
-    <span class="delete-all-arrow">‹</span>
-  </button>
+  <div class="cfg-page-hero"><div><div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71 1.71"/></svg><span data-i18n="nav_configs">کانفیگ‌ها</span></div><div class="page-sub" data-i18n="configs_sub">مدیریت و مشاهده لیست کانفیگ‌های سرویس</div></div><div class="cfg-hero-actions"><button class="btn btn-sm" onclick="refreshAll()" title="بروزرسانی">↻</button><button class="cfg-primary-btn" onclick="goPage('create')">＋ ساخت کانفیگ</button></div></div>
+  <div class="cfg-stat-grid"><div class="cfg-stat-card cyan"><span class="cfg-stat-icon">▱</span><div><small>کل کانفیگ‌ها</small><b id="cfgStatTotal">0</b></div></div><div class="cfg-stat-card purple"><span class="cfg-stat-icon">◉</span><div><small>مصرف شده</small><b id="cfgStatUsed">0 B</b></div></div><div class="cfg-stat-card blue"><span class="cfg-stat-icon">♧</span><div><small>فعال</small><b id="cfgStatActive">0</b></div></div><div class="cfg-stat-card pink"><span class="cfg-stat-icon">⌫</span><div><small>منقضی شده</small><b id="cfgStatExpired">0</b></div></div></div>
+  <div class="cfg-tools"><div class="cfg-search-box"><span>⌕</span><input id="cfgSearch" placeholder="جستجوی نام، UUID یا لینک..." oninput="filterConfigs()"></div><button class="cfg-filter-btn" onclick="toggleConfigFilters()">☷</button></div>
+  <div class="cfg-filter-row" id="cfgFilterRow"><button class="cfg-select on" data-status="all" onclick="setCfgStatus('all',this)">وضعیت <b>همه</b>⌄</button><button class="cfg-select on" data-sort="newest" onclick="setCfgSort('newest',this)">مرتب‌سازی <b>جدیدترین</b>⌄</button><button class="cfg-select" data-status="active" onclick="setCfgStatus('active',this)">● فعال</button><button class="cfg-select" data-status="expired" onclick="setCfgStatus('expired',this)">● منقضی</button></div>
+  <div class="cfg-list-shell"><div class="cfg-list-head"><div><b>کانفیگ‌های سرویس</b><small id="cfgVisibleCount">0 مورد</small></div><label class="cfg-check-all"><input type="checkbox" id="chkAll" onchange="toggleSelectAll(this.checked);updateBulkBar()"><span>انتخاب همه</span></label></div><div id="cfgCards" class="cfg-cards"><div class="cfg-empty">در حال بارگذاری...</div></div></div>
+  <button type="button" class="delete-all-configs-glass" onclick="openDeleteAllConfigs()"><span class="delete-all-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></span><span class="delete-all-copy"><b>حذف همه کانفیگ‌ها</b><small>تمام کانفیگ‌های ساخته‌شده را پاک می‌کند</small></span><span class="delete-all-arrow">‹</span></button>
+  <table id="linksTable" style="display:none"><tbody></tbody></table>
 </section>
 
 <section class="page" id="page-create">
@@ -9006,37 +8958,26 @@ Cache-Control: no-cache"></textarea></div>
     </div>
   </div>
 </section>
-<section class="page onex-stats-page" id="page-stats">
-  <div class="stats-head">
+<section class="page" id="page-stats">
+  <div class="page-head">
     <div>
-      <div class="page-title stats-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-6"/></svg><span data-i18n="nav_stats">آمار</span></div>
-      <div class="page-sub stats-sub" data-i18n="stats_sub">ترافیـک و اتصـالات · فیلتـر زمانـی</div>
+      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-6"/></svg><span data-i18n="nav_stats">آمار</span></div>
+      <div class="page-sub" data-i18n="stats_sub">ترافیـک و اتصـالات · فیلتـر زمانـی</div>
     </div>
-    <div class="stats-live"><i></i><span>آنلاین</span></div>
+    <div class="range-tabs" id="rangeTabs">
+      <button class="range-tab" data-r="day" onclick="setRange('day',this)" data-i18n="r_day">روز</button>
+      <button class="range-tab" data-r="week" onclick="setRange('week',this)" data-i18n="r_week">هفتـه</button>
+      <button class="range-tab on" data-r="month" onclick="setRange('month',this)" data-i18n="r_month">مـاه</button>
+      <button class="range-tab" data-r="all" onclick="setRange('all',this)" data-i18n="r_all">کـل</button>
+    </div>
   </div>
-  <div class="stats-range range-tabs" id="rangeTabs">
-    <button class="range-tab" data-r="day" onclick="setRange('day',this)" data-i18n="r_day">روز</button>
-    <button class="range-tab" data-r="week" onclick="setRange('week',this)" data-i18n="r_week">هفته</button>
-    <button class="range-tab on" data-r="month" onclick="setRange('month',this)" data-i18n="r_month">ماه</button>
-    <button class="range-tab" data-r="all" onclick="setRange('all',this)" data-i18n="r_all">کل</button>
+  <div class="metrics">
+    <div class="metric"><div class="metric-label" data-i18n="m_traffic">ترافیـک</div><div class="metric-val" id="sTraffic">—</div></div>
+    <div class="metric"><div class="metric-label" data-i18n="m_conns">اتصـالات</div><div class="metric-val" id="sConns">—</div></div>
+    <div class="metric"><div class="metric-label" data-i18n="m_links">کانفیـگ فعـال</div><div class="metric-val" id="sActive">—</div></div>
+    <div class="metric"><div class="metric-label" data-i18n="m_uptime">آپتایـم</div><div class="metric-val" id="sUptime" style="font-size:16px">—</div></div>
   </div>
-  <div class="stats-grid-6">
-    <div class="stats-tile tile-cyan"><div class="stats-icon">↓</div><div class="stats-label">دانلود</div><div class="stats-value" id="stDownload">—</div><div class="stats-trend">LIVE</div><div class="stats-spark"></div></div>
-    <div class="stats-tile tile-pink"><div class="stats-icon">↑</div><div class="stats-label">آپلود</div><div class="stats-value" id="stUpload">—</div><div class="stats-trend">LIVE</div><div class="stats-spark"></div></div>
-    <div class="stats-tile tile-violet"><div class="stats-icon">↗</div><div class="stats-label">اتصالات فعال</div><div class="stats-value" id="stConns">—</div><div class="stats-trend">LIVE</div><div class="stats-spark"></div></div>
-    <div class="stats-tile tile-cyan"><div class="stats-icon">♟</div><div class="stats-label">کاربران فعال</div><div class="stats-value" id="stUsers">—</div><div class="stats-trend">LIVE</div><div class="stats-spark"></div></div>
-    <div class="stats-tile tile-violet"><div class="stats-icon">▤</div><div class="stats-label">کل کانفیگ‌ها</div><div class="stats-value" id="stLinks">—</div><div class="stats-trend">TOTAL</div><div class="stats-spark"></div></div>
-    <div class="stats-tile tile-green"><div class="stats-icon">●</div><div class="stats-label">وضعیت سرور</div><div class="stats-value stats-online" id="stServer">آنلاین</div><div class="stats-trend">● LIVE</div><div class="stats-spark server-pulse"></div></div>
-  </div>
-  <div class="stats-chart-card">
-    <div class="stats-chart-head"><div><b>نمودار ترافیک</b><span>روند مصرف دانلود و آپلود</span></div><div class="chart-legend"><span><i class="legend-down"></i>دانلود</span><span><i class="legend-up"></i>آپلود</span><em id="statsChartRange">امروز</em></div></div>
-    <div class="stats-chart-wrap"><svg id="statsTrafficSvg" viewBox="0 0 900 300" preserveAspectRatio="none" aria-label="Traffic chart"></svg></div>
-  </div>
-  <div class="stats-bottom-grid">
-    <div class="stats-bottom-card uptime-card"><div class="bottom-title"><span>آپتایم سرور</span><b>◷</b></div><div class="uptime-body"><div class="uptime-ring"><span id="uptimePct">99.9%</span></div><div><small>از زمان راه‌اندازی</small><strong id="stUptime">—</strong></div></div></div>
-    <div class="stats-bottom-card"><div class="bottom-title"><span>موقعیت سرور</span><b>◎</b></div><div class="server-location"><strong id="serverLocation">تهران - ایران</strong><small>تعداد کانفیگ‌ها</small><b id="locationLinks">—</b></div></div>
-  </div>
-  <div class="stats-panel-info"><div class="bottom-title"><span>اطلاعات کل پنل</span><b>↗</b></div><div id="panelInfo" class="panel-info-grid">—</div></div>
+  <div class="card"><div class="card-title" data-i18n="panel_info">اطلاعات کل پنل</div><div id="panelInfo" style="font-size:13px;color:var(--t2);line-height:2"></div></div>
 </section>
 
 <section class="page" id="page-logs">
@@ -9946,7 +9887,6 @@ async function refreshAll(){
   const ipEl=document.getElementById('serverIp'); if(ipEl) ipEl.textContent=location.hostname||'—';
   const chartEl=document.getElementById('chartTraffic'); if(chartEl) chartEl.textContent=fmtB(used);
   const upEl=document.getElementById('topUptime'); const mu=document.getElementById('mUptime'); if(upEl && mu) upEl.textContent='Uptime: '+mu.textContent;
-  if(document.getElementById('page-stats')) loadStatsUI();
 }
 
 function renderOnexRecent(arr){
@@ -9975,93 +9915,19 @@ function linkBadgeClass(l){
   return 'conn-badge gray';
 }
 function softUpdateLinks(arr){
-  const tb=document.getElementById('linksTable');
-  if(!tb) return;
-  const rows=[...tb.querySelectorAll('tr[data-uid]')];
-  const existing=rows.map(r=>r.getAttribute('data-uid'));
-  const incoming=arr.map(l=>String(l.uuid||l.id||''));
-  const same = existing.length===incoming.length && existing.every((id,i)=>id===incoming[i]);
-  // اگر در حال درگ یا انتخاب هستیم، فقط سلول‌ها را آپدیت کن
-  const selecting = document.querySelectorAll('.cfg-chk:checked').length>0;
-  const dragging = !!__dragUid;
-  if(!same || existing.length===0){
-    if(dragging || selecting){
-      // فقط آمار ردیف‌های موجود را آپدیت کن، ساختار را نشکن
-      window.__linksMap = window.__linksMap || {};
-      arr.forEach(l=>{
-        const uid=String(l.uuid||l.id||'');
-        window.__linksMap[uid]=l;
-        const tr=tb.querySelector(`tr[data-uid="${uid}"]`);
-        if(!tr) return;
-        patchLinkRow(tr, l);
-      });
-      return;
-    }
-    renderLinks(arr);
-    return;
-  }
-  window.__linksMap = window.__linksMap || {};
-  arr.forEach(l=>{
-    const uid=String(l.uuid||l.id||'');
-    window.__linksMap[uid]=l;
-    const tr=tb.querySelector(`tr[data-uid="${uid}"]`);
-    if(tr) patchLinkRow(tr, l);
-  });
+  // FINAL CONFIG CARDS RENDERER — never fall back to the legacy table.
+  window.__linksMap={};
+  (arr||[]).forEach(l=>{window.__linksMap[String(l.uuid||l.id||'')]=l});
+  renderConfigCards(getFilteredConfigs());
 }
 function patchLinkRow(tr, l){
-  const conn=Number(l.connected_ips||0);
-  const badge=tr.querySelector('.conn-badge');
-  if(badge){ badge.textContent=String(conn); badge.className=linkBadgeClass(l); }
-  const usageCell=tr.querySelector('[data-usage]');
-  if(usageCell){
-    usageCell.textContent = fmtB(l.used_bytes) + (l.limit_bytes?(' / '+fmtB(l.limit_bytes)):'');
-  }
-  // وضعیت سوئیچ را اگر کاربر همین الان عوض نکرده دست نزن — فقط اگر API فرق دارد و فوکوس نیست
-  const sw=tr.querySelector('.switch input[type=checkbox]');
-  if(sw && document.activeElement!==sw){
-    const on=l.active!==false&&!l.expired;
-    if(sw.checked!==on) sw.checked=on;
-  }
+  // Legacy table patcher retained for compatibility; cards are the active UI.
+  renderConfigCards(getFilteredConfigs());
 }
 function renderLinks(arr){
-  const tb=document.getElementById('linksTable');
-  if(!arr.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:28px">${lang==='fa'?'کانفیگی نیست':'No configs'}</td></tr>`;updateBulkBar();return}
   window.__linksMap={};
-  const catMap=window.__catMap||{};
-  // preserve checked state
-  const prevChecked=new Set([...document.querySelectorAll('.cfg-chk:checked')].map(c=>c.value));
-  tb.innerHTML=arr.map(l=>{
-    const uid=l.uuid||l.id||'';
-    window.__linksMap[uid]=l;
-    const name=l.label||l.name||String(uid).slice(0,8);
-    const proto=l.protocol||'vless-ws';
-    const on=l.active!==false&&!l.expired;
-    const conn=Number(l.connected_ips||0);
-    const gname=catMap[String(l.category_id||'')]||'';
-    const chk=prevChecked.has(uid)?'checked':'';
-    return `<tr draggable="true" data-uid="${esc(uid)}" ondragstart="cfgDragStart(event)" ondragover="cfgDragOver(event)" ondrop="cfgDrop(event)" ondragend="cfgDragEnd(event)">
-      <td style="text-align:center;padding:10px 8px;vertical-align:middle"><input type="checkbox" class="cfg-chk" value="${esc(uid)}" ${chk} onchange="updateBulkBar()" style="width:16px;height:16px;margin:0;vertical-align:middle;cursor:pointer"></td>
-      <td style="cursor:grab;color:var(--t3);user-select:none" title="کشیدن">⋮⋮</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <b>${esc(name)}</b>
-          <span class="${linkBadgeClass(l)}" title="${lang==='fa'?'متصل الان':'Online now'}">${conn}</span>
-          ${gname?`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:var(--hover);color:var(--t3)">${esc(gname)}</span>`:''}
-        </div>
-      </td>
-      <td style="color:var(--t3);font-size:11px">${esc(proto)}</td>
-      <td><label class="switch"><input type="checkbox" ${on?'checked':''} onchange="toggleLink('${esc(uid)}',this.checked)"><span class="slider"></span></label></td>
-      <td data-usage>${fmtB(l.used_bytes)}${l.limit_bytes?(' / '+fmtB(l.limit_bytes)):''}</td>
-      <td class="ops">
-        <button class="btn btn-sm" onclick="copyLinkById('${esc(uid)}')" title="VLESS"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-        <button class="btn btn-sm" onclick="copySubById('${esc(uid)}')" title="Sub"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg></button>
-        <a class="btn btn-sm" href="/info/${esc(uid)}" target="_blank" title="INFO" style="text-decoration:none"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></a>
-        <button class="btn btn-sm" onclick="resetUsage('${esc(uid)}')" title="Reset"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
-        <button class="btn btn-sm btn-d" onclick="deleteLink('${esc(uid)}')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
-      </td>
-    </tr>`;
-  }).join('');
-  updateBulkBar();
+  (arr||[]).forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l);
+  renderConfigCards(getFilteredConfigs());
 }
 function getLinkUrl(l){if(!l)return '';return l.vless_full||l.vless||l.vless_link||l.link||''}
 function getSubUrl(l){if(!l)return '';return l.sub||l.sub_url||l.info||''}
@@ -10203,65 +10069,11 @@ async function loadLogs(){
     return `<div class="log-item"><div class="log-time">${esc(tm)}</div><div class="log-msg">${esc(l.message||l.msg||JSON.stringify(l))}</div></div>`;
   }).join('');
 }
-let __statsPayload=null;
-async function loadStatsUI(){
-  const data=await api('/stats');
-  if(!data)return;
-  __statsPayload=data;
-  const links=await api('/api/links');
-  const arr=Array.isArray(links?.links)?links.links:(Array.isArray(links)?links:[]);
-  const conns=await api('/api/connections');
-  const users=Array.isArray(conns?.connections)?conns.connections.length:(typeof conns?.count==='number'?conns.count:0);
-  const rangeHours={day:24,week:24*7,month:24*30,all:744};
-  const history=Array.isArray(data.history)?data.history:[];
-  const slice=statRange==='all'?history:history.slice(-Math.min(rangeHours[statRange]||24,744));
-  const histDown=slice.reduce((n,x)=>n+Number(x.download||0),0);
-  const histUp=slice.reduce((n,x)=>n+Number(x.upload||0),0);
-  const dl=statRange==='all'?Number(data.download_bytes||data.total_traffic_bytes||0):(histDown||Number(data.download_bytes||data.total_traffic_bytes||0));
-  const up=statRange==='all'?Number(data.upload_bytes||0):(histUp||Number(data.upload_bytes||0));
-  const active=Number(data.active_connections||0), total=Number(data.links_count||arr.length||0);
-  setText('stDownload',fmtB(dl)); setText('stUpload',fmtB(up)); setText('stConns',active); setText('stUsers',users); setText('stLinks',total);
-  setText('stServer','آنلاین'); setText('stUptime',data.uptime||'—'); setText('locationLinks',total);
-  const rangeNames={day:'امروز',week:'این هفته',month:'این ماه',all:'کل'}; setText('statsChartRange',rangeNames[statRange]||'امروز');
-  const panel=document.getElementById('panelInfo');
-  if(panel) panel.innerHTML=`<span class="panel-info-item"><i>◉</i> کل کانفیگ‌ها: <b>${total}</b></span><span class="panel-info-item green"><i>●</i> فعال: <b>${Number(data.active_links||0)}</b></span><span class="panel-info-item pink"><i>↓</i> دانلود: <b>${fmtB(dl)}</b></span><span class="panel-info-item violet"><i>↑</i> آپلود: <b>${fmtB(up)}</b></span><span class="panel-info-item"><i>◷</i> بازه: <b>${rangeNames[statRange]||'امروز'}</b></span>`;
-  renderStatsChart(data);
+function setRange(r,el){
+  statRange=r;
+  document.querySelectorAll('#rangeTabs .range-tab').forEach(t=>t.classList.toggle('on',t.dataset.r===r));
+  refreshAll();toast(t('r_'+r));
 }
-function setText(id,v){const e=document.getElementById(id);if(e)e.textContent=v}
-function renderStatsChart(data){
-  const svg=document.getElementById('statsTrafficSvg'); if(!svg)return;
-  const rangeHours={day:24,week:24*7,month:24*30,all:744};
-  const hours=Math.min(rangeHours[statRange]||24,744);
-  let history=Array.isArray(data.history)?data.history.slice(-hours):[];
-  let labels=[],down=[],up=[];
-  if(history.length){
-    labels=history.map(x=>String(x.hour||'').slice(11,16));
-    down=history.map(x=>Number(x.download||0));
-    up=history.map(x=>Number(x.upload||0));
-  }else{
-    const raw=data.hourly||{};
-    for(let h=0;h<24;h++){const key=String(h).padStart(2,'0')+':00';labels.push(key);down.push(Number(raw[key]||0));up.push(0)}
-  }
-  // Keep the chart readable: downsample long ranges while preserving totals/trend.
-  const target=statRange==='day'?24:(statRange==='week'?28:(statRange==='month'?30:36));
-  if(labels.length>target){
-    const step=labels.length/target, L=[],D=[],U=[];
-    for(let i=0;i<target;i++){const a=Math.floor(i*step),b=Math.max(a+1,Math.floor((i+1)*step));L.push(labels[Math.min(a,labels.length-1)]);D.push(down.slice(a,b).reduce((x,y)=>x+y,0));U.push(up.slice(a,b).reduce((x,y)=>x+y,0));}
-    labels=L;down=D;up=U;
-  }
-  if(labels.length===1){labels.push(labels[0]);down.push(down[0]);up.push(up[0]);}
-  const W=900,H=300,L=54,R=18,T=18,B=34,innerW=W-L-R,innerH=H-T-B,maxV=Math.max(...down,...up,1)*1.18;
-  const pts=(vals)=>vals.map((v,i)=>[L+(i/(Math.max(vals.length-1,1)))*innerW,T+innerH-(v/maxV)*innerH]);
-  const dp=pts(down),upPts=pts(up),poly=p=>p.map(x=>x.join(',')).join(' ');
-  const area=p=>`M ${p[0][0]} ${T+innerH} L ${p.map(x=>x.join(' ')).join(' L ')} L ${p[p.length-1][0]} ${T+innerH} Z`;
-  let html=`<defs><linearGradient id="downFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#20c8ff" stop-opacity=".30"/><stop offset="1" stop-color="#20c8ff" stop-opacity="0"/></linearGradient><linearGradient id="upFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff2b91" stop-opacity=".28"/><stop offset="1" stop-color="#ff2b91" stop-opacity="0"/></linearGradient></defs>`;
-  for(let i=0;i<=5;i++){const y=T+(innerH/5)*i,val=maxV-(maxV/5)*i;html+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y}" y2="${y}"/><text class="axis" x="${L-9}" y="${y+4}" text-anchor="end">${fmtB(val)}</text>`}
-  const tickCount=Math.min(7,labels.length); for(let i=0;i<tickCount;i++){const idx=Math.round(i*(labels.length-1)/Math.max(tickCount-1,1)),x=L+(idx/Math.max(labels.length-1,1))*innerW;html+=`<line class="grid" x1="${x}" x2="${x}" y1="${T}" y2="${T+innerH}"/><text class="axis" x="${x}" y="${H-8}" text-anchor="middle">${esc(labels[idx])}</text>`}
-  html+=`<path class="down-fill" d="${area(dp)}"/><path class="up-fill" d="${area(upPts)}"/><polyline class="down-line" points="${poly(dp)}"/><polyline class="up-line" points="${poly(upPts)}"/>`;
-  [dp,upPts].forEach((arr,c)=>{const p=arr[arr.length-1];html+=`<circle class="chart-dot" cx="${p[0]}" cy="${p[1]}" r="4" stroke="${c?'#ff2b91':'#20c8ff'}"/>`});
-  svg.innerHTML=html;
-}
-function setRange(r,el){statRange=r;document.querySelectorAll('#rangeTabs .range-tab').forEach(t=>t.classList.toggle('on',t.dataset.r===r));loadStatsUI();}
 function randomName(){
   const chars='abcdefghijklmnopqrstuvwxyz0123456789';
   let s='';
@@ -10572,16 +10384,24 @@ async function loadProtocols(){
   setupProtocolPickers();
 }
 let __allLinks=[];
-function filterConfigs(){
-  const q=(document.getElementById('cfgSearch')?.value||'').trim().toLowerCase();
-  if(!q){renderLinks(__allLinks);return}
-  renderLinks(__allLinks.filter(l=>{
-    const name=(l.label||l.name||'').toLowerCase();
-    const proto=(l.protocol||'').toLowerCase();
-    const uid=String(l.uuid||l.id||'').toLowerCase();
-    return name.includes(q)||proto.includes(q)||uid.includes(q);
-  }));
-}
+let cfgStatusFilter='all',cfgSortMode='newest';
+function toggleConfigFilters(){document.getElementById('cfgFilterRow')?.classList.toggle('open')}
+function setCfgStatus(v,el){cfgStatusFilter=v;document.querySelectorAll('#cfgFilterRow [data-status]').forEach(x=>x.classList.toggle('on',x===el));renderConfigCards(getFilteredConfigs())}
+function setCfgSort(v,el){cfgSortMode=v;document.querySelectorAll('#cfgFilterRow [data-sort]').forEach(x=>x.classList.toggle('on',x===el));renderConfigCards(getFilteredConfigs())}
+function configExpired(l){return !!l.expired||(l.expires_at&&new Date(l.expires_at).getTime()<=Date.now())||(Number(l.limit_bytes)>0&&Number(l.used_bytes||0)>=Number(l.limit_bytes))}
+function getFilteredConfigs(){const q=(document.getElementById('cfgSearch')?.value||'').trim().toLowerCase();let a=__allLinks.filter(l=>{const dead=configExpired(l),active=l.active!==false&&!dead;if(cfgStatusFilter==='active'&&!active)return false;if(cfgStatusFilter==='expired'&&!dead)return false;if(!q)return true;return [l.label,l.name,l.protocol,l.protocol_label,l.uuid,l.id,l.sub,l.sub_url,l.vless,l.vless_full].map(x=>String(x||'').toLowerCase()).some(x=>x.includes(q))});a.sort((x,y)=>cfgSortMode==='name'?String(x.label||x.name||'').localeCompare(String(y.label||y.name||'')):cfgSortMode==='usage'?Number(y.used_bytes||0)-Number(x.used_bytes||0):String(y.created_at||'').localeCompare(String(x.created_at||'')));return a}
+function filterConfigs(){renderConfigCards(getFilteredConfigs())}
+function protocolUi(id){const m={'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png'],'xhttp-stream-one':['ONEX Stream','/api/protocol-icon/xhttp-stream-one.png']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png']}
+function cfgDate(v){if(!v)return 'بدون انقضا';try{return new Date(v).toLocaleDateString('fa-IR',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){return String(v).slice(0,10)}}
+function updateConfigStats(){const total=__allLinks.length,expired=__allLinks.filter(configExpired).length,active=__allLinks.filter(l=>l.active!==false&&!configExpired(l)).length,used=__allLinks.reduce((n,l)=>n+Number(l.used_bytes||0),0),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('cfgStatTotal',total);set('cfgStatUsed',fmtB(used));set('cfgStatActive',active);set('cfgStatExpired',expired);set('cfgVisibleCount',`${getFilteredConfigs().length} مورد`)}
+function closeConfigMenus(){document.querySelectorAll('.cfg-menu.open').forEach(m=>m.classList.remove('open'))}
+function toggleConfigMenu(e,uid){e.stopPropagation();const id='cfgMenu_'+uid.replace(/[^a-zA-Z0-9_-]/g,'_'),m=document.getElementById(id);if(!m)return;const was=m.classList.contains('open');closeConfigMenus();if(!was)m.classList.add('open')}
+function configMenuAction(a,uid){closeConfigMenus();if(a==='copy')return copyLinkById(uid);if(a==='sub')return copySubById(uid);if(a==='info'){window.open('/info/'+encodeURIComponent(uid),'_blank','noopener');return}if(a==='reset')return resetUsage(uid);if(a==='delete')return deleteLink(uid)}
+document.addEventListener('click',e=>{if(!e.target.closest('.cfg-menu')&&!e.target.closest('.cfg-menu-btn'))closeConfigMenus()});
+function renderConfigCards(arr){const box=document.getElementById('cfgCards');if(!box)return;updateConfigStats();if(!arr.length){box.innerHTML='<div class="cfg-empty">'+(lang==='fa'?'کانفیگی با این فیلتر پیدا نشد':'No configs match the filter')+'</div>';return}box.innerHTML=arr.map(l=>{const uid=String(l.uuid||l.id||''),dead=configExpired(l),active=l.active!==false&&!dead,[pl,icon]=protocolUi(l.protocol),used=Number(l.used_bytes||0),lim=Number(l.limit_bytes||0),pct=lim>0?Math.min(100,Math.round(used/lim*100)):0,conn=Number(l.connected_ips||0),mid='cfgMenu_'+uid.replace(/[^a-zA-Z0-9_-]/g,'_'),usage=lim>0?`${fmtB(used)} / ${fmtB(lim)}`:fmtB(used);return `<article class="cfg-card ${dead?'expired':''}" draggable="true" data-uid="${esc(uid)}" ondragstart="cfgDragStart(event)" ondragover="cfgDragOver(event)" ondrop="cfgDrop(event)" ondragend="cfgDragEnd(event)"><label class="cfg-card-check"><input type="checkbox" class="cfg-chk" value="${esc(uid)}" onchange="updateBulkBar()"></label><div class="cfg-proto-icon"><img src="${icon}" alt=""></div><div class="cfg-main"><div class="cfg-name-row"><b>${esc(l.label||l.name||uid.slice(0,8))}</b><span class="cfg-edit-dot">✎</span></div><div class="cfg-proto">${esc(pl)}</div><div class="cfg-meta"><span><i>♧</i>${conn} اتصال</span><span><i>◷</i>${dead?'منقضی شده':(l.expires_at?'انقضا '+cfgDate(l.expires_at):'بدون انقضا')}</span></div></div><div class="cfg-side"><span class="cfg-status ${active?'':'bad'}"><i></i>${active?'فعال':'منقضی شده'}</span><div class="cfg-usage"><div class="cfg-usage-ring" style="--pct:${pct}%"><span>${pct}%</span></div><div class="cfg-usage-copy"><b>${esc(usage)}</b>${lim>0?`<div class="cfg-usage-track"><div class="cfg-usage-fill" style="width:${pct}%"></div></div>`:''}</div></div></div><button class="cfg-menu-btn" type="button" onclick="toggleConfigMenu(event,'${esc(uid)}')">⋮</button><div class="cfg-menu" id="${mid}"><button onclick="configMenuAction('copy','${esc(uid)}')">کپی VLESS</button><button onclick="configMenuAction('sub','${esc(uid)}')">کپی ساب</button><button onclick="configMenuAction('info','${esc(uid)}')">صفحه اطلاعات</button><button onclick="configMenuAction('reset','${esc(uid)}')">ریست مصرف</button><button class="danger" onclick="configMenuAction('delete','${esc(uid)}')">حذف کانفیگ</button></div></article>`}).join('');updateBulkBar()}
+function renderLinks(arr){window.__linksMap={};arr.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l);renderConfigCards(getFilteredConfigs())}
+function softUpdateLinks(arr){window.__linksMap={};arr.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l);renderConfigCards(getFilteredConfigs())}
+function patchLinkRow(tr,l){renderConfigCards(getFilteredConfigs())}
 async function resetUsage(uid){
   if(!confirm(lang==='fa'?'مصرف ریست شود؟':'Reset usage?'))return;
   const r=await api('/api/links/'+uid+'/reset-usage',{method:'POST'});
@@ -10591,24 +10411,9 @@ async function resetUsage(uid){
 
 let __dragUid=null;
 function cfgDragStart(e){__dragUid=e.currentTarget.getAttribute('data-uid');e.currentTarget.style.opacity='.5';e.dataTransfer.effectAllowed='move';}
-function cfgDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';const tr=e.currentTarget;if(tr&&tr.tagName==='TR')tr.style.background='var(--hover)';}
-function cfgDragEnd(e){e.currentTarget.style.opacity='1';document.querySelectorAll('#linksTable tr').forEach(tr=>tr.style.background='');}
-async function cfgDrop(e){
-  e.preventDefault();
-  const target=e.currentTarget.getAttribute('data-uid');
-  document.querySelectorAll('#linksTable tr').forEach(tr=>tr.style.background='');
-  if(!__dragUid||!target||__dragUid===target)return;
-  const rows=[...document.querySelectorAll('#linksTable tr[data-uid]')];
-  const ids=rows.map(r=>r.getAttribute('data-uid'));
-  const from=ids.indexOf(__dragUid), to=ids.indexOf(target);
-  if(from<0||to<0)return;
-  ids.splice(from,1);ids.splice(to,0,__dragUid);
-  // reorder DOM optimistically
-  const tb=document.getElementById('linksTable');
-  ids.forEach(id=>{const el=tb.querySelector(`tr[data-uid="${id}"]`);if(el)tb.appendChild(el);});
-  await api('/api/links/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:ids})});
-  toast(lang==='fa'?'ترتیب ذخیره شد':'Order saved');
-}
+function cfgDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';const card=e.currentTarget;if(card&&card.classList.contains('cfg-card'))card.style.boxShadow='0 0 0 1px rgba(70,168,255,.55),0 12px 28px rgba(37,99,235,.14)';}
+function cfgDragEnd(e){e.currentTarget.style.opacity='1';document.querySelectorAll('.cfg-card').forEach(card=>card.style.boxShadow='');__dragUid=null;}
+async function cfgDrop(e){e.preventDefault();const target=e.currentTarget.getAttribute('data-uid');document.querySelectorAll('.cfg-card').forEach(card=>card.style.boxShadow='');if(!__dragUid||!target||__dragUid===target)return;const cards=[...document.querySelectorAll('#cfgCards .cfg-card')],ids=cards.map(card=>card.getAttribute('data-uid'));const from=ids.indexOf(__dragUid),to=ids.indexOf(target);if(from<0||to<0)return;ids.splice(from,1);ids.splice(to,0,__dragUid);const box=document.getElementById('cfgCards');ids.forEach(id=>{const el=box.querySelector('.cfg-card[data-uid="'+CSS.escape(id)+'"]');if(el)box.appendChild(el)});await api('/api/links/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:ids})});toast(lang==='fa'?'ترتیب ذخیره شد':'Order saved');__dragUid=null;}
 
 function updateBulkBar(){
   const n=document.querySelectorAll('.cfg-chk:checked').length;
@@ -10663,7 +10468,7 @@ let __groupFilter='all';
 let __groupProtocols=[];
 
 function groupProtocolLabel(id){
-  const labels={'vless-ws':'ONEX WB','xhttp-packet-up':'ONEX Xhttp','xhttp-stream-up':'ONEX Gaming','xhttp-stream-one':'ONEX Stream','trojan':'Trojan','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria2','vless-grpc-reality':'VLESS gRPC Reality','wireguard':'WireGuard'};
+  const labels={'vless-ws':'ONEX WB','xhttp-packet-up':'ONEX Xhttp','xhttp-stream-up':'ONEX Gamig','xhttp-stream-one':'ONEX Stream','trojan':'Trojan','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria2','vless-grpc-reality':'VLESS gRPC Reality','wireguard':'WireGuard'};
   return labels[id]||id;
 }
 function groupProtocolIcon(id){
@@ -10848,8 +10653,8 @@ async function restoreBot(){
 const PROTOCOL_PICKER_GROUPS=[
   {title:'',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']}
 ];
-const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gaming","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
-const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP","xhttp-stream-up":"VLESS + XHTTP","xhttp-stream-one":"VLESS + XHTTP","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
+const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gamig","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
+const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP (Packet-Up)","xhttp-stream-up":"VLESS + XHTTP (Gaming / Stream-Up)","xhttp-stream-one":"VLESS + XHTTP (Stream-One)","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
 const PROTOCOL_3D_ICONS={
   "vless-ws":{c1:"#24a9ff",c2:"#1264ff",c3:"#6d3cff",mark:"V",glow:"#168cff"},
   "xhttp-packet-up":{c1:"#35c8ff",c2:"#0877d8",c3:"#3155ff",mark:"XP",glow:"#21b8ff"},

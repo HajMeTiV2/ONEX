@@ -2215,6 +2215,41 @@ table th:first-child, table td:first-child{overflow:visible}
   #page-dash .version-mini-copy strong{font-size:9px!important}
 }
 </style>
+
+<style id="onex-logo-hard-fix">
+/* FINAL HARD FIX: logo artwork must never become a page-sized image. */
+html,body{overflow-x:hidden!important}
+.onex-brand-3d,.onex-brand-3d-mobile,.onex-brand-3d-sidebar,.onex-topbar-brand,.mob-brand{overflow:hidden!important;contain:layout paint!important}
+.onex-brand-img{display:block!important;object-fit:contain!important;object-position:center!important;max-width:100%!important;max-height:100%!important}
+.onex-topbar-brand{width:180px!important;height:58px!important;display:flex!important;align-items:center!important;justify-content:center!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;z-index:2000!important}
+.onex-brand-3d-topbar{width:180px!important;height:58px!important;min-width:180px!important;max-width:180px!important;min-height:58px!important;max-height:58px!important}
+.onex-topbar-brand .onex-brand-img{width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important}
+.onex-topbar-brand .onex-brand-orbit{z-index:1!important}
+.mob-brand{width:180px!important;height:58px!important;z-index:2000!important}
+.onex-brand-3d-mobile{width:180px!important;height:58px!important;min-width:180px!important;max-width:180px!important;min-height:58px!important;max-height:58px!important}
+.mob-brand .onex-brand-img{width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important}
+.sb-logo{height:130px!important;min-height:130px!important;max-height:130px!important;overflow:hidden!important;display:flex!important;align-items:center!important;justify-content:center!important}
+.onex-brand-3d-sidebar{width:180px!important;height:120px!important;min-width:180px!important;max-width:180px!important;min-height:120px!important;max-height:120px!important;overflow:hidden!important}
+.sidebar .onex-brand-img{width:180px!important;height:120px!important;max-width:180px!important;max-height:120px!important}
+/* If an old cached/template copy places either approved asset elsewhere, keep it compact. */
+img[src="/api/onex-header-logo.png"]{width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important;object-fit:contain!important}
+img[src="/api/onex-sidebar-logo.png"]{width:180px!important;height:120px!important;max-width:180px!important;max-height:120px!important;object-fit:contain!important}
+@media(max-width:768px){
+  .onex-topbar-brand{display:none!important}
+  .mob-brand{display:flex!important;width:180px!important;height:58px!important}
+  .onex-brand-3d-mobile{width:180px!important;height:58px!important}
+  .mob-brand .onex-brand-img{width:175px!important;height:52px!important}
+  .sidebar{width:min(72vw,280px)!important;max-width:280px!important}
+  .sidebar .sb-logo{height:130px!important;min-height:130px!important;max-height:130px!important}
+  .onex-brand-3d-sidebar{width:180px!important;height:120px!important}
+}
+@media(max-width:420px){
+  .mob-brand{width:160px!important;height:54px!important}
+  .onex-brand-3d-mobile{width:160px!important;height:54px!important}
+  .mob-brand .onex-brand-img{width:155px!important;height:50px!important}
+  img[src="/api/onex-header-logo.png"]{width:155px!important;height:50px!important;max-width:155px!important;max-height:50px!important}
+}
+</style>
 </head>
 
 <body>
@@ -8220,7 +8255,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <div class="mob-brand" aria-label="ONEX">
     <div class="onex-brand-3d onex-brand-3d-mobile">
       <span class="onex-brand-orbit orbit-a"></span><span class="onex-brand-orbit orbit-b"></span>
-      <img src="/api/onex-header-logo.png" alt="ONEX" class="onex-brand-img">
+      <img src="/api/onex-header-logo.png" alt="ONEX" class="onex-brand-img" style="width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important;object-fit:contain!important;display:block!important;">
     </div>
   </div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
@@ -8234,7 +8269,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <div class="sb-logo">
     <div class="onex-brand-3d onex-brand-3d-sidebar" aria-label="ONEX 3D logo">
       <span class="onex-brand-orbit orbit-a"></span><span class="onex-brand-orbit orbit-b"></span>
-      <img src="/api/onex-sidebar-logo.png" alt="ONEX" class="onex-brand-img">
+      <img src="/api/onex-sidebar-logo.png" alt="ONEX" class="onex-brand-img" style="width:180px!important;height:120px!important;max-width:180px!important;max-height:120px!important;object-fit:contain!important;display:block!important;">
     </div>
   </div>
   <nav class="nav">
@@ -8295,7 +8330,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <div class="onex-topbar-brand" aria-label="ONEX">
     <div class="onex-brand-3d onex-brand-3d-topbar">
       <span class="onex-brand-orbit orbit-a"></span><span class="onex-brand-orbit orbit-b"></span>
-      <img src="/api/onex-header-logo.png" alt="ONEX" class="onex-brand-img">
+      <img src="/api/onex-header-logo.png" alt="ONEX" class="onex-brand-img" style="width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important;object-fit:contain!important;display:block!important;">
     </div>
     <strong>ONEX</strong>
   </div>

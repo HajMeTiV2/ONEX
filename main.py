@@ -139,30 +139,14 @@ async def protocol_icon(protocol_id: str):
         raise HTTPException(status_code=404, detail="Protocol icon not found")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
-ONEX_LOGO_3D_FILE = Path(__file__).resolve().parent / "onex-logo-3d.png"
+ONEX_LOGO_FILE = Path(__file__).resolve().parent / "onex-logo-3d.png"
 
 @app.get("/api/onex-logo-3d.png", include_in_schema=False)
 async def onex_logo_3d():
-    """Serve the bundled ONEX 3D animated-brand artwork."""
-    if not ONEX_LOGO_3D_FILE.is_file():
+    """Serve the bundled ONEX 3D logo used by the desktop and mobile panel chrome."""
+    if not ONEX_LOGO_FILE.is_file():
         raise HTTPException(status_code=404, detail="ONEX logo not found")
-    return FileResponse(ONEX_LOGO_3D_FILE, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
-
-@app.get("/api/onex-header-logo.png", include_in_schema=False)
-async def onex_header_logo():
-    """Serve the approved ONEX 3D header logo asset."""
-    path = Path(__file__).with_name("onex-header.png")
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="ONEX header logo not found")
-    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
-
-@app.get("/api/onex-sidebar-logo.png", include_in_schema=False)
-async def onex_sidebar_logo():
-    """Serve the approved ONEX 3D sidebar logo asset."""
-    path = Path(__file__).with_name("onex-sidebar.png")
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="ONEX sidebar logo not found")
-    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    return FileResponse(ONEX_LOGO_FILE, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 app.add_middleware(
     CORSMiddleware,
@@ -2215,41 +2199,6 @@ table th:first-child, table td:first-child{overflow:visible}
   #page-dash .version-mini-copy strong{font-size:9px!important}
 }
 </style>
-
-<style id="onex-logo-hard-fix">
-/* FINAL HARD FIX: logo artwork must never become a page-sized image. */
-html,body{overflow-x:hidden!important}
-.onex-brand-3d,.onex-brand-3d-mobile,.onex-brand-3d-sidebar,.onex-topbar-brand,.mob-brand{overflow:hidden!important;contain:layout paint!important}
-.onex-brand-img{display:block!important;object-fit:contain!important;object-position:center!important;max-width:100%!important;max-height:100%!important}
-.onex-topbar-brand{width:180px!important;height:58px!important;display:flex!important;align-items:center!important;justify-content:center!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;z-index:2000!important}
-.onex-brand-3d-topbar{width:180px!important;height:58px!important;min-width:180px!important;max-width:180px!important;min-height:58px!important;max-height:58px!important}
-.onex-topbar-brand .onex-brand-img{width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important}
-.onex-topbar-brand .onex-brand-orbit{z-index:1!important}
-.mob-brand{width:180px!important;height:58px!important;z-index:2000!important}
-.onex-brand-3d-mobile{width:180px!important;height:58px!important;min-width:180px!important;max-width:180px!important;min-height:58px!important;max-height:58px!important}
-.mob-brand .onex-brand-img{width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important}
-.sb-logo{height:130px!important;min-height:130px!important;max-height:130px!important;overflow:hidden!important;display:flex!important;align-items:center!important;justify-content:center!important}
-.onex-brand-3d-sidebar{width:180px!important;height:120px!important;min-width:180px!important;max-width:180px!important;min-height:120px!important;max-height:120px!important;overflow:hidden!important}
-.sidebar .onex-brand-img{width:180px!important;height:120px!important;max-width:180px!important;max-height:120px!important}
-/* If an old cached/template copy places either approved asset elsewhere, keep it compact. */
-img[src="/api/onex-header-logo.png"]{width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important;object-fit:contain!important}
-img[src="/api/onex-sidebar-logo.png"]{width:180px!important;height:120px!important;max-width:180px!important;max-height:120px!important;object-fit:contain!important}
-@media(max-width:768px){
-  .onex-topbar-brand{display:none!important}
-  .mob-brand{display:flex!important;width:180px!important;height:58px!important}
-  .onex-brand-3d-mobile{width:180px!important;height:58px!important}
-  .mob-brand .onex-brand-img{width:175px!important;height:52px!important}
-  .sidebar{width:min(72vw,280px)!important;max-width:280px!important}
-  .sidebar .sb-logo{height:130px!important;min-height:130px!important;max-height:130px!important}
-  .onex-brand-3d-sidebar{width:180px!important;height:120px!important}
-}
-@media(max-width:420px){
-  .mob-brand{width:160px!important;height:54px!important}
-  .onex-brand-3d-mobile{width:160px!important;height:54px!important}
-  .mob-brand .onex-brand-img{width:155px!important;height:50px!important}
-  img[src="/api/onex-header-logo.png"]{width:155px!important;height:50px!important;max-width:155px!important;max-height:50px!important}
-}
-</style>
 </head>
 
 <body>
@@ -2572,56 +2521,6 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
   .login-title{font-size:19px}.login-desc{font-size:10px;margin-bottom:13px}
   .field input{height:50px}.primary{height:51px}
 }
-\n/* ============================================================
-   ONEX EXACT 3D BRAND — USER APPROVED ARTWORK
-   ============================================================ */
-.onex-brand-3d{position:relative;display:grid;place-items:center;isolation:isolate;transform-style:preserve-3d;perspective:900px;overflow:visible}
-.onex-brand-img{position:relative;z-index:4;width:100%;height:100%;object-fit:contain;display:block;transform-style:preserve-3d;backface-visibility:visible;filter:drop-shadow(0 8px 18px rgba(0,119,255,.30));animation:onexExactFloat 4.6s ease-in-out infinite,onexExactTilt 8s ease-in-out infinite}
-.onex-brand-orbit{position:absolute;z-index:5;left:50%;top:50%;width:86%;height:30%;border-radius:50%;border:1.5px solid rgba(32,200,255,.42);box-shadow:0 0 10px rgba(32,200,255,.22);pointer-events:none;transform-style:preserve-3d;opacity:.65}
-.orbit-a{transform:translate(-50%,-50%) rotateX(70deg) rotateZ(-10deg);animation:onexExactOrbitA 5.5s linear infinite}
-.orbit-b{width:74%;height:24%;border-color:rgba(216,80,255,.46);box-shadow:0 0 10px rgba(216,80,255,.22);transform:translate(-50%,-50%) rotateY(68deg) rotateZ(15deg);animation:onexExactOrbitB 6.5s linear infinite}
-@keyframes onexExactFloat{0%,100%{transform:translate3d(0,0,0) rotateX(0deg) rotateY(-3deg) scale(1)}50%{transform:translate3d(0,-3px,10px) rotateX(3deg) rotateY(4deg) scale(1.025)}}
-@keyframes onexExactTilt{0%,100%{filter:drop-shadow(0 8px 18px rgba(0,119,255,.28)) brightness(1)}50%{filter:drop-shadow(0 12px 28px rgba(168,85,247,.40)) brightness(1.06)}}
-@keyframes onexExactOrbitA{0%{rotate:0deg}100%{rotate:360deg}}
-@keyframes onexExactOrbitB{0%{rotate:360deg}100%{rotate:0deg}}
-
-/* Sidebar: exact vertical artwork including ONEX wordmark */
-.sb-logo{padding:12px 8px!important;min-height:150px!important;overflow:visible!important}
-.onex-brand-3d-sidebar{width:210px;height:150px;margin:auto}
-.sidebar .sb-logo-icon{display:none!important}
-
-/* Desktop header: exact horizontal artwork including ONEX wordmark */
-.onex-topbar{position:relative;z-index:20;overflow:visible!important}
-.onex-topbar-brand{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;width:280px;height:76px;z-index:40;pointer-events:none}
-.onex-brand-3d-topbar{width:280px;height:76px;overflow:visible}
-.onex-topbar-brand strong{display:none!important}
-
-/* Mobile header: exact horizontal artwork, scaled without cropping */
-.mob-bar{z-index:1400!important;overflow:visible!important}
-.mob-brand{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;margin:0!important;width:205px!important;height:58px!important;z-index:1450!important;pointer-events:none}
-.onex-brand-3d-mobile{width:205px;height:58px;overflow:visible}
-.mob-brand-text{display:none!important}
-
-@media(max-width:768px){
-  .sidebar{width:min(72vw,280px)!important;max-width:280px!important;z-index:1500!important;transition:transform .22s ease!important;box-shadow:-12px 0 30px rgba(0,0,0,.38)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-  .sidebar.collapsed{width:min(72vw,280px)!important;max-width:280px!important}
-  .overlay{z-index:1450!important;background:rgba(0,0,0,.46)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-  .sidebar .sb-logo{padding:10px 6px!important;min-height:138px!important}
-  .onex-brand-3d-sidebar{width:190px;height:136px}
-  .onex-topbar-brand{display:none!important}
-  .mob-bar{background:rgba(6,15,29,.96)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 6px 20px rgba(0,0,0,.22)!important}
-  .mob-menu-btn{position:relative;z-index:1460}
-  .mob-status{position:relative;z-index:1460}
-  .mob-brand{width:205px!important;height:58px!important;z-index:1450!important}
-  .onex-brand-3d-mobile{width:205px;height:58px}
-}
-@media(max-width:480px){
-  .mob-brand{width:190px!important;height:55px!important}
-  .onex-brand-3d-mobile{width:190px;height:55px}
-  .onex-brand-3d-sidebar{width:180px;height:128px}
-  .onex-brand-orbit{border-width:1px}
-}
-@media(prefers-reduced-motion:reduce){.onex-brand-img,.onex-brand-orbit{animation:none!important}}
 </style>
 </head>
 <body>
@@ -7815,6 +7714,55 @@ tr:hover td{background:var(--hover)}
    The opened dashboard menu intentionally uses the exact same
    glass recipe as .login-card for a consistent visual language.
    ============================================================ */
+/* ============================================================
+   ONEX LOGO FIX — bundled 3D artwork for sidebar + mobile bar
+   ============================================================ */
+.onex-logo-img{
+  display:block;
+  object-fit:contain;
+  object-position:center;
+  background:transparent !important;
+  border:0 !important;
+  outline:0 !important;
+}
+.sb-logo .sb-logo-icon.onex-logo-img{
+  width:76px !important;height:76px !important;
+  flex:0 0 76px !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  transform:none !important;
+  animation:onexLogoImageFloat 4s ease-in-out infinite !important;
+}
+.mob-brand .mob-brand-icon.onex-logo-img{
+  width:58px !important;height:58px !important;
+  flex:0 0 58px !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  transform:none !important;
+  animation:onexLogoImageFloat 4s ease-in-out infinite !important;
+}
+.sb-logo .sb-logo-icon.onex-logo-img::before,.sb-logo .sb-logo-icon.onex-logo-img::after{content:none !important}
+@keyframes onexLogoImageFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.025)}}
+
+@media (max-width:768px){
+  .mob-bar{z-index:1250 !important}
+  .sidebar{
+    width:min(68vw,280px) !important;
+    max-width:280px !important;
+    z-index:1400 !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    box-shadow:-18px 0 48px rgba(0,0,0,.48) !important;
+  }
+  .sidebar.collapsed{width:min(68vw,280px) !important}
+  .sidebar .sb-logo{padding:12px 10px !important;min-height:88px}
+  .sidebar .sb-logo-icon.onex-logo-img{width:72px !important;height:72px !important;flex-basis:72px !important}
+  .mob-brand{gap:0 !important}
+  .mob-brand .mob-brand-icon.onex-logo-img{width:52px !important;height:52px !important;flex-basis:52px !important}
+  .mob-brand-text{display:none !important}
+}
+@media (prefers-reduced-motion:reduce){.onex-logo-img{animation:none !important}}
+
 .sidebar{
   background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;
   border-left:1px solid rgba(122,180,235,.14) !important;
@@ -8207,43 +8155,6 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 
 .all-proto-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 14px;padding:12px 14px;border:1px solid rgba(34,197,94,.22);border-radius:14px;background:rgba(34,197,94,.035);cursor:pointer;user-select:none}
 .all-proto-toggle span{display:block;min-width:0}.all-proto-toggle b{display:block;font-size:12px}.all-proto-toggle small{display:block;color:var(--t3);font-size:10px;margin-top:4px;line-height:1.6}.all-proto-toggle input{position:absolute;opacity:0;pointer-events:none}.all-proto-toggle i{position:relative;flex:0 0 48px;width:48px;height:28px;border-radius:999px;background:#4b5563;transition:.2s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.all-proto-toggle i:before{content:"";position:absolute;top:4px;right:24px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35);transition:.2s}.all-proto-toggle:has(input:checked) i{background:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.28)}.all-proto-toggle:has(input:checked) i:before{right:4px}.all-proto-toggle:focus-within{outline:2px solid rgba(34,197,94,.35);outline-offset:2px}
-\n/* ============================================================\n   ONEX 3D BRAND — FINAL IMPLEMENTATION\n   ============================================================ */\n.onex-brand-3d{\n  position:relative;display:grid;place-items:center;isolation:isolate;\n  transform-style:preserve-3d;perspective:700px;\n}\n.onex-brand-img{position:relative;z-index:4;width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 10px 22px rgba(37,99,235,.30));transform-style:preserve-3d;animation:onexBrandFloat 4.8s ease-in-out infinite,onexBrandTilt 7s ease-in-out infinite}\n.onex-brand-orbit{position:absolute;z-index:2;left:50%;top:50%;width:82%;height:28%;border-radius:50%;border:2px solid rgba(32,200,255,.72);box-shadow:0 0 12px rgba(32,200,255,.45),inset 0 0 8px rgba(124,58,237,.25);pointer-events:none;transform-style:preserve-3d}\n.orbit-a{transform:translate(-50%,-50%) rotateX(68deg) rotateZ(-12deg);animation:onexOrbitA 5s linear infinite}\n.orbit-b{width:72%;height:22%;border-color:rgba(168,85,247,.78);box-shadow:0 0 12px rgba(168,85,247,.40);transform:translate(-50%,-50%) rotateY(66deg) rotateZ(18deg);animation:onexOrbitB 6s linear infinite}\n@keyframes onexBrandFloat{0%,100%{transform:translateY(0) rotateX(0deg) rotateY(-4deg) scale(1)}50%{transform:translateY(-4px) rotateX(3deg) rotateY(5deg) scale(1.025)}}\n@keyframes onexBrandTilt{0%,100%{filter:drop-shadow(0 10px 22px rgba(37,99,235,.28))}50%{filter:drop-shadow(0 13px 30px rgba(59,130,246,.48))}}\n@keyframes onexOrbitA{0%{rotate:0deg}100%{rotate:360deg}}\n@keyframes onexOrbitB{0%{rotate:360deg}100%{rotate:0deg}}\n\n/* Sidebar logo */\n.sb-logo{padding:16px 10px!important;min-height:92px}\n.onex-brand-3d-sidebar{width:82px;height:82px;margin:auto}\n.sidebar .sb-logo-icon{display:none!important}\n\n/* Desktop dashboard header */\n.onex-topbar{position:relative;z-index:20;overflow:visible!important}\n.onex-topbar-brand{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:8px;z-index:40;pointer-events:none}\n.onex-brand-3d-topbar{width:78px;height:58px;overflow:visible}\n.onex-topbar-brand strong{font:900 18px/1 Inter,system-ui,sans-serif;letter-spacing:.05em;color:#eaf6ff;text-shadow:0 0 16px rgba(32,200,255,.35)}\n\n/* Phone one-line header */\n.mob-bar{z-index:1400!important;overflow:visible!important}\n.mob-brand{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;margin:0!important;z-index:1450!important;pointer-events:none}\n.onex-brand-3d-mobile{width:58px;height:50px;overflow:visible}\n.mob-brand-text{display:none!important}\n\n/* The drawer sits above the mobile bar, so the logo cannot disappear behind it. */\n@media(max-width:768px){\n  .sidebar{width:min(72vw,280px)!important;max-width:280px!important;z-index:1500!important;transition:transform .22s ease!important;box-shadow:-12px 0 30px rgba(0,0,0,.38)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}\n  .sidebar.collapsed{width:min(72vw,280px)!important}\n  .overlay{z-index:1450!important;background:rgba(0,0,0,.46)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}\n  .sidebar .sb-logo{padding:13px 8px!important;min-height:84px}\n  .onex-brand-3d-sidebar{width:72px;height:72px}\n  .onex-topbar-brand{display:none!important}\n  .mob-bar{background:rgba(6,15,29,.96)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 6px 20px rgba(0,0,0,.22)!important}\n  .mob-menu-btn{position:relative;z-index:1460}\n  .mob-status{position:relative;z-index:1460}\n  .onex-brand-3d-mobile{width:58px;height:52px}\n}\n@media(max-width:480px){\n  .onex-brand-3d-mobile{width:54px;height:48px}\n  .onex-brand-orbit{border-width:1.5px}\n}\n@media(prefers-reduced-motion:reduce){\n  .onex-brand-img,.onex-brand-orbit{animation:none!important}\n}\n/* ============================================================
-   ONEX APPROVED 3D BRAND — final asset-backed implementation
-   ============================================================ */
-.top-brand-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:72px;width:360px;display:flex;align-items:center;justify-content:center;z-index:8;pointer-events:none}
-.brand-orbit-wrap{position:relative;display:flex;align-items:center;justify-content:center;transform-style:preserve-3d;animation:onexBrandFloat 4.8s ease-in-out infinite}
-.brand-orbit-wrap::before,.brand-orbit-wrap::after{content:"";position:absolute;left:50%;top:50%;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%) rotateX(66deg);border:1px solid rgba(42,203,255,.75);box-shadow:0 0 12px rgba(42,203,255,.55),0 0 28px rgba(124,58,237,.32);animation:onexOrbitSpin 5.5s linear infinite}
-.brand-orbit-wrap::before{width:92%;height:38%}
-.brand-orbit-wrap::after{width:76%;height:30%;border-color:rgba(183,73,255,.78);animation-duration:7s;animation-direction:reverse;transform:translate(-50%,-50%) rotateX(66deg) rotateZ(22deg)}
-.brand-logo-img{position:relative;display:block;width:350px;height:100px;object-fit:contain;object-position:center;filter:drop-shadow(0 0 12px rgba(0,170,255,.32)) drop-shadow(0 0 20px rgba(139,92,246,.22));z-index:2}
-.sidebar-logo-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:145px;transform-style:preserve-3d;animation:onexBrandFloat 4.8s ease-in-out infinite}
-.sidebar-logo-wrap::before,.sidebar-logo-wrap::after{content:"";position:absolute;left:50%;top:48%;width:82%;height:30%;border-radius:50%;border:1px solid rgba(42,203,255,.65);box-shadow:0 0 12px rgba(42,203,255,.45),0 0 22px rgba(124,58,237,.3);transform:translate(-50%,-50%) rotateX(66deg);animation:onexOrbitSpin 5.8s linear infinite}
-.sidebar-logo-wrap::after{width:68%;height:25%;border-color:rgba(183,73,255,.7);animation-duration:7.5s;animation-direction:reverse}
-.sidebar-logo-img{width:225px;height:160px;object-fit:contain;position:relative;z-index:2;filter:drop-shadow(0 0 12px rgba(0,170,255,.28)) drop-shadow(0 0 18px rgba(139,92,246,.2))}
-.sb-logo-icon{display:none!important}
-@keyframes onexBrandFloat{0%,100%{transform:translateY(0) perspective(600px) rotateX(1deg) rotateY(-2deg)}50%{transform:translateY(-3px) perspective(600px) rotateX(-1deg) rotateY(2deg)}}
-@keyframes onexOrbitSpin{from{rotate:0deg}to{rotate:360deg}}
-@media (max-width:768px){
-  .top-brand-center{display:none}
-  .mob-brand{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:175px;height:54px;margin:0;display:flex;align-items:center;justify-content:center;z-index:1260;pointer-events:none}
-  .mob-brand .brand-logo-img{width:165px;height:52px}
-  .mob-brand .brand-orbit-wrap{width:165px;height:52px}
-  .mob-brand .brand-orbit-wrap::before{width:92%;height:34%}
-  .mob-brand .brand-orbit-wrap::after{width:76%;height:27%}
-  .sidebar{width:min(72vw,280px)!important;max-width:280px!important}
-  .sidebar.collapsed{width:min(72vw,280px)!important;max-width:280px!important}
-  .sidebar .sb-logo{padding:8px 8px 4px;min-height:118px}
-  .sidebar-logo-wrap{height:112px}
-  .sidebar-logo-img{width:195px;height:125px}
-  .sidebar-logo-wrap::before{width:82%;height:28%}.sidebar-logo-wrap::after{width:68%;height:23%}
-  .mob-brand-text,.mob-brand-icon{display:none!important}
-}
-@media (max-width:420px){
-  .mob-brand{width:155px}.mob-brand .brand-logo-img{width:148px;height:48px}.mob-brand .brand-orbit-wrap{width:148px;height:48px}
-  .sidebar{width:min(72vw,260px)!important;max-width:260px!important}.sidebar.collapsed{width:min(72vw,260px)!important;max-width:260px!important}
-  .sidebar-logo-img{width:178px;height:116px}
-}
-@media (prefers-reduced-motion:reduce){.brand-orbit-wrap,.sidebar-logo-wrap,.brand-orbit-wrap::before,.brand-orbit-wrap::after,.sidebar-logo-wrap::before,.sidebar-logo-wrap::after{animation:none!important}}
 </style>
 </head>
 <body>
@@ -8252,12 +8163,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand" aria-label="ONEX">
-    <div class="onex-brand-3d onex-brand-3d-mobile">
-      <span class="onex-brand-orbit orbit-a"></span><span class="onex-brand-orbit orbit-b"></span>
-      <img src="/api/onex-header-logo.png" alt="ONEX" class="onex-brand-img" style="width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important;object-fit:contain!important;display:block!important;">
-    </div>
-  </div>
+  <div class="mob-brand"><img class="mob-brand-icon onex-logo-img" src="/api/onex-logo-3d.png" alt="ONEX"></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -8267,10 +8173,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="onex-brand-3d onex-brand-3d-sidebar" aria-label="ONEX 3D logo">
-      <span class="onex-brand-orbit orbit-a"></span><span class="onex-brand-orbit orbit-b"></span>
-      <img src="/api/onex-sidebar-logo.png" alt="ONEX" class="onex-brand-img" style="width:180px!important;height:120px!important;max-width:180px!important;max-height:120px!important;object-fit:contain!important;display:block!important;">
-    </div>
+    <img class="sb-logo-icon onex-logo-img" src="/api/onex-logo-3d.png" alt="ONEX 3D logo">
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>
@@ -8327,13 +8230,6 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 <main class="main" id="main">
 
 <div class="onex-topbar">
-  <div class="onex-topbar-brand" aria-label="ONEX">
-    <div class="onex-brand-3d onex-brand-3d-topbar">
-      <span class="onex-brand-orbit orbit-a"></span><span class="onex-brand-orbit orbit-b"></span>
-      <img src="/api/onex-header-logo.png" alt="ONEX" class="onex-brand-img" style="width:175px!important;height:52px!important;max-width:175px!important;max-height:52px!important;object-fit:contain!important;display:block!important;">
-    </div>
-    <strong>ONEX</strong>
-  </div>
   <div class="top-server"><span class="top-dot"></span><b>سرور آنلاین</b><span class="top-sep"></span><small id="topHost">—</small><span class="top-sep"></span><small id="topUptime">Uptime: —</small></div>
   <div class="top-actions">
     <div class="top-setting-group" aria-label="Language controls">

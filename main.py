@@ -8333,6 +8333,25 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
         <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
       </div>
+
+      <details class="advanced-config-box">
+        <summary>⚙️ تنظیمات پیشرفته کانفیگ</summary>
+        <div class="form-row">
+          <div class="field"><label>پورت اتصال</label><input id="cPort" type="number" value="443"></div>
+          <div class="field"><label>SNI</label><input id="cSni" value="auto"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Fingerprint</label><select id="cFingerprint"><option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="safari">Safari</option><option value="android">Android</option><option value="random">Random</option></select></div>
+          <div class="field"><label>ALPN</label><input id="cAlpn" value="auto"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Path</label><input id="cPath" value="auto"></div>
+          <div class="field"><label>Fragment</label><select id="cFragment"><option value="off">خاموش</option><option value="on">فعال</option></select></div>
+        </div>
+        <div class="field"><label>Clean IP ها</label><input id="cCleanIps" placeholder="1.1.1.1,2.2.2.2"></div>
+        <button type="button" class="btn btn-p" onclick="autoOptimizeConfig()">✨ بهینه‌سازی هوشمند</button>
+      </details>
+
       <button class="btn btn-p" style="width:100%" onclick="doManualCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
         <span data-i18n="btn_create">ساخت</span>
@@ -9159,7 +9178,7 @@ function showResult(data){
   document.getElementById('resSub').textContent=getSubUrl(data)||'—';
   document.getElementById('resultModal').classList.add('open');
 }
-function closeResult(){document.getElementById('resultModal').classList.remove('open')}
+function closeResult(){document.getElementById('resultModal').classList.remove('open')}\nfunction autoOptimizeConfig(){\n const p=document.getElementById('cPort'); if(p) p.value='443';\n const a=document.getElementById('cAlpn'); if(a) a.value='auto';\n const f=document.getElementById('cFingerprint'); if(f) f.value='chrome';\n toast(lang==='fa'?'تنظیمات پیشنهادی اعمال شد':'Recommended settings applied');\n}\n
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeResult()});
 
 async function doManualCreate(){
@@ -9174,6 +9193,11 @@ async function doManualCreate(){
     ip_limit:Number(document.getElementById('cIp').value)||0,
     speed_limit_value:Number(document.getElementById('cSpeed').value)||0,
     speed_limit_unit:'MBIT',
+    port:Number(document.getElementById('cPort')?.value)||443,
+    fingerprint:document.getElementById('cFingerprint')?.value||'chrome',
+    alpn:document.getElementById('cAlpn')?.value||'',
+    fragment:document.getElementById('cFragment')?.value||'off',
+    clean_ips:(document.getElementById('cCleanIps')?.value||'').split(',').map(x=>x.trim()).filter(Boolean),
     all_protocols:!!document.getElementById('cAllProtocols')?.checked
   };
   const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

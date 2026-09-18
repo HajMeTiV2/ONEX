@@ -2197,6 +2197,14 @@ table th:first-child, table td:first-child{overflow:visible}
 .glass-item summary{font-weight:700;font-size:17px;cursor:pointer}
 .adv-fields{display:grid;gap:10px;margin-top:14px}
 .adv-fields input,.adv-fields select{width:100%;padding:13px;border-radius:14px;border:1px solid rgba(120,160,255,.25);background:rgba(0,0,0,.18);color:inherit}
+/* final glass layout */
+.create-glass-layout{display:grid!important;grid-template-columns:1.1fr .9fr;gap:20px}
+.glass-item{transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.glass-item[open]{border-color:rgba(80,170,255,.65);background:rgba(40,70,130,.18)}
+.glass-item summary{display:flex;align-items:center;gap:10px;min-height:32px}
+#configLivePreview{position:sticky;top:20px}
+@media(max-width:1000px){.create-glass-layout{grid-template-columns:1fr!important}#configLivePreview{position:static}}
+
 </style></head>
 
 <body>
@@ -8314,7 +8322,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <div class="page-head">
     <div><div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="nav_create">ساخت کانفیگ</span></div></div>
   </div>
-  <div class="g2">
+  <div class="g2 create-glass-layout">
     <div class="card">
       <div class="card-title" data-i18n="manual_create">ساخت دستی</div>
       <div class="field"><label data-i18n="label_name">نام</label>
@@ -8341,7 +8349,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
       </div>
       <div class="advanced-pro-config glass-config">
-        <details open><summary>⚙️ تنظیمات حرفه‌ای کانفیگ</summary>
+        <details><summary>⚙️ تنظیمات حرفه‌ای کانفیگ</summary>
           <div class="glass-grid">
             <details class="glass-item"><summary>🌐 شبکه و اتصال</summary>
               <div class="adv-fields"><input id="advPort" placeholder="Port (443)"><input id="advSni" placeholder="SNI / Host"><input id="advCleanIp" placeholder="Clean IP"></div>
@@ -8370,6 +8378,14 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
         <span data-i18n="btn_create">ساخت</span>
       </button>
+    </div>
+    <div class="card" id="configLivePreview">
+      <div class="card-title">📄 پیش‌نمایش تنظیمات کانفیگ</div>
+      <pre id="configJsonPreview" style="direction:ltr;text-align:left;white-space:pre-wrap;background:rgba(0,0,0,.25);padding:16px;border-radius:18px;min-height:220px">{
+  "status": "ready",
+  "message": "تنظیمات پیش‌فرض"
+}</pre>
+      <button class="btn btn-sm" type="button" onclick="navigator.clipboard.writeText(document.getElementById('configJsonPreview').innerText)">📋 کپی</button>
     </div>
     
 </section>
@@ -9195,6 +9211,14 @@ function showResult(data){
 function closeResult(){document.getElementById('resultModal').classList.remove('open')}
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeResult()});
 
+
+function updateConfigPreview(){
+ const ids=['advPort','advSni','advCleanIp','advFp','advAlpn','advTls','advPath','advService','advHeader','advFragment','advMtu','advKeep'];
+ const o={}; ids.forEach(i=>{let e=document.getElementById(i);if(e)o[i]=e.value||'default'});
+ let p=document.getElementById('configJsonPreview'); if(p)p.textContent=JSON.stringify(o,null,2);
+}
+document.addEventListener('input',e=>{if(e.target&&e.target.id&&e.target.id.startsWith('adv'))updateConfigPreview()});
+
 async function doManualCreate(){
   const body={
     label:document.getElementById('cName').value||undefined,
@@ -9207,6 +9231,20 @@ async function doManualCreate(){
     ip_limit:Number(document.getElementById('cIp').value)||0,
     speed_limit_value:Number(document.getElementById('cSpeed').value)||0,
     speed_limit_unit:'MBIT',
+    advanced:{
+      port:document.getElementById('advPort')?.value||'',
+      sni:document.getElementById('advSni')?.value||'',
+      clean_ip:document.getElementById('advCleanIp')?.value||'',
+      fingerprint:document.getElementById('advFp')?.value||'',
+      alpn:document.getElementById('advAlpn')?.value||'',
+      tls:document.getElementById('advTls')?.value||'',
+      path:document.getElementById('advPath')?.value||'',
+      service_name:document.getElementById('advService')?.value||'',
+      header:document.getElementById('advHeader')?.value||'',
+      fragment:document.getElementById('advFragment')?.value||'',
+      mtu:document.getElementById('advMtu')?.value||'',
+      keep_alive:document.getElementById('advKeep')?.value||''
+    },
     all_protocols:!!document.getElementById('cAllProtocols')?.checked
   };
   const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});

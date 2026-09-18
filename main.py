@@ -12,6 +12,7 @@ import secrets
 import string
 import time
 from collections import defaultdict, deque
+from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote, parse_qs
@@ -38,7 +39,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -1034,9 +1035,21 @@ def set_auth_cookie(
 # protocol.  This is what makes the "all protocols" subscription a single
 # account instead of creating unrelated accounts.
 def protocol_public_port(link: dict | None, protocol: str, fallback: int = DEFAULT_PORT) -> int:
+    if (link or {}).get("all_protocols") and protocol not in getattr(NATIVE_CORE, "SUPPORTED", ()):
+        return safe_int((link or {}).get("port", fallback), fallback, MIN_PORT, MAX_PORT)
     if protocol in {"vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one", "trojan-ws", "vmess-ws"}:
         return safe_int((link or {}).get("port", fallback), fallback, MIN_PORT, MAX_PORT)
     try:
+        adv_ports = ((link or {}).get("advanced") or {}).get("ports") or []
+        native_supported = list(getattr(NATIVE_CORE, "SUPPORTED", ()))
+        if adv_ports and protocol in native_supported:
+            if (link or {}).get("all_protocols"):
+                try: idx = native_supported.index(protocol)
+                except ValueError: idx = 0
+                if idx < len(adv_ports):
+                    return safe_int(adv_ports[idx], fallback, MIN_PORT, MAX_PORT)
+            else:
+                return safe_int(adv_ports[0], fallback, MIN_PORT, MAX_PORT)
         ports = NATIVE_CORE.public_ports()  # type: ignore[name-defined]
         return safe_int(ports.get(protocol, fallback), fallback, MIN_PORT, MAX_PORT)
     except Exception:
@@ -1061,6 +1074,15 @@ def generate_vless_link(
     adv_alpn = adv["tls"].get("alpn") or alpn_value
     security = adv["tls"].get("mode") if adv["tls"].get("enabled", True) else "none"
     if security not in {"none","tls","reality"}: security = "tls"
+    # All-protocol subscriptions share one account but not one wire schema.
+    if protocol in {"shadowsocks", "socks5"}:
+        security = "none"
+    elif protocol in {"http", "hysteria2"} and security == "reality":
+        security = "tls"
+    elif protocol == "trojan" and security == "none":
+        security = "tls"
+    elif protocol == "vless-grpc-reality":
+        security = "reality"
     if protocol == "vless-ws":
         path = adv_path or f"/ws/{uuid}"
         q = {"encryption":"none","security":security,"type":"ws","host":adv_host,"path":path,"sni":adv_sni,"fp":adv_fp,"alpn":adv_alpn}
@@ -1082,26 +1104,43 @@ def generate_vless_link(
     if protocol == "trojan-ws":
         return f"trojan://{uuid}@{host}:{port_value}?security=tls&type=ws&host={quote(host)}&path={quote('/ws/'+uuid)}&sni={quote(host)}#{label}"
     if protocol == "trojan":
-        insecure = "&allowInsecure=1" if getattr(NATIVE_CORE, "self_signed", False) else ""
-        return f"trojan://{uuid}@{host}:{port_value}?security=tls&sni={quote(host)}{insecure}#{label}"
+        mode = security if security in {"tls", "none"} else "tls"
+        q = {"security": mode, "sni": adv_sni}
+        if adv_alpn: q["alpn"] = adv_alpn
+        if adv["tls"].get("allow_insecure") or getattr(NATIVE_CORE, "self_signed", False): q["allowInsecure"] = "1"
+        net = str(adv["network"].get("type") or "tcp")
+        if net != "tcp":
+            q["type"] = net
+            if adv_path: q["path"] = adv_path
+            if adv_host: q["host"] = adv_host
+            if adv["host"].get("service_name"): q["serviceName"] = adv["host"]["service_name"]
+        return f"trojan://{uuid}@{host}:{port_value}?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol == "vless-grpc-reality":
         try:
             reality = NATIVE_CORE.reality_info()  # type: ignore[name-defined]
-            pbk = quote(str(reality.get("public_key", "")), safe="")
-            sid = quote(str(reality.get("short_id", "")), safe="")
+            custom_r = adv["tls"].get("reality") or {}
+            pbk = quote(str(custom_r.get("public_key") or reality.get("public_key", "")), safe="")
+            sid = quote(str(custom_r.get("short_id") or reality.get("short_id", "")), safe="")
         except Exception:
             pbk, sid = "", ""
-        q = {"encryption":"none","security":"reality","type":"grpc","serviceName":"ONEX","sni":host,"fp":fp,"pbk":pbk,"sid":sid}
+        service_name = adv["host"].get("service_name") or adv["network"].get("service_name") or "ONEX"
+        q = {"encryption":"none","security":"reality","type":"grpc","serviceName":service_name,"sni":adv_sni,"fp":adv_fp,"pbk":pbk,"sid":sid}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/')}" for k,v in q.items()) + "#" + label
     if protocol == "shadowsocks":
-        method = os.getenv("SS_METHOD", "aes-256-gcm")
+        method = str((adv.get("shadowsocks") or {}).get("method") or os.getenv("ONEX_SS_METHOD", "aes-256-gcm"))
         userinfo = base64.urlsafe_b64encode(f"{method}:{uuid}".encode()).decode().rstrip("=")
         return f"ss://{userinfo}@{host}:{port_value}#{label}"
     if protocol == "socks5": return f"socks5://{uuid}:{uuid}@{host}:{port_value}#{label}"
-    if protocol == "http": return f"http://{uuid}:{uuid}@{host}:{port_value}#{label}"
+    if protocol == "http":
+        scheme = "https" if security == "tls" else "http"
+        extra = f"?sni={quote(adv_sni)}" if scheme == "https" else ""
+        return f"{scheme}://{uuid}:{uuid}@{host}:{port_value}{extra}#{label}"
     if protocol == "hysteria2":
-        insecure = 1 if getattr(NATIVE_CORE, "self_signed", False) else 0
-        return f"hysteria2://{uuid}@{host}:{port_value}/?sni={quote(host)}&insecure={insecure}#{label}"
+        insecure = 1 if (adv["tls"].get("allow_insecure") or getattr(NATIVE_CORE, "self_signed", False)) else 0
+        q = {"sni": adv_sni, "insecure": insecure}
+        hy = adv.get("hysteria2") or {}
+        if hy.get("obfs_password"): q["obfs"] = hy.get("obfs_type") or "salamander"; q["obfs-password"] = hy.get("obfs_password")
+        return f"hysteria2://{uuid}@{host}:{port_value}/?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol == "tuic": return f"tuic://{uuid}:{uuid}@{host}:{port_value}?sni={quote(host)}&alpn=h3#{label}"
     if protocol == "wireguard": return f"wireguard://{uuid}@{host}:{port_value}?publicKey={uuid}#{label}"
     return f"vless://{uuid}@{host}:{port_value}"
@@ -1668,6 +1707,11 @@ async def set_link_active(
         record = LINKS[uid]
 
     await save_state()
+    if NATIVE_CORE and not await sync_native_core():
+        async with LINKS_LOCK:
+            LINKS[uid]["active"] = not bool(active)
+        await save_state()
+        raise HTTPException(409, NATIVE_CORE.last_error or "Native runtime reload failed; previous state restored")
 
     log_activity(
         "link",
@@ -3015,14 +3059,18 @@ ADVANCED_DEFAULTS = {
     "tls": {
         "enabled": True, "mode": "tls", "sni": "", "server_name": "",
         "alpn": "", "allow_insecure": False, "min_version": "1.2", "max_version": "1.3",
-        "reality": {"public_key": "", "short_id": "", "spider_x": "", "fingerprint": "chrome"},
+        "certificate_path": "", "key_path": "",
+        "reality": {"public_key": "", "private_key": "", "short_id": "", "spider_x": "", "fingerprint": "chrome", "handshake_server": "", "handshake_port": 443, "max_time_difference": ""},
     },
     "host": {"address": "", "host": "", "path": "", "service_name": "", "authority": ""},
     "fingerprint": {"enabled": True, "value": "chrome", "randomize": False},
     "network": {"type": "ws", "mode": "", "path": "", "service_name": "", "http_version": "1.1"},
     "headers": {"host": "", "user_agent": "", "extra": []},
-    "routing": {"domain_strategy": "", "route": "", "proxy_protocol": False, "sniff": False},
-    "transport": {"packet_encoding": "", "early_data": 0, "max_early_data": 0, "padding": False},
+    "routing": {"domain_strategy": "", "route": "", "proxy_protocol": False, "sniff": False, "sniff_override": False, "sniff_timeout": "300ms"},
+    "transport": {"packet_encoding": "", "early_data": 0, "max_early_data": 0, "early_data_header_name": "Sec-WebSocket-Protocol", "padding": False},
+    "listener": {"listen": "0.0.0.0", "bind_interface": "", "routing_mark": 0, "netns": "", "reuse_addr": True, "tcp_fast_open": False, "tcp_multi_path": False, "disable_tcp_keep_alive": False, "tcp_keep_alive": "5m", "tcp_keep_alive_interval": "75s", "udp_fragment": False, "udp_timeout": "5m"},
+    "shadowsocks": {"method": "aes-256-gcm"},
+    "hysteria2": {"up_mbps": 0, "down_mbps": 0, "obfs_type": "", "obfs_password": "", "masquerade": ""},
     "ports": [443],
 }
 
@@ -3042,24 +3090,28 @@ def normalize_advanced_config(raw):
             elif isinstance(v, (int, float)): base[section][key] = v
             else: base[section][key] = str(v or "")[:limit]
     for sec, keys in {
-        "tls": ["mode","sni","server_name","alpn","min_version","max_version"],
+        "tls": ["mode","sni","server_name","alpn","min_version","max_version","certificate_path","key_path"],
         "host": ["address","host","path","service_name","authority"],
         "fingerprint": ["value"],
         "network": ["type","mode","path","service_name","http_version"],
-        "routing": ["domain_strategy","route"],
-        "transport": ["packet_encoding"],
+        "routing": ["domain_strategy","route","sniff_timeout"],
+        "transport": ["packet_encoding","early_data_header_name"],
+        "listener": ["listen","bind_interface","routing_mark","netns","tcp_keep_alive","tcp_keep_alive_interval","udp_timeout"],
+        "shadowsocks": ["method"],
+        "hysteria2": ["obfs_type","obfs_password","masquerade"],
     }.items():
         for k in keys: put(sec,k,raw.get(sec,{}).get(k) if isinstance(raw.get(sec),dict) else None)
-    for sec, keys in {"tls":["enabled","allow_insecure"],"fingerprint":["enabled","randomize"],"routing":["proxy_protocol","sniff"],"transport":["padding"]}.items():
+    for sec, keys in {"tls":["enabled","allow_insecure"],"fingerprint":["enabled","randomize"],"routing":["proxy_protocol","sniff","sniff_override"],"transport":["padding"],"listener":["reuse_addr","tcp_fast_open","tcp_multi_path","disable_tcp_keep_alive","udp_fragment"]}.items():
         for k in keys:
             if isinstance(raw.get(sec),dict) and k in raw[sec]: base[sec][k] = bool(raw[sec][k])
-    for sec, keys in {"transport":["early_data","max_early_data"]}.items():
+    for sec, keys in {"transport":["early_data","max_early_data"],"listener":["routing_mark"],"hysteria2":["up_mbps","down_mbps"]}.items():
         for k in keys:
             if isinstance(raw.get(sec),dict) and k in raw[sec]: base[sec][k] = safe_int(raw[sec][k],0,0,65535)
     if isinstance(raw.get("tls"),dict) and isinstance(raw["tls"].get("reality"),dict):
         r=raw["tls"]["reality"]
         for k in base["tls"]["reality"]:
-            if k in r: base["tls"]["reality"][k]=str(r.get(k) or "")[:300]
+            if k in r:
+                base["tls"]["reality"][k] = safe_int(r.get(k), 443, 1, 65535) if k == "handshake_port" else str(r.get(k) or "")[:300]
     if isinstance(raw.get("headers"),dict):
         for k in ("host","user_agent"):
             if k in raw["headers"]: base["headers"][k]=str(raw["headers"].get(k) or "")[:300]
@@ -3266,7 +3318,7 @@ async def create_link_api(
         alpn_adv = advanced["tls"].get("alpn") or advanced["host"].get("authority")
         if alpn_adv: body["alpn"] = alpn_adv
         primary_ports = advanced.get("ports") or []
-        if primary_ports: port = primary_ports[0]
+        if primary_ports and not all_protocols: port = primary_ports[0]
     cat = CATEGORIES.get(category_id) or {}
     if cat.get("limit_bytes") and limit_bytes <= 0:
         limit_bytes = int(cat["limit_bytes"])
@@ -3333,7 +3385,18 @@ async def create_link_api(
         ),
         "ok": True,
     }
-    if NATIVE_CORE:
+    native_relevant = bool(NATIVE_CORE and (all_protocols or protocol in getattr(NATIVE_CORE, "SUPPORTED", ())))
+    if native_relevant:
+        if not await sync_native_core():
+            async with LINKS_LOCK:
+                LINKS.pop(uid, None)
+            await save_state()
+            raise HTTPException(409, NATIVE_CORE.last_error or "Native listener deployment failed")
+        # Re-read the record so generated Reality public key / runtime ports are current.
+        async with LINKS_LOCK:
+            link = deepcopy(LINKS.get(uid) or link)
+        result = {**get_link_info(link, uid, host), "ok": True}
+    elif NATIVE_CORE:
         asyncio.create_task(sync_native_core())
     if all_protocols:
         result["all_protocols"] = True
@@ -3403,6 +3466,87 @@ async def api_protocols(request: Request):
         "default": PROTOCOLS[0] if PROTOCOLS else DEFAULT_PROTOCOL,
         "native_core": {"installed": bool(NATIVE_CORE and NATIVE_CORE.binary_exists()), "running": native_ready, "error": getattr(NATIVE_CORE, "last_error", "") if NATIVE_CORE else ""},
     }
+
+
+# ============================================================
+# ADVANCED CONFIG VALIDATION / PREVIEW
+# ============================================================
+
+def _advanced_capabilities(protocol: str) -> dict:
+    native = bool(NATIVE_CORE and protocol in getattr(NATIVE_CORE, "SUPPORTED", ()))
+    common = {
+        "tls": protocol not in {"shadowsocks", "socks5"},
+        "reality": protocol == "vless-grpc-reality",
+        "sni": protocol not in {"shadowsocks", "socks5"},
+        "alpn": protocol not in {"shadowsocks", "socks5"},
+        "fingerprint": True,
+        "ports": True,
+        "listener": native,
+        "routing": native,
+        "sniffing": native,
+        "custom_headers": protocol in {"trojan", "vless-grpc-reality"},
+        "transport": native,
+        "client_only": True,
+    }
+    return {"native": native, "supported": common}
+
+
+@app.get("/api/advanced/capabilities")
+async def advanced_capabilities(protocol: str = DEFAULT_PROTOCOL, token=Depends(require_auth)):
+    return {"ok": True, "protocol": normalize_protocol(protocol), **_advanced_capabilities(normalize_protocol(protocol))}
+
+
+def _advanced_validation_errors(advanced: dict, protocol: str) -> list[str]:
+    errors = []
+    a = normalize_advanced_config(advanced)
+    tls, reality, net = a["tls"], a["tls"]["reality"], a["network"]
+    ports = a.get("ports") or []
+    if not ports: errors.append("حداقل یک پورت لازم است")
+    if len(set(ports)) != len(ports): errors.append("پورت‌ها نباید تکراری باشند")
+    if tls["mode"] == "reality":
+        sid = str(reality.get("short_id") or "")
+        if sid and (len(sid) > 8 or any(c.lower() not in '0123456789abcdef' for c in sid)): errors.append("Reality Short ID باید حداکثر ۸ کاراکتر هگزادسیمال باشد")
+    try:
+        if float(tls["min_version"]) > float(tls["max_version"]): errors.append("حداقل TLS نمی‌تواند از حداکثر TLS بیشتر باشد")
+    except Exception: errors.append("نسخه TLS نامعتبر است")
+    if net["type"] == "grpc" and not (a["host"].get("service_name") or net.get("service_name")): errors.append("برای gRPC مقدار Service Name را وارد کنید")
+    if net["type"] in {"ws", "http", "h2", "xhttp"} and a["host"].get("path") and not str(a["host"]["path"]).startswith('/'): errors.append("Path باید با / شروع شود")
+    if protocol == 'vless-grpc-reality' and tls["mode"] != 'reality': errors.append("VLESS gRPC Reality به TLS Mode = Reality نیاز دارد")
+    if protocol in {"shadowsocks", "socks5", "http", "hysteria2"} and net["type"] != "tcp": errors.append(f"Network {net['type']} برای {protocol} پشتیبانی نمی‌شود")
+    if protocol == "vless-grpc-reality" and net["type"] != "grpc": errors.append("VLESS gRPC Reality فقط با gRPC قابل استفاده است")
+    if protocol == "trojan" and net["type"] not in {"tcp","ws","grpc","http","h2","httpupgrade","quic"}: errors.append(f"Network {net['type']} برای Trojan پشتیبانی نمی‌شود")
+    r = reality
+    if tls["mode"] == "reality" and bool(str(r.get("public_key") or "")) != bool(str(r.get("private_key") or "")):
+        errors.append("Reality Public Key و Private Key باید هر دو وارد شوند یا هر دو خالی باشند")
+    if a["routing"].get("route") and str(a["routing"].get("route")) not in {"direct", "block"}:
+        errors.append("Final outbound فعلاً فقط direct یا block است")
+    if a["listener"].get("listen") and len(str(a["listener"].get("listen"))) > 255:
+        errors.append("Listen address نامعتبر است")
+    return errors
+
+@app.post("/api/advanced/validate")
+async def validate_advanced_config(request: Request, token=Depends(require_auth)):
+    body = await request.json()
+    protocol = normalize_protocol(str(body.get("protocol") or DEFAULT_PROTOCOL))
+    advanced = normalize_advanced_config(body.get("advanced"))
+    errors = _advanced_validation_errors(advanced, protocol)
+    warnings = []
+    if advanced["network"]["type"] in {"kcp", "quic", "xhttp"} and protocol not in {"trojan", "vless-grpc-reality"}: warnings.append("این Transport در این پروتکل به Listener بومی قابل تبدیل نیست")
+    if advanced["fingerprint"]["enabled"] and advanced["tls"]["mode"] == "none": warnings.append("Fingerprint یک تنظیم کلاینتی است و بدون TLS/uTLS اثری ندارد")
+    if advanced["routing"].get("proxy_protocol"): warnings.append("Proxy Protocol در این نسخه به Listener تزریق نمی‌شود")
+    if advanced["host"].get("authority"): warnings.append("Authority در Listener native sing-box اعمال نمی‌شود و فقط metadata کلاینت است")
+    if protocol not in getattr(NATIVE_CORE, "SUPPORTED", ()):
+        warnings.append("این پروتکل توسط relay/XHTTP پنل اجرا می‌شود؛ تنظیمات Listener بومی sing-box برای آن اعمال نمی‌شود")
+    preview = None
+    native = bool(NATIVE_CORE and protocol in getattr(NATIVE_CORE, "SUPPORTED", ()))
+    if not errors and native:
+        try:
+            sample = {"preview": True, "active": True, "protocol": protocol, "advanced": advanced, "port": (advanced.get("ports") or [DEFAULT_PORT])[0], "fingerprint": advanced["fingerprint"]["value"], "all_protocols": False}
+            preview = await NATIVE_CORE.build_config({"preview": sample}, get_host(request))
+            ok, detail = await NATIVE_CORE.validate_config(preview)
+            if not ok: errors.append(detail or "sing-box config validation failed")
+        except Exception as exc: warnings.append(f"پیش‌نمایش Native انجام نشد: {exc}")
+    return {"ok": not errors, "protocol": protocol, "native": native, "errors": errors, "warnings": warnings, "advanced": advanced, "preview": preview}
 
 
 @app.get("/api/links")
@@ -3599,6 +3743,7 @@ async def update_link(
             )
 
         link = LINKS[uid]
+        previous_link = deepcopy(link)
 
         old_sub = link.get(
             "sub_id"
@@ -3846,7 +3991,7 @@ async def update_link(
             adv = link["advanced"]
             if adv["fingerprint"]["value"] in FINGERPRINTS:
                 link["fingerprint"] = adv["fingerprint"]["value"]
-            if adv.get("ports"):
+            if adv.get("ports") and not link.get("all_protocols"):
                 link["port"] = adv["ports"][0]
             if adv["tls"].get("alpn"):
                 link["alpn"] = adv["tls"]["alpn"]
@@ -3891,6 +4036,15 @@ async def update_link(
                     ids.append(uid)
 
     await save_state()
+
+    native_relevant = bool(NATIVE_CORE and (link.get("all_protocols") or link.get("protocol") in getattr(NATIVE_CORE, "SUPPORTED", ())))
+    if native_relevant and not await sync_native_core():
+        async with LINKS_LOCK:
+            LINKS[uid] = previous_link
+        await save_state()
+        raise HTTPException(409, NATIVE_CORE.last_error or "Native listener deployment failed; previous configuration restored")
+    elif NATIVE_CORE:
+        asyncio.create_task(sync_native_core())
 
     log_activity(
         "link",
@@ -4046,13 +4200,20 @@ async def delete_link(
     _=Depends(require_auth),
 ):
 
+    async with LINKS_LOCK:
+        previous = deepcopy(LINKS.get(uid)) if uid in LINKS else None
+    async with SUBS_LOCK:
+        previous_subs = deepcopy(SUBS)
+    if previous is None:
+        raise HTTPException(status_code=404, detail="link not found")
     label = await remove_link(uid)
-
-    if label is None:
-        raise HTTPException(
-            status_code=404,
-            detail="link not found",
-        )
+    if NATIVE_CORE and not await sync_native_core():
+        async with LINKS_LOCK:
+            LINKS[uid] = previous
+        async with SUBS_LOCK:
+            SUBS.clear(); SUBS.update(previous_subs)
+        await save_state()
+        raise HTTPException(409, NATIVE_CORE.last_error or "Native runtime reload failed; previous state restored")
 
     return {
         "ok": True,
@@ -6477,7 +6638,10 @@ try:
     # Native protocols are intentionally not advertised yet.
     # Keep the creation menu and the "all protocols" subscription limited
     # to the four currently exposed panel-backed protocols.
-    logger.info("Native sing-box backend loaded but not advertised yet.")
+    for _native_protocol in getattr(NATIVE_CORE, "SUPPORTED", ()):
+        if _native_protocol not in PROTOCOLS:
+            PROTOCOLS.append(_native_protocol)
+    logger.info("Native sing-box backend loaded: %s", ", ".join(getattr(NATIVE_CORE, "SUPPORTED", ())))
 except Exception as exc:
     NATIVE_CORE = None
     logger.warning("Native protocol backend unavailable: %s", exc)
@@ -6497,6 +6661,75 @@ async def sync_native_core():
 async def start_native_core():
     if NATIVE_CORE:
         asyncio.create_task(sync_native_core())
+
+
+@app.get("/api/native/status")
+async def api_native_status(request: Request, token=Depends(require_auth)):
+    if not NATIVE_CORE:
+        return {"ok": False, "installed": False, "running": False, "error": "Native core unavailable"}
+    return {"ok": True, "installed": NATIVE_CORE.binary_exists(), **NATIVE_CORE.status()}
+
+
+@app.get("/api/native/config")
+async def api_native_config(request: Request, token=Depends(require_auth)):
+    if not NATIVE_CORE:
+        raise HTTPException(503, "Native core unavailable")
+    config = NATIVE_CORE.current_config()
+    raw = str(request.query_params.get("raw") or "").lower() in {"1", "true", "yes"}
+    meta = get_session_meta(token)
+    if raw and meta.get("role") != "owner":
+        raise HTTPException(403, "raw native config is owner-only")
+    if not raw:
+        config = NATIVE_CORE._redact_config(config)
+    return {"ok": True, "config": config, "redacted": not raw}
+
+
+@app.post("/api/native/validate")
+async def api_native_validate(request: Request, token=Depends(require_auth)):
+    if not NATIVE_CORE:
+        raise HTTPException(503, "Native core unavailable")
+    body = await request.json()
+    config = body.get("config") if isinstance(body, dict) else None
+    if not isinstance(config, dict):
+        raise HTTPException(400, "config must be an object")
+    ok, detail = await NATIVE_CORE.validate_config(config)
+    return {"ok": ok, "detail": detail}
+
+
+@app.post("/api/native/reload")
+async def api_native_reload(request: Request, token=Depends(require_auth)):
+    if not NATIVE_CORE:
+        raise HTTPException(503, "Native core unavailable")
+    host = get_host(request)
+    ok = await sync_native_core()
+    if not ok:
+        raise HTTPException(409, NATIVE_CORE.last_error or "Native reload failed")
+    await save_state()
+    return {"ok": True, "host": host, "status": NATIVE_CORE.status()}
+
+
+@app.post("/api/links/{uid}/advanced/reset")
+async def reset_link_advanced(uid: str, request: Request, token=Depends(require_auth)):
+    async with LINKS_LOCK:
+        link = LINKS.get(uid)
+        if not link:
+            raise HTTPException(404, "Link not found")
+        previous = deepcopy(link)
+        link["advanced"] = normalize_advanced_config(None)
+        link["port"] = link["advanced"]["ports"][0]
+        link["fingerprint"] = link["advanced"]["fingerprint"]["value"]
+        link["alpn"] = link["advanced"]["tls"].get("alpn") or link.get("alpn") or ""
+        snapshot = deepcopy(link)
+    await save_state()
+    if NATIVE_CORE and (snapshot.get("all_protocols") or snapshot.get("protocol") in getattr(NATIVE_CORE, "SUPPORTED", ())):
+        if not await sync_native_core():
+            async with LINKS_LOCK:
+                LINKS[uid] = previous
+            await save_state()
+            raise HTTPException(409, NATIVE_CORE.last_error or "Native reset deployment failed; previous configuration restored")
+    elif NATIVE_CORE:
+        asyncio.create_task(sync_native_core())
+    return {"ok": True, "link": snapshot}
 
 
 # ============================================================
@@ -8138,7 +8371,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 .advanced-toggle-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(42,139,255,.14);border:1px solid rgba(69,157,255,.28);font-size:20px;flex:none}
 .advanced-toggle-copy{min-width:0;display:flex;flex-direction:column;gap:4px;flex:1}.advanced-toggle-copy b{font-size:14px}.advanced-toggle-copy small{font-size:10px;color:var(--t3);line-height:1.7}.advanced-toggle-state{font-size:10px;color:#60a5fa;background:rgba(37,99,235,.11);border:1px solid rgba(59,130,246,.2);padding:5px 8px;border-radius:8px}.advanced-chevron{font-size:18px;transition:transform .2s}.advanced-config-card.open .advanced-chevron{transform:rotate(180deg)}
 .advanced-config-panel{padding:2px 4px 10px}.advanced-note{display:flex;gap:10px;align-items:flex-start;margin:10px 2px 14px;padding:12px;border-radius:14px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.14)}.advanced-note>span{font-size:18px}.advanced-note b{display:block;font-size:11px}.advanced-note small{display:block;color:var(--t3);font-size:9px;line-height:1.8;margin-top:3px}
-.advanced-section{margin:10px 0;padding:13px;border-radius:16px;background:rgba(2,14,30,.48);border:1px solid rgba(73,129,201,.14)}.advanced-section-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}.advanced-section-icon{width:31px;height:31px;border-radius:10px;display:grid;place-items:center;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.18);font-size:14px}.advanced-section-head b{font-size:11px}.advanced-section-head small{display:block;color:var(--t3);font-size:8px;margin-top:2px}.advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.advanced-grid .field{min-width:0}.advanced-grid .field input,.advanced-grid .field select,.advanced-section textarea{width:100%;box-sizing:border-box}.advanced-check{min-height:42px;display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:11px;background:rgba(16,34,60,.55);border:1px solid rgba(79,130,196,.14);cursor:pointer}.advanced-check input{accent-color:#3b82f6}.advanced-check b{display:block;font-size:9px}.advanced-check small{display:block;color:var(--t3);font-size:8px;margin-top:2px}.advanced-subcard{margin-top:10px;padding:10px;border-radius:13px;background:rgba(11,29,54,.5);border:1px dashed rgba(80,142,218,.18)}.advanced-subtitle{font-size:9px;font-weight:800;margin-bottom:8px;color:#93c5fd}.port-manager{display:flex;flex-direction:column;gap:9px}.port-add-row{display:flex;gap:8px}.port-add-row input{flex:1}.advanced-port-list{display:flex;flex-wrap:wrap;gap:7px}.advanced-port-chip{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:9px;background:rgba(31,78,121,.22);border:1px solid rgba(59,130,246,.22);font-size:9px}.advanced-port-chip b{font-size:10px}.advanced-port-chip button{border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:14px}.advanced-port-chip.primary{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)}.advanced-help{font-size:8px;color:var(--t3);line-height:1.8}.advanced-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:8px 2px 2px}.advanced-actions .btn{min-width:125px}@media(max-width:680px){.advanced-grid{grid-template-columns:1fr}.advanced-toggle-state{display:none}.advanced-toggle{padding:13px}.advanced-toggle-icon{width:38px;height:38px}.port-add-row{flex-direction:column}.advanced-actions .btn{flex:1;min-width:100px}}
+.advanced-section{margin:10px 0;padding:13px;border-radius:16px;background:rgba(2,14,30,.48);border:1px solid rgba(73,129,201,.14)}.advanced-section-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}.advanced-section-icon{width:31px;height:31px;border-radius:10px;display:grid;place-items:center;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.18);font-size:14px}.advanced-section-head b{font-size:11px}.advanced-section-head small{display:block;color:var(--t3);font-size:8px;margin-top:2px}.advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.advanced-grid .field{min-width:0}.advanced-grid .field input,.advanced-grid .field select,.advanced-section textarea{width:100%;box-sizing:border-box}.advanced-check{min-height:42px;display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:11px;background:rgba(16,34,60,.55);border:1px solid rgba(79,130,196,.14);cursor:pointer}.advanced-check input{accent-color:#3b82f6}.advanced-check b{display:block;font-size:9px}.advanced-check small{display:block;color:var(--t3);font-size:8px;margin-top:2px}.advanced-subcard{margin-top:10px;padding:10px;border-radius:13px;background:rgba(11,29,54,.5);border:1px dashed rgba(80,142,218,.18)}.advanced-subtitle{font-size:9px;font-weight:800;margin-bottom:8px;color:#93c5fd}.port-manager{display:flex;flex-direction:column;gap:9px}.port-add-row{display:flex;gap:8px}.port-add-row input{flex:1}.advanced-port-list{display:flex;flex-wrap:wrap;gap:7px}.advanced-port-chip{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:9px;background:rgba(31,78,121,.22);border:1px solid rgba(59,130,246,.22);font-size:9px}.advanced-port-chip b{font-size:10px}.advanced-port-chip button{border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:14px}.advanced-port-chip.primary{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)}.advanced-help{font-size:8px;color:var(--t3);line-height:1.8}.advanced-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:8px 2px 2px}.advanced-actions .btn{min-width:125px}.advanced-validation-status{margin:8px 2px;display:none;padding:10px 12px;border-radius:12px;font-size:9px;line-height:1.8}.advanced-validation-status.ok{display:block;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);color:#86efac}.advanced-validation-status.warn{display:block;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);color:#fcd34d}.advanced-validation-status.err{display:block;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);color:#fca5a5}.advanced-preview{margin:8px 2px;border-radius:14px;overflow:hidden;border:1px solid rgba(73,129,201,.18);background:rgba(1,10,22,.7)}.advanced-preview-head{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid rgba(73,129,201,.14);font-size:10px}.advanced-preview pre{margin:0;padding:12px;max-height:360px;overflow:auto;font:9px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;color:#cbd5e1;direction:ltr;text-align:left}@media(max-width:680px){.advanced-grid{grid-template-columns:1fr}.advanced-toggle-state{display:none}.advanced-toggle{padding:13px}.advanced-toggle-icon{width:38px;height:38px}.port-add-row{flex-direction:column}.advanced-actions .btn{flex:1;min-width:100px}}
 /* ============================================================
    FINAL PROTOCOL UI — COLLAPSED BAR + MODAL ONLY
    Protocol cards must never occupy the create page itself.
@@ -8472,7 +8705,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
       </button>
 
       <div id="advancedConfigPanel" class="advanced-config-panel" hidden>
-        <div class="advanced-note"><span>✦</span><div><b>کنترل دستی کامل</b><small>مقادیر این بخش همراه کانفیگ ذخیره می‌شوند. گزینه‌هایی که توسط پروتکل/بک‌اند فعلی پشتیبانی نشوند، در لینک خروجی اثر اجرایی ندارند.</small></div></div>
+        <div class="advanced-note"><span>✦</span><div><b>کنترل دستی کامل</b><small>هر گزینه یا به Listener واقعی sing-box اعمال می‌شود یا در اعتبارسنجی به‌عنوان کلاینت‌محور/پشتیبانی‌نشده مشخص می‌شود. قبل از ذخیره، اعتبارسنجی و Preview را اجرا کنید.</small></div></div>
 
         <div class="advanced-section">
           <div class="advanced-section-head"><span class="advanced-section-icon">🔐</span><div><b>TLS / Reality</b><small>امنیت اتصال و مشخصات TLS</small></div></div>
@@ -8482,15 +8715,21 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
             <div class="field"><label>ALPN</label><input id="advAlpn" placeholder="h2,http/1.1"></div>
             <div class="field"><label>حداقل TLS</label><select id="advTlsMin"><option>1.2</option><option>1.3</option></select></div>
             <div class="field"><label>حداکثر TLS</label><select id="advTlsMax"><option>1.3</option><option>1.2</option></select></div>
+            <div class="field"><label>Certificate Path</label><input id="advCertPath" placeholder="/etc/ssl/cert.pem"></div>
+            <div class="field"><label>Key Path</label><input id="advKeyPath" placeholder="/etc/ssl/key.pem"></div>
             <label class="advanced-check"><input id="advAllowInsecure" type="checkbox"><span><b>Allow Insecure</b><small>عدم اعتبارسنجی گواهی</small></span></label>
           </div>
           <div class="advanced-subcard" id="advRealityBox">
             <div class="advanced-subtitle">Reality</div>
             <div class="advanced-grid">
               <div class="field"><label>Public Key</label><input id="advRealityPk" placeholder="Public key"></div>
+              <div class="field"><label>Private Key</label><input id="advRealitySk" type="password" placeholder="اختیاری؛ فقط سرور"></div>
               <div class="field"><label>Short ID</label><input id="advRealitySid" placeholder="8 تا 16 رقم/حرف hex"></div>
               <div class="field"><label>Spider X</label><input id="advRealitySpider" placeholder="/"></div>
               <div class="field"><label>Reality Fingerprint</label><select id="advRealityFp"><option>chrome</option><option>firefox</option><option>safari</option><option>edge</option><option>ios</option><option>android</option><option>randomized</option></select></div>
+              <div class="field"><label>Reality Handshake Server</label><input id="advRealityHandshake" placeholder="www.cloudflare.com"></div>
+              <div class="field"><label>Handshake Port</label><input id="advRealityHandshakePort" type="number" value="443" min="1" max="65535"></div>
+              <div class="field"><label>Max Time Difference</label><input id="advRealityMaxDiff" placeholder="1m"></div>
             </div>
           </div>
         </div>
@@ -8540,10 +8779,42 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="advanced-section">
           <div class="advanced-section-head"><span class="advanced-section-icon">🧭</span><div><b>Routing / Sniffing</b><small>مسیر، استراتژی دامنه و تشخیص ترافیک</small></div></div>
           <div class="advanced-grid">
-            <div class="field"><label>Domain Strategy</label><select id="advDomainStrategy"><option value="">Auto</option><option>AsIs</option><option>PreferIPv4</option><option>PreferIPv6</option><option>IPv4Only</option><option>IPv6Only</option></select></div>
+            <div class="field"><label>Domain Strategy</label><select id="advDomainStrategy"><option value="">Auto</option><option value="prefer_ipv4">Prefer IPv4</option><option value="prefer_ipv6">Prefer IPv6</option><option value="ipv4_only">IPv4 Only</option><option value="ipv6_only">IPv6 Only</option></select></div>
             <div class="field"><label>Route / Outbound</label><input id="advRoute" placeholder="direct / block / proxy"></div>
             <label class="advanced-check"><input id="advSniff" type="checkbox"><span><b>Sniff</b><small>تشخیص مقصد از ترافیک</small></span></label>
-            <label class="advanced-check"><input id="advProxyProtocol" type="checkbox"><span><b>Proxy Protocol</b><small>فقط در صورت پشتیبانی</small></span></label>
+            <label class="advanced-check"><input id="advProxyProtocol" type="checkbox"><span><b>Proxy Protocol</b><small>در صورت پشتیبانی upstream</small></span></label>
+            <label class="advanced-check"><input id="advSniffOverride" type="checkbox"><span><b>Sniff Override</b><small>جایگزینی مقصد با دامنه تشخیص‌داده‌شده</small></span></label>
+            <div class="field"><label>Sniff Timeout</label><input id="advSniffTimeout" placeholder="300ms"></div>
+          </div>
+        </div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">🖥</span><div><b>Listener / Socket</b><small>تمام تنظیمات سطح Listener سرور</small></div></div>
+          <div class="advanced-grid">
+            <div class="field"><label>Listen Address</label><input id="advListen" placeholder="0.0.0.0"></div>
+            <div class="field"><label>Bind Interface</label><input id="advBindInterface" placeholder="eth0"></div>
+            <div class="field"><label>Routing Mark</label><input id="advRoutingMark" type="number" min="0" placeholder="0"></div>
+            <div class="field"><label>Network Namespace</label><input id="advNetns" placeholder="namespace/path"></div>
+            <div class="field"><label>TCP Keep Alive</label><input id="advTcpKeepAlive" placeholder="5m"></div>
+            <div class="field"><label>Keep Alive Interval</label><input id="advTcpKeepAliveInterval" placeholder="75s"></div>
+            <div class="field"><label>UDP Timeout</label><input id="advUdpTimeout" placeholder="5m"></div>
+            <label class="advanced-check"><input id="advReuseAddr" type="checkbox" checked><span><b>Reuse Address</b><small>سوکت قابل استفاده مجدد</small></span></label>
+            <label class="advanced-check"><input id="advTfo" type="checkbox"><span><b>TCP Fast Open</b><small>فعال‌سازی TFO</small></span></label>
+            <label class="advanced-check"><input id="advMptcp" type="checkbox"><span><b>TCP Multi Path</b><small>نیازمند پشتیبانی سیستم</small></span></label>
+            <label class="advanced-check"><input id="advDisableKeepAlive" type="checkbox"><span><b>Disable TCP Keep Alive</b><small>غیرفعال کردن keepalive</small></span></label>
+            <label class="advanced-check"><input id="advUdpFragment" type="checkbox"><span><b>UDP Fragment</b><small>برای Listenerهای UDP</small></span></label>
+          </div>
+        </div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">⚡</span><div><b>Protocol-specific</b><small>تنظیمات اختصاصی Shadowsocks و Hysteria2</small></div></div>
+          <div class="advanced-grid">
+            <div class="field"><label>Shadowsocks Method</label><select id="advSsMethod"><option>aes-256-gcm</option><option>aes-128-gcm</option><option>chacha20-ietf-poly1305</option><option>xchacha20-ietf-poly1305</option><option>2022-blake3-aes-128-gcm</option><option>2022-blake3-aes-256-gcm</option><option>2022-blake3-chacha20-poly1305</option></select></div>
+            <div class="field"><label>Hysteria2 Up Mbps</label><input id="advHyUp" type="number" min="0" value="0"></div>
+            <div class="field"><label>Hysteria2 Down Mbps</label><input id="advHyDown" type="number" min="0" value="0"></div>
+            <div class="field"><label>Hysteria2 Obfs Type</label><select id="advHyObfsType"><option value="">خاموش</option><option>salamander</option><option>gecko</option></select></div>
+            <div class="field"><label>Hysteria2 Obfs Password</label><input id="advHyObfsPassword" type="password"></div>
+            <div class="field"><label>Hysteria2 Masquerade</label><input id="advHyMasquerade" placeholder="https://example.com"></div>
           </div>
         </div>
 
@@ -8553,8 +8824,12 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 Cache-Control: no-cache"></textarea></div>
         </div>
 
+        <div id="advancedValidationStatus" class="advanced-validation-status" aria-live="polite"></div>
+        <div id="advancedCapabilityStatus" class="advanced-validation-status ok" style="display:block" aria-live="polite">وضعیت قابلیت‌ها پس از انتخاب پروتکل نمایش داده می‌شود.</div>
+        <div class="advanced-preview" id="advancedPreviewBox" hidden><div class="advanced-preview-head"><b>Config Preview</b><button type="button" class="btn btn-sm" onclick="copyAdvancedPreview()">کپی</button></div><pre id="advancedPreviewCode"></pre></div>
         <div class="advanced-actions">
-          <button type="button" class="btn btn-p" onclick="saveAdvancedDraft()">💾 ذخیره تنظیمات</button>
+          <button type="button" class="btn btn-p" onclick="validateAdvancedConfig(true)">✓ اعتبارسنجی و پیش‌نمایش</button>
+          <button type="button" class="btn" onclick="saveAdvancedDraft()">💾 ذخیره تنظیمات</button>
           <button type="button" class="btn" onclick="resetAdvancedConfig()">↺ بازنشانی</button>
           <button type="button" class="btn" onclick="copyAdvancedJson()">{ } کپی JSON</button>
         </div>
@@ -9401,15 +9676,17 @@ function addAdvancedPort(value){
 function removeAdvancedPort(port){const chip=[...document.querySelectorAll('#advancedPorts .advanced-port-chip')].find(x=>Number(x.dataset.port)===Number(port));if(chip)chip.remove();const chips=[...document.querySelectorAll('#advancedPorts .advanced-port-chip')];chips.forEach((x,i)=>{x.classList.toggle('primary',i===0);const b=x.querySelector('b');if(b)b.textContent=(i===0?'اصلی · ':'')+x.dataset.port})}
 function toggleAdvancedConfig(force){const panel=document.getElementById('advancedConfigPanel'),card=document.querySelector('.advanced-config-card');if(!panel||!card)return;const open=force===undefined?!card.classList.contains('open'):!!force;card.classList.toggle('open',open);panel.hidden=!open;document.getElementById('advancedToggleState').textContent=open?'بستن':'باز کردن';if(open)loadAdvancedDraft()}
 function advancedFormObject(){
-  return {tls:{enabled:document.getElementById('advTlsMode').value!=='none',mode:document.getElementById('advTlsMode').value,sni:document.getElementById('advSni').value.trim(),server_name:document.getElementById('advSni').value.trim(),alpn:document.getElementById('advAlpn').value.trim(),allow_insecure:document.getElementById('advAllowInsecure').checked,min_version:document.getElementById('advTlsMin').value,max_version:document.getElementById('advTlsMax').value,reality:{public_key:document.getElementById('advRealityPk').value.trim(),short_id:document.getElementById('advRealitySid').value.trim(),spider_x:document.getElementById('advRealitySpider').value.trim(),fingerprint:document.getElementById('advRealityFp').value}},host:{address:document.getElementById('advAddress').value.trim(),host:document.getElementById('advHost').value.trim(),path:document.getElementById('advPath').value.trim(),service_name:document.getElementById('advServiceName').value.trim(),authority:document.getElementById('advAuthority').value.trim()},fingerprint:{enabled:document.getElementById('advFpEnabled').checked,value:document.getElementById('advFp').value,randomize:document.getElementById('advFpRandom').checked},network:{type:document.getElementById('advNetwork').value,mode:document.getElementById('advNetworkMode').value,path:document.getElementById('advPath').value.trim(),service_name:document.getElementById('advServiceName').value.trim(),http_version:document.getElementById('advHttpVersion').value},headers:{host:document.getElementById('advHost').value.trim(),user_agent:document.getElementById('advUserAgent').value.trim(),extra:document.getElementById('advExtraHeaders').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)},routing:{domain_strategy:document.getElementById('advDomainStrategy').value,route:document.getElementById('advRoute').value.trim(),proxy_protocol:document.getElementById('advProxyProtocol').checked,sniff:document.getElementById('advSniff').checked},transport:{packet_encoding:document.getElementById('advPacketEncoding').value.trim(),early_data:Number(document.getElementById('advEarlyData').value)||0,max_early_data:Number(document.getElementById('advEarlyData').value)||0,padding:document.getElementById('advPadding').checked},ports:getAdvancedPorts()};
+  const g=id=>document.getElementById(id); const val=id=>(g(id)?.value??'').trim(); const num=id=>Number(g(id)?.value)||0; const chk=id=>!!g(id)?.checked;
+  return {tls:{enabled:val('advTlsMode')!=='none',mode:val('advTlsMode'),sni:val('advSni'),server_name:val('advSni'),alpn:val('advAlpn'),certificate_path:val('advCertPath'),key_path:val('advKeyPath'),allow_insecure:chk('advAllowInsecure'),min_version:val('advTlsMin'),max_version:val('advTlsMax'),reality:{public_key:val('advRealityPk'),private_key:val('advRealitySk'),short_id:val('advRealitySid'),spider_x:val('advRealitySpider'),fingerprint:val('advRealityFp'),handshake_server:val('advRealityHandshake'),handshake_port:num('advRealityHandshakePort'),max_time_difference:val('advRealityMaxDiff')}},host:{address:val('advAddress'),host:val('advHost'),path:val('advPath'),service_name:val('advServiceName'),authority:val('advAuthority')},fingerprint:{enabled:chk('advFpEnabled'),value:val('advFp'),randomize:chk('advFpRandom')},network:{type:val('advNetwork'),mode:val('advNetworkMode'),path:val('advPath'),service_name:val('advServiceName'),http_version:val('advHttpVersion')},headers:{host:val('advHost'),user_agent:val('advUserAgent'),extra:(g('advExtraHeaders')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)},routing:{domain_strategy:val('advDomainStrategy'),route:val('advRoute'),proxy_protocol:chk('advProxyProtocol'),sniff:chk('advSniff'),sniff_override:chk('advSniffOverride'),sniff_timeout:val('advSniffTimeout')},transport:{packet_encoding:val('advPacketEncoding'),early_data:num('advEarlyData'),max_early_data:num('advEarlyData'),early_data_header_name:val('advEarlyDataHeader'),padding:chk('advPadding')},listener:{listen:val('advListen')||'0.0.0.0',bind_interface:val('advBindInterface'),routing_mark:num('advRoutingMark'),netns:val('advNetns'),reuse_addr:chk('advReuseAddr'),tcp_fast_open:chk('advTfo'),tcp_multi_path:chk('advMptcp'),disable_tcp_keep_alive:chk('advDisableKeepAlive'),tcp_keep_alive:val('advTcpKeepAlive'),tcp_keep_alive_interval:val('advTcpKeepAliveInterval'),udp_fragment:chk('advUdpFragment'),udp_timeout:val('advUdpTimeout')},shadowsocks:{method:val('advSsMethod')||'aes-256-gcm'},hysteria2:{up_mbps:num('advHyUp'),down_mbps:num('advHyDown'),obfs_type:val('advHyObfsType'),obfs_password:val('advHyObfsPassword'),masquerade:val('advHyMasquerade')},ports:getAdvancedPorts()};
 }
 function fillAdvancedForm(a){
-  a=a||{}; const tls=a.tls||{},host=a.host||{},fp=a.fingerprint||{},net=a.network||{},routing=a.routing||{},transport=a.transport||{},reality=tls.reality||{},headers=a.headers||{};
+  a=a||{}; const tls=a.tls||{},host=a.host||{},fp=a.fingerprint||{},net=a.network||{},routing=a.routing||{},transport=a.transport||{},listener=a.listener||{},reality=tls.reality||{},headers=a.headers||{},ss=a.shadowsocks||{},hy=a.hysteria2||{};
   const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v??''}; const check=(id,v)=>{const e=document.getElementById(id);if(e)e.checked=!!v};
-  set('advTlsMode',tls.mode||'tls');set('advSni',tls.sni||tls.server_name||'');set('advAlpn',tls.alpn||'');set('advTlsMin',tls.min_version||'1.2');set('advTlsMax',tls.max_version||'1.3');check('advAllowInsecure',tls.allow_insecure);
-  set('advRealityPk',reality.public_key||'');set('advRealitySid',reality.short_id||'');set('advRealitySpider',reality.spider_x||'');set('advRealityFp',reality.fingerprint||'chrome');
+  set('advTlsMode',tls.mode||'tls');set('advSni',tls.sni||tls.server_name||'');set('advAlpn',tls.alpn||'');set('advTlsMin',tls.min_version||'1.2');set('advTlsMax',tls.max_version||'1.3');set('advCertPath',tls.certificate_path||'');set('advKeyPath',tls.key_path||'');check('advAllowInsecure',tls.allow_insecure);
+  set('advRealityPk',reality.public_key||'');set('advRealitySk',reality.private_key||'');set('advRealitySid',reality.short_id||'');set('advRealitySpider',reality.spider_x||'');set('advRealityFp',reality.fingerprint||'chrome');set('advRealityHandshake',reality.handshake_server||'');set('advRealityHandshakePort',reality.handshake_port||443);set('advRealityMaxDiff',reality.max_time_difference||'');
   set('advAddress',host.address||'');set('advHost',host.host||headers.host||'');set('advPath',host.path||net.path||'');set('advAuthority',host.authority||'');set('advUserAgent',headers.user_agent||'');set('advServiceName',host.service_name||net.service_name||'');
-  set('advFp',fp.value||'chrome');check('advFpEnabled',fp.enabled!==false);check('advFpRandom',fp.randomize);set('advNetwork',net.type||'ws');set('advNetworkMode',net.mode||'');set('advHttpVersion',net.http_version||'1.1');set('advPacketEncoding',transport.packet_encoding||'');set('advEarlyData',transport.early_data||0);check('advPadding',transport.padding);set('advDomainStrategy',routing.domain_strategy||'');set('advRoute',routing.route||'');check('advSniff',routing.sniff);check('advProxyProtocol',routing.proxy_protocol);set('advExtraHeaders',(headers.extra||[]).join('\n'));
+  set('advFp',fp.value||'chrome');check('advFpEnabled',fp.enabled!==false);check('advFpRandom',fp.randomize);set('advNetwork',net.type||'ws');set('advNetworkMode',net.mode||'');set('advHttpVersion',net.http_version||'1.1');set('advPacketEncoding',transport.packet_encoding||'');set('advEarlyData',transport.early_data||0);set('advEarlyDataHeader',transport.early_data_header_name||'Sec-WebSocket-Protocol');check('advPadding',transport.padding);set('advDomainStrategy',routing.domain_strategy||'');set('advRoute',routing.route||'');check('advSniff',routing.sniff);check('advSniffOverride',routing.sniff_override);set('advSniffTimeout',routing.sniff_timeout||'300ms');check('advProxyProtocol',routing.proxy_protocol);set('advExtraHeaders',(headers.extra||[]).join('\n'));
+  set('advListen',listener.listen||'0.0.0.0');set('advBindInterface',listener.bind_interface||'');set('advRoutingMark',listener.routing_mark||0);set('advNetns',listener.netns||'');set('advTcpKeepAlive',listener.tcp_keep_alive||'5m');set('advTcpKeepAliveInterval',listener.tcp_keep_alive_interval||'75s');set('advUdpTimeout',listener.udp_timeout||'5m');check('advReuseAddr',listener.reuse_addr!==false);check('advTfo',listener.tcp_fast_open);check('advMptcp',listener.tcp_multi_path);check('advDisableKeepAlive',listener.disable_tcp_keep_alive);check('advUdpFragment',listener.udp_fragment);set('advSsMethod',ss.method||'aes-256-gcm');set('advHyUp',hy.up_mbps||0);set('advHyDown',hy.down_mbps||0);set('advHyObfsType',hy.obfs_type||'');set('advHyObfsPassword',hy.obfs_password||'');set('advHyMasquerade',hy.masquerade||'');
   document.getElementById('advancedPorts').innerHTML=''; (a.ports&&a.ports.length?a.ports:[443]).forEach(addAdvancedPort); updateRealityVisibility();
 }
 function updateRealityVisibility(){const box=document.getElementById('advRealityBox'),mode=document.getElementById('advTlsMode');if(box&&mode)box.style.display=mode.value==='reality'?'block':'none'}
@@ -9417,12 +9694,18 @@ function resetAdvancedConfig(){fillAdvancedForm({ports:[Number(document.getEleme
 function saveAdvancedDraft(){try{localStorage.setItem('onex_advanced_draft',JSON.stringify(advancedFormObject()));toast(lang==='fa'?'تنظیمات ذخیره شد':'Settings saved')}catch(e){toast(lang==='fa'?'ذخیره انجام نشد':'Save failed')}}
 function loadAdvancedDraft(){try{const raw=localStorage.getItem('onex_advanced_draft');if(raw)fillAdvancedForm(JSON.parse(raw));else if(!getAdvancedPorts().length)fillAdvancedForm({ports:[Number(document.getElementById('cPort')?.value)||443]})}catch(e){fillAdvancedForm({ports:[443]})}}
 function copyAdvancedJson(){copyText(JSON.stringify(advancedFormObject(),null,2))}
+let __advancedPreview = null;
+function setAdvancedValidation(kind, html){const el=document.getElementById('advancedValidationStatus');if(!el)return;el.className='advanced-validation-status '+kind;el.innerHTML=html;}
+async function validateAdvancedConfig(showPreview=false){const protocol=document.getElementById('cProto')?.value||'';const advanced=advancedFormObject();setAdvancedValidation('warn',lang==='fa'?'در حال اعتبارسنجی...':'Validating...');const r=await api('/api/advanced/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({protocol,advanced})});if(!r){setAdvancedValidation('err',lang==='fa'?'اعتبارسنجی انجام نشد':'Validation failed');return false}const parts=[];if(r.ok)parts.push('✓ '+(lang==='fa'?'تنظیمات معتبر است':'Configuration is valid'));if(r.native)parts.push('• '+(lang==='fa'?'Native sing-box فعال است':'Native sing-box is available'));(r.warnings||[]).forEach(x=>parts.push('⚠ '+esc(x)));(r.errors||[]).forEach(x=>parts.push('✕ '+esc(x)));setAdvancedValidation(r.ok?(r.warnings?.length?'warn':'ok'):'err',parts.join('<br>'));__advancedPreview=r.preview||null;const box=document.getElementById('advancedPreviewBox'),pre=document.getElementById('advancedPreviewCode');if(box&&pre){box.hidden=!showPreview||!__advancedPreview;if(__advancedPreview)pre.textContent=JSON.stringify(__advancedPreview,null,2)}await loadAdvancedCapabilities(protocol);return !!r.ok}
+async function loadAdvancedCapabilities(protocol){const r=await api('/api/advanced/capabilities?protocol='+encodeURIComponent(protocol||''));const el=document.getElementById('advancedCapabilityStatus');if(!el||!r)return;const labels={tls:'TLS',reality:'Reality',sni:'SNI',alpn:'ALPN',fingerprint:'Fingerprint',ports:'چند پورت',listener:'Listener',routing:'Routing',sniffing:'Sniffing',custom_headers:'Headers'};el.innerHTML=Object.entries(r.supported||{}).map(([k,v])=>(v?'✓ ':'✕ ')+(labels[k]||k)+(v?' · پشتیبانی':' · اعمال نمی‌شود')).join(' &nbsp; | &nbsp; ');el.className='advanced-validation-status '+(r.native?'ok':'warn');el.style.display='block'}
+function copyAdvancedPreview(){if(__advancedPreview)copyText(JSON.stringify(__advancedPreview,null,2));}
 async function doManualCreate(){
+  const valid=await validateAdvancedConfig(false); if(!valid)return;
   const advanced=advancedFormObject(); const ports=advanced.ports.length?advanced.ports:[443];
   const body={label:document.getElementById('cName').value||undefined,protocol:document.getElementById('cProto')?.value||undefined,category_id:document.getElementById('cGroup')?.value||'0',config_count:Math.max(1,Math.min(40,Number(document.getElementById('cCount').value)||1)),limit_value:Number(document.getElementById('cLimit').value)||0,limit_unit:document.getElementById('cUnit').value||'GB',expires_days:Number(document.getElementById('cDays').value)||0,ip_limit:Number(document.getElementById('cIp').value)||0,speed_limit_value:Number(document.getElementById('cSpeed').value)||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
   const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); if(r){showResult(r);refreshAll();saveAdvancedDraft()}
 }
-document.addEventListener('change',e=>{if(e.target?.id==='advTlsMode')updateRealityVisibility()});
+document.addEventListener('change',e=>{if(e.target?.id==='advTlsMode')updateRealityVisibility();if(e.target?.id==='cProto')loadAdvancedCapabilities(e.target.value)});
 
 async function doChangePw(){
   const user=document.getElementById('newUser').value.trim(),cur=document.getElementById('pwCur').value,nw=document.getElementById('pwNew').value,cf=document.getElementById('pwCf').value;
@@ -9972,7 +10255,7 @@ function closeProtocolPicker(){const bg=document.getElementById('protocolPickerB
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupProtocolPickers);else setupProtocolPickers();setTimeout(setupProtocolPickers,300);setTimeout(setupProtocolPickers,1000);
 
-applyLang();loadMe();loadProtocols();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]})},250);
+applyLang();loadMe();loadProtocols();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]});loadAdvancedCapabilities(document.getElementById('cProto')?.value||'vless-ws')},250);
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
 setTimeout(()=>checkPanelUpdate(true),2500);
 setInterval(()=>checkPanelUpdate(true),10*60*1000);

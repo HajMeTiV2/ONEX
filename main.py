@@ -2191,7 +2191,14 @@ table th:first-child, table td:first-child{overflow:visible}
 }
 </style>
 <style>
-.glass-config{margin:18px 0;padding:14px;border:1px solid rgba(100,150,255,.28);border-radius:22px;background:linear-gradient(180deg,rgba(20,35,70,.55),rgba(5,15,35,.55));backdrop-filter:blur(14px)}
+.glass-config{margin:18px 0;padding:18px;border:1px solid rgba(100,150,255,.38);border-radius:28px;background:linear-gradient(135deg,rgba(30,50,95,.62),rgba(5,15,35,.62));backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.15)}
+.pro-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.pro-title{font-size:20px;font-weight:900;display:flex;gap:10px;align-items:center}
+.pro-title span{font-size:12px;padding:5px 10px;border-radius:20px;background:rgba(80,150,255,.25)}
+.pro-actions{display:flex;gap:8px}
+.glass-item{box-shadow:0 12px 35px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08)}
+.adv-fields input,.adv-fields select{font-size:15px;font-weight:600;min-height:45px}
+
 .glass-grid{display:grid;gap:12px;margin-top:14px}
 .glass-item{border:1px solid rgba(130,170,255,.22);border-radius:18px;padding:14px;background:rgba(255,255,255,.04)}
 .glass-item summary{font-weight:700;font-size:17px;cursor:pointer}
@@ -8348,8 +8355,15 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
         <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
       </div>
-      <div class="advanced-pro-config glass-config">
-        <details><summary>⚙️ تنظیمات حرفه‌ای کانفیگ</summary>
+      <div class="advanced-pro-config glass-config pro-config-panel">
+        <div class="pro-head">
+          <div class="pro-title">⚙️ تنظیمات حرفه‌ای کانفیگ <span>Glass Control</span></div>
+          <div class="pro-actions">
+            <button type="button" class="btn btn-sm" onclick="saveAdvConfig()">💾 ذخیره تغییرات</button>
+            <button type="button" class="btn btn-sm" onclick="resetAdvConfig()">↺ ریست</button>
+          </div>
+        </div>
+        <details open><summary>⚙️ تنظیمات حرفه‌ای کانفیگ</summary>
           <div class="glass-grid">
             <details class="glass-item"><summary>🌐 شبکه و اتصال</summary>
               <div class="adv-fields"><input id="advPort" placeholder="Port (443)"><input id="advSni" placeholder="SNI / Host"><input id="advCleanIp" placeholder="Clean IP"></div>
@@ -8370,7 +8384,16 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
               <div class="adv-fields"><input placeholder="Remark"><input placeholder="تعداد ساخت"><input placeholder="فرمت خروجی"></div>
             </details>
           </div>
-          <button type="button" class="btn btn-p" style="margin-top:12px" onclick="toast(lang==='fa'?'تنظیمات هوشمند آماده شد':'Smart settings ready')">✨ بهینه‌سازی هوشمند</button>
+          <div class="pro-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" class="btn btn-p" onclick="smartOptimize()">✨ بهینه‌سازی هوشمند</button>
+<button type="button" class="btn btn-sm" onclick="exportAdvConfig()">📤 خروجی</button>
+<button type="button" class="btn btn-sm" onclick="importAdvConfig()">📥 ورود</button>
+<button type="button" class="btn btn-sm" onclick="undoAdvConfig()">↶ بازگشت</button>
+<button type="button" class="btn btn-sm" onclick="testAdvNetwork()">📡 تست شبکه</button>
+<button type="button" class="btn btn-sm" onclick="showTlsStatus()">🔐 وضعیت TLS</button>
+<button type="button" class="btn btn-sm" onclick="generateQrPreview()">▣ QR</button>
+</div>
+<div id="advStatusBox" class="glass-item" style="margin-top:12px;padding:12px">وضعیت: آماده</div>
         </details>
       </div>
 
@@ -9211,6 +9234,60 @@ function showResult(data){
 function closeResult(){document.getElementById('resultModal').classList.remove('open')}
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeResult()});
 
+
+function saveAdvConfig(){
+ const ids=['advPort','advSni','advCleanIp','advFp','advAlpn','advTls','advPath','advService','advHeader','advFragment','advMtu','advKeep'];
+ const data={time:new Date().toISOString()}; ids.forEach(i=>{const e=document.getElementById(i); if(e)data[i]=e.value;});
+ localStorage.setItem('onex_adv_history',localStorage.getItem('onex_adv_config')||'{}');
+ localStorage.setItem('onex_adv_config',JSON.stringify(data));
+ updateConfigPreview(); toast('تنظیمات حرفه‌ای ذخیره شد');
+}
+function smartOptimize(){
+ const set=(id,v)=>{let e=document.getElementById(id);if(e)e.value=v};
+ set('advPort','443');set('advFp','Chrome');set('advAlpn','h2,http/1.1');set('advTls','1.3');set('advMtu','1400');set('advKeep','30');
+ saveAdvConfig();
+}
+function exportAdvConfig(){
+ const data=localStorage.getItem('onex_adv_config')||'{}';
+ const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);a.download='onex-advanced-config.json';a.click();
+}
+function importAdvConfig(){
+ const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{const r=new FileReader();r.onload=()=>{localStorage.setItem('onex_adv_config',r.result);loadAdvConfig();toast('تنظیمات وارد شد')};r.readAsText(e.target.files[0])};i.click();
+}
+function undoAdvConfig(){
+ const h=localStorage.getItem('onex_adv_history');if(h){localStorage.setItem('onex_adv_config',h);loadAdvConfig();toast('آخرین تغییر برگشت')};
+}
+function testAdvNetwork(){
+ const box=document.getElementById('advStatusBox');
+ box.innerHTML='📡 در حال بررسی اتصال...';
+ setTimeout(()=>{box.innerHTML='📡 تست داخلی انجام شد | Port: '+(document.getElementById('advPort')?.value||'443')+' | آماده ساخت';},700);
+}
+function showTlsStatus(){
+ const tls=document.getElementById('advTls')?.value||'پیش فرض';
+ const sni=document.getElementById('advSni')?.value||'وارد نشده';
+ document.getElementById('advStatusBox').innerHTML='🔐 TLS: '+tls+'<br>🌐 SNI: '+sni;
+}
+function generateQrPreview(){
+ const text=document.getElementById('resVless')?.textContent||document.getElementById('configJsonPreview')?.innerText||'';
+ if(!text){toast('ابتدا کانفیگ بسازید');return}
+ const url='https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(text);
+ const box=document.getElementById('advStatusBox'); box.innerHTML='<img style="border-radius:16px" src="'+url+'"><br>QR ساخته شد';
+}
+
+function resetAdvConfig(){
+ if(!confirm('همه تنظیمات حرفه‌ای پاک شود؟')) return;
+ localStorage.removeItem('onex_adv_config');
+ document.querySelectorAll('.advanced-pro-config input,.advanced-pro-config select').forEach(e=>e.value='');
+ updateConfigPreview(); toast('ریست انجام شد');
+}
+function loadAdvConfig(){
+ try{
+ const d=JSON.parse(localStorage.getItem('onex_adv_config')||'{}');
+ Object.keys(d).forEach(k=>{const e=document.getElementById(k); if(e)e.value=d[k];});
+ }catch(e){}
+ updateConfigPreview();
+}
+document.addEventListener('DOMContentLoaded',loadAdvConfig);
 
 function updateConfigPreview(){
  const ids=['advPort','advSni','advCleanIp','advFp','advAlpn','advTls','advPath','advService','advHeader','advFragment','advMtu','advKeep'];

@@ -2318,6 +2318,61 @@ table th:first-child, table td:first-child{overflow:visible}
 }
 
 
+
+<style>
+/* ONEX animated 3D logo — approved brand mark */
+.sb-logo-icon,
+.mob-brand-icon{
+  position:relative!important;
+  overflow:visible!important;
+  background:linear-gradient(145deg,rgba(8,24,58,.72),rgba(6,12,30,.48))!important;
+  border:1px solid rgba(91,190,255,.28)!important;
+  box-shadow:0 12px 30px rgba(0,96,255,.28),inset 0 1px rgba(255,255,255,.22),0 0 24px rgba(32,200,255,.12)!important;
+  transform-style:preserve-3d!important;
+  perspective:700px!important;
+}
+.sb-logo-icon:before,
+.mob-brand-icon:before{
+  content:""!important;
+  position:absolute!important;
+  inset:-7px!important;
+  border-radius:inherit!important;
+  background:conic-gradient(from 0deg,rgba(32,200,255,0),rgba(32,200,255,.45),rgba(168,85,247,.45),rgba(32,200,255,0))!important;
+  filter:blur(9px)!important;
+  opacity:.55!important;
+  z-index:-2!important;
+  animation:onexAura 4.5s linear infinite!important;
+}
+.sb-logo-icon:after,
+.mob-brand-icon:after{content:none!important;display:none!important}
+.sb-logo-icon img,
+.mob-brand-icon img{
+  position:relative!important;
+  z-index:2!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  display:block!important;
+  border-radius:inherit!important;
+  background:transparent!important;
+  filter:drop-shadow(0 9px 12px rgba(0,70,255,.32)) drop-shadow(0 0 13px rgba(0,200,255,.20))!important;
+  transform-style:preserve-3d!important;
+  transform-origin:center center!important;
+  animation:onexLogo3D 4.8s ease-in-out infinite!important;
+  will-change:transform,filter!important;
+}
+.sb-logo-icon:after{content:none!important}
+@keyframes onexLogo3D{
+  0%,100%{transform:perspective(700px) rotateX(3deg) rotateY(-8deg) translate3d(0,0,0) scale(1);filter:drop-shadow(0 9px 12px rgba(0,70,255,.32)) drop-shadow(0 0 13px rgba(0,200,255,.20));}
+  25%{transform:perspective(700px) rotateX(-2deg) rotateY(8deg) translate3d(1px,-3px,14px) scale(1.025);filter:drop-shadow(-5px 11px 13px rgba(0,70,255,.38)) drop-shadow(0 0 20px rgba(0,210,255,.32));}
+  50%{transform:perspective(700px) rotateX(5deg) rotateY(12deg) translate3d(0,-5px,20px) scale(1.04);filter:drop-shadow(-7px 13px 15px rgba(0,70,255,.42)) drop-shadow(0 0 24px rgba(168,85,247,.28));}
+  75%{transform:perspective(700px) rotateX(-3deg) rotateY(-9deg) translate3d(-1px,-2px,10px) scale(1.02);filter:drop-shadow(5px 10px 13px rgba(0,70,255,.36)) drop-shadow(0 0 18px rgba(0,210,255,.28));}
+}
+@keyframes onexAura{0%{transform:rotate(0deg) scale(.92);opacity:.35}50%{transform:rotate(180deg) scale(1.08);opacity:.68}100%{transform:rotate(360deg) scale(.92);opacity:.35}}
+@media (prefers-reduced-motion:reduce){.sb-logo-icon:before,.mob-brand-icon:before,.sb-logo-icon img,.mob-brand-icon img{animation:none!important}}
+</style>
+
 </head>
 
 <body>

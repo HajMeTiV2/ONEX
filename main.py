@@ -1052,15 +1052,13 @@ def generate_vless_link(
     if fp not in FINGERPRINTS: fp = DEFAULT_FINGERPRINT
     port_value = protocol_public_port(link, protocol, safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT))
     alpn_value = (alpn or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
-    custom_sni = str((link or {}).get("sni") or host).strip()
-    custom_path = str((link or {}).get("path") or "").strip()
     label = quote(str(remark or "ONEX"), safe="")
     if protocol == "vless-ws":
-        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":(custom_path if custom_path and custom_path != "auto" else f"/ws/{uuid}"),"sni":custom_sni,"fp":fp,"alpn":alpn_value}
+        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol.startswith("xhttp-"):
         mode = protocol.replace("xhttp-", "")
-        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":(custom_path if custom_path and custom_path != "auto" else f"/xhttp-siz10/{mode}/{uuid}"),"sni":custom_sni,"fp":fp,"alpn":alpn_value}
+        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol == "vmess-ws":
         raw = {"v":"2","ps":remark,"add":host,"port":port_value,"id":uuid,"aid":0,"scy":"auto","net":"ws","type":"none","host":host,"path":f"/ws/{uuid}","tls":"tls","sni":host,"fp":fp}
@@ -1426,8 +1424,6 @@ async def make_link(
     speed_limit_bytes: int = 0,
     connection_limit: int = 0,
     fragment: str = "off",
-    sni: str = "",
-    path: str = "",
     clean_ips=None,
     alarm_enabled: bool = False,
     category_id: str = "0",
@@ -1531,12 +1527,6 @@ async def make_link(
                 fragment
                 or "off"
             ).strip().lower(),
-
-        "sni":
-            (sni or "").strip()[:255],
-
-        "path":
-            (path or "").strip()[:255],
 
         "security_profile": "balanced",
         "multi_login": False,
@@ -3152,9 +3142,6 @@ async def create_link_api(
         or "off"
     ).strip().lower()
 
-    sni = str(body.get("sni", "") or "").strip()
-    path = str(body.get("path", "") or "").strip()
-
     allowed_fragments = {
         "off",
         "safe",
@@ -3226,8 +3213,6 @@ async def create_link_api(
         speed_limit_bytes=speed_bytes,
         connection_limit=connection_limit,
         fragment=fragment,
-        sni=sni,
-        path=path,
         clean_ips=clean_ips,
         alarm_enabled=alarm_enabled,
         category_id=category_id,
@@ -8348,7 +8333,6 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
         <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
       </div>
-
       <details class="advanced-config-box">
         <summary>⚙️ تنظیمات پیشرفته کانفیگ</summary>
         <div class="form-row">
@@ -8359,10 +8343,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
           <div class="field"><label>Fingerprint</label><select id="cFingerprint"><option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="safari">Safari</option><option value="android">Android</option><option value="random">Random</option></select></div>
           <div class="field"><label>ALPN</label><input id="cAlpn" value="auto"></div>
         </div>
-        <div class="form-row">
-          <div class="field"><label>Path</label><input id="cPath" value="auto"></div>
-          <div class="field"><label>Fragment</label><select id="cFragment"><option value="off">خاموش</option><option value="on">فعال</option></select></div>
-        </div>
+        <div class="form-row"><div class="field"><label>Path</label><input id="cPath" value="auto"></div><div class="field"><label>Fragment</label><select id="cFragment"><option value="off">خاموش</option><option value="on">فعال</option></select></div></div>
         <div class="field"><label>Clean IP ها</label><input id="cCleanIps" placeholder="1.1.1.1,2.2.2.2"></div>
         <button type="button" class="btn btn-p" onclick="autoOptimizeConfig()">✨ بهینه‌سازی هوشمند</button>
       </details>
@@ -9193,7 +9174,9 @@ function showResult(data){
   document.getElementById('resSub').textContent=getSubUrl(data)||'—';
   document.getElementById('resultModal').classList.add('open');
 }
-function closeResult(){document.getElementById('resultModal').classList.remove('open')}\nfunction autoOptimizeConfig(){\n const p=document.getElementById('cPort'); if(p) p.value='443';\n const a=document.getElementById('cAlpn'); if(a) a.value='auto';\n const f=document.getElementById('cFingerprint'); if(f) f.value='chrome';\n toast(lang==='fa'?'تنظیمات پیشنهادی اعمال شد':'Recommended settings applied');\n}\n
+function closeResult(){document.getElementById('resultModal').classList.remove('open')}
+function autoOptimizeConfig(){document.getElementById('cPort').value='443';document.getElementById('cAlpn').value='auto';document.getElementById('cFingerprint').value='chrome';}
+
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeResult()});
 
 async function doManualCreate(){
@@ -9209,11 +9192,11 @@ async function doManualCreate(){
     speed_limit_value:Number(document.getElementById('cSpeed').value)||0,
     speed_limit_unit:'MBIT',
     port:Number(document.getElementById('cPort')?.value)||443,
+    sni:document.getElementById('cSni')?.value||'',
+    path:document.getElementById('cPath')?.value||'',
     fingerprint:document.getElementById('cFingerprint')?.value||'chrome',
     alpn:document.getElementById('cAlpn')?.value||'',
     fragment:document.getElementById('cFragment')?.value||'off',
-    sni:document.getElementById('cSni')?.value||'',
-    path:document.getElementById('cPath')?.value||'',
     clean_ips:(document.getElementById('cCleanIps')?.value||'').split(',').map(x=>x.trim()).filter(Boolean),
     all_protocols:!!document.getElementById('cAllProtocols')?.checked
   };

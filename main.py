@@ -5723,153 +5723,238 @@ async def sub_group_subscription(
 PUBLIC_SUB_HTML = r"""
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
-
 <head>
 <meta charset="UTF-8">
-
-<meta
-name="viewport"
-content="width=device-width,initial-scale=1"
->
-
-<title>
-ONEX Panel
-</title>
-
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ONEX Panel</title>
 <style>
-
-*{
-    box-sizing:border-box;
+:root{
+  --bg:#050a16;
+  --panel:#081427;
+  --line:rgba(90,170,255,.18);
+  --blue:#55a9ff;
+  --pink:#ff2d6f;
+  --text:#f7f9ff;
+  --muted:#9aa8bd;
 }
-
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0}
 body{
-    margin:0;
-    min-height:100vh;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    padding:20px;
-
-    font-family:Arial,sans-serif;
-
-    color:#fff;
-
-    background:
-        radial-gradient(
-            circle at top right,
-            rgba(37,99,235,.17),
-            transparent 30%
-        ),
-        #07070a;
+  min-height:100vh;
+  padding:24px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:Arial,"Tahoma",sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(circle at 85% 5%,rgba(53,116,255,.20),transparent 34%),
+    radial-gradient(circle at 10% 90%,rgba(255,34,105,.10),transparent 30%),
+    linear-gradient(145deg,#040710,#071326 55%,#060a14);
 }
-
+.shell{
+  width:100%;
+  max-width:570px;
+}
 .card{
-    width:100%;
-    max-width:560px;
-
-    padding:28px;
-    border-radius:25px;
-
-    background:rgba(255,255,255,.045);
-
-    border:
-        1px solid
-        rgba(255,255,255,.08);
-
-    backdrop-filter:blur(25px);
+  position:relative;
+  overflow:hidden;
+  padding:28px;
+  border:1px solid rgba(105,178,255,.20);
+  border-radius:28px;
+  background:linear-gradient(145deg,rgba(10,25,48,.93),rgba(5,13,27,.94));
+  box-shadow:0 18px 55px rgba(0,0,0,.34),0 0 35px rgba(42,126,255,.08);
 }
-
-h1{
-    margin-top:0;
+.card:before{
+  content:"";
+  position:absolute;
+  top:0;left:8%;right:8%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue),var(--pink),transparent);
 }
-
-.text{
-    color:rgba(255,255,255,.55);
-    line-height:2;
-    font-size:13px;
+.brand{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-bottom:22px;
 }
-
+.logo{
+  width:54px;height:54px;
+  display:grid;place-items:center;
+  flex:none;
+  border-radius:17px;
+  background:linear-gradient(145deg,#257cff,#4f46e5);
+  border:1px solid rgba(117,194,255,.35);
+  box-shadow:0 8px 25px rgba(37,124,255,.20);
+  font-size:24px;font-weight:800;
+}
+.brand h1{margin:0;font-size:25px;letter-spacing:.2px}
+.brand p{margin:5px 0 0;color:var(--muted);font-size:12px}
+.status{
+  margin-right:auto;
+  padding:7px 11px;
+  border-radius:999px;
+  color:#76f0bd;
+  background:rgba(22,190,119,.10);
+  border:1px solid rgba(54,224,153,.22);
+  font-size:11px;
+  white-space:nowrap;
+}
+.status i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#35df96;margin-left:5px}
+.message{
+  padding:16px 18px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:17px;
+  background:rgba(255,255,255,.035);
+  color:#dce4f2;
+  line-height:1.9;
+  font-size:14px;
+}
+.version{display:block;color:#71b5ff;font-size:11px;margin-top:4px}
+.label{margin:22px 2px 9px;color:#8999b0;font-size:11px}
+.urlbox{
+  display:flex;
+  align-items:stretch;
+  gap:9px;
+  padding:7px;
+  border-radius:18px;
+  background:rgba(1,7,17,.62);
+  border:1px solid rgba(83,157,255,.17);
+}
 .url{
-    margin-top:20px;
-    padding:14px;
-
-    border-radius:13px;
-
-    background:rgba(0,0,0,.22);
-
-    color:#93c5fd;
-
-    direction:ltr;
-    word-break:break-all;
-
-    font-family:Consolas,monospace;
+  flex:1;
+  min-width:0;
+  padding:11px 12px;
+  border-radius:13px;
+  color:#9ccaff;
+  direction:ltr;
+  text-align:left;
+  word-break:break-all;
+  font-family:Consolas,monospace;
+  font-size:12px;
+  line-height:1.65;
 }
-
-.support{
-    display:inline-block;
-    margin-top:18px;
-
-    color:#60a5fa;
-    text-decoration:none;
+.copy{
+  align-self:stretch;
+  min-width:76px;
+  border:1px solid rgba(255,45,111,.45);
+  border-radius:13px;
+  background:linear-gradient(135deg,#ff316f,#df1657);
+  color:white;
+  font:700 12px Arial;
+  cursor:pointer;
 }
-
-.version{
-    color:#60a5fa;
-    font-size:11px;
+.copy:active{transform:scale(.98)}
+.supportbar{
+  margin-top:18px;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  padding:13px 15px;
+  border-radius:18px;
+  background:linear-gradient(110deg,rgba(255,38,106,.11),rgba(72,141,255,.09));
+  border:1px solid rgba(255,55,119,.20);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
 }
-
+.supporticon{
+  width:42px;height:42px;
+  display:grid;place-items:center;
+  border-radius:13px;
+  background:rgba(255,45,111,.12);
+  border:1px solid rgba(255,45,111,.30);
+  color:#ff5d8f;
+  font-size:20px;
+}
+.supporttext{flex:1;min-width:0}
+.supporttext strong{display:block;font-size:12px;margin-bottom:4px}
+.supporttext span{color:#8e9db2;font-size:11px}
+.supportbar a{
+  padding:9px 13px;
+  border-radius:11px;
+  color:#ff78a4;
+  border:1px solid rgba(255,45,111,.27);
+  background:rgba(255,45,111,.07);
+  text-decoration:none;
+  font-size:11px;
+  white-space:nowrap;
+}
+.footer{
+  margin-top:18px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.06);
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  color:#66758b;
+  font-size:10px;
+}
+@media(max-width:480px){
+  body{padding:15px 11px}
+  .card{padding:20px;border-radius:24px}
+  .brand h1{font-size:22px}
+  .logo{width:48px;height:48px;border-radius:15px}
+  .status{font-size:10px;padding:6px 9px}
+  .urlbox{display:block}
+  .url{display:block;padding:10px 9px}
+  .copy{width:100%;height:42px}
+  .supportbar{align-items:flex-start}
+  .supportbar a{align-self:center}
+}
 </style>
 </head>
-
 <body>
+<main class="shell">
+  <section class="card">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div>
+        <h1>ONEX Panel</h1>
+        <p>درگاه امن اشتراک گروه</p>
+      </div>
+      <div class="status"><i></i> آماده</div>
+    </div>
 
-<div class="card">
+    <div class="message">
+      اشتراک شما آماده است؛ لینک زیر را در کلاینت موردنظر خود وارد کنید.
+      <span class="version">نسخه سرویس 13.8.0</span>
+    </div>
 
-<h1>
-ONEX Panel
-</h1>
+    <div class="label">لینک اشتراک</div>
+    <div class="urlbox">
+      <div class="url" id="subUrl"></div>
+      <button class="copy" id="copyBtn" type="button" onclick="copySubUrl()">کپی لینک</button>
+    </div>
 
-<div class="version">
-13.8.0
-</div>
+    <div class="supportbar">
+      <div class="supporticon">✦</div>
+      <div class="supporttext">
+        <strong>پشتیبانی ONEX</strong>
+        <span>برای راهنمایی و دریافت پشتیبانی با ما در ارتباط باشید</span>
+      </div>
+      <a href="https://t.me/V2rayTun0" target="_blank" rel="noopener">@V2rayTun0</a>
+    </div>
 
-<div class="text">
-اشتراک شما آماده است.
-</div>
-
-<div
-class="url"
-id="subUrl"
-></div>
-
-<a
-class="support"
-href="https://t.me/V2rayTun0"
-target="_blank"
-rel="noopener"
->
-پشتیبانی @V2rayTun0
-</a>
-
-</div>
-
+    <div class="footer">
+      <span>ONEX Subscription</span>
+      <span>© ONEX Panel</span>
+    </div>
+  </section>
+</main>
 <script>
-
-const url =
-    location.origin +
-    location.pathname.replace(
-        "/p/",
-        "/sub-group/"
-    );
-
-document.getElementById(
-    "subUrl"
-).textContent = url;
-
+const url = location.origin + location.pathname.replace("/p/","/sub-group/");
+document.getElementById("subUrl").textContent = url;
+async function copySubUrl(){
+  const btn=document.getElementById("copyBtn");
+  try{
+    await navigator.clipboard.writeText(url);
+    btn.textContent="✓ کپی شد";
+  }catch(e){
+    const ta=document.createElement("textarea");
+    ta.value=url;document.body.appendChild(ta);ta.select();
+    document.execCommand("copy");ta.remove();btn.textContent="✓ کپی شد";
+  }
+  setTimeout(()=>btn.textContent="کپی لینک",1800);
+}
 </script>
-
 </body>
 </html>
 """
@@ -7531,9 +7616,9 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .sb-toggle svg{width:14px;height:14px;transition:transform .28s}
 .sidebar.collapsed .sb-toggle svg{transform:rotate(180deg)}
 .sb-logo{display:flex;align-items:center;justify-content:center;padding:18px 14px;border-bottom:1px solid var(--card-b)}
-.sb-logo-icon{position:relative;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;font-size:0;font-weight:900;color:#fff;isolation:isolate;transform:perspective(260px) rotateX(7deg) rotateY(-8deg);background:linear-gradient(145deg,#0ea5e9 0%,#2563eb 48%,#7c3aed 100%);border:1px solid rgba(255,255,255,.22);box-shadow:0 16px 30px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.32);animation:onexLogoFloat 3.2s ease-in-out infinite}
-.sb-logo-icon:before{content:'';position:absolute;inset:5px;border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.28),rgba(255,255,255,.03) 45%,rgba(0,0,0,.18));border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 -8px 16px rgba(0,0,0,.14),0 0 22px rgba(32,200,255,.18);z-index:-1}
-.sb-logo-icon:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 25px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.38);transform:translateZ(18px);animation:onexLogoGlow 2.8s ease-in-out infinite}
+.sb-logo-icon{position:relative;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;flex-shrink:0;font-size:0;font-weight:900;color:#fff;isolation:isolate;overflow:visible;transform:perspective(260px) rotateX(7deg) rotateY(-8deg);background:linear-gradient(145deg,#18cfff 0%,#1677ee 42%,#4038d8 72%,#9b2cff 100%);border:1px solid rgba(255,255,255,.26);box-shadow:0 16px 30px rgba(37,99,235,.35),0 0 26px rgba(0,200,255,.16),inset 0 1px rgba(255,255,255,.36);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.sb-logo-icon:before{content:'';position:absolute;inset:-5px;border-radius:19px;border:2px solid rgba(28,211,255,.78);border-left-color:rgba(173,45,255,.88);border-bottom-color:rgba(255,49,174,.62);transform:rotate(-24deg) scaleX(1.18);box-shadow:0 0 12px rgba(0,194,255,.55),0 0 22px rgba(180,35,255,.28);pointer-events:none;z-index:0}
+.sb-logo-icon:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 25px/1 Inter,system-ui,sans-serif;color:#fff;letter-spacing:-.08em;text-shadow:3px 3px 0 rgba(29,78,216,.95),6px 6px 0 rgba(30,41,59,.55),0 0 18px rgba(255,255,255,.45);transform:translateZ(18px);animation:onexLogoGlow 2.8s ease-in-out infinite;z-index:2}
 .sb-logo-text,.sb-logo-name,.sb-logo-ver{display:none!important}
 .sidebar.collapsed .sb-logo{justify-content:center;padding:14px 8px}
 .sidebar.collapsed .sb-logo-icon{margin:0 auto}
@@ -7669,9 +7754,9 @@ tr:hover td{background:var(--hover)}
    ONEX DASHBOARD REDESIGN
    ========================================================= */
 .mob-brand{display:flex;align-items:center;gap:9px}
-.mob-brand-mark{position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:0;font-weight:900;isolation:isolate;background:linear-gradient(145deg,#0ea5e9,#2563eb 52%,#7c3aed);border:1px solid rgba(255,255,255,.22);box-shadow:0 10px 24px rgba(37,99,235,.35),inset 0 1px rgba(255,255,255,.28);transform:perspective(220px) rotateX(7deg) rotateY(-8deg);animation:onexLogoFloat 3.2s ease-in-out infinite}
-.mob-brand-mark:before{content:'';position:absolute;inset:4px;border-radius:9px;background:linear-gradient(145deg,rgba(255,255,255,.25),rgba(255,255,255,.03) 50%,rgba(0,0,0,.18));z-index:-1}
-.mob-brand-mark:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 18px/1 Inter,system-ui,sans-serif;color:#fff;text-shadow:2px 2px 0 rgba(29,78,216,.95),4px 4px 0 rgba(30,41,59,.5),0 0 13px rgba(255,255,255,.35);transform:translateZ(12px)}
+.mob-brand-mark{position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:0;font-weight:900;isolation:isolate;overflow:visible;background:linear-gradient(145deg,#18cfff,#1677ee 42%,#4038d8 72%,#9b2cff);border:1px solid rgba(255,255,255,.26);box-shadow:0 10px 24px rgba(37,99,235,.35),0 0 22px rgba(0,200,255,.16),inset 0 1px rgba(255,255,255,.34);transform:perspective(220px) rotateX(7deg) rotateY(-8deg);animation:onexLogoFloat 3.2s ease-in-out infinite}
+.mob-brand-mark:before{content:'';position:absolute;inset:-4px;border-radius:15px;border:1.7px solid rgba(28,211,255,.82);border-left-color:rgba(173,45,255,.88);border-bottom-color:rgba(255,49,174,.65);transform:rotate(-24deg) scaleX(1.18);box-shadow:0 0 10px rgba(0,194,255,.5),0 0 18px rgba(180,35,255,.25);pointer-events:none;z-index:0}
+.mob-brand-mark:after{content:'N';position:absolute;inset:0;display:grid;place-items:center;font:900 18px/1 Inter,system-ui,sans-serif;color:#fff;text-shadow:2px 2px 0 rgba(29,78,216,.95),4px 4px 0 rgba(30,41,59,.5),0 0 13px rgba(255,255,255,.42);transform:translateZ(12px);z-index:2}
 .onex-topbar{height:66px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px;padding:10px 14px 10px 16px;border:1px solid rgba(96,165,250,.14);border-radius:20px;background:linear-gradient(180deg,rgba(17,24,39,.82),rgba(8,12,23,.72));backdrop-filter:blur(18px);box-shadow:0 12px 35px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.04)}
 /* ONEX floating glass control dock */
 .onex-control-dock{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:-4px 0 18px;padding:9px;border:1px solid rgba(148,163,184,.16);border-radius:22px;background:linear-gradient(135deg,rgba(15,23,42,.72),rgba(9,13,25,.58));backdrop-filter:blur(22px) saturate(135%);-webkit-backdrop-filter:blur(22px) saturate(135%);box-shadow:0 18px 45px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.07)}

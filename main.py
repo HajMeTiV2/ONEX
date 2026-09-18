@@ -2577,6 +2577,16 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
   .login-title{font-size:19px}.login-desc{font-size:10px;margin-bottom:13px}
   .field input{height:50px}.primary{height:51px}
 }
+
+/* ONEX RED ACTION PALETTE — LOGIN */
+:root{--onex-red:#ff315d;--onex-red-2:#d91f55;--onex-red-bright:#ff4f78;--onex-red-glow:rgba(255,31,92,.30)}
+.primary{background:linear-gradient(135deg,var(--onex-red),var(--onex-red-2)) !important;border:1px solid rgba(255,108,137,.72) !important;box-shadow:0 12px 30px var(--onex-red-glow),inset 0 1px rgba(255,255,255,.16) !important;color:#fff !important}
+.primary:hover{filter:brightness(1.10) !important;box-shadow:0 14px 34px rgba(255,31,92,.38),inset 0 1px rgba(255,255,255,.20) !important}
+.login-title b{color:var(--onex-red-bright) !important}
+.forgot,.credits a{color:var(--onex-red-bright) !important}
+.telegram-text b{color:var(--onex-red-bright) !important}
+.telegram-icon{background:linear-gradient(145deg,var(--onex-red-bright),var(--onex-red-2)) !important;box-shadow:0 0 28px rgba(255,31,92,.38) !important}
+.telegram{border-color:rgba(255,82,120,.30) !important}
 </style>
 </head>
 <body>
@@ -9378,6 +9388,120 @@ html.light .range-tab.on{
 
 /* Light mode should retain the same blue + red visual language. */
 html.light .mob-menu-btn{color:#fff !important}
+
+/* ============================================================
+   ONEX RED GLASS SYSTEM — FINAL GLOBAL ACTION PALETTE
+   Blue remains the structural/decorative color; red is reserved
+   for primary actions, active controls and navigation emphasis.
+   This block is intentionally last.
+   ============================================================ */
+:root{
+  --action-red:#ff315d;
+  --action-red-2:#d91f55;
+  --action-red-bright:#ff5b82;
+  --action-red-soft:rgba(255,49,93,.14);
+  --action-red-border:rgba(255,82,120,.72);
+  --action-red-glow:rgba(255,31,92,.28);
+}
+
+/* All primary/action buttons */
+html:not(.light) .btn-p,html:not(.light) .btn-primary,html:not(.light) .primary,
+html.light .btn-p,html.light .btn-primary,html.light .primary{
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;
+  border:1px solid rgba(255,108,137,.74) !important;
+  color:#fff !important;
+  box-shadow:0 9px 26px var(--action-red-glow),inset 0 1px rgba(255,255,255,.15) !important;
+}
+html:not(.light) .btn-p:hover,html:not(.light) .btn-primary:hover,html:not(.light) .primary:hover,
+html.light .btn-p:hover,html.light .btn-primary:hover,html.light .primary:hover{
+  filter:brightness(1.10) !important;
+  border-color:rgba(255,140,164,.92) !important;
+  box-shadow:0 12px 32px rgba(255,31,92,.36),inset 0 1px rgba(255,255,255,.20) !important;
+}
+
+/* Explicit blue utility buttons become red, while blue cards stay blue. */
+button[class*="bg-blue-"],button[class*="from-blue-"],button[class*="to-blue-"],
+a.btn[class*="bg-blue-"],a.btn[class*="from-blue-"]{
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;
+  border-color:var(--action-red-border) !important;color:#fff !important;
+  box-shadow:0 9px 26px var(--action-red-glow),inset 0 1px rgba(255,255,255,.14) !important;
+}
+
+/* Hamburger */
+.mob-menu-btn{
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;
+  border-color:rgba(255,92,126,.82) !important;color:#fff !important;
+  box-shadow:0 9px 28px rgba(255,31,92,.34),inset 0 1px rgba(255,255,255,.18) !important;
+}
+.mob-menu-btn:hover{filter:brightness(1.10) !important}
+
+/* Active navigation: readable red glass, not a low-contrast red wash. */
+html:not(.light) .nav-item.on,html.light .nav-item.on{
+  background:linear-gradient(135deg,rgba(255,49,93,.22),rgba(255,49,93,.09)) !important;
+  color:#ff7f9c !important;
+  border:1px solid rgba(255,82,120,.20) !important;
+  box-shadow:inset -4px 0 0 var(--action-red),0 0 26px rgba(255,31,92,.09),inset 0 0 22px rgba(255,31,92,.06) !important;
+}
+html:not(.light) .nav-item.on .nav-ico,html.light .nav-item.on .nav-ico{
+  color:#ff6d8d !important;filter:drop-shadow(0 3px 8px rgba(255,31,92,.52)) !important;
+}
+
+/* Advanced settings glass bar */
+.advanced-toggle{
+  background:linear-gradient(120deg,rgba(92,12,34,.72),rgba(20,8,24,.50)) !important;
+  border:1px solid rgba(255,82,120,.55) !important;color:#ffd3dd !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.07),0 10px 28px rgba(255,31,92,.10) !important;
+}
+.advanced-toggle:hover{background:linear-gradient(120deg,rgba(126,18,48,.78),rgba(27,8,30,.58)) !important;border-color:rgba(255,120,146,.82) !important}
+.advanced-toggle-icon{background:rgba(255,49,93,.16) !important;border-color:rgba(255,82,120,.52) !important;color:#ff7898 !important}
+.advanced-toggle-state{color:#ff9ab1 !important;background:rgba(255,49,93,.12) !important;border-color:rgba(255,82,120,.34) !important}
+
+/* Range tabs / protocol confirmation / delete-all */
+html:not(.light) .range-tab.on,html.light .range-tab.on{
+  background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;color:#fff !important;
+  border-color:rgba(255,92,126,.74) !important;box-shadow:0 8px 22px rgba(255,31,92,.22) !important;
+}
+.protocol-picker-confirm{background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;box-shadow:0 9px 24px rgba(255,31,92,.24) !important}
+.protocol-option.selected{border-color:#ff5b82 !important;box-shadow:0 0 0 1px rgba(255,91,130,.22),0 0 25px rgba(255,31,92,.18) !important}
+.protocol-option.selected:after{background:linear-gradient(145deg,var(--action-red-bright),var(--action-red-2)) !important}
+.protocol-option.selected .protocol-option-radio{border-color:#ff6d8d !important}
+.delete-all-configs-glass,.delete-all-confirm{background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;color:#fff !important;border-color:rgba(255,108,137,.78) !important;box-shadow:0 12px 30px rgba(255,31,92,.24) !important}
+
+/* Logout */
+#panelLogoutBtn,.sb-foot a.danger,.sb-foot button.danger{
+  background:linear-gradient(135deg,rgba(255,49,93,.18),rgba(217,31,85,.30)) !important;
+  border:1px solid rgba(255,82,120,.62) !important;color:#ffb1c2 !important;
+  box-shadow:inset 0 1px rgba(255,255,255,.06),0 8px 24px rgba(255,31,92,.10) !important;
+}
+#panelLogoutBtn:hover,.sb-foot a.danger:hover,.sb-foot button.danger:hover{
+  background:linear-gradient(135deg,rgba(255,49,93,.34),rgba(217,31,85,.42)) !important;color:#fff !important;
+  border-color:rgba(255,126,151,.88) !important;box-shadow:0 10px 30px rgba(255,31,92,.28),inset 0 1px rgba(255,255,255,.12) !important;
+}
+#panelLogoutBtn .logout-ico,.sb-foot a.danger .logout-ico,.sb-foot button.danger .logout-ico{color:#ff6d8d !important}
+
+/* A few secondary action surfaces that previously used strong blue fills. */
+#page-dash .range-mini button.on,.range-mini button.on{background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;color:#fff !important;box-shadow:0 6px 16px rgba(255,31,92,.20) !important}
+.notify-update-btn{background:linear-gradient(135deg,var(--action-red),var(--action-red-2)) !important;color:#fff !important;border-color:rgba(255,92,126,.72) !important}
+
+/* Mobile drawer: narrower, starts below the top bar, never hides the logo/hamburger. */
+@media (max-width:768px){
+  .sidebar{
+    top:58px !important;bottom:0 !important;right:0 !important;left:auto !important;
+    width:min(70vw,290px) !important;max-width:290px !important;min-width:0 !important;
+    height:calc(100dvh - 58px) !important;
+    transform:translateX(105%) !important;z-index:1200 !important;
+    border-top-left-radius:22px !important;
+    border-bottom-left-radius:22px !important;
+    border-top:1px solid rgba(88,180,255,.20) !important;
+  }
+  .sidebar.mobile-open{transform:translateX(0) !important}
+  .mob-bar{z-index:1250 !important}
+  .mob-menu-btn{position:relative !important;z-index:1260 !important}
+  .sidebar .sb-logo{padding:14px 12px !important}
+  .sidebar .nav-item{font-size:12px !important;padding:10px 12px !important;margin:2px 8px !important;width:calc(100% - 16px) !important;gap:9px !important}
+  .sidebar .nav-item .nav-ico{width:20px !important;height:20px !important;min-width:20px !important}
+  .sidebar .sb-foot{padding:10px !important}
+}
 </style>
 <section class="page" id="page-news">
   <div class="page-head">

@@ -1053,12 +1053,28 @@ def generate_vless_link(
     port_value = protocol_public_port(link, protocol, safe_int(port, DEFAULT_PORT, MIN_PORT, MAX_PORT))
     alpn_value = (alpn or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")).strip()
     label = quote(str(remark or "ONEX"), safe="")
+    adv = normalize_advanced_config((link or {}).get("advanced"))
+    adv_host = adv["host"].get("host") or adv["host"].get("address") or host
+    adv_path = adv["host"].get("path") or adv["network"].get("path")
+    adv_sni = adv["tls"].get("sni") or adv["tls"].get("server_name") or host
+    adv_fp = adv["fingerprint"].get("value") or fp
+    adv_alpn = adv["tls"].get("alpn") or alpn_value
+    security = adv["tls"].get("mode") if adv["tls"].get("enabled", True) else "none"
+    if security not in {"none","tls","reality"}: security = "tls"
     if protocol == "vless-ws":
-        q = {"encryption":"none","security":"tls","type":"ws","host":host,"path":f"/ws/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
+        path = adv_path or f"/ws/{uuid}"
+        q = {"encryption":"none","security":security,"type":"ws","host":adv_host,"path":path,"sni":adv_sni,"fp":adv_fp,"alpn":adv_alpn}
+        if adv["tls"].get("allow_insecure"): q["allowInsecure"] = "1"
+        if security == "reality":
+            r=adv["tls"]["reality"]
+            if r.get("public_key"): q["pbk"]=r["public_key"]
+            if r.get("short_id"): q["sid"]=r["short_id"]
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol.startswith("xhttp-"):
         mode = protocol.replace("xhttp-", "")
-        q = {"encryption":"none","security":"tls","type":"xhttp","mode":mode,"host":host,"path":f"/xhttp-siz10/{mode}/{uuid}","sni":host,"fp":fp,"alpn":alpn_value}
+        path = adv_path or f"/xhttp-siz10/{mode}/{uuid}"
+        q = {"encryption":"none","security":security,"type":"xhttp","mode":mode,"host":adv_host,"path":path,"sni":adv_sni,"fp":adv_fp,"alpn":adv_alpn}
+        if adv["tls"].get("allow_insecure"): q["allowInsecure"] = "1"
         return "vless://" + uuid + "@" + host + ":" + str(port_value) + "?" + "&".join(f"{k}={quote(str(v), safe=',/') }" for k,v in q.items()) + "#" + label
     if protocol == "vmess-ws":
         raw = {"v":"2","ps":remark,"add":host,"port":port_value,"id":uuid,"aid":0,"scy":"auto","net":"ws","type":"none","host":host,"path":f"/ws/{uuid}","tls":"tls","sni":host,"fp":fp}
@@ -1167,6 +1183,7 @@ def get_link_info(
         "sub": f"https://{host}/sub/{uid}",
         "info": f"https://{host}/info/{uid}",
         "support": SUPPORT_USERNAME,
+        "advanced": normalize_advanced_config(link.get("advanced")),
     }
 
 
@@ -1299,6 +1316,7 @@ async def load_state():
             link.setdefault("config_count", 1)
             link.setdefault("sort_order", 0)
             link.setdefault("usage_history", [])
+            link["advanced"] = normalize_advanced_config(link.get("advanced"))
 
         logger.info(
             "State loaded: %d links / %d subscriptions",
@@ -1429,6 +1447,7 @@ async def make_link(
     category_id: str = "0",
     config_count: int = 1,
     all_protocols: bool = False,
+    advanced: dict | None = None,
 ):
 
     if not PROTOCOLS:
@@ -1536,6 +1555,7 @@ async def make_link(
         "category_id": str(category_id or "0"),
         "config_count": max(1, min(40, int(config_count or 1))),
         "all_protocols": bool(all_protocols),
+        "advanced": normalize_advanced_config(advanced),
         "native_protocols": [p for p in PROTOCOLS if p not in {"vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one"}],
         "usage_history": [],
     }
@@ -2987,6 +3007,79 @@ async def api_change_password(
     }
 
 
+
+# ============================================================
+# ADVANCED CONFIG PROFILE
+# ============================================================
+ADVANCED_DEFAULTS = {
+    "tls": {
+        "enabled": True, "mode": "tls", "sni": "", "server_name": "",
+        "alpn": "", "allow_insecure": False, "min_version": "1.2", "max_version": "1.3",
+        "reality": {"public_key": "", "short_id": "", "spider_x": "", "fingerprint": "chrome"},
+    },
+    "host": {"address": "", "host": "", "path": "", "service_name": "", "authority": ""},
+    "fingerprint": {"enabled": True, "value": "chrome", "randomize": False},
+    "network": {"type": "ws", "mode": "", "path": "", "service_name": "", "http_version": "1.1"},
+    "headers": {"host": "", "user_agent": "", "extra": []},
+    "routing": {"domain_strategy": "", "route": "", "proxy_protocol": False, "sniff": False},
+    "transport": {"packet_encoding": "", "early_data": 0, "max_early_data": 0, "padding": False},
+    "ports": [443],
+}
+
+
+def _advanced_copy_defaults():
+    return json.loads(json.dumps(ADVANCED_DEFAULTS, ensure_ascii=False))
+
+
+def normalize_advanced_config(raw):
+    base = _advanced_copy_defaults()
+    if not isinstance(raw, dict):
+        return base
+    def put(section, key, value, limit=300):
+        if section in raw and isinstance(raw.get(section), dict) and key in raw[section]:
+            v = raw[section].get(key)
+            if isinstance(v, bool): base[section][key] = v
+            elif isinstance(v, (int, float)): base[section][key] = v
+            else: base[section][key] = str(v or "")[:limit]
+    for sec, keys in {
+        "tls": ["mode","sni","server_name","alpn","min_version","max_version"],
+        "host": ["address","host","path","service_name","authority"],
+        "fingerprint": ["value"],
+        "network": ["type","mode","path","service_name","http_version"],
+        "routing": ["domain_strategy","route"],
+        "transport": ["packet_encoding"],
+    }.items():
+        for k in keys: put(sec,k,raw.get(sec,{}).get(k) if isinstance(raw.get(sec),dict) else None)
+    for sec, keys in {"tls":["enabled","allow_insecure"],"fingerprint":["enabled","randomize"],"routing":["proxy_protocol","sniff"],"transport":["padding"]}.items():
+        for k in keys:
+            if isinstance(raw.get(sec),dict) and k in raw[sec]: base[sec][k] = bool(raw[sec][k])
+    for sec, keys in {"transport":["early_data","max_early_data"]}.items():
+        for k in keys:
+            if isinstance(raw.get(sec),dict) and k in raw[sec]: base[sec][k] = safe_int(raw[sec][k],0,0,65535)
+    if isinstance(raw.get("tls"),dict) and isinstance(raw["tls"].get("reality"),dict):
+        r=raw["tls"]["reality"]
+        for k in base["tls"]["reality"]:
+            if k in r: base["tls"]["reality"][k]=str(r.get(k) or "")[:300]
+    if isinstance(raw.get("headers"),dict):
+        for k in ("host","user_agent"):
+            if k in raw["headers"]: base["headers"][k]=str(raw["headers"].get(k) or "")[:300]
+        extra=raw["headers"].get("extra",[])
+        if isinstance(extra,list):
+            base["headers"]["extra"]=[str(x)[:300] for x in extra[:30] if str(x).strip()]
+    ports=raw.get("ports")
+    if isinstance(ports,list):
+        vals=[]
+        for x in ports[:12]:
+            n=safe_int(x,0,1,65535)
+            if n and n not in vals: vals.append(n)
+        if vals: base["ports"]=vals
+    # Keep the legacy top-level fingerprint/ALPN in sync with advanced values.
+    if base["fingerprint"]["value"] not in FINGERPRINTS: base["fingerprint"]["value"]="chrome"
+    if base["tls"]["mode"] not in {"none","tls","reality"}: base["tls"]["mode"]="tls"
+    if base["network"]["type"] not in {"ws","xhttp","grpc","tcp","http","h2","quic","kcp"}: base["network"]["type"]="ws"
+    return base
+
+
 # ============================================================
 # CREATE LINK
 # ============================================================
@@ -3165,6 +3258,15 @@ async def create_link_api(
     all_protocols = bool(body.get("all_protocols", False))
     if all_protocols:
         config_count = 1
+    advanced = normalize_advanced_config(body.get("advanced"))
+    # Advanced UI is authoritative for the duplicate legacy fields when provided.
+    if isinstance(body.get("advanced"), dict):
+        fp_adv = advanced["fingerprint"]["value"]
+        if fp_adv in FINGERPRINTS: fingerprint = fp_adv
+        alpn_adv = advanced["tls"].get("alpn") or advanced["host"].get("authority")
+        if alpn_adv: body["alpn"] = alpn_adv
+        primary_ports = advanced.get("ports") or []
+        if primary_ports: port = primary_ports[0]
     cat = CATEGORIES.get(category_id) or {}
     if cat.get("limit_bytes") and limit_bytes <= 0:
         limit_bytes = int(cat["limit_bytes"])
@@ -3218,6 +3320,7 @@ async def create_link_api(
         category_id=category_id,
         config_count=config_count,
         all_protocols=all_protocols,
+        advanced=advanced,
     )
 
     host = get_host(request)
@@ -3737,6 +3840,16 @@ async def update_link(
                 )
                 or None
             )
+
+        if "advanced" in body:
+            link["advanced"] = normalize_advanced_config(body.get("advanced"))
+            adv = link["advanced"]
+            if adv["fingerprint"]["value"] in FINGERPRINTS:
+                link["fingerprint"] = adv["fingerprint"]["value"]
+            if adv.get("ports"):
+                link["port"] = adv["ports"][0]
+            if adv["tls"].get("alpn"):
+                link["alpn"] = adv["tls"]["alpn"]
 
         new_sub = body.get(
             "sub_id",
@@ -8015,6 +8128,17 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 .protocol-picker-bg.open { display:flex !important; visibility:visible !important; opacity:1 !important; }
 
 
+
+/* ============================================================
+   ADVANCED CONFIG — GLASS CONTROL PANEL
+   ============================================================ */
+.advanced-config-card{overflow:hidden;background:linear-gradient(145deg,rgba(13,34,67,.78),rgba(3,15,32,.9));border:1px solid rgba(86,157,255,.22);box-shadow:inset 0 1px rgba(255,255,255,.055),0 18px 48px rgba(0,0,0,.16)}
+.advanced-toggle{width:100%;border:0;background:linear-gradient(120deg,rgba(24,61,111,.48),rgba(6,24,50,.35));color:var(--t1);display:flex;align-items:center;gap:12px;padding:16px;border-radius:16px;cursor:pointer;text-align:right;font-family:inherit}
+.advanced-toggle:hover{background:linear-gradient(120deg,rgba(30,80,145,.58),rgba(8,29,59,.45))}
+.advanced-toggle-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:rgba(42,139,255,.14);border:1px solid rgba(69,157,255,.28);font-size:20px;flex:none}
+.advanced-toggle-copy{min-width:0;display:flex;flex-direction:column;gap:4px;flex:1}.advanced-toggle-copy b{font-size:14px}.advanced-toggle-copy small{font-size:10px;color:var(--t3);line-height:1.7}.advanced-toggle-state{font-size:10px;color:#60a5fa;background:rgba(37,99,235,.11);border:1px solid rgba(59,130,246,.2);padding:5px 8px;border-radius:8px}.advanced-chevron{font-size:18px;transition:transform .2s}.advanced-config-card.open .advanced-chevron{transform:rotate(180deg)}
+.advanced-config-panel{padding:2px 4px 10px}.advanced-note{display:flex;gap:10px;align-items:flex-start;margin:10px 2px 14px;padding:12px;border-radius:14px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.14)}.advanced-note>span{font-size:18px}.advanced-note b{display:block;font-size:11px}.advanced-note small{display:block;color:var(--t3);font-size:9px;line-height:1.8;margin-top:3px}
+.advanced-section{margin:10px 0;padding:13px;border-radius:16px;background:rgba(2,14,30,.48);border:1px solid rgba(73,129,201,.14)}.advanced-section-head{display:flex;align-items:center;gap:9px;margin-bottom:12px}.advanced-section-icon{width:31px;height:31px;border-radius:10px;display:grid;place-items:center;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.18);font-size:14px}.advanced-section-head b{font-size:11px}.advanced-section-head small{display:block;color:var(--t3);font-size:8px;margin-top:2px}.advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.advanced-grid .field{min-width:0}.advanced-grid .field input,.advanced-grid .field select,.advanced-section textarea{width:100%;box-sizing:border-box}.advanced-check{min-height:42px;display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:11px;background:rgba(16,34,60,.55);border:1px solid rgba(79,130,196,.14);cursor:pointer}.advanced-check input{accent-color:#3b82f6}.advanced-check b{display:block;font-size:9px}.advanced-check small{display:block;color:var(--t3);font-size:8px;margin-top:2px}.advanced-subcard{margin-top:10px;padding:10px;border-radius:13px;background:rgba(11,29,54,.5);border:1px dashed rgba(80,142,218,.18)}.advanced-subtitle{font-size:9px;font-weight:800;margin-bottom:8px;color:#93c5fd}.port-manager{display:flex;flex-direction:column;gap:9px}.port-add-row{display:flex;gap:8px}.port-add-row input{flex:1}.advanced-port-list{display:flex;flex-wrap:wrap;gap:7px}.advanced-port-chip{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:9px;background:rgba(31,78,121,.22);border:1px solid rgba(59,130,246,.22);font-size:9px}.advanced-port-chip b{font-size:10px}.advanced-port-chip button{border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:14px}.advanced-port-chip.primary{border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.07)}.advanced-help{font-size:8px;color:var(--t3);line-height:1.8}.advanced-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding:8px 2px 2px}.advanced-actions .btn{min-width:125px}@media(max-width:680px){.advanced-grid{grid-template-columns:1fr}.advanced-toggle-state{display:none}.advanced-toggle{padding:13px}.advanced-toggle-icon{width:38px;height:38px}.port-add-row{flex-direction:column}.advanced-actions .btn{flex:1;min-width:100px}}
 /* ============================================================
    FINAL PROTOCOL UI — COLLAPSED BAR + MODAL ONLY
    Protocol cards must never occupy the create page itself.
@@ -8338,7 +8462,106 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <span data-i18n="btn_create">ساخت</span>
       </button>
     </div>
-    
+
+    <div class="card advanced-config-card">
+      <button type="button" class="advanced-toggle" id="advancedToggle" onclick="toggleAdvancedConfig()">
+        <span class="advanced-toggle-icon">⚙</span>
+        <span class="advanced-toggle-copy"><b>تنظیمات پیشرفته</b><small>TLS، SNI، اثر انگشت، پورت، شبکه، هدر، مسیر و تنظیمات تخصصی</small></span>
+        <span class="advanced-toggle-state" id="advancedToggleState">باز کردن</span>
+        <span class="advanced-chevron" id="advancedChevron">⌄</span>
+      </button>
+
+      <div id="advancedConfigPanel" class="advanced-config-panel" hidden>
+        <div class="advanced-note"><span>✦</span><div><b>کنترل دستی کامل</b><small>مقادیر این بخش همراه کانفیگ ذخیره می‌شوند. گزینه‌هایی که توسط پروتکل/بک‌اند فعلی پشتیبانی نشوند، در لینک خروجی اثر اجرایی ندارند.</small></div></div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">🔐</span><div><b>TLS / Reality</b><small>امنیت اتصال و مشخصات TLS</small></div></div>
+          <div class="advanced-grid">
+            <div class="field"><label>حالت امنیت</label><select id="advTlsMode"><option value="tls">TLS</option><option value="reality">Reality</option><option value="none">بدون TLS</option></select></div>
+            <div class="field"><label>SNI / Server Name</label><input id="advSni" placeholder="example.com"></div>
+            <div class="field"><label>ALPN</label><input id="advAlpn" placeholder="h2,http/1.1"></div>
+            <div class="field"><label>حداقل TLS</label><select id="advTlsMin"><option>1.2</option><option>1.3</option></select></div>
+            <div class="field"><label>حداکثر TLS</label><select id="advTlsMax"><option>1.3</option><option>1.2</option></select></div>
+            <label class="advanced-check"><input id="advAllowInsecure" type="checkbox"><span><b>Allow Insecure</b><small>عدم اعتبارسنجی گواهی</small></span></label>
+          </div>
+          <div class="advanced-subcard" id="advRealityBox">
+            <div class="advanced-subtitle">Reality</div>
+            <div class="advanced-grid">
+              <div class="field"><label>Public Key</label><input id="advRealityPk" placeholder="Public key"></div>
+              <div class="field"><label>Short ID</label><input id="advRealitySid" placeholder="8 تا 16 رقم/حرف hex"></div>
+              <div class="field"><label>Spider X</label><input id="advRealitySpider" placeholder="/"></div>
+              <div class="field"><label>Reality Fingerprint</label><select id="advRealityFp"><option>chrome</option><option>firefox</option><option>safari</option><option>edge</option><option>ios</option><option>android</option><option>randomized</option></select></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">🌐</span><div><b>Host / SNI / Header</b><small>آدرس مقصد، Host و اطلاعات لایه HTTP</small></div></div>
+          <div class="advanced-grid">
+            <div class="field"><label>Server Address</label><input id="advAddress" placeholder="domain.com یا IP"></div>
+            <div class="field"><label>Host Header</label><input id="advHost" placeholder="domain.com"></div>
+            <div class="field"><label>Path</label><input id="advPath" placeholder="/ws/uuid یا مسیر سفارشی"></div>
+            <div class="field"><label>Authority / :authority</label><input id="advAuthority" placeholder="domain.com"></div>
+            <div class="field"><label>User-Agent</label><input id="advUserAgent" placeholder="اختیاری"></div>
+            <div class="field"><label>Service Name</label><input id="advServiceName" placeholder="برای gRPC"></div>
+          </div>
+        </div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">🧬</span><div><b>Fingerprint</b><small>uTLS و اثر انگشت کلاینت</small></div></div>
+          <div class="advanced-grid">
+            <div class="field"><label>Fingerprint</label><select id="advFp"><option>chrome</option><option>firefox</option><option>safari</option><option>ios</option><option>android</option><option>edge</option><option>360</option><option>qq</option><option>random</option><option>randomized</option></select></div>
+            <label class="advanced-check"><input id="advFpEnabled" type="checkbox" checked><span><b>فعال</b><small>ارسال fingerprint در لینک</small></span></label>
+            <label class="advanced-check"><input id="advFpRandom" type="checkbox"><span><b>Randomize</b><small>اثر انگشت تصادفی</small></span></label>
+          </div>
+        </div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">〽</span><div><b>Network / Transport</b><small>انتخاب شبکه، مود و پارامترهای انتقال</small></div></div>
+          <div class="advanced-grid">
+            <div class="field"><label>Network</label><select id="advNetwork"><option value="ws">WebSocket</option><option value="xhttp">XHTTP</option><option value="grpc">gRPC</option><option value="tcp">TCP</option><option value="http">HTTP</option><option value="h2">HTTP/2</option><option value="quic">QUIC</option><option value="kcp">mKCP</option></select></div>
+            <div class="field"><label>XHTTP Mode</label><select id="advNetworkMode"><option value="">Auto</option><option>packet-up</option><option>stream-up</option><option>stream-one</option></select></div>
+            <div class="field"><label>HTTP Version</label><select id="advHttpVersion"><option>1.1</option><option>2</option><option>3</option></select></div>
+            <div class="field"><label>Packet Encoding</label><input id="advPacketEncoding" placeholder="xudp / packetaddr / ..."></div>
+            <div class="field"><label>Early Data</label><input id="advEarlyData" type="number" min="0" max="65535" value="0"></div>
+            <label class="advanced-check"><input id="advPadding" type="checkbox"><span><b>Padding</b><small>در صورت پشتیبانی پروتکل</small></span></label>
+          </div>
+        </div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">↔</span><div><b>Port Manager</b><small>پورت اصلی و پورت‌های جایگزین</small></div></div>
+          <div class="port-manager">
+            <div class="port-add-row"><input id="advPortInput" type="number" min="1" max="65535" placeholder="مثلاً 443"><button type="button" class="btn btn-sm" onclick="addAdvancedPort()">＋ افزودن پورت</button></div>
+            <div id="advancedPorts" class="advanced-port-list"></div>
+            <small class="advanced-help">در این معماری، پورت اول به‌عنوان پورت اصلی کانفیگ استفاده می‌شود؛ فعال‌سازی واقعی چند پورت نیازمند listener جداگانه در سرور/پلتفرم است.</small>
+          </div>
+        </div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">🧭</span><div><b>Routing / Sniffing</b><small>مسیر، استراتژی دامنه و تشخیص ترافیک</small></div></div>
+          <div class="advanced-grid">
+            <div class="field"><label>Domain Strategy</label><select id="advDomainStrategy"><option value="">Auto</option><option>AsIs</option><option>PreferIPv4</option><option>PreferIPv6</option><option>IPv4Only</option><option>IPv6Only</option></select></div>
+            <div class="field"><label>Route / Outbound</label><input id="advRoute" placeholder="direct / block / proxy"></div>
+            <label class="advanced-check"><input id="advSniff" type="checkbox"><span><b>Sniff</b><small>تشخیص مقصد از ترافیک</small></span></label>
+            <label class="advanced-check"><input id="advProxyProtocol" type="checkbox"><span><b>Proxy Protocol</b><small>فقط در صورت پشتیبانی</small></span></label>
+          </div>
+        </div>
+
+        <div class="advanced-section">
+          <div class="advanced-section-head"><span class="advanced-section-icon">⌘</span><div><b>Custom Headers</b><small>هدرهای سفارشی برای HTTP</small></div></div>
+          <div class="field"><label>هدرهای اضافی (هر خط یک Header: Value)</label><textarea id="advExtraHeaders" rows="4" placeholder="X-Forwarded-Proto: https
+Cache-Control: no-cache"></textarea></div>
+        </div>
+
+        <div class="advanced-actions">
+          <button type="button" class="btn btn-p" onclick="saveAdvancedDraft()">💾 ذخیره تنظیمات</button>
+          <button type="button" class="btn" onclick="resetAdvancedConfig()">↺ بازنشانی</button>
+          <button type="button" class="btn" onclick="copyAdvancedJson()">{ } کپی JSON</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </section>
 
 
@@ -9162,23 +9385,45 @@ function showResult(data){
 function closeResult(){document.getElementById('resultModal').classList.remove('open')}
 document.getElementById('resultModal').addEventListener('click',e=>{if(e.target.id==='resultModal')closeResult()});
 
-async function doManualCreate(){
-  const body={
-    label:document.getElementById('cName').value||undefined,
-    protocol:document.getElementById('cProto')?.value||undefined,
-    category_id:document.getElementById('cGroup')?.value||'0',
-    config_count:Math.max(1,Math.min(40,Number(document.getElementById('cCount').value)||1)),
-    limit_value:Number(document.getElementById('cLimit').value)||0,
-    limit_unit:document.getElementById('cUnit').value||'GB',
-    expires_days:Number(document.getElementById('cDays').value)||0,
-    ip_limit:Number(document.getElementById('cIp').value)||0,
-    speed_limit_value:Number(document.getElementById('cSpeed').value)||0,
-    speed_limit_unit:'MBIT',
-    all_protocols:!!document.getElementById('cAllProtocols')?.checked
-  };
-  const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r){showResult(r);refreshAll()}
+function getAdvancedPorts(){
+  return [...document.querySelectorAll('#advancedPorts .advanced-port-chip')].map(x=>Number(x.dataset.port)).filter(Boolean);
 }
+function addAdvancedPort(value){
+  const input=document.getElementById('advPortInput');
+  const port=Number(value||input?.value||0);
+  if(!port||port<1||port>65535){toast(lang==='fa'?'پورت باید بین ۱ تا ۶۵۵۳۵ باشد':'Port must be between 1 and 65535');return}
+  const ports=getAdvancedPorts(); if(ports.includes(port)){if(input)input.value='';return}
+  const box=document.getElementById('advancedPorts'); if(!box)return;
+  const chip=document.createElement('span'); chip.className='advanced-port-chip'+(ports.length===0?' primary':''); chip.dataset.port=port;
+  chip.innerHTML=`<b>${ports.length===0?'اصلی · ':''}${port}</b><button type="button" aria-label="remove" onclick="removeAdvancedPort(${port})">×</button>`;
+  box.appendChild(chip); if(input)input.value='';
+}
+function removeAdvancedPort(port){const chip=[...document.querySelectorAll('#advancedPorts .advanced-port-chip')].find(x=>Number(x.dataset.port)===Number(port));if(chip)chip.remove();const chips=[...document.querySelectorAll('#advancedPorts .advanced-port-chip')];chips.forEach((x,i)=>{x.classList.toggle('primary',i===0);const b=x.querySelector('b');if(b)b.textContent=(i===0?'اصلی · ':'')+x.dataset.port})}
+function toggleAdvancedConfig(force){const panel=document.getElementById('advancedConfigPanel'),card=document.querySelector('.advanced-config-card');if(!panel||!card)return;const open=force===undefined?!card.classList.contains('open'):!!force;card.classList.toggle('open',open);panel.hidden=!open;document.getElementById('advancedToggleState').textContent=open?'بستن':'باز کردن';if(open)loadAdvancedDraft()}
+function advancedFormObject(){
+  return {tls:{enabled:document.getElementById('advTlsMode').value!=='none',mode:document.getElementById('advTlsMode').value,sni:document.getElementById('advSni').value.trim(),server_name:document.getElementById('advSni').value.trim(),alpn:document.getElementById('advAlpn').value.trim(),allow_insecure:document.getElementById('advAllowInsecure').checked,min_version:document.getElementById('advTlsMin').value,max_version:document.getElementById('advTlsMax').value,reality:{public_key:document.getElementById('advRealityPk').value.trim(),short_id:document.getElementById('advRealitySid').value.trim(),spider_x:document.getElementById('advRealitySpider').value.trim(),fingerprint:document.getElementById('advRealityFp').value}},host:{address:document.getElementById('advAddress').value.trim(),host:document.getElementById('advHost').value.trim(),path:document.getElementById('advPath').value.trim(),service_name:document.getElementById('advServiceName').value.trim(),authority:document.getElementById('advAuthority').value.trim()},fingerprint:{enabled:document.getElementById('advFpEnabled').checked,value:document.getElementById('advFp').value,randomize:document.getElementById('advFpRandom').checked},network:{type:document.getElementById('advNetwork').value,mode:document.getElementById('advNetworkMode').value,path:document.getElementById('advPath').value.trim(),service_name:document.getElementById('advServiceName').value.trim(),http_version:document.getElementById('advHttpVersion').value},headers:{host:document.getElementById('advHost').value.trim(),user_agent:document.getElementById('advUserAgent').value.trim(),extra:document.getElementById('advExtraHeaders').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)},routing:{domain_strategy:document.getElementById('advDomainStrategy').value,route:document.getElementById('advRoute').value.trim(),proxy_protocol:document.getElementById('advProxyProtocol').checked,sniff:document.getElementById('advSniff').checked},transport:{packet_encoding:document.getElementById('advPacketEncoding').value.trim(),early_data:Number(document.getElementById('advEarlyData').value)||0,max_early_data:Number(document.getElementById('advEarlyData').value)||0,padding:document.getElementById('advPadding').checked},ports:getAdvancedPorts()};
+}
+function fillAdvancedForm(a){
+  a=a||{}; const tls=a.tls||{},host=a.host||{},fp=a.fingerprint||{},net=a.network||{},routing=a.routing||{},transport=a.transport||{},reality=tls.reality||{},headers=a.headers||{};
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v??''}; const check=(id,v)=>{const e=document.getElementById(id);if(e)e.checked=!!v};
+  set('advTlsMode',tls.mode||'tls');set('advSni',tls.sni||tls.server_name||'');set('advAlpn',tls.alpn||'');set('advTlsMin',tls.min_version||'1.2');set('advTlsMax',tls.max_version||'1.3');check('advAllowInsecure',tls.allow_insecure);
+  set('advRealityPk',reality.public_key||'');set('advRealitySid',reality.short_id||'');set('advRealitySpider',reality.spider_x||'');set('advRealityFp',reality.fingerprint||'chrome');
+  set('advAddress',host.address||'');set('advHost',host.host||headers.host||'');set('advPath',host.path||net.path||'');set('advAuthority',host.authority||'');set('advUserAgent',headers.user_agent||'');set('advServiceName',host.service_name||net.service_name||'');
+  set('advFp',fp.value||'chrome');check('advFpEnabled',fp.enabled!==false);check('advFpRandom',fp.randomize);set('advNetwork',net.type||'ws');set('advNetworkMode',net.mode||'');set('advHttpVersion',net.http_version||'1.1');set('advPacketEncoding',transport.packet_encoding||'');set('advEarlyData',transport.early_data||0);check('advPadding',transport.padding);set('advDomainStrategy',routing.domain_strategy||'');set('advRoute',routing.route||'');check('advSniff',routing.sniff);check('advProxyProtocol',routing.proxy_protocol);set('advExtraHeaders',(headers.extra||[]).join('\n'));
+  document.getElementById('advancedPorts').innerHTML=''; (a.ports&&a.ports.length?a.ports:[443]).forEach(addAdvancedPort); updateRealityVisibility();
+}
+function updateRealityVisibility(){const box=document.getElementById('advRealityBox'),mode=document.getElementById('advTlsMode');if(box&&mode)box.style.display=mode.value==='reality'?'block':'none'}
+function resetAdvancedConfig(){fillAdvancedForm({ports:[Number(document.getElementById('cPort')?.value)||443]});localStorage.removeItem('onex_advanced_draft');toast(lang==='fa'?'تنظیمات پیشرفته بازنشانی شد':'Advanced settings reset')}
+function saveAdvancedDraft(){try{localStorage.setItem('onex_advanced_draft',JSON.stringify(advancedFormObject()));toast(lang==='fa'?'تنظیمات ذخیره شد':'Settings saved')}catch(e){toast(lang==='fa'?'ذخیره انجام نشد':'Save failed')}}
+function loadAdvancedDraft(){try{const raw=localStorage.getItem('onex_advanced_draft');if(raw)fillAdvancedForm(JSON.parse(raw));else if(!getAdvancedPorts().length)fillAdvancedForm({ports:[Number(document.getElementById('cPort')?.value)||443]})}catch(e){fillAdvancedForm({ports:[443]})}}
+function copyAdvancedJson(){copyText(JSON.stringify(advancedFormObject(),null,2))}
+async function doManualCreate(){
+  const advanced=advancedFormObject(); const ports=advanced.ports.length?advanced.ports:[443];
+  const body={label:document.getElementById('cName').value||undefined,protocol:document.getElementById('cProto')?.value||undefined,category_id:document.getElementById('cGroup')?.value||'0',config_count:Math.max(1,Math.min(40,Number(document.getElementById('cCount').value)||1)),limit_value:Number(document.getElementById('cLimit').value)||0,limit_unit:document.getElementById('cUnit').value||'GB',expires_days:Number(document.getElementById('cDays').value)||0,ip_limit:Number(document.getElementById('cIp').value)||0,speed_limit_value:Number(document.getElementById('cSpeed').value)||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
+  const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); if(r){showResult(r);refreshAll();saveAdvancedDraft()}
+}
+document.addEventListener('change',e=>{if(e.target?.id==='advTlsMode')updateRealityVisibility()});
+
 async function doChangePw(){
   const user=document.getElementById('newUser').value.trim(),cur=document.getElementById('pwCur').value,nw=document.getElementById('pwNew').value,cf=document.getElementById('pwCf').value;
   if(nw!==cf){toast(lang==='fa'?'رمزها یکی نیستند':'Passwords mismatch');return}
@@ -9727,7 +9972,7 @@ function closeProtocolPicker(){const bg=document.getElementById('protocolPickerB
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupProtocolPickers);else setupProtocolPickers();setTimeout(setupProtocolPickers,300);setTimeout(setupProtocolPickers,1000);
 
-applyLang();loadMe();loadProtocols();loadGroups();refreshAll();
+applyLang();loadMe();loadProtocols();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]})},250);
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
 setTimeout(()=>checkPanelUpdate(true),2500);
 setInterval(()=>checkPanelUpdate(true),10*60*1000);

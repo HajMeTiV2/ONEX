@@ -238,6 +238,7 @@ CATEGORIES: dict = {}
 
 stats = {
     "total_bytes": 0,
+    "upload_bytes": 0,
     "total_requests": 0,
     "total_errors": 0,
     "start_time": time.time(),
@@ -247,6 +248,7 @@ error_logs = deque(maxlen=100)
 activity_logs = deque(maxlen=250)
 
 hourly_traffic = defaultdict(int)
+traffic_history = {}
 
 http_client: httpx.AsyncClient | None = None
 
@@ -264,7 +266,7 @@ PROTOCOLS: list[str] = []
 PROTOCOL_LABELS = {
     "vless-ws": "ONEX WB",
     "xhttp-packet-up": "ONEX Xhttp",
-    "xhttp-stream-up": "ONEX Gamig",
+    "xhttp-stream-up": "ONEX Gaming",
     "xhttp-stream-one": "ONEX Stream",
     "trojan": "Trojan",
     "shadowsocks": "Shadowsocks",
@@ -6438,6 +6440,12 @@ async def get_stats(
                 2,
             ),
 
+        "upload_bytes":
+            stats["upload_bytes"],
+
+        "download_bytes":
+            stats["total_bytes"],
+
         "total_traffic_bytes":
             stats[
                 "total_bytes"
@@ -6463,6 +6471,12 @@ async def get_stats(
             dict(
                 hourly_traffic
             ),
+
+        "history":
+            [
+                {"hour": k, **v}
+                for k, v in sorted(traffic_history.items())[-744:]
+            ],
 
         "recent_errors":
             list(
@@ -7549,19 +7563,24 @@ async def http_proxy(
             content=body,
         )
 
-        stats["total_bytes"] += len(
-            response.content
-        )
+        upload_len = len(body)
+        download_len = len(response.content)
+        stats["upload_bytes"] += upload_len
+
+        stats["total_bytes"] += download_len
 
         stats["total_requests"] += 1
 
+        hour_key = now_ir().strftime("%Y-%m-%d %H:00")
         hourly_traffic[
-            now_ir().strftime(
-                "%H:00"
-            )
-        ] += len(
-            response.content
-        )
+            now_ir().strftime("%H:00")
+        ] += download_len
+        bucket = traffic_history.setdefault(hour_key, {"download": 0, "upload": 0})
+        bucket["download"] += download_len
+        bucket["upload"] += upload_len
+        if len(traffic_history) > 744:
+            for old_key in sorted(traffic_history)[:-744]:
+                traffic_history.pop(old_key, None)
 
         output_headers = {
             key: value
@@ -7744,6 +7763,13 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .card{background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow);backdrop-filter:var(--glass);transition:border-color .2s,box-shadow .2s}
 .card-title{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .card-title svg{width:16px;height:16px;color:var(--accent2)}
+
+/* ============================================================
+   ONEX STATISTICS — HIGH DENSITY GLASS DASHBOARD
+   ============================================================ */
+.onex-stats-page{max-width:100%;padding-bottom:24px}.stats-head{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;margin-bottom:14px}.stats-title{font-size:27px!important;font-weight:900!important;display:flex;align-items:center;gap:9px}.stats-title svg{width:34px!important;height:34px;color:#20c8ff;filter:drop-shadow(0 0 9px rgba(32,200,255,.42))}.stats-sub{font-size:13px!important;margin-top:5px}.stats-live{display:flex;align-items:center;gap:8px;color:#22e6a8;font-size:13px;font-weight:800}.stats-live i{width:11px;height:11px;border-radius:50%;background:#22e6a8;box-shadow:0 0 16px rgba(34,230,168,.8);animation:onexPulse 1.7s infinite}.stats-range{width:100%;height:58px;display:grid;grid-template-columns:repeat(4,1fr);padding:4px;border-radius:17px;margin-bottom:16px;background:linear-gradient(145deg,rgba(6,22,48,.92),rgba(2,10,24,.82));border:1px solid rgba(46,139,255,.25);box-shadow:inset 0 1px rgba(255,255,255,.04),0 10px 30px rgba(0,0,0,.2)}.stats-range .range-tab{font-size:13px;height:48px;border-radius:13px}.stats-range .range-tab.on{background:linear-gradient(135deg,#ff2670,#ed1674);box-shadow:0 8px 24px rgba(255,38,112,.35);color:#fff}.stats-grid-6{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}.stats-tile{position:relative;min-height:156px;overflow:hidden;padding:18px 20px;border-radius:22px;background:linear-gradient(145deg,rgba(8,25,52,.93),rgba(2,11,26,.9));border:1px solid rgba(44,137,255,.55);box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.25)}.stats-tile:after{content:'';position:absolute;right:-55px;bottom:-75px;width:190px;height:150px;border-radius:50%;background:rgba(20,123,255,.09);filter:blur(22px)}.stats-tile.tile-pink{border-color:rgba(255,38,144,.62)}.stats-tile.tile-pink:after{background:rgba(255,31,135,.1)}.stats-tile.tile-violet{border-color:rgba(105,77,255,.65)}.stats-tile.tile-green{border-color:rgba(34,230,168,.52)}.stats-icon{width:50px;height:50px;display:grid;place-items:center;border-radius:50%;font-size:27px;font-weight:900;color:#20c8ff;border:2px solid currentColor;box-shadow:0 0 18px currentColor;background:rgba(8,41,83,.52);position:relative;z-index:1}.tile-pink .stats-icon{color:#ff2b91}.tile-violet .stats-icon{color:#6f55ff}.tile-green .stats-icon{color:#22e6a8}.stats-label{position:absolute;right:20px;top:25px;font-size:15px;color:#eef5ff;font-weight:800}.stats-value{position:absolute;right:20px;top:57px;font-size:28px;font-weight:900;letter-spacing:-.02em;color:#f8fbff}.stats-online{color:#22e6a8!important;font-size:22px}.stats-trend{position:absolute;right:20px;bottom:21px;color:#20e6a8;font-size:11px;font-weight:900}.stats-spark{position:absolute;left:20px;right:42%;bottom:18px;height:35px;opacity:.9;background:linear-gradient(180deg,rgba(32,200,255,.18),transparent);clip-path:polygon(0 72%,8% 55%,16% 67%,25% 38%,34% 55%,44% 28%,54% 48%,64% 20%,74% 39%,83% 17%,92% 35%,100% 10%,100% 100%,0 100%)}.tile-pink .stats-spark{background:linear-gradient(180deg,rgba(255,43,145,.2),transparent)}.tile-violet .stats-spark{background:linear-gradient(180deg,rgba(111,85,255,.22),transparent)}.stats-chart-card,.stats-bottom-card,.stats-panel-info{border-radius:22px;background:linear-gradient(145deg,rgba(7,23,49,.94),rgba(2,10,24,.9));border:1px solid rgba(42,136,255,.5);box-shadow:inset 0 1px rgba(255,255,255,.045),0 14px 34px rgba(0,0,0,.25)}.stats-chart-card{overflow:hidden;margin-bottom:16px}.stats-chart-head{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:18px 20px;border-bottom:1px solid rgba(96,165,250,.13)}.stats-chart-head b{display:block;font-size:20px}.stats-chart-head span{display:block;margin-top:4px;color:rgba(219,234,254,.58);font-size:11px}.chart-legend{display:flex;align-items:center;gap:16px;font-size:11px;color:#dbeafe}.chart-legend span{display:flex;align-items:center;gap:6px}.chart-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}.legend-down{background:#20c8ff;box-shadow:0 0 9px #20c8ff}.legend-up{background:#ff2b91;box-shadow:0 0 9px #ff2b91}.chart-legend em{font-style:normal;padding:7px 11px;border-radius:10px;background:rgba(37,99,235,.13);border:1px solid rgba(96,165,250,.2);color:#a9d8ff}.stats-chart-wrap{height:360px;padding:10px 16px 15px}.stats-chart-wrap svg{width:100%;height:100%;display:block;overflow:visible}.stats-chart-wrap .grid{stroke:rgba(148,163,184,.12);stroke-width:1}.stats-chart-wrap .axis{fill:rgba(203,213,225,.55);font:11px sans-serif}.stats-chart-wrap .down-fill{fill:url(#downFill)}.stats-chart-wrap .up-fill{fill:url(#upFill)}.stats-chart-wrap .down-line{fill:none;stroke:#20c8ff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 7px rgba(32,200,255,.55))}.stats-chart-wrap .up-line{fill:none;stroke:#ff2b91;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 7px rgba(255,43,145,.5))}.stats-chart-wrap .chart-dot{stroke-width:2;fill:#fff}.stats-bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}.stats-bottom-card{min-height:185px;padding:20px}.bottom-title{display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:900}.bottom-title b{font-size:24px;color:#20c8ff}.uptime-body{display:flex;align-items:center;gap:30px;margin-top:20px}.uptime-ring{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at center,#07162e 57%,transparent 58%),conic-gradient(#22e6a8 99.9%,rgba(34,230,168,.1) 0);box-shadow:0 0 24px rgba(34,230,168,.14)}.uptime-ring span{font-size:16px;font-weight:900;color:#eafff7}.uptime-body small{display:block;color:rgba(219,234,254,.58);font-size:12px;margin-bottom:9px}.uptime-body strong{display:block;font-size:24px;letter-spacing:.02em}.server-location{margin-top:27px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}.server-location strong{font-size:20px;color:#67b8ff}.server-location small{font-size:12px;color:rgba(219,234,254,.55)}.server-location b{font-size:27px}.stats-panel-info{padding:18px 20px}.stats-panel-info .panel-info-grid{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-top:16px;color:#cbd5e1;font-size:13px}.panel-info-grid b{color:#f8fbff;font-size:18px}.panel-info-item{display:flex;align-items:center;gap:7px}.panel-info-item i{font-style:normal;color:#20c8ff}.panel-info-item.pink i{color:#ff2b91}.panel-info-item.green i{color:#22e6a8}.panel-info-item.violet i{color:#8b7cff}@keyframes onexPulse{0%,100%{opacity:.65;transform:scale(.9)}50%{opacity:1;transform:scale(1.12)}}
+@media(max-width:900px){.stats-grid-6{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stats-tile{min-height:130px;padding:13px 14px}.stats-icon{width:40px;height:40px;font-size:21px}.stats-label{right:14px;top:18px;font-size:12px}.stats-value{right:14px;top:48px;font-size:22px}.stats-trend{right:14px;bottom:15px;font-size:9px}.stats-spark{left:14px;bottom:14px}.stats-chart-wrap{height:260px}.stats-bottom-grid{gap:9px}.stats-bottom-card{min-height:155px;padding:15px}.uptime-ring{width:85px;height:85px}.uptime-body{gap:16px}.uptime-body strong{font-size:18px}.stats-title{font-size:22px!important}}
+@media(max-width:600px){.stats-head{align-items:flex-start}.stats-title{font-size:21px!important}.stats-title svg{width:27px!important;height:27px}.stats-sub{font-size:9px!important}.stats-live{font-size:9px}.stats-live i{width:8px;height:8px}.stats-range{height:48px;margin-bottom:10px}.stats-range .range-tab{height:40px;font-size:10px}.stats-grid-6{gap:7px;margin-bottom:10px}.stats-tile{min-height:104px;padding:10px 11px;border-radius:15px}.stats-icon{width:31px;height:31px;font-size:16px}.stats-label{right:11px;top:13px;font-size:9px}.stats-value{right:11px;top:37px;font-size:17px}.stats-online{font-size:14px!important}.stats-trend{right:11px;bottom:10px;font-size:7px}.stats-spark{left:11px;right:48%;bottom:10px;height:24px}.stats-chart-card,.stats-bottom-card,.stats-panel-info{border-radius:15px}.stats-chart-head{padding:12px}.stats-chart-head b{font-size:13px}.stats-chart-head span{font-size:8px}.chart-legend{gap:6px;font-size:7px}.chart-legend em{padding:5px 7px}.stats-chart-wrap{height:205px;padding:5px 6px 9px}.stats-bottom-grid{grid-template-columns:1fr 1fr;gap:7px}.stats-bottom-card{min-height:125px;padding:11px}.bottom-title{font-size:10px}.bottom-title b{font-size:17px}.uptime-body{margin-top:12px;gap:8px}.uptime-ring{width:58px;height:58px}.uptime-ring span{font-size:9px}.uptime-body small{font-size:7px;margin-bottom:4px}.uptime-body strong{font-size:12px}.server-location{margin-top:14px;gap:5px}.server-location strong{font-size:12px}.server-location small{font-size:7px}.server-location b{font-size:18px}.stats-panel-info{padding:11px 12px}.stats-panel-info .panel-info-grid{margin-top:10px;font-size:8px;gap:8px}.panel-info-grid b{font-size:11px}}
 
 /* ============================================================
    ONEX GROUP MANAGER — fast glass / neon red + blue
@@ -8980,26 +9006,37 @@ Cache-Control: no-cache"></textarea></div>
     </div>
   </div>
 </section>
-<section class="page" id="page-stats">
-  <div class="page-head">
+<section class="page onex-stats-page" id="page-stats">
+  <div class="stats-head">
     <div>
-      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-6"/></svg><span data-i18n="nav_stats">آمار</span></div>
-      <div class="page-sub" data-i18n="stats_sub">ترافیـک و اتصـالات · فیلتـر زمانـی</div>
+      <div class="page-title stats-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-6"/></svg><span data-i18n="nav_stats">آمار</span></div>
+      <div class="page-sub stats-sub" data-i18n="stats_sub">ترافیـک و اتصـالات · فیلتـر زمانـی</div>
     </div>
-    <div class="range-tabs" id="rangeTabs">
-      <button class="range-tab" data-r="day" onclick="setRange('day',this)" data-i18n="r_day">روز</button>
-      <button class="range-tab" data-r="week" onclick="setRange('week',this)" data-i18n="r_week">هفتـه</button>
-      <button class="range-tab on" data-r="month" onclick="setRange('month',this)" data-i18n="r_month">مـاه</button>
-      <button class="range-tab" data-r="all" onclick="setRange('all',this)" data-i18n="r_all">کـل</button>
-    </div>
+    <div class="stats-live"><i></i><span>آنلاین</span></div>
   </div>
-  <div class="metrics">
-    <div class="metric"><div class="metric-label" data-i18n="m_traffic">ترافیـک</div><div class="metric-val" id="sTraffic">—</div></div>
-    <div class="metric"><div class="metric-label" data-i18n="m_conns">اتصـالات</div><div class="metric-val" id="sConns">—</div></div>
-    <div class="metric"><div class="metric-label" data-i18n="m_links">کانفیـگ فعـال</div><div class="metric-val" id="sActive">—</div></div>
-    <div class="metric"><div class="metric-label" data-i18n="m_uptime">آپتایـم</div><div class="metric-val" id="sUptime" style="font-size:16px">—</div></div>
+  <div class="stats-range range-tabs" id="rangeTabs">
+    <button class="range-tab" data-r="day" onclick="setRange('day',this)" data-i18n="r_day">روز</button>
+    <button class="range-tab" data-r="week" onclick="setRange('week',this)" data-i18n="r_week">هفته</button>
+    <button class="range-tab on" data-r="month" onclick="setRange('month',this)" data-i18n="r_month">ماه</button>
+    <button class="range-tab" data-r="all" onclick="setRange('all',this)" data-i18n="r_all">کل</button>
   </div>
-  <div class="card"><div class="card-title" data-i18n="panel_info">اطلاعات کل پنل</div><div id="panelInfo" style="font-size:13px;color:var(--t2);line-height:2"></div></div>
+  <div class="stats-grid-6">
+    <div class="stats-tile tile-cyan"><div class="stats-icon">↓</div><div class="stats-label">دانلود</div><div class="stats-value" id="stDownload">—</div><div class="stats-trend">LIVE</div><div class="stats-spark"></div></div>
+    <div class="stats-tile tile-pink"><div class="stats-icon">↑</div><div class="stats-label">آپلود</div><div class="stats-value" id="stUpload">—</div><div class="stats-trend">LIVE</div><div class="stats-spark"></div></div>
+    <div class="stats-tile tile-violet"><div class="stats-icon">↗</div><div class="stats-label">اتصالات فعال</div><div class="stats-value" id="stConns">—</div><div class="stats-trend">LIVE</div><div class="stats-spark"></div></div>
+    <div class="stats-tile tile-cyan"><div class="stats-icon">♟</div><div class="stats-label">کاربران فعال</div><div class="stats-value" id="stUsers">—</div><div class="stats-trend">LIVE</div><div class="stats-spark"></div></div>
+    <div class="stats-tile tile-violet"><div class="stats-icon">▤</div><div class="stats-label">کل کانفیگ‌ها</div><div class="stats-value" id="stLinks">—</div><div class="stats-trend">TOTAL</div><div class="stats-spark"></div></div>
+    <div class="stats-tile tile-green"><div class="stats-icon">●</div><div class="stats-label">وضعیت سرور</div><div class="stats-value stats-online" id="stServer">آنلاین</div><div class="stats-trend">● LIVE</div><div class="stats-spark server-pulse"></div></div>
+  </div>
+  <div class="stats-chart-card">
+    <div class="stats-chart-head"><div><b>نمودار ترافیک</b><span>روند مصرف دانلود و آپلود</span></div><div class="chart-legend"><span><i class="legend-down"></i>دانلود</span><span><i class="legend-up"></i>آپلود</span><em id="statsChartRange">امروز</em></div></div>
+    <div class="stats-chart-wrap"><svg id="statsTrafficSvg" viewBox="0 0 900 300" preserveAspectRatio="none" aria-label="Traffic chart"></svg></div>
+  </div>
+  <div class="stats-bottom-grid">
+    <div class="stats-bottom-card uptime-card"><div class="bottom-title"><span>آپتایم سرور</span><b>◷</b></div><div class="uptime-body"><div class="uptime-ring"><span id="uptimePct">99.9%</span></div><div><small>از زمان راه‌اندازی</small><strong id="stUptime">—</strong></div></div></div>
+    <div class="stats-bottom-card"><div class="bottom-title"><span>موقعیت سرور</span><b>◎</b></div><div class="server-location"><strong id="serverLocation">تهران - ایران</strong><small>تعداد کانفیگ‌ها</small><b id="locationLinks">—</b></div></div>
+  </div>
+  <div class="stats-panel-info"><div class="bottom-title"><span>اطلاعات کل پنل</span><b>↗</b></div><div id="panelInfo" class="panel-info-grid">—</div></div>
 </section>
 
 <section class="page" id="page-logs">
@@ -9909,6 +9946,7 @@ async function refreshAll(){
   const ipEl=document.getElementById('serverIp'); if(ipEl) ipEl.textContent=location.hostname||'—';
   const chartEl=document.getElementById('chartTraffic'); if(chartEl) chartEl.textContent=fmtB(used);
   const upEl=document.getElementById('topUptime'); const mu=document.getElementById('mUptime'); if(upEl && mu) upEl.textContent='Uptime: '+mu.textContent;
+  if(document.getElementById('page-stats')) loadStatsUI();
 }
 
 function renderOnexRecent(arr){
@@ -10165,11 +10203,65 @@ async function loadLogs(){
     return `<div class="log-item"><div class="log-time">${esc(tm)}</div><div class="log-msg">${esc(l.message||l.msg||JSON.stringify(l))}</div></div>`;
   }).join('');
 }
-function setRange(r,el){
-  statRange=r;
-  document.querySelectorAll('#rangeTabs .range-tab').forEach(t=>t.classList.toggle('on',t.dataset.r===r));
-  refreshAll();toast(t('r_'+r));
+let __statsPayload=null;
+async function loadStatsUI(){
+  const data=await api('/stats');
+  if(!data)return;
+  __statsPayload=data;
+  const links=await api('/api/links');
+  const arr=Array.isArray(links?.links)?links.links:(Array.isArray(links)?links:[]);
+  const conns=await api('/api/connections');
+  const users=Array.isArray(conns?.connections)?conns.connections.length:(typeof conns?.count==='number'?conns.count:0);
+  const rangeHours={day:24,week:24*7,month:24*30,all:744};
+  const history=Array.isArray(data.history)?data.history:[];
+  const slice=statRange==='all'?history:history.slice(-Math.min(rangeHours[statRange]||24,744));
+  const histDown=slice.reduce((n,x)=>n+Number(x.download||0),0);
+  const histUp=slice.reduce((n,x)=>n+Number(x.upload||0),0);
+  const dl=statRange==='all'?Number(data.download_bytes||data.total_traffic_bytes||0):(histDown||Number(data.download_bytes||data.total_traffic_bytes||0));
+  const up=statRange==='all'?Number(data.upload_bytes||0):(histUp||Number(data.upload_bytes||0));
+  const active=Number(data.active_connections||0), total=Number(data.links_count||arr.length||0);
+  setText('stDownload',fmtB(dl)); setText('stUpload',fmtB(up)); setText('stConns',active); setText('stUsers',users); setText('stLinks',total);
+  setText('stServer','آنلاین'); setText('stUptime',data.uptime||'—'); setText('locationLinks',total);
+  const rangeNames={day:'امروز',week:'این هفته',month:'این ماه',all:'کل'}; setText('statsChartRange',rangeNames[statRange]||'امروز');
+  const panel=document.getElementById('panelInfo');
+  if(panel) panel.innerHTML=`<span class="panel-info-item"><i>◉</i> کل کانفیگ‌ها: <b>${total}</b></span><span class="panel-info-item green"><i>●</i> فعال: <b>${Number(data.active_links||0)}</b></span><span class="panel-info-item pink"><i>↓</i> دانلود: <b>${fmtB(dl)}</b></span><span class="panel-info-item violet"><i>↑</i> آپلود: <b>${fmtB(up)}</b></span><span class="panel-info-item"><i>◷</i> بازه: <b>${rangeNames[statRange]||'امروز'}</b></span>`;
+  renderStatsChart(data);
 }
+function setText(id,v){const e=document.getElementById(id);if(e)e.textContent=v}
+function renderStatsChart(data){
+  const svg=document.getElementById('statsTrafficSvg'); if(!svg)return;
+  const rangeHours={day:24,week:24*7,month:24*30,all:744};
+  const hours=Math.min(rangeHours[statRange]||24,744);
+  let history=Array.isArray(data.history)?data.history.slice(-hours):[];
+  let labels=[],down=[],up=[];
+  if(history.length){
+    labels=history.map(x=>String(x.hour||'').slice(11,16));
+    down=history.map(x=>Number(x.download||0));
+    up=history.map(x=>Number(x.upload||0));
+  }else{
+    const raw=data.hourly||{};
+    for(let h=0;h<24;h++){const key=String(h).padStart(2,'0')+':00';labels.push(key);down.push(Number(raw[key]||0));up.push(0)}
+  }
+  // Keep the chart readable: downsample long ranges while preserving totals/trend.
+  const target=statRange==='day'?24:(statRange==='week'?28:(statRange==='month'?30:36));
+  if(labels.length>target){
+    const step=labels.length/target, L=[],D=[],U=[];
+    for(let i=0;i<target;i++){const a=Math.floor(i*step),b=Math.max(a+1,Math.floor((i+1)*step));L.push(labels[Math.min(a,labels.length-1)]);D.push(down.slice(a,b).reduce((x,y)=>x+y,0));U.push(up.slice(a,b).reduce((x,y)=>x+y,0));}
+    labels=L;down=D;up=U;
+  }
+  if(labels.length===1){labels.push(labels[0]);down.push(down[0]);up.push(up[0]);}
+  const W=900,H=300,L=54,R=18,T=18,B=34,innerW=W-L-R,innerH=H-T-B,maxV=Math.max(...down,...up,1)*1.18;
+  const pts=(vals)=>vals.map((v,i)=>[L+(i/(Math.max(vals.length-1,1)))*innerW,T+innerH-(v/maxV)*innerH]);
+  const dp=pts(down),upPts=pts(up),poly=p=>p.map(x=>x.join(',')).join(' ');
+  const area=p=>`M ${p[0][0]} ${T+innerH} L ${p.map(x=>x.join(' ')).join(' L ')} L ${p[p.length-1][0]} ${T+innerH} Z`;
+  let html=`<defs><linearGradient id="downFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#20c8ff" stop-opacity=".30"/><stop offset="1" stop-color="#20c8ff" stop-opacity="0"/></linearGradient><linearGradient id="upFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff2b91" stop-opacity=".28"/><stop offset="1" stop-color="#ff2b91" stop-opacity="0"/></linearGradient></defs>`;
+  for(let i=0;i<=5;i++){const y=T+(innerH/5)*i,val=maxV-(maxV/5)*i;html+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y}" y2="${y}"/><text class="axis" x="${L-9}" y="${y+4}" text-anchor="end">${fmtB(val)}</text>`}
+  const tickCount=Math.min(7,labels.length); for(let i=0;i<tickCount;i++){const idx=Math.round(i*(labels.length-1)/Math.max(tickCount-1,1)),x=L+(idx/Math.max(labels.length-1,1))*innerW;html+=`<line class="grid" x1="${x}" x2="${x}" y1="${T}" y2="${T+innerH}"/><text class="axis" x="${x}" y="${H-8}" text-anchor="middle">${esc(labels[idx])}</text>`}
+  html+=`<path class="down-fill" d="${area(dp)}"/><path class="up-fill" d="${area(upPts)}"/><polyline class="down-line" points="${poly(dp)}"/><polyline class="up-line" points="${poly(upPts)}"/>`;
+  [dp,upPts].forEach((arr,c)=>{const p=arr[arr.length-1];html+=`<circle class="chart-dot" cx="${p[0]}" cy="${p[1]}" r="4" stroke="${c?'#ff2b91':'#20c8ff'}"/>`});
+  svg.innerHTML=html;
+}
+function setRange(r,el){statRange=r;document.querySelectorAll('#rangeTabs .range-tab').forEach(t=>t.classList.toggle('on',t.dataset.r===r));loadStatsUI();}
 function randomName(){
   const chars='abcdefghijklmnopqrstuvwxyz0123456789';
   let s='';
@@ -10571,7 +10663,7 @@ let __groupFilter='all';
 let __groupProtocols=[];
 
 function groupProtocolLabel(id){
-  const labels={'vless-ws':'ONEX WB','xhttp-packet-up':'ONEX Xhttp','xhttp-stream-up':'ONEX Gamig','xhttp-stream-one':'ONEX Stream','trojan':'Trojan','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria2','vless-grpc-reality':'VLESS gRPC Reality','wireguard':'WireGuard'};
+  const labels={'vless-ws':'ONEX WB','xhttp-packet-up':'ONEX Xhttp','xhttp-stream-up':'ONEX Gaming','xhttp-stream-one':'ONEX Stream','trojan':'Trojan','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria2','vless-grpc-reality':'VLESS gRPC Reality','wireguard':'WireGuard'};
   return labels[id]||id;
 }
 function groupProtocolIcon(id){
@@ -10756,8 +10848,8 @@ async function restoreBot(){
 const PROTOCOL_PICKER_GROUPS=[
   {title:'',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']}
 ];
-const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gamig","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
-const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP (Packet-Up)","xhttp-stream-up":"VLESS + XHTTP (Gaming / Stream-Up)","xhttp-stream-one":"VLESS + XHTTP (Stream-One)","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
+const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gaming","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
+const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP","xhttp-stream-up":"VLESS + XHTTP","xhttp-stream-one":"VLESS + XHTTP","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
 const PROTOCOL_3D_ICONS={
   "vless-ws":{c1:"#24a9ff",c2:"#1264ff",c3:"#6d3cff",mark:"V",glow:"#168cff"},
   "xhttp-packet-up":{c1:"#35c8ff",c2:"#0877d8",c3:"#3155ff",mark:"XP",glow:"#21b8ff"},

@@ -1170,6 +1170,49 @@ def vless_link_for_link(
     )
 
 
+def group_subscription_lines_for_link(
+    link: dict, uid: str, host: str, protocols, used_names: set[str] | None = None,
+):
+    """Expand one group member into every protocol enabled for the group."""
+    selected = [normalize_protocol(str(p)) for p in (protocols or [])]
+    selected = [p for p in selected if p in PROTOCOLS]
+    if not selected:
+        return []
+    names = used_names if used_names is not None else set()
+    cfg_count = 1 if link.get("all_protocols") else max(1, min(40, int(link.get("config_count") or 1)))
+    clean_ips = list(link.get("clean_ips") or [])
+    if clean_ips:
+        hosts = []
+        while len(hosts) < cfg_count:
+            hosts.extend(clean_ips)
+        hosts = hosts[:cfg_count]
+    else:
+        hosts = [host] * cfg_count
+    lines = []
+    base_label = str(link.get("label") or "Config")
+    for index, target_host in enumerate(hosts, 1):
+        for proto in selected:
+            remark = f"{base_label} | {PROTOCOL_LABELS.get(proto, proto)}"
+            if cfg_count > 1:
+                remark += f" #{index}"
+            if remark in names:
+                n = 2
+                candidate = f"{remark} ({n})"
+                while candidate in names:
+                    n += 1
+                    candidate = f"{remark} ({n})"
+                remark = candidate
+            names.add(remark)
+            lines.append(generate_vless_link(
+                uid, target_host, remark=remark, protocol=proto,
+                fingerprint=link.get("fingerprint", DEFAULT_FINGERPRINT),
+                alpn=DEFAULT_ALPN_BY_PROTOCOL.get(proto, link.get("alpn")),
+                port=protocol_public_port(link, proto, link.get("port", DEFAULT_PORT)),
+                link=link,
+            ))
+    return lines
+
+
 def get_link_info(
     link: dict,
     uid: str,
@@ -5268,12 +5311,9 @@ async def list_subs_api(
             [],
         )
 
-        group_protocols = set(sub.get("protocols", PROTOCOLS))
-        visible_ids = [
-            lid for lid in link_ids
-            if lid in snapshot_links
-            and snapshot_links[lid].get("protocol") in group_protocols
-        ]
+        # A member config is counted once; enabled group protocols only
+        # control how many protocol variants are emitted to the subscription.
+        visible_ids = [lid for lid in link_ids if lid in snapshot_links]
         active_count = sum(
             1
             for lid in visible_ids
@@ -5599,29 +5639,15 @@ async def sub_group_subscription(
     async with LINKS_LOCK:
 
         lines = []
+        used_names: set[str] = set()
+        group_protocols = [p for p in sub.get("protocols", PROTOCOLS) if str(p) in PROTOCOLS]
 
-        for link_id in sub.get(
-            "link_ids",
-            [],
-        ):
-
-            link = LINKS.get(
-                link_id
-            )
-
-            if (
-                link
-                and is_link_allowed(link)
-                and link.get("protocol") in set(sub.get("protocols", PROTOCOLS))
-            ):
-
-                lines.append(
-                    vless_link_for_link(
-                        link,
-                        link_id,
-                        host,
-                    )
-                )
+        for link_id in sub.get("link_ids", []):
+            link = LINKS.get(link_id)
+            if link and is_link_allowed(link):
+                lines.extend(group_subscription_lines_for_link(
+                    link, link_id, host, group_protocols, used_names
+                ))
 
     content = (
         base64
@@ -5976,10 +6002,7 @@ async def public_sub_data(
         if not link:
             continue
 
-        protocols = set(sub.get("protocols") or PROTOCOLS)
-        if link.get("protocol") not in protocols:
-            continue
-
+        protocols = [p for p in (sub.get("protocols") or PROTOCOLS) if str(p) in PROTOCOLS]
         allowed = is_link_allowed(
             link
         )
@@ -5994,105 +6017,35 @@ async def public_sub_data(
             connection_count
         )
 
-        links_out.append(
-            {
-                "uuid":
-                    link_id,
-
-                "label":
-                    link.get(
-                        "label"
-                    ),
-
-                "active":
-                    allowed,
-
-                "protocol":
-                    link.get(
-                        "protocol",
-                        DEFAULT_PROTOCOL,
-                    ),
-
-                "used_bytes":
-                    link.get(
-                        "used_bytes",
-                        0,
-                    ),
-
-                "used_fmt":
-                    fmt_bytes(
-                        link.get(
-                            "used_bytes",
-                            0,
-                        )
-                    ),
-
-                "limit_bytes":
-                    link.get(
-                        "limit_bytes",
-                        0,
-                    ),
-
-                "limit_fmt":
-                    (
-                        "∞"
-                        if not link.get(
-                            "limit_bytes",
-                            0,
-                        )
-                        else fmt_bytes(
-                            link[
-                                "limit_bytes"
-                            ]
-                        )
-                    ),
-
-                "expires_at":
-                    link.get(
-                        "expires_at"
-                    ),
-
-                "vless_link":
-                    vless_link_for_link(
-                        link,
-                        link_id,
-                        host,
-                    ),
-
-                "sub_url":
-                    (
-                        f"https://{host}"
-                        f"/sub/{link_id}"
-                    ),
-
-                "info_url":
-                    (
-                        f"https://{host}"
-                        f"/info/{link_id}"
-                    ),
-
-                "connections":
-                    connection_count,
-
-                "ip_limit":
-                    link.get(
-                        "ip_limit",
-                        0,
-                    ),
-
-                "speed_limit_bytes":
-                    link.get(
-                        "speed_limit_bytes",
-                        0,
-                    ),
-
-                "connection_limit":
-                    link.get(
-                        "connection_limit",
-                        0,
-                    ),
-            }
-        )
+        # Mirror the real group subscription: one public item per enabled
+        # protocol, while usage/limits stay attached to the same underlying config.
+        for proto in protocols:
+            links_out.append({
+                "uuid": link_id,
+                "label": link.get("label"),
+                "active": allowed,
+                "protocol": proto,
+                "used_bytes": link.get("used_bytes", 0),
+                "used_fmt": fmt_bytes(link.get("used_bytes", 0)),
+                "limit_bytes": link.get("limit_bytes", 0),
+                "limit_fmt": ("∞" if not link.get("limit_bytes", 0) else fmt_bytes(link["limit_bytes"])),
+                "expires_at": link.get("expires_at"),
+                "vless_link": generate_vless_link(
+                    link_id, host,
+                    remark=f"{link.get('label') or 'Config'} | {PROTOCOL_LABELS.get(proto, proto)}",
+                    protocol=proto,
+                    fingerprint=link.get("fingerprint", DEFAULT_FINGERPRINT),
+                    alpn=DEFAULT_ALPN_BY_PROTOCOL.get(proto, link.get("alpn")),
+                    port=protocol_public_port(link, proto, link.get("port", DEFAULT_PORT)),
+                    link=link,
+                ),
+                "sub_url": f"https://{host}/sub/{link_id}",
+                "info_url": f"https://{host}/info/{link_id}",
+                "connections": connection_count,
+                "ip_limit": link.get("ip_limit", 0),
+                "speed_limit_bytes": link.get("speed_limit_bytes", 0),
+                "connection_limit": link.get("connection_limit", 0),
+            })
 
     total_used = sum(
         item["used_bytes"]
@@ -7632,10 +7585,10 @@ body.en{font-family:'Inter',system-ui,sans-serif}
    ============================================================ */
 .group-manager{min-width:0}.group-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 20px;margin-bottom:14px;border:1px solid rgba(59,130,246,.24);border-radius:22px;background:linear-gradient(135deg,rgba(7,24,49,.96),rgba(7,13,27,.96));box-shadow:0 12px 30px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.04)}
 .group-hero-copy{display:flex;align-items:center;gap:13px;min-width:0}.group-hero-icon{width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;border-radius:17px;color:#60a5fa;background:rgba(37,99,235,.13);border:1px solid rgba(96,165,250,.32);box-shadow:0 0 24px rgba(37,99,235,.12)}.group-hero-icon svg{width:31px;height:31px}.group-hero-kicker{font-size:9px;letter-spacing:.16em;color:#60a5fa;font-weight:900}.group-hero h1{font-size:22px;font-weight:900;margin-top:3px}.group-hero p{font-size:10px;color:var(--t3);margin-top:4px}.group-stats{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}.group-stat{min-width:116px;height:58px;padding:9px 11px;border:1px solid rgba(96,165,250,.18);border-radius:15px;background:rgba(10,25,48,.78);display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr;column-gap:8px}.group-stat span{font-size:9px;color:var(--t3)}.group-stat b{font-size:18px;line-height:1.1;align-self:end}.group-stat i{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;color:#60a5fa;font-size:20px}.group-stat:nth-child(2) i{color:#22c55e}.group-create-btn{height:58px;padding:0 20px;border:1px solid rgba(255,38,104,.8);border-radius:15px;background:linear-gradient(135deg,#f43f70,#db185f);color:#fff;font:800 11px Vazirmatn,sans-serif;box-shadow:0 8px 24px rgba(225,29,72,.24);cursor:pointer}.group-create-btn span{font-size:18px;vertical-align:-2px;margin-left:5px}.group-create-btn:hover{filter:brightness(1.08)}
-.group-workspace{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(360px,.72fr);gap:14px;align-items:stretch}.group-list-pane,.group-detail-pane{min-width:0;border:1px solid rgba(59,130,246,.18);border-radius:21px;background:linear-gradient(145deg,rgba(7,19,39,.94),rgba(5,11,23,.94));box-shadow:0 12px 30px rgba(0,0,0,.22);overflow:hidden}.group-list-toolbar{padding:12px;border-bottom:1px solid rgba(96,165,250,.12);display:flex;gap:10px;align-items:center;flex-wrap:wrap}.group-search{flex:1;min-width:190px;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid rgba(59,130,246,.32);border-radius:13px;background:rgba(2,9,22,.7)}.group-search svg{width:17px;color:#60a5fa;flex:0 0 auto}.group-search input{width:100%;border:0;background:none;outline:0;color:var(--t1);font:600 11px Vazirmatn,sans-serif}.group-filters{display:flex;gap:5px}.group-filter{height:34px;padding:0 11px;border:1px solid rgba(96,165,250,.16);border-radius:10px;background:rgba(255,255,255,.025);color:var(--t3);font:700 9px Vazirmatn,sans-serif;cursor:pointer}.group-filter.on{background:linear-gradient(135deg,#f43f70,#d61f61);border-color:#ff356f;color:#fff;box-shadow:0 5px 15px rgba(225,29,72,.2)}.group-filter em{display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:3px}.group-filter[data-filter="inactive"] em{background:#ef4444}.group-cards-list{padding:11px;max-height:650px;overflow:auto}.group-card{position:relative;padding:14px;margin-bottom:9px;border:1px solid rgba(59,130,246,.28);border-radius:18px;background:linear-gradient(145deg,rgba(5,22,48,.94),rgba(4,12,27,.94));cursor:pointer;transition:border-color .16s,transform .16s,box-shadow .16s}.group-card:last-child{margin-bottom:0}.group-card:hover{border-color:rgba(96,165,250,.58);transform:translateY(-1px)}.group-card.selected{border-color:#21b9ff;box-shadow:0 0 0 1px rgba(33,185,255,.16),0 8px 22px rgba(37,99,235,.12)}.group-card-top{display:flex;align-items:center;gap:10px}.group-card-icon{width:48px;height:48px;flex:0 0 48px;border-radius:14px;display:grid;place-items:center;color:#ff2d73;border:1px solid rgba(255,45,115,.7);background:rgba(255,45,115,.06)}.group-card-icon svg{width:25px;height:25px}.group-card-main{min-width:0;flex:1}.group-card-title{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.group-card-title b{font-size:13px}.group-status{font-size:8px;font-weight:900;padding:3px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:#34d399;border:1px solid rgba(34,197,94,.22)}.group-status.off{background:rgba(239,68,68,.11);color:#fb7185;border-color:rgba(239,68,68,.22)}.group-card-desc{font-size:9px;color:var(--t3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-card-menu{font-size:18px;color:var(--t3);padding:0 3px}.group-card-meta{display:flex;gap:12px;flex-wrap:wrap;margin:9px 0 10px 58px;color:var(--t3);font-size:9px}.group-card-meta strong{color:var(--t2);font-weight:800}.group-card-actions{display:grid;grid-template-columns:1.15fr 1fr 42px;gap:7px;margin-right:58px}.group-action{height:34px;border-radius:10px;border:1px solid rgba(59,130,246,.28);background:rgba(14,45,90,.45);color:var(--t1);font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-action.primary{background:linear-gradient(135deg,#168fff,#5146e5);border-color:rgba(70,150,255,.6);color:#fff}.group-action.red{background:linear-gradient(135deg,#f43f70,#d81b60);border-color:#ff356f;color:#fff}.group-action.icon{display:grid;place-items:center;padding:0}.group-action:hover{filter:brightness(1.08)}
+.group-workspace{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(360px,.72fr);gap:14px;align-items:stretch}.group-list-pane,.group-detail-pane{min-width:0;border:1px solid rgba(59,130,246,.18);border-radius:21px;background:linear-gradient(145deg,rgba(7,19,39,.94),rgba(5,11,23,.94));box-shadow:0 12px 30px rgba(0,0,0,.22);overflow:hidden}.group-list-toolbar{padding:12px;border-bottom:1px solid rgba(96,165,250,.12);display:flex;gap:10px;align-items:center;flex-wrap:wrap}.group-search{flex:1;min-width:190px;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid rgba(59,130,246,.32);border-radius:13px;background:rgba(2,9,22,.7)}.group-search svg{width:17px;color:#60a5fa;flex:0 0 auto}.group-search input{width:100%;border:0;background:none;outline:0;color:var(--t1);font:600 11px Vazirmatn,sans-serif}.group-filters{display:flex;gap:5px}.group-filter{height:34px;padding:0 11px;border:1px solid rgba(96,165,250,.16);border-radius:10px;background:rgba(255,255,255,.025);color:var(--t3);font:700 9px Vazirmatn,sans-serif;cursor:pointer}.group-filter.on{background:linear-gradient(135deg,#f43f70,#d61f61);border-color:#ff356f;color:#fff;box-shadow:0 5px 15px rgba(225,29,72,.2)}.group-filter em{display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:3px}.group-filter[data-filter="inactive"] em{background:#ef4444}.group-cards-list{padding:11px;max-height:650px;overflow:auto}.group-card{position:relative;padding:14px;margin-bottom:9px;border:1px solid rgba(59,130,246,.28);border-radius:18px;background:linear-gradient(145deg,rgba(5,22,48,.94),rgba(4,12,27,.94));cursor:pointer;transition:border-color .16s,transform .16s,box-shadow .16s}.group-card:last-child{margin-bottom:0}.group-card:hover{border-color:rgba(96,165,250,.58);transform:translateY(-1px)}.group-card.selected{border-color:#21b9ff;box-shadow:0 0 0 1px rgba(33,185,255,.16),0 8px 22px rgba(37,99,235,.12)}.group-card-top{display:flex;align-items:center;gap:10px}.group-card-icon{width:48px;height:48px;flex:0 0 48px;border-radius:14px;display:grid;place-items:center;color:#ff2d73;border:1px solid rgba(255,45,115,.7);background:rgba(255,45,115,.06)}.group-card-icon svg{width:25px;height:25px}.group-card-main{min-width:0;flex:1}.group-card-title{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.group-card-title b{font-size:13px}.group-status{font-size:8px;font-weight:900;padding:3px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:#34d399;border:1px solid rgba(34,197,94,.22)}.group-status.off{background:rgba(239,68,68,.11);color:#fb7185;border-color:rgba(239,68,68,.22)}.group-card-desc{font-size:9px;color:var(--t3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-card-menu{font-size:18px;color:var(--t3);padding:0 3px}.group-card-meta{display:flex;gap:12px;flex-wrap:wrap;margin:9px 0 10px 58px;color:var(--t3);font-size:9px}.group-card-meta strong{color:var(--t2);font-weight:800}
 .group-detail-pane{padding:14px;overflow:auto}.group-detail{display:flex;flex-direction:column;gap:10px}.group-detail-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid rgba(96,165,250,.12)}.group-detail-icon{width:53px;height:53px;border-radius:15px;display:grid;place-items:center;color:#ff2d73;border:1px solid rgba(255,45,115,.7);background:rgba(255,45,115,.07)}.group-detail-icon svg{width:28px;height:28px}.group-detail-title{min-width:0;flex:1}.group-detail-title h2{font-size:15px;font-weight:900}.group-detail-title p{font-size:9px;color:var(--t3);margin-top:3px}.group-three-dot{width:34px;height:34px;border:1px solid rgba(59,130,246,.25);border-radius:10px;background:rgba(255,255,255,.025);color:var(--t2);font-size:18px}.group-info-card,.group-link-card,.group-proto-card,.group-manage-card{border:1px solid rgba(59,130,246,.22);border-radius:16px;background:rgba(3,13,29,.7);padding:12px}.group-section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}.group-section-head b{font-size:11px}.group-section-head span{font-size:8px;color:var(--t3)}.group-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.group-info-item{padding:8px 9px;border-radius:10px;background:rgba(15,42,78,.3);border:1px solid rgba(96,165,250,.1)}.group-info-item small{display:block;color:var(--t3);font-size:8px;margin-bottom:3px}.group-info-item b{font-size:10px}.group-link-line{display:grid;grid-template-columns:1fr 58px;gap:7px}.group-link-url{min-width:0;height:37px;padding:0 10px;display:flex;align-items:center;border:1px solid rgba(59,130,246,.28);border-radius:10px;background:rgba(2,8,20,.7);color:#9bd2ff;font:9px Inter,system-ui,sans-serif;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-copy-btn{height:37px;border:1px solid rgba(255,45,115,.55);border-radius:10px;background:rgba(225,29,72,.16);color:#ff5a8d;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-link-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}.group-link-actions button{height:35px;border-radius:10px;border:1px solid rgba(96,165,250,.25);background:rgba(37,99,235,.13);color:#b9ddff;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-link-actions button:last-child{background:rgba(225,29,72,.12);border-color:rgba(255,45,115,.42);color:#ff6a98}.group-proto-list{display:flex;flex-direction:column}.group-proto-row{display:flex;align-items:center;gap:8px;min-height:38px;border-top:1px solid rgba(96,165,250,.09)}.group-proto-row:first-child{border-top:0}.group-proto-icon{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;background:rgba(37,99,235,.12);color:#60a5fa;overflow:hidden}.group-proto-icon img{width:22px;height:22px;object-fit:contain}.group-proto-copy{min-width:0;flex:1}.group-proto-copy b{display:block;font-size:9px}.group-proto-copy small{font-size:7px;color:var(--t3)}.group-proto-tag{font-size:7px;padding:3px 6px;border-radius:7px;background:rgba(37,99,235,.13);color:#93c5fd}.group-switch{position:relative;width:35px;height:20px;flex:0 0 35px}.group-switch input{display:none}.group-switch span{position:absolute;inset:0;border-radius:99px;background:#334155;cursor:pointer;transition:.15s}.group-switch span:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.15s}.group-switch input:checked+span{background:#f43f70}.group-switch input:checked+span:before{transform:translateX(15px)}.group-manage-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}.group-manage-actions button{height:36px;border-radius:10px;font:800 9px Vazirmatn,sans-serif;cursor:pointer;border:1px solid rgba(59,130,246,.3);background:rgba(37,99,235,.13);color:#8fc8ff}.group-manage-actions button:nth-child(2),.group-manage-actions button:nth-child(3){background:rgba(225,29,72,.12);border-color:rgba(255,45,115,.4);color:#ff6a98}.group-configs-card{border:1px solid rgba(59,130,246,.22);border-radius:16px;background:rgba(3,13,29,.7);padding:12px}.group-config-list{max-height:190px;overflow:auto}.group-config-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(96,165,250,.08);font-size:9px}.group-config-row:first-child{border-top:0}.group-config-row input{accent-color:#f43f70}.group-config-row span{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-config-row small{color:var(--t3)}.group-config-save{margin-top:8px;width:100%;height:34px;border:1px solid rgba(255,45,115,.5);border-radius:10px;background:linear-gradient(135deg,#f43f70,#d61f61);color:#fff;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-empty,.group-detail-empty{text-align:center;color:var(--t3);padding:45px 20px;font-size:10px}.group-detail-empty{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:400px;justify-content:center}.group-detail-empty-icon{width:52px;height:52px;display:grid;place-items:center;border-radius:15px;color:#60a5fa;border:1px solid rgba(96,165,250,.25);background:rgba(37,99,235,.1);font-size:22px;margin-bottom:5px}.group-detail-empty b{color:var(--t2);font-size:12px}.group-modal{width:min(460px,100%)}.group-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.modal-x{width:32px;height:32px;border:1px solid var(--card-b);border-radius:9px;background:rgba(255,255,255,.025);color:var(--t2);font-size:20px;cursor:pointer}.group-qr-modal{width:min(390px,100%)}.group-qr-box{display:grid;place-items:center;background:#fff;border-radius:15px;padding:15px;min-height:250px}.group-qr-box img{max-width:220px;height:auto}.group-qr-text{margin-top:9px;padding:9px;border-radius:10px;background:rgba(2,8,20,.8);border:1px solid rgba(96,165,250,.15);font:8px Inter,system-ui,sans-serif;color:#9bd2ff;word-break:break-all;text-align:center}
 @media(max-width:900px){.group-hero{align-items:flex-start;flex-direction:column}.group-stats{width:100%;justify-content:stretch}.group-stat{flex:1}.group-create-btn{flex:1}.group-workspace{grid-template-columns:1fr}.group-detail-pane{min-height:520px}.group-cards-list{max-height:none}}
-@media(max-width:600px){.group-hero{padding:13px;border-radius:16px}.group-hero-icon{width:44px;height:44px;flex-basis:44px;border-radius:13px}.group-hero-icon svg{width:24px}.group-hero h1{font-size:16px}.group-hero p{font-size:8px}.group-stats{display:grid;grid-template-columns:1fr 1fr}.group-create-btn{grid-column:1/-1;width:100%}.group-workspace{gap:9px}.group-list-pane,.group-detail-pane{border-radius:15px}.group-list-toolbar{padding:8px}.group-search{min-width:100%;height:38px}.group-filters{width:100%}.group-filter{flex:1}.group-card{padding:10px;border-radius:14px}.group-card-meta{margin-right:0;margin-left:0}.group-card-actions{margin:0;grid-template-columns:1fr 1fr 42px}.group-detail-pane{padding:9px}.group-info-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.group-hero{padding:13px;border-radius:16px}.group-hero-icon{width:44px;height:44px;flex-basis:44px;border-radius:13px}.group-hero-icon svg{width:24px}.group-hero h1{font-size:16px}.group-hero p{font-size:8px}.group-stats{display:grid;grid-template-columns:1fr 1fr}.group-create-btn{grid-column:1/-1;width:100%}.group-workspace{gap:9px}.group-list-pane,.group-detail-pane{border-radius:15px}.group-list-toolbar{padding:8px}.group-search{min-width:100%;height:38px}.group-filters{width:100%}.group-filter{flex:1}.group-card{padding:10px;border-radius:14px}.group-card-meta{margin-right:0;margin-left:0}.group-detail-pane{padding:9px}.group-info-grid{grid-template-columns:1fr 1fr}}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .action-card{cursor:pointer;transition:.2s;border:1px solid var(--card-b)}
 .action-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px);box-shadow:0 12px 28px rgba(59,130,246,.12)}
@@ -10435,7 +10388,6 @@ function renderGroupList(){
     return `<article class="group-card ${selected?'selected':''}" onclick="selectGroup('${esc(g.sub_id)}')">
       <div class="group-card-top"><div class="group-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 20c.5-3.1 2.4-4.7 5.5-4.7s5 1.6 5.5 4.7"/><path d="M14 15.8c2.8-.8 5 .5 6 3.2"/></svg></div><div class="group-card-main"><div class="group-card-title"><b>${esc(g.name||'گروه')}</b><span class="group-status ${on?'':'off'}">${on?'● فعال':'● غیرفعال'}</span></div><div class="group-card-desc">${esc(g.desc||'گروه اشتراک ONEX')}</div></div><div class="group-card-menu">•••</div></div>
       <div class="group-card-meta"><span><strong>${Number(g.active_count||0)}</strong> کاربر فعال</span><span>•</span><span><strong>${Number(g.links_count||0)}</strong> کانفیگ</span><span>•</span><span>${g.has_password?'🔒 رمزدار':'عمومی'}</span></div>
-      <div class="group-card-actions"><button class="group-action primary" onclick="event.stopPropagation();copyText('${esc(g.sub_url||'')}')">🔗 لینک اشتراک</button><button class="group-action" onclick="event.stopPropagation();openGroupQr('${esc(g.sub_url||'')}','${esc(g.name||'')}')">▦ QR کد</button><button class="group-action icon" title="مدیریت گروه" aria-label="مدیریت گروه" onclick="event.stopPropagation();selectGroup('${esc(g.sub_id)}')">♙</button></div>
     </article>`;
   }).join('');
 }

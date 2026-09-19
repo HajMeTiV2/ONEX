@@ -6529,15 +6529,25 @@ async def get_stats(
 
 @app.get("/api/activity")
 async def get_activity(
-    _=Depends(require_auth),
+    _=Depends(require_perm("logs")),
 ):
 
     return {
         "logs":
             list(
                 activity_logs
-            )[-150:]
+            )[-250:]
     }
+
+
+@app.delete("/api/activity")
+async def clear_activity(
+    _=Depends(require_perm("logs")),
+):
+    """Clear the in-memory activity history without touching any other panel state."""
+    count = len(activity_logs)
+    activity_logs.clear()
+    return {"ok": True, "cleared": count}
 
 
 # ============================================================
@@ -7902,9 +7912,102 @@ tr:hover td{background:var(--hover)}
 .support-label{font-size:11px;color:var(--t3);font-weight:600}
 .support-val{font-size:13px;font-weight:700;margin-top:3px}
 
+/* ============================================================
+   ONEX ACTIVITY LOG — scoped redesign
+   Everything is prefixed with .logs- / #page-logs so the rest of
+   the panel keeps its existing layout and behavior unchanged.
+   ============================================================ */
 .log-item{padding:12px 0;border-bottom:1px solid var(--card-b);font-size:12px;display:flex;gap:12px;align-items:flex-start}
 .log-time{color:var(--t3);font-size:10px;white-space:nowrap;min-width:72px;font-weight:600}
 .log-msg{color:var(--t2);flex:1;line-height:1.5}
+
+#page-logs .logs-page-sub{margin-top:4px;color:var(--t3);font-size:11px}
+#page-logs .logs-page-head{align-items:flex-start}
+#page-logs .logs-head-actions{display:flex;gap:8px;align-items:center}
+#page-logs .logs-refresh-btn{display:inline-flex;align-items:center;gap:6px}
+#page-logs .logs-toolbar{padding:14px;margin-bottom:10px}
+#page-logs .logs-search-wrap{height:46px;display:flex;align-items:center;gap:10px;border:1px solid var(--card-b);background:rgba(4,14,29,.42);border-radius:14px;padding:0 12px}
+#page-logs .logs-search-wrap>svg{width:20px;height:20px;color:#70a9df;flex:0 0 auto}
+#page-logs .logs-search-wrap input{border:0;outline:0;background:transparent;color:var(--t1);font:inherit;font-size:12px;width:100%;min-width:0}
+#page-logs .logs-search-wrap input::placeholder{color:var(--t3)}
+#page-logs .logs-clear-search{border:0;background:transparent;color:var(--t3);font-size:20px;line-height:1;cursor:pointer;padding:3px 6px}
+#page-logs .logs-filter-row{display:flex;gap:6px;overflow:auto;padding-top:10px;scrollbar-width:none}
+#page-logs .logs-filter-row::-webkit-scrollbar{display:none}
+#page-logs .logs-filter{border:1px solid var(--card-b);background:rgba(255,255,255,.025);color:var(--t2);padding:7px 11px;border-radius:10px;font:inherit;font-size:10px;white-space:nowrap;cursor:pointer;transition:.18s}
+#page-logs .logs-filter:hover{border-color:rgba(75,166,255,.38);color:var(--t1)}
+#page-logs .logs-filter.on{background:linear-gradient(135deg,#2463ff,#24b9ff);border-color:transparent;color:#fff;box-shadow:0 8px 22px rgba(36,112,255,.22)}
+#page-logs .logs-filter b{font-size:9px;opacity:.82;margin-right:3px}
+#page-logs .logs-advanced-row{display:none;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end;margin-top:10px;padding-top:10px;border-top:1px solid var(--card-b)}
+#page-logs .logs-advanced-row.open{display:grid}
+#page-logs .logs-advanced-row label{display:grid;gap:5px;min-width:0}
+#page-logs .logs-advanced-row label>span{font-size:9px;color:var(--t3)}
+#page-logs .logs-advanced-row select,#page-logs .logs-advanced-row input{height:36px;border:1px solid var(--card-b);border-radius:10px;background:var(--input-bg);color:var(--t1);padding:0 9px;font:inherit;font-size:10px;outline:0}
+#page-logs .logs-reset-filter{height:36px;border:1px solid var(--card-b);border-radius:10px;background:transparent;color:var(--t2);padding:0 11px;font:inherit;font-size:10px;cursor:pointer;white-space:nowrap}
+#page-logs .logs-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:0;margin-bottom:10px;overflow:hidden}
+#page-logs .logs-summary-item{min-width:0;display:flex;align-items:center;gap:10px;padding:13px 14px;position:relative}
+#page-logs .logs-summary-item+ .logs-summary-item{border-right:1px solid var(--card-b)}
+#page-logs .logs-summary-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;flex:0 0 34px;font-weight:900;font-size:15px;background:rgba(60,130,246,.12);color:#69b5ff;border:1px solid rgba(60,130,246,.2)}
+#page-logs .logs-summary-item div{min-width:0;display:grid}
+#page-logs .logs-summary-item small{font-size:9px;color:var(--t3)}
+#page-logs .logs-summary-item strong{font-size:18px;line-height:1.15;color:var(--t1)}
+#page-logs .logs-summary-item em{font-size:8px;color:var(--t3);font-style:normal}
+#page-logs .logs-summary-ok .logs-summary-icon{color:#34e6a1;background:rgba(52,230,161,.10);border-color:rgba(52,230,161,.2)}
+#page-logs .logs-summary-change .logs-summary-icon{color:#9b7cff;background:rgba(139,92,246,.11);border-color:rgba(139,92,246,.2)}
+#page-logs .logs-summary-delete .logs-summary-icon{color:#ff5f91;background:rgba(255,45,120,.10);border-color:rgba(255,45,120,.2)}
+#page-logs .logs-list-card{padding:0;overflow:hidden}
+#page-logs .logs-list-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--card-b)}
+#page-logs .logs-list-head>div{display:grid;gap:3px}
+#page-logs .logs-list-head b{font-size:12px;color:var(--t1)}
+#page-logs .logs-list-head small{font-size:9px;color:var(--t3)}
+#page-logs .logs-live-badge{display:inline-flex;align-items:center;gap:5px;font-size:8px;color:#47e8b0;letter-spacing:.08em}
+#page-logs .logs-live-badge i{width:6px;height:6px;border-radius:50%;background:#22e6a1;box-shadow:0 0 9px rgba(34,230,161,.75);animation:pulseDot 1.8s ease-in-out infinite}
+#page-logs .logs-list{padding:0 16px}
+#page-logs .logs-event{display:grid;grid-template-columns:34px minmax(0,1fr) auto 22px;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(91,136,183,.10);cursor:pointer;transition:.16s}
+#page-logs .logs-event:last-child{border-bottom:0}
+#page-logs .logs-event:hover{transform:translateX(-2px);background:linear-gradient(90deg,transparent,rgba(40,130,255,.055),transparent)}
+#page-logs .logs-event-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:15px;font-weight:900;border:1px solid rgba(89,160,255,.18);background:rgba(32,112,255,.10);color:#69b5ff}
+#page-logs .logs-event-main{min-width:0;display:grid;gap:3px}
+#page-logs .logs-event-title{font-size:11px;font-weight:800;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-logs .logs-event-desc{font-size:9px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-logs .logs-event-time{font-size:10px;color:#72a7d9;white-space:nowrap;direction:ltr}
+#page-logs .logs-event-arrow{font-size:18px;color:#5789b9;opacity:.85}
+#page-logs .logs-badge{justify-self:end;padding:4px 8px;border-radius:999px;border:1px solid rgba(86,155,255,.20);font-size:8px;white-space:nowrap;color:#78b9f2;background:rgba(35,118,255,.08)}
+#page-logs .logs-event.ok .logs-event-icon,#page-logs .logs-event.ok .logs-badge{color:#35e8a2;border-color:rgba(53,232,162,.22);background:rgba(53,232,162,.08)}
+#page-logs .logs-event.warn .logs-event-icon,#page-logs .logs-event.warn .logs-badge{color:#ff6295;border-color:rgba(255,98,149,.22);background:rgba(255,98,149,.08)}
+#page-logs .logs-event.err .logs-event-icon,#page-logs .logs-event.err .logs-badge{color:#ff7a7a;border-color:rgba(255,100,100,.22);background:rgba(255,100,100,.08)}
+#page-logs .logs-event.admin .logs-event-icon{color:#a887ff;background:rgba(139,92,246,.09);border-color:rgba(139,92,246,.20)}
+#page-logs .logs-event.sub .logs-event-icon{color:#48e6bd;background:rgba(34,211,169,.09);border-color:rgba(34,211,169,.20)}
+#page-logs .logs-event.link .logs-event-icon{color:#6bb5ff;background:rgba(59,130,246,.09)}
+#page-logs .logs-event.backup .logs-event-icon{color:#ffb85b;background:rgba(245,158,11,.09);border-color:rgba(245,158,11,.20)}
+#page-logs .logs-event.telegram .logs-event-icon{color:#35c8ff;background:rgba(14,165,233,.09);border-color:rgba(14,165,233,.20)}
+#page-logs .logs-empty{padding:42px 16px;text-align:center;color:var(--t3);font-size:11px}
+#page-logs .logs-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;margin-top:10px}
+#page-logs .logs-advanced-btn{border:1px solid var(--card-b);background:transparent;color:var(--t2);padding:8px 11px;border-radius:10px;font:inherit;font-size:10px;cursor:pointer}
+#page-logs .logs-advanced-btn span{display:inline-block;transition:.18s;margin-left:3px}
+#page-logs .logs-advanced-btn.open span{transform:rotate(180deg)}
+#page-logs .logs-clear-btn{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:12px;background:linear-gradient(135deg,#ff1f69,#ff426f);color:#fff;padding:10px 14px;font:inherit;font-size:10px;font-weight:800;cursor:pointer;box-shadow:0 10px 28px rgba(255,31,105,.18)}
+#page-logs .logs-clear-btn svg{width:15px;height:15px}
+#page-logs .logs-modal-bg{position:fixed;inset:0;z-index:650;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,4,12,.66);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+#page-logs .logs-modal-bg.open{display:flex}
+#page-logs .logs-detail-modal{width:min(500px,100%);max-height:88vh;overflow:auto;border:1px solid rgba(86,171,255,.24);border-radius:22px;background:linear-gradient(145deg,rgba(9,22,43,.96),rgba(2,9,20,.94));box-shadow:0 30px 100px rgba(0,0,0,.55),0 0 70px rgba(0,119,255,.10);padding:16px}
+#page-logs .logs-detail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:13px;border-bottom:1px solid var(--card-b)}
+#page-logs .logs-detail-head>div:first-child{display:flex;align-items:center;gap:10px;min-width:0}
+#page-logs .logs-detail-head b{display:block;font-size:13px;color:var(--t1)}
+#page-logs .logs-detail-head small{display:block;margin-top:3px;font-size:9px;color:var(--t3)}
+#page-logs .logs-detail-head>button{width:30px;height:30px;border:1px solid var(--card-b);border-radius:9px;background:transparent;color:var(--t2);font-size:20px;cursor:pointer}
+#page-logs .logs-detail-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgba(59,130,246,.11);border:1px solid rgba(59,130,246,.20);color:#70b9ff;font-size:17px}
+#page-logs .logs-detail-body{display:grid;gap:8px;padding:14px 0}
+#page-logs .logs-detail-row{display:grid;grid-template-columns:90px minmax(0,1fr);gap:10px;padding:9px 0;border-bottom:1px solid rgba(91,136,183,.09)}
+#page-logs .logs-detail-row:last-child{border-bottom:0}
+#page-logs .logs-detail-row small{color:var(--t3);font-size:9px}
+#page-logs .logs-detail-row b{color:var(--t1);font-size:10px;word-break:break-word;line-height:1.7}
+#page-logs .logs-detail-actions{display:flex;justify-content:flex-end;padding-top:3px}
+html.light #page-logs .logs-search-wrap{background:#fff}
+html.light #page-logs .logs-filter{background:#fff;color:#334155}
+html.light #page-logs .logs-event{border-bottom-color:rgba(15,23,42,.07)}
+html.light #page-logs .logs-event:hover{background:#f8fbff}
+html.light #page-logs .logs-detail-modal{background:#fff;border-color:rgba(15,23,42,.12);box-shadow:0 24px 70px rgba(15,23,42,.18)}
+html.light #page-logs .logs-detail-head>button{background:#fff}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
 .modal-bg.open{display:flex}
@@ -8078,6 +8181,45 @@ tr:hover td{background:var(--hover)}
   .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}.metric{padding:9px;border-radius:12px;min-width:0}.metric-label{font-size:7px;margin-bottom:4px}.metric-val{font-size:15px}
   .card{padding:10px;border-radius:12px;margin-bottom:8px}.card-title{font-size:8px;margin-bottom:8px}.card-title svg{width:13px;height:13px}.g2{grid-template-columns:1fr;gap:8px;margin-bottom:8px}
   .support-grid{grid-template-columns:1fr 1fr;gap:6px}.support-tile{gap:6px;padding:8px;border-radius:10px}.support-icon{width:29px;height:29px;border-radius:8px}.support-icon svg{width:14px;height:14px}.support-label{font-size:6.5px}.support-val{font-size:8px;margin-top:2px}
+  #page-logs .logs-page-sub{font-size:7px}
+  #page-logs .logs-toolbar{padding:8px;border-radius:12px}
+  #page-logs .logs-search-wrap{height:38px;border-radius:10px;padding:0 9px;gap:7px}
+  #page-logs .logs-search-wrap>svg{width:16px;height:16px}
+  #page-logs .logs-search-wrap input{font-size:9px}
+  #page-logs .logs-filter-row{padding-top:7px;gap:4px}
+  #page-logs .logs-filter{padding:6px 8px;border-radius:8px;font-size:7px}
+  #page-logs .logs-filter b{font-size:7px}
+  #page-logs .logs-advanced-row{grid-template-columns:1fr 1fr;gap:5px}
+  #page-logs .logs-advanced-row label:last-of-type{grid-column:2}
+  #page-logs .logs-reset-filter{grid-column:1 / -1;width:100%;font-size:8px}
+  #page-logs .logs-summary{grid-template-columns:repeat(2,minmax(0,1fr));border-radius:12px}
+  #page-logs .logs-summary-item{padding:9px;gap:7px}
+  #page-logs .logs-summary-item:nth-child(odd){border-right:1px solid var(--card-b)}
+  #page-logs .logs-summary-item:nth-child(n+3){border-top:1px solid var(--card-b)}
+  #page-logs .logs-summary-icon{width:27px;height:27px;border-radius:8px;flex-basis:27px;font-size:12px}
+  #page-logs .logs-summary-item small{font-size:7px}
+  #page-logs .logs-summary-item strong{font-size:14px}
+  #page-logs .logs-summary-item em{font-size:6px}
+  #page-logs .logs-list-head{padding:9px 10px}
+  #page-logs .logs-list-head b{font-size:9px}
+  #page-logs .logs-list-head small{font-size:6px}
+  #page-logs .logs-list{padding:0 10px}
+  #page-logs .logs-event{grid-template-columns:27px minmax(0,1fr) auto 12px;gap:6px;padding:9px 0}
+  #page-logs .logs-event-icon{width:27px;height:27px;border-radius:8px;font-size:11px}
+  #page-logs .logs-event-title{font-size:8px}
+  #page-logs .logs-event-desc{font-size:6px}
+  #page-logs .logs-badge{padding:3px 5px;font-size:6px}
+  #page-logs .logs-event-time{font-size:6px}
+  #page-logs .logs-event-arrow{font-size:13px}
+  #page-logs .logs-footer{padding:8px 9px}
+  #page-logs .logs-advanced-btn,#page-logs .logs-clear-btn{font-size:7px;padding:7px 8px;border-radius:8px}
+  #page-logs .logs-clear-btn svg{width:12px;height:12px}
+  #page-logs .logs-detail-modal{padding:11px;border-radius:15px}
+  #page-logs .logs-detail-head b{font-size:10px}
+  #page-logs .logs-detail-head small{font-size:7px}
+  #page-logs .logs-detail-row{grid-template-columns:65px minmax(0,1fr);padding:7px 0}
+  #page-logs .logs-detail-row small{font-size:7px}
+  #page-logs .logs-detail-row b{font-size:8px}
   .log-item{padding:7px 0;font-size:7px;gap:6px}.log-time{font-size:6px;min-width:44px}.btn{padding:7px 8px;border-radius:8px;font-size:7px}.btn-sm{padding:5px 6px;font-size:6.5px}.btn svg{width:11px;height:11px}
   .form-row{grid-template-columns:1fr;gap:0}.field{margin-bottom:8px}.field label{font-size:7px;margin-bottom:4px}.field input,.field select,.field textarea{padding:8px;border-radius:8px;font-size:11px;min-height:34px}
   .table-wrap{width:100%;max-width:100%;overflow-x:auto}table{font-size:7px;min-width:420px}th{padding:7px 6px}td{padding:7px 6px}.ops{gap:3px}.range-tab{padding:5px 6px;font-size:6.5px;border-radius:7px}
@@ -9115,11 +9257,64 @@ Cache-Control: no-cache"></textarea></div>
 </section>
 
 <section class="page" id="page-logs">
-  <div class="page-head">
-    <div><div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span data-i18n="nav_logs">لاگ فعالیت</span></div></div>
-    <button class="btn btn-sm" onclick="loadLogs()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10"/></svg></button>
+  <div class="page-head logs-page-head">
+    <div>
+      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span data-i18n="nav_logs">لاگ فعالیت</span></div>
+      <div class="logs-page-sub">تمام رویدادهای ثبت‌شده در پنل</div>
+    </div>
+    <div class="logs-head-actions">
+      <button class="btn btn-sm logs-refresh-btn" type="button" onclick="loadLogs(true)" title="بروزرسانی">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10"/></svg>
+        <span>بروزرسانی</span>
+      </button>
+    </div>
   </div>
-  <div class="card" id="logsBox"><div style="text-align:center;color:var(--t3);padding:28px">...</div></div>
+
+  <div class="logs-toolbar card">
+    <div class="logs-search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="logsSearch" type="search" autocomplete="off" placeholder="جستجو در لاگ‌ها..." oninput="applyLogFilters()">
+      <button type="button" class="logs-clear-search" onclick="clearLogSearch()" aria-label="پاک کردن جستجو">×</button>
+    </div>
+    <div class="logs-filter-row" id="logsFilterRow">
+      <button type="button" class="logs-filter on" data-log-filter="all" onclick="setLogFilter('all',this)">همه <b id="logCountAll">0</b></button>
+      <button type="button" class="logs-filter" data-log-filter="link" onclick="setLogFilter('link',this)">لینک‌ها</button>
+      <button type="button" class="logs-filter" data-log-filter="sub" onclick="setLogFilter('sub',this)">گروه‌ها</button>
+      <button type="button" class="logs-filter" data-log-filter="auth" onclick="setLogFilter('auth',this)">ورودها</button>
+      <button type="button" class="logs-filter" data-log-filter="admin" onclick="setLogFilter('admin',this)">کاربران</button>
+      <button type="button" class="logs-filter" data-log-filter="system" onclick="setLogFilter('system',this)">سیستم</button>
+    </div>
+    <div class="logs-advanced-row">
+      <label><span>سطح</span><select id="logsLevelFilter" onchange="applyLogFilters()"><option value="all">همه</option><option value="ok">موفق</option><option value="info">اطلاعات</option><option value="warn">هشدار</option><option value="err">خطا</option></select></label>
+      <label><span>تاریخ</span><input id="logsDateFilter" type="date" onchange="applyLogFilters()"></label>
+      <button type="button" class="logs-reset-filter" onclick="resetLogFilters()">حذف فیلترها</button>
+    </div>
+  </div>
+
+  <div class="logs-summary card">
+    <div class="logs-summary-item logs-summary-total"><span class="logs-summary-icon">↗</span><div><small>فعالیت امروز</small><strong id="logStatTotal">0</strong><em>رویداد</em></div></div>
+    <div class="logs-summary-item logs-summary-ok"><span class="logs-summary-icon">✓</span><div><small>موفق</small><strong id="logStatOk">0</strong><em>ثبت‌شده</em></div></div>
+    <div class="logs-summary-item logs-summary-change"><span class="logs-summary-icon">⚙</span><div><small>تغییر</small><strong id="logStatChange">0</strong><em>ویرایش</em></div></div>
+    <div class="logs-summary-item logs-summary-delete"><span class="logs-summary-icon">⌫</span><div><small>حذف</small><strong id="logStatDelete">0</strong><em>رویداد</em></div></div>
+  </div>
+
+  <div class="card logs-list-card">
+    <div class="logs-list-head"><div><b>رویدادهای اخیر</b><small id="logsResultText">در حال بارگذاری...</small></div><span class="logs-live-badge"><i></i> LIVE</span></div>
+    <div id="logsBox" class="logs-list"><div class="logs-empty">در حال بارگذاری...</div></div>
+  </div>
+
+  <div class="logs-footer card">
+    <button type="button" class="logs-advanced-btn" onclick="toggleLogAdvanced()"><span>⌄</span> فیلتر پیشرفته</button>
+    <button type="button" class="logs-clear-btn" onclick="clearAllLogs()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg> پاکسازی لاگ‌ها</button>
+  </div>
+
+  <div class="logs-modal-bg" id="logsDetailBg" onclick="if(event.target===this)closeLogDetail()">
+    <div class="logs-detail-modal" role="dialog" aria-modal="true" aria-labelledby="logsDetailTitle">
+      <div class="logs-detail-head"><div><span id="logsDetailIcon" class="logs-detail-icon">•</span><div><b id="logsDetailTitle">جزئیات رویداد</b><small id="logsDetailMeta">—</small></div></div><button type="button" onclick="closeLogDetail()">×</button></div>
+      <div class="logs-detail-body" id="logsDetailBody"></div>
+      <div class="logs-detail-actions"><button type="button" class="btn btn-sm" onclick="closeLogDetail()">بستن</button></div>
+    </div>
+  </div>
 </section>
 
 <section class="page" id="page-settings">
@@ -10303,16 +10498,150 @@ async function doChangePw(){
   const r=await api('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({new_username:user,current_password:cur,new_password:nw,repeat_password:cf})});
   if(r){toast(lang==='fa'?'اطلاعات ورود تغییر کرد':'Credentials changed');document.getElementById('pwCur').value='';document.getElementById('pwNew').value='';document.getElementById('pwCf').value='';}
 }
-async function loadLogs(){
-  const box=document.getElementById('logsBox');
-  const data=await api('/api/activity');
-  const logs=Array.isArray(data)?data:(data&&data.logs)||[];
-  if(!logs.length){box.innerHTML=`<div style="text-align:center;color:var(--t3);padding:24px">${lang==='fa'?'لاگی نیست':'No logs'}</div>`;return}
-  box.innerHTML=logs.slice().reverse().map(l=>{
-    const tm=(l.time||l.ts||'').toString().slice(11,19)||'—';
-    return `<div class="log-item"><div class="log-time">${esc(tm)}</div><div class="log-msg">${esc(l.message||l.msg||JSON.stringify(l))}</div></div>`;
+let __activityLogs=[];
+let __logFilter='all';
+let __logAdvancedOpen=false;
+
+function logKindMeta(kind){
+  const map={
+    link:{label:'لینک‌ها',icon:'↗'},
+    sub:{label:'گروه‌ها',icon:'👥'},
+    auth:{label:'ورود',icon:'⇥'},
+    admin:{label:'کاربران',icon:'●'},
+    system:{label:'سیستم',icon:'⚙'},
+    backup:{label:'پشتیبان',icon:'◫'},
+    telegram:{label:'تلگرام',icon:'➤'}
+  };
+  return map[String(kind||'').toLowerCase()]||{label:'رویداد',icon:'•'};
+}
+function logLevelMeta(level){
+  const l=String(level||'info').toLowerCase();
+  if(l==='ok')return {label:'موفق',cls:'ok'};
+  if(l==='warn')return {label:'هشدار',cls:'warn'};
+  if(l==='err')return {label:'خطا',cls:'err'};
+  return {label:'اطلاعات',cls:'info'};
+}
+function logDateTime(log){
+  const raw=String(log?.time||log?.ts||'');
+  const d=raw?new Date(raw):null;
+  return {raw,d,valid:d&&!Number.isNaN(d.getTime())};
+}
+function logTime(log){
+  const x=logDateTime(log);
+  if(!x.valid)return '—';
+  return x.d.toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+function logDate(log){
+  const x=logDateTime(log);
+  if(!x.valid)return '';
+  return `${x.d.getFullYear()}-${String(x.d.getMonth()+1).padStart(2,'0')}-${String(x.d.getDate()).padStart(2,'0')}`;
+}
+function logTitle(message){
+  const m=String(message||'—');
+  const rules=[
+    [/ساخته شد|ساخت/i,'ساخته شد'],[/حذف شد|حذف/i,'حذف شد'],[/ویرایش شد|تغییر/i,'تغییر انجام شد'],[/فعال شد|فعال/i,'فعال شد'],[/غیرفعال شد|غیرفعال/i,'غیرفعال شد'],[/ورود موفق|login/i,'کاربر وارد شد'],[/مسدود شد|مسدودی/i,'مسدودی امنیتی'],[/راه\s*اندازی شد|راه‌اندازی شد|شروع شد/i,'سیستم راه‌اندازی شد'],[/بروزرسانی/i,'بروزرسانی شد'],[/ریست شد/i,'مصرف ریست شد'],[/پیام همگانی/i,'پیام همگانی ارسال شد']
+  ];
+  for(const [re,title] of rules)if(re.test(m))return title;
+  return m.length>72?m.slice(0,72)+'…':m;
+}
+function logDesc(message,title){
+  const m=String(message||'—');
+  if(m===title)return '';
+  return m;
+}
+function logIsToday(log){
+  const x=logDateTime(log);if(!x.valid)return false;
+  const n=new Date();return x.d.getFullYear()===n.getFullYear()&&x.d.getMonth()===n.getMonth()&&x.d.getDate()===n.getDate();
+}
+function logMatchesFilter(log){
+  if(__logFilter!=='all'&&String(log.kind||'').toLowerCase()!==__logFilter)return false;
+  const q=(document.getElementById('logsSearch')?.value||'').trim().toLowerCase();
+  if(q){const hay=[log.message,log.kind,log.level,log.time].map(v=>String(v||'')).join(' ').toLowerCase();if(!hay.includes(q))return false}
+  const level=document.getElementById('logsLevelFilter')?.value||'all';
+  if(level!=='all'&&String(log.level||'info').toLowerCase()!==level)return false;
+  const date=document.getElementById('logsDateFilter')?.value||'';
+  if(date&&logDate(log)!==date)return false;
+  return true;
+}
+function renderLogStats(logs){
+  const today=logs.filter(logIsToday);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=String(v)};
+  set('logStatTotal',today.length);
+  set('logStatOk',today.filter(l=>String(l.level||'info')==='ok').length);
+  set('logStatChange',today.filter(l=>/ویرایش|تغییر|فعال|غیرفعال|بروزرسانی|ریست شد/.test(String(l.message||''))).length);
+  set('logStatDelete',today.filter(l=>/حذف شد|حذف گروهی|حذف همه/.test(String(l.message||''))).length);
+  set('logCountAll',logs.length);
+}
+function renderLogs(){
+  const box=document.getElementById('logsBox');if(!box)return;
+  const filtered=__activityLogs.filter(logMatchesFilter);
+  const ordered=filtered.slice().reverse();
+  const result=document.getElementById('logsResultText');
+  if(result)result.textContent=`${filtered.length.toLocaleString('fa-IR')} رویداد نمایش داده می‌شود · ${__activityLogs.length.toLocaleString('fa-IR')} رویداد ثبت‌شده`;
+  if(!ordered.length){box.innerHTML='<div class="logs-empty">با فیلترهای فعلی لاگی پیدا نشد.</div>';return}
+  box.innerHTML=ordered.map((l,i)=>{
+    const meta=logKindMeta(l.kind),lv=logLevelMeta(l.level),title=logTitle(l.message),desc=logDesc(l.message,title);
+    const tm=logTime(l),idx=__activityLogs.indexOf(l);
+    return `<div class="logs-event ${esc(lv.cls)} ${esc(String(l.kind||''))}" onclick="openLogDetail(${idx})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')openLogDetail(${idx})">
+      <span class="logs-event-icon">${meta.icon}</span>
+      <span class="logs-event-main"><span class="logs-event-title">${esc(title)}</span><span class="logs-event-desc">${esc(desc||meta.label)}</span></span>
+      <span class="logs-badge">${esc(lv.label)}</span>
+      <span class="logs-event-time">${esc(tm)}</span>
+    </div>`;
   }).join('');
 }
+function applyLogFilters(){renderLogStats(__activityLogs);renderLogs()}
+function setLogFilter(filter,button){__logFilter=filter;document.querySelectorAll('#logsFilterRow .logs-filter').forEach(x=>x.classList.toggle('on',x===button));renderLogs()}
+function clearLogSearch(){const e=document.getElementById('logsSearch');if(e){e.value='';e.focus()}renderLogs()}
+function resetLogFilters(){
+  __logFilter='all';
+  const s=document.getElementById('logsSearch');if(s)s.value='';
+  const l=document.getElementById('logsLevelFilter');if(l)l.value='all';
+  const d=document.getElementById('logsDateFilter');if(d)d.value='';
+  document.querySelectorAll('#logsFilterRow .logs-filter').forEach(x=>x.classList.toggle('on',x.dataset.logFilter==='all'));
+  renderLogs();
+}
+function toggleLogAdvanced(){
+  __logAdvancedOpen=!__logAdvancedOpen;
+  const row=document.querySelector('#page-logs .logs-advanced-row'),btn=document.querySelector('#page-logs .logs-advanced-btn');
+  if(row)row.classList.toggle('open',__logAdvancedOpen);
+  if(btn)btn.classList.toggle('open',__logAdvancedOpen);
+}
+function openLogDetail(index){
+  const l=__activityLogs[index];if(!l)return;
+  const bg=document.getElementById('logsDetailBg'),body=document.getElementById('logsDetailBody');if(!bg||!body)return;
+  const meta=logKindMeta(l.kind),lv=logLevelMeta(l.level);
+  const rows=[
+    ['رویداد',String(l.message||'—')],
+    ['دسته‌بندی',meta.label],
+    ['سطح',lv.label],
+    ['زمان',String(l.time||'—').replace('T',' ').slice(0,19)]
+  ];
+  body.innerHTML=rows.map(r=>`<div class="logs-detail-row"><small>${esc(r[0])}</small><b>${esc(r[1])}</b></div>`).join('');
+  const title=document.getElementById('logsDetailTitle'),m=document.getElementById('logsDetailMeta'),icon=document.getElementById('logsDetailIcon');
+  if(title)title.textContent=logTitle(l.message);
+  if(m)m.textContent=`${meta.label} · ${lv.label}`;
+  if(icon)icon.textContent=meta.icon;
+  bg.classList.add('open');document.body.style.overflow='hidden';
+}
+function closeLogDetail(){const bg=document.getElementById('logsDetailBg');if(bg)bg.classList.remove('open');document.body.style.overflow=''}
+async function clearAllLogs(){
+  if(!__activityLogs.length){toast(lang==='fa'?'لاگی برای پاکسازی وجود ندارد':'There are no logs to clear');return}
+  const ok=window.confirm(lang==='fa'?'تمام لاگ‌های فعالیت حذف شوند؟ این عملیات قابل بازگشت نیست.':'Clear all activity logs? This cannot be undone.');
+  if(!ok)return;
+  const r=await api('/api/activity',{method:'DELETE'});
+  if(r){__activityLogs=[];renderLogStats([]);renderLogs();toast(lang==='fa'?'لاگ‌ها پاک شدند':'Activity logs cleared')}
+}
+async function loadLogs(showToast=false){
+  const box=document.getElementById('logsBox');
+  if(box&&!__activityLogs.length)box.innerHTML='<div class="logs-empty">در حال بارگذاری...</div>';
+  const data=await api('/api/activity');
+  if(!data)return;
+  __activityLogs=Array.isArray(data)?data:(data&&data.logs)||[];
+  renderLogStats(__activityLogs);renderLogs();
+  if(showToast)toast(lang==='fa'?'لاگ‌ها بروزرسانی شدند':'Activity logs refreshed');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLogDetail()});
 function statsHoursFromMap(map){
   const out=[];for(let h=0;h<24;h++){const key=String(h).padStart(2,'0')+':00';out.push({label:key,value:Number(map?.[key]||0)})}return out;
 }

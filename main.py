@@ -255,7 +255,7 @@ PROTOCOLS: list[str] = []
 PROTOCOL_LABELS = {
     "vless-ws": "ONEX WB",
     "xhttp-packet-up": "ONEX Xhttp",
-    "xhttp-stream-up": "ONEX Gaming",
+    "xhttp-stream-up": "ONEX Gamig",
     "xhttp-stream-one": "ONEX Stream",
     "trojan": "Trojan",
     "shadowsocks": "Shadowsocks",
@@ -2319,7 +2319,7 @@ class="btn secondary"
 <div class="footer">
 
 <span>
-ONEX Panel · __ONEX_VERSION__
+PX Panel · 13.8.0
 </span>
 
 <a
@@ -5806,7 +5806,7 @@ async def public_sub_page(
         )
 
     return HTMLResponse(
-        PUBLIC_SUB_HTML.replace("__ONEX_VERSION__", str(APP_VERSION))
+        PUBLIC_SUB_HTML
     )
 
 
@@ -7041,7 +7041,7 @@ async def backup_bot(token=Depends(require_auth)):
     except Exception:
         data = {}
     payload = {
-        "type": "onex_bot_backup",
+        "type": "pxpanel_bot_backup",
         "version": APP_VERSION,
         "created_at": datetime.now().isoformat(),
         "telegram": data,
@@ -7051,7 +7051,7 @@ async def backup_bot(token=Depends(require_auth)):
         content=body,
         media_type="application/json",
         headers={
-            "Content-Disposition": f'attachment; filename="onex-bot-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
+            "Content-Disposition": f'attachment; filename="pxpanel-bot-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
         },
     )
 
@@ -8396,7 +8396,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <div class="nav-sec" data-i18n="sec_sys">سیستـم</div>
     <button class="nav-item" data-page="telegram" data-perm="telegram">
       <svg class="nav-ico nav-ico-telegram" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m6.5 12 11-4-3.2 8-2.1-3-3.2-1Z"/><path d="m12.2 13 2.1-2.2"/></svg>
-      <span class="nav-label" data-i18n="nav_telegram">ربات ONEX</span>
+      <span class="nav-label" data-i18n="nav_telegram">پی ایکس بات</span>
     </button>
     <button class="nav-item" data-page="news" data-perm="news">
       <svg class="nav-ico nav-ico-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 8h8M8 12h5M8 16h8"/><path d="m15 12 1.5 1.5L19 11"/></svg>
@@ -9412,7 +9412,7 @@ html:not(.light) .range-tab.on,html.light .range-tab.on{
     <div>
       <div class="page-title">
         <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.2-1.86 8.77c-.14.62-.5.77-1.01.48l-2.8-2.06-1.35 1.3c-.15.15-.27.27-.55.27l.2-2.84 5.18-4.68c.22-.2-.05-.31-.35-.12l-6.4 4.03-2.76-.86c-.6-.19-.61-.6.12-.89l10.78-4.16c.5-.18.94.12.78.86z"/></svg>
-        <span data-i18n="nav_telegram">ربات ONEX</span>
+        <span data-i18n="nav_telegram">پی ایکس بات</span>
       </div>
       <div class="page-sub" data-i18n="tg_sub">توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک</div>
     </div>
@@ -9629,11 +9629,6 @@ async function refreshAll(){
   const ipEl=document.getElementById('serverIp'); if(ipEl) ipEl.textContent=location.hostname||'—';
   const chartEl=document.getElementById('chartTraffic'); if(chartEl) chartEl.textContent=fmtB(used);
   const upEl=document.getElementById('topUptime'); const mu=document.getElementById('mUptime'); if(upEl && mu) upEl.textContent='Uptime: '+mu.textContent;
-  }catch(e){
-    toast(lang==='fa'?'خطا در بروزرسانی اطلاعات':'Failed to refresh data');
-  }finally{
-    __refreshBusy=false;
-  }
 }
 
 function renderOnexRecent(arr){
@@ -10386,8 +10381,8 @@ async function restoreBot(){
 const PROTOCOL_PICKER_GROUPS=[
   {title:'',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']}
 ];
-const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gaming","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
-const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP (Packet Up)","xhttp-stream-up":"VLESS + XHTTP (Gaming)","xhttp-stream-one":"VLESS + XHTTP","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
+const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gamig","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
+const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP (Packet-Up)","xhttp-stream-up":"VLESS + XHTTP (Gaming / Stream-Up)","xhttp-stream-one":"VLESS + XHTTP (Stream-One)","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
 const PROTOCOL_3D_ICONS={
   "vless-ws":{c1:"#24a9ff",c2:"#1264ff",c3:"#6d3cff",mark:"V",glow:"#168cff"},
   "xhttp-packet-up":{c1:"#35c8ff",c2:"#0877d8",c3:"#3155ff",mark:"XP",glow:"#21b8ff"},

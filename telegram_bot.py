@@ -38,8 +38,8 @@ from main import (
     activity_logs,
 )
 
-BOT_NAME = "پی ایکس بات"
-BOT_NAME_EN = "PX Bot"
+BOT_NAME = "اونیکس بات"
+BOT_NAME_EN = "ONEX Bot"
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 _admin_ids_raw = os.environ.get("TELEGRAM_ADMIN_IDS", "").strip()
@@ -61,10 +61,10 @@ _pending: dict = {}
 WIZARD_STEPS = ["label", "protocol", "fingerprint", "alpn", "port", "volume", "speed", "iplimit", "days"]
 
 PROTOCOL_LABELS = {
-    "vless-ws": "🟢 VLESS · WebSocket",
-    "xhttp-packet-up": "⚡ XHTTP packet-up",
-    "xhttp-stream-up": "⚡ XHTTP stream-up",
-    "xhttp-stream-one": "⚡ XHTTP stream-one",
+    "vless-ws": "🟢 Onex · WebSocket",
+    "xhttp-":Onex Stream "⚡ XHTTP ",
+    "xhttp-Onex Gaming": "⚡ XHTTP ",
+    "xhttp-Onex GPT": "⚡ XHTTP ",
     "vmess-ws": "🔵 VMess · WS",
     "trojan-ws": "🟠 Trojan · WS",
     "shadowsocks": "🟣 Shadowsocks",

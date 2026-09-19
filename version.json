@@ -1,12 +1,16 @@
 {
-  "version": "1.1.0",
-  "title": "ONEX 1.1.0",
-  "message": "افزوده شدن backend بومی sing-box برای پروتکل‌های جدید و ساخت اشتراک همه‌پروتکل‌ها.",
+  "version": "1.2.0",
+  "title": "ONEX 1.2.0 — Advanced Native Runtime",
+  "message": "اتصال کامل تنظیمات پیشرفته پنل به Listenerهای native sing-box با اعتبارسنجی، Preview، اعمال اتمیک و Rollback.",
   "changelog": [
-    "افزوده شدن Trojan، Shadowsocks، SOCKS5، HTTP، Hysteria2 و VLESS gRPC Reality با backend واقعی sing-box",
-    "پشتیبانی از پورت جداگانه برای listenerهای native",
-    "اتصال گزینه ساخت همه پروتکل‌ها به Subscription واحد",
-    "پشتیبانی از دانلود خودکار sing-box در Linux amd64/arm64"
+    "اتصال تنظیمات Advanced به Listenerهای واقعی sing-box",
+    "پشتیبانی از چند پورت با Listener مستقل و تشخیص Conflict",
+    "اعتبارسنجی sing-box قبل از اعمال",
+    "Atomic deploy و rollback خودکار در صورت خطای runtime",
+    "افزوده شدن API وضعیت، Preview، Validate و Reload برای Native Core",
+    "افزوده شدن وضعیت Supported/Applied برای تنظیمات Advanced",
+    "پشتیبانی از تنظیمات Listener، TLS/Reality، Routing، Transport، Shadowsocks و Hysteria2",
+    "حذف secret محیط قبلی از بسته توزیع"
   ],
   "published_at": "2026-09-17"
 }

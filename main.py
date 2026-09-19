@@ -9629,6 +9629,11 @@ async function refreshAll(){
   const ipEl=document.getElementById('serverIp'); if(ipEl) ipEl.textContent=location.hostname||'—';
   const chartEl=document.getElementById('chartTraffic'); if(chartEl) chartEl.textContent=fmtB(used);
   const upEl=document.getElementById('topUptime'); const mu=document.getElementById('mUptime'); if(upEl && mu) upEl.textContent='Uptime: '+mu.textContent;
+  }catch(e){
+    toast(lang==='fa'?'خطا در بروزرسانی اطلاعات':'Failed to refresh data');
+  }finally{
+    __refreshBusy=false;
+  }
 }
 
 function renderOnexRecent(arr){

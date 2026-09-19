@@ -39,7 +39,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.3.1"
+APP_VERSION = "1.2.0"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -118,7 +118,6 @@ RAILWAY_API_URL = os.environ.get("RAILWAY_API_URL", "https://backboard.railway.c
 RAILWAY_API_TOKEN = os.environ.get("RAILWAY_API_TOKEN", "").strip()
 RAILWAY_SERVICE_ID = os.environ.get("RAILWAY_SERVICE_ID", "").strip()
 RAILWAY_ENVIRONMENT_ID = os.environ.get("RAILWAY_ENVIRONMENT_ID", "").strip()
-ONEX_CURRENT_COMMIT_SHA = os.environ.get("RAILWAY_GIT_COMMIT_SHA", os.environ.get("ONEX_COMMIT_SHA", "")).strip()
 
 
 # ============================================================
@@ -131,15 +130,6 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
-
-
-@app.get("/api/onex-logo-3d.png", include_in_schema=False)
-async def onex_logo_3d():
-    """Serve the approved high-detail ONEX 3D brand mark."""
-    path = BASE_DIR / "onex-logo-3d.png"
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="ONEX logo not found")
-    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.get("/api/protocol-icon/{protocol_id}.png", include_in_schema=False)
@@ -241,8 +231,6 @@ stats = {
     "total_bytes": 0,
     "total_requests": 0,
     "total_errors": 0,
-    "upload_bytes": 0,
-    "download_bytes": 0,
     "start_time": time.time(),
 }
 
@@ -250,7 +238,6 @@ error_logs = deque(maxlen=100)
 activity_logs = deque(maxlen=250)
 
 hourly_traffic = defaultdict(int)
-hourly_upload = defaultdict(int)
 
 http_client: httpx.AsyncClient | None = None
 
@@ -268,7 +255,7 @@ PROTOCOLS: list[str] = []
 PROTOCOL_LABELS = {
     "vless-ws": "ONEX WB",
     "xhttp-packet-up": "ONEX Xhttp",
-    "xhttp-stream-up": "ONEX Gamig",
+    "xhttp-stream-up": "ONEX Gaming",
     "xhttp-stream-one": "ONEX Stream",
     "trojan": "Trojan",
     "shadowsocks": "Shadowsocks",
@@ -1183,49 +1170,6 @@ def vless_link_for_link(
     )
 
 
-def group_subscription_lines_for_link(
-    link: dict, uid: str, host: str, protocols, used_names: set[str] | None = None,
-):
-    """Expand one group member into every protocol enabled for the group."""
-    selected = [normalize_protocol(str(p)) for p in (protocols or [])]
-    selected = [p for p in selected if p in PROTOCOLS]
-    if not selected:
-        return []
-    names = used_names if used_names is not None else set()
-    cfg_count = 1 if link.get("all_protocols") else max(1, min(40, int(link.get("config_count") or 1)))
-    clean_ips = list(link.get("clean_ips") or [])
-    if clean_ips:
-        hosts = []
-        while len(hosts) < cfg_count:
-            hosts.extend(clean_ips)
-        hosts = hosts[:cfg_count]
-    else:
-        hosts = [host] * cfg_count
-    lines = []
-    base_label = str(link.get("label") or "Config")
-    for index, target_host in enumerate(hosts, 1):
-        for proto in selected:
-            remark = f"{base_label} | {PROTOCOL_LABELS.get(proto, proto)}"
-            if cfg_count > 1:
-                remark += f" #{index}"
-            if remark in names:
-                n = 2
-                candidate = f"{remark} ({n})"
-                while candidate in names:
-                    n += 1
-                    candidate = f"{remark} ({n})"
-                remark = candidate
-            names.add(remark)
-            lines.append(generate_vless_link(
-                uid, target_host, remark=remark, protocol=proto,
-                fingerprint=link.get("fingerprint", DEFAULT_FINGERPRINT),
-                alpn=DEFAULT_ALPN_BY_PROTOCOL.get(proto, link.get("alpn")),
-                port=protocol_public_port(link, proto, link.get("port", DEFAULT_PORT)),
-                link=link,
-            ))
-    return lines
-
-
 def get_link_info(
     link: dict,
     uid: str,
@@ -1269,7 +1213,6 @@ def get_link_info(
         "sort_order": int(link.get("sort_order") or 0),
         "category_number": int(cat.get("number", 0)),
         "category_name": str(cat.get("name", "عمومی")),
-        "sub_id": str(link.get("sub_id") or ""),
         "config_count": cfg_count,
         "status_color": status_color,
         "connected_ips": connected_count,
@@ -1834,18 +1777,8 @@ async def create_sub_group(
         "created_at":
             datetime.now().isoformat(),
 
-        # Group activity is independent from the number/state of its configs.
-        # A newly-created group is active by default; configs are its contents,
-        # not its on/off switch.
-        "active":
-            True,
-
         "link_ids":
             [],
-
-        # Protocol visibility rules for this subscription group.
-        # Existing groups without this field remain backward-compatible (all protocols).
-        "protocols": list(PROTOCOLS),
     }
 
     async with SUBS_LOCK:
@@ -2322,77 +2255,6 @@ table th:first-child, table td:first-child{overflow:visible}
 }
 
 
-
-<style>
-/* ONEX animated 3D logo — approved high-detail brand mark */
-.sb-logo-icon,
-.mob-brand-icon{
-  position:relative!important;
-  overflow:visible!important;
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-  transform-style:preserve-3d!important;
-  perspective:900px!important;
-  isolation:isolate!important;
-}
-.sb-logo-icon:before,
-.mob-brand-icon:before{
-  content:""!important;
-  position:absolute!important;
-  inset:-18%!important;
-  border-radius:50%!important;
-  background:conic-gradient(from 0deg,rgba(0,210,255,0),rgba(0,210,255,.22),rgba(168,85,247,.24),rgba(255,45,140,.18),rgba(0,210,255,0))!important;
-  filter:blur(14px)!important;
-  opacity:.55!important;
-  z-index:-1!important;
-  animation:onexAura 5.5s linear infinite!important;
-  pointer-events:none!important;
-}
-.sb-logo-icon:after,
-.mob-brand-icon:after{
-  content:""!important;
-  position:absolute!important;
-  left:10%!important;
-  right:10%!important;
-  bottom:-3%!important;
-  height:16%!important;
-  border-radius:50%!important;
-  background:radial-gradient(ellipse,rgba(0,140,255,.34),rgba(168,85,247,.12) 45%,transparent 72%)!important;
-  filter:blur(7px)!important;
-  z-index:-1!important;
-  animation:onexShadow 4.8s ease-in-out infinite!important;
-  pointer-events:none!important;
-}
-.sb-logo-icon img,
-.mob-brand-icon img{
-  position:relative!important;
-  z-index:2!important;
-  width:100%!important;
-  height:100%!important;
-  object-fit:contain!important;
-  object-position:center!important;
-  display:block!important;
-  border-radius:0!important;
-  background:transparent!important;
-  filter:drop-shadow(0 10px 13px rgba(0,65,255,.28)) drop-shadow(0 0 15px rgba(0,210,255,.18))!important;
-  transform-style:preserve-3d!important;
-  transform-origin:center center!important;
-  animation:onexLogo3D 5.8s cubic-bezier(.45,.05,.55,.95) infinite!important;
-  will-change:transform,filter!important;
-}
-@keyframes onexLogo3D{
-  0%,100%{transform:perspective(900px) rotateX(2deg) rotateY(-10deg) rotateZ(-1deg) translate3d(0,0,0) scale(1);filter:drop-shadow(0 10px 13px rgba(0,65,255,.28)) drop-shadow(0 0 15px rgba(0,210,255,.18));}
-  20%{transform:perspective(900px) rotateX(-4deg) rotateY(7deg) rotateZ(1deg) translate3d(1px,-2px,8px) scale(1.025);filter:drop-shadow(-4px 12px 15px rgba(0,65,255,.34)) drop-shadow(0 0 20px rgba(0,210,255,.30));}
-  40%{transform:perspective(900px) rotateX(5deg) rotateY(13deg) rotateZ(0deg) translate3d(0,-5px,18px) scale(1.055);filter:drop-shadow(-7px 15px 18px rgba(0,65,255,.38)) drop-shadow(0 0 25px rgba(168,85,247,.28));}
-  60%{transform:perspective(900px) rotateX(-3deg) rotateY(-5deg) rotateZ(-1deg) translate3d(-1px,-3px,12px) scale(1.035);filter:drop-shadow(5px 13px 16px rgba(0,65,255,.34)) drop-shadow(0 0 21px rgba(255,45,140,.22));}
-  80%{transform:perspective(900px) rotateX(3deg) rotateY(-13deg) rotateZ(1deg) translate3d(0,-1px,6px) scale(1.018);filter:drop-shadow(7px 11px 14px rgba(0,65,255,.32)) drop-shadow(0 0 19px rgba(0,210,255,.28));}
-}
-@keyframes onexAura{0%{transform:rotate(0deg) scale(.88);opacity:.30}50%{transform:rotate(180deg) scale(1.12);opacity:.68}100%{transform:rotate(360deg) scale(.88);opacity:.30}}
-@keyframes onexShadow{0%,100%{transform:scale(.88);opacity:.28}50%{transform:scale(1.12);opacity:.52}}
-@media (prefers-reduced-motion:reduce){.sb-logo-icon:before,.sb-logo-icon:after,.mob-brand-icon:before,.mob-brand-icon:after,.sb-logo-icon img,.mob-brand-icon img{animation:none!important}}
-</style>
-
 </head>
 
 <body>
@@ -2457,7 +2319,7 @@ class="btn secondary"
 <div class="footer">
 
 <span>
-PX Panel · 13.8.0
+ONEX Panel · __ONEX_VERSION__
 </span>
 
 <a
@@ -3459,15 +3321,6 @@ async def create_link_api(
     all_protocols = bool(body.get("all_protocols", False))
     if all_protocols:
         config_count = 1
-    sub_id = str(body.get("sub_id") or "").strip() or None
-    if sub_id:
-        async with SUBS_LOCK:
-            target_sub = deepcopy(SUBS.get(sub_id)) if sub_id in SUBS else None
-        if not target_sub:
-            raise HTTPException(status_code=404, detail="گروه اشتراک پیدا نشد")
-        allowed = set(target_sub.get("protocols") or PROTOCOLS)
-        if not all_protocols and protocol not in allowed:
-            raise HTTPException(status_code=400, detail="پروتکل انتخابی در این گروه فعال نیست؛ ابتدا آن را از مدیریت گروه فعال کنید")
     advanced = normalize_advanced_config(body.get("advanced"))
     # Advanced UI is authoritative for the duplicate legacy fields when provided.
     if isinstance(body.get("advanced"), dict):
@@ -3508,7 +3361,9 @@ async def create_link_api(
             "note",
             "",
         ),
-        sub_id=sub_id,
+        sub_id=body.get(
+            "sub_id"
+        ),
         protocol=protocol,
         fingerprint=fingerprint,
         alpn=body.get(
@@ -4017,10 +3872,7 @@ async def update_link(
                 )
             )
 
-        if "expires_at" in body:
-            raw_exp = body.get("expires_at")
-            link["expires_at"] = str(raw_exp).strip()[:80] if raw_exp else None
-        elif "expires_days" in body:
+        if "expires_days" in body:
 
             days = safe_int(
                 body.get(
@@ -4147,20 +3999,6 @@ async def update_link(
                 if protocol in PROTOCOLS
                 else DEFAULT_PROTOCOL
             )
-            link["protocol_label"] = PROTOCOL_LABELS.get(link["protocol"], link["protocol"])
-
-        if "config_count" in body:
-            link["config_count"] = safe_int(
-                body.get("config_count", 1),
-                default=1,
-                minimum=1,
-                maximum=40,
-            )
-
-        if "all_protocols" in body:
-            link["all_protocols"] = bool(body.get("all_protocols"))
-            if link["all_protocols"]:
-                link["config_count"] = 1
 
         if "fragment" in body:
 
@@ -5412,18 +5250,27 @@ async def list_subs_api(
             [],
         )
 
-        # A member config is counted once; enabled group protocols only
-        # control how many protocol variants are emitted to the subscription.
-        visible_ids = [lid for lid in link_ids if lid in snapshot_links]
         active_count = sum(
             1
-            for lid in visible_ids
-            if is_link_allowed(snapshot_links.get(lid))
+            for lid in link_ids
+            if is_link_allowed(
+                snapshot_links.get(
+                    lid
+                )
+            )
         )
 
         total_used = sum(
-            snapshot_links[lid].get("used_bytes", 0)
-            for lid in visible_ids
+            snapshot_links[
+                lid
+            ].get(
+                "used_bytes",
+                0,
+            )
+
+            for lid in link_ids
+
+            if lid in snapshot_links
         )
 
         result.append(
@@ -5441,13 +5288,8 @@ async def list_subs_api(
                         "password_hash"
                     ) is not None,
 
-                "protocols": list(sub.get("protocols", PROTOCOLS)),
-
                 "links_count":
                     len(link_ids),
-
-                "active":
-                    bool(sub.get("active", True)),
 
                 "active_count":
                     active_count,
@@ -5538,15 +5380,11 @@ async def update_sub_api(
                 else None
             )
 
-        if "active" in body:
-            sub["active"] = bool(body.get("active"))
+        if "link_ids" in body:
 
-        if "protocols" in body:
-            raw_protocols = body.get("protocols") or []
-            if not isinstance(raw_protocols, list):
-                raw_protocols = []
-            allowed = {str(p) for p in PROTOCOLS}
-            sub["protocols"] = [str(p) for p in raw_protocols if str(p) in allowed]
+            sub["link_ids"] = list(
+                body["link_ids"]
+            )
 
     await save_state()
 
@@ -5631,53 +5469,6 @@ async def assign_link_to_sub(
     }
 
 
-@app.post("/api/subs/{sub_id}/sync")
-async def sync_sub_links(
-    sub_id: str,
-    request: Request,
-    _=Depends(require_auth),
-):
-    """Synchronize a subscription group's config membership in one request."""
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="JSON نامعتبر است")
-
-    raw_ids = body.get("link_ids") or []
-    if not isinstance(raw_ids, list):
-        raise HTTPException(status_code=400, detail="link_ids نامعتبر است")
-
-    desired = [str(x) for x in raw_ids if str(x)]
-    async with SUBS_LOCK:
-        if sub_id not in SUBS:
-            raise HTTPException(status_code=404, detail="sub not found")
-        previous = {str(x) for x in SUBS[sub_id].get("link_ids", [])}
-
-    async with LINKS_LOCK:
-        valid = [uid for uid in desired if uid in LINKS]
-        current_owner = {uid: LINKS[uid].get("sub_id") for uid in valid}
-
-    async with SUBS_LOCK:
-        # Remove desired links from any previous subscription group.
-        for other_id, other in SUBS.items():
-            if other_id == sub_id:
-                continue
-            ids = other.get("link_ids", [])
-            other["link_ids"] = [uid for uid in ids if str(uid) not in set(valid)]
-        SUBS[sub_id]["link_ids"] = valid
-
-    async with LINKS_LOCK:
-        for uid in valid:
-            if uid in LINKS:
-                LINKS[uid]["sub_id"] = sub_id
-        for uid in (previous - set(valid)):
-            if uid in LINKS and LINKS[uid].get("sub_id") == sub_id:
-                LINKS[uid]["sub_id"] = None
-
-    await save_state()
-    return {"ok": True, "link_ids": valid, "count": len(valid), "moved": len([u for u,v in current_owner.items() if v and v != sub_id])}
-
-
 # ============================================================
 # GROUP SUB
 # ============================================================
@@ -5708,12 +5499,6 @@ async def sub_group_subscription(
             detail="not found",
         )
 
-    if not bool(sub.get("active", True)):
-        raise HTTPException(
-            status_code=403,
-            detail="subscription group is inactive",
-        )
-
     if sub.get(
         "password_hash"
     ):
@@ -5740,15 +5525,30 @@ async def sub_group_subscription(
     async with LINKS_LOCK:
 
         lines = []
-        used_names: set[str] = set()
-        group_protocols = [p for p in sub.get("protocols", PROTOCOLS) if str(p) in PROTOCOLS]
 
-        for link_id in sub.get("link_ids", []):
-            link = LINKS.get(link_id)
-            if link and is_link_allowed(link):
-                lines.extend(group_subscription_lines_for_link(
-                    link, link_id, host, group_protocols, used_names
-                ))
+        for link_id in sub.get(
+            "link_ids",
+            [],
+        ):
+
+            link = LINKS.get(
+                link_id
+            )
+
+            if (
+                link
+                and is_link_allowed(
+                    link
+                )
+            ):
+
+                lines.append(
+                    vless_link_for_link(
+                        link,
+                        link_id,
+                        host,
+                    )
+                )
 
     content = (
         base64
@@ -5768,11 +5568,7 @@ async def sub_group_subscription(
     async with LINKS_LOCK:
         for link_id in valid_ids:
             link = LINKS.get(link_id)
-            if (
-                not link
-                or not is_link_allowed(link)
-                or link.get("protocol") not in set(sub.get("protocols", PROTOCOLS))
-            ):
+            if not link or not is_link_allowed(link):
                 continue
             total_used += int(link.get("used_bytes", 0) or 0)
             total_limit += int(link.get("limit_bytes", 0) or 0)
@@ -5824,238 +5620,153 @@ async def sub_group_subscription(
 PUBLIC_SUB_HTML = r"""
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ONEX Panel</title>
+
+<meta
+name="viewport"
+content="width=device-width,initial-scale=1"
+>
+
+<title>
+PX Panel
+</title>
+
 <style>
-:root{
-  --bg:#050a16;
-  --panel:#081427;
-  --line:rgba(90,170,255,.18);
-  --blue:#55a9ff;
-  --pink:#ff2d6f;
-  --text:#f7f9ff;
-  --muted:#9aa8bd;
+
+*{
+    box-sizing:border-box;
 }
-*{box-sizing:border-box}
-html,body{min-height:100%;margin:0}
+
 body{
-  min-height:100vh;
-  padding:24px 16px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:Arial,"Tahoma",sans-serif;
-  color:var(--text);
-  background:
-    radial-gradient(circle at 85% 5%,rgba(53,116,255,.20),transparent 34%),
-    radial-gradient(circle at 10% 90%,rgba(255,34,105,.10),transparent 30%),
-    linear-gradient(145deg,#040710,#071326 55%,#060a14);
+    margin:0;
+    min-height:100vh;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    padding:20px;
+
+    font-family:Arial,sans-serif;
+
+    color:#fff;
+
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(37,99,235,.17),
+            transparent 30%
+        ),
+        #07070a;
 }
-.shell{
-  width:100%;
-  max-width:570px;
-}
+
 .card{
-  position:relative;
-  overflow:hidden;
-  padding:28px;
-  border:1px solid rgba(105,178,255,.20);
-  border-radius:28px;
-  background:linear-gradient(145deg,rgba(10,25,48,.93),rgba(5,13,27,.94));
-  box-shadow:0 18px 55px rgba(0,0,0,.34),0 0 35px rgba(42,126,255,.08);
+    width:100%;
+    max-width:560px;
+
+    padding:28px;
+    border-radius:25px;
+
+    background:rgba(255,255,255,.045);
+
+    border:
+        1px solid
+        rgba(255,255,255,.08);
+
+    backdrop-filter:blur(25px);
 }
-.card:before{
-  content:"";
-  position:absolute;
-  top:0;left:8%;right:8%;height:1px;
-  background:linear-gradient(90deg,transparent,var(--blue),var(--pink),transparent);
+
+h1{
+    margin-top:0;
 }
-.brand{
-  display:flex;
-  align-items:center;
-  gap:14px;
-  margin-bottom:22px;
+
+.text{
+    color:rgba(255,255,255,.55);
+    line-height:2;
+    font-size:13px;
 }
-.logo{
-  width:54px;height:54px;
-  display:grid;place-items:center;
-  flex:none;
-  border-radius:17px;
-  background:linear-gradient(145deg,#257cff,#4f46e5);
-  border:1px solid rgba(117,194,255,.35);
-  box-shadow:0 8px 25px rgba(37,124,255,.20);
-  font-size:24px;font-weight:800;
-}
-.brand h1{margin:0;font-size:25px;letter-spacing:.2px}
-.brand p{margin:5px 0 0;color:var(--muted);font-size:12px}
-.status{
-  margin-right:auto;
-  padding:7px 11px;
-  border-radius:999px;
-  color:#76f0bd;
-  background:rgba(22,190,119,.10);
-  border:1px solid rgba(54,224,153,.22);
-  font-size:11px;
-  white-space:nowrap;
-}
-.status i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#35df96;margin-left:5px}
-.message{
-  padding:16px 18px;
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:17px;
-  background:rgba(255,255,255,.035);
-  color:#dce4f2;
-  line-height:1.9;
-  font-size:14px;
-}
-.version{display:block;color:#71b5ff;font-size:11px;margin-top:4px}
-.label{margin:22px 2px 9px;color:#8999b0;font-size:11px}
-.urlbox{
-  display:flex;
-  align-items:stretch;
-  gap:9px;
-  padding:7px;
-  border-radius:18px;
-  background:rgba(1,7,17,.62);
-  border:1px solid rgba(83,157,255,.17);
-}
+
 .url{
-  flex:1;
-  min-width:0;
-  padding:11px 12px;
-  border-radius:13px;
-  color:#9ccaff;
-  direction:ltr;
-  text-align:left;
-  word-break:break-all;
-  font-family:Consolas,monospace;
-  font-size:12px;
-  line-height:1.65;
+    margin-top:20px;
+    padding:14px;
+
+    border-radius:13px;
+
+    background:rgba(0,0,0,.22);
+
+    color:#93c5fd;
+
+    direction:ltr;
+    word-break:break-all;
+
+    font-family:Consolas,monospace;
 }
-.copy{
-  align-self:stretch;
-  min-width:76px;
-  border:1px solid rgba(255,45,111,.45);
-  border-radius:13px;
-  background:linear-gradient(135deg,#ff316f,#df1657);
-  color:white;
-  font:700 12px Arial;
-  cursor:pointer;
+
+.support{
+    display:inline-block;
+    margin-top:18px;
+
+    color:#60a5fa;
+    text-decoration:none;
 }
-.copy:active{transform:scale(.98)}
-.supportbar{
-  margin-top:18px;
-  display:flex;
-  align-items:center;
-  gap:13px;
-  padding:13px 15px;
-  border-radius:18px;
-  background:linear-gradient(110deg,rgba(255,38,106,.11),rgba(72,141,255,.09));
-  border:1px solid rgba(255,55,119,.20);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+
+.version{
+    color:#60a5fa;
+    font-size:11px;
 }
-.supporticon{
-  width:42px;height:42px;
-  display:grid;place-items:center;
-  border-radius:13px;
-  background:rgba(255,45,111,.12);
-  border:1px solid rgba(255,45,111,.30);
-  color:#ff5d8f;
-  font-size:20px;
-}
-.supporttext{flex:1;min-width:0}
-.supporttext strong{display:block;font-size:12px;margin-bottom:4px}
-.supporttext span{color:#8e9db2;font-size:11px}
-.supportbar a{
-  padding:9px 13px;
-  border-radius:11px;
-  color:#ff78a4;
-  border:1px solid rgba(255,45,111,.27);
-  background:rgba(255,45,111,.07);
-  text-decoration:none;
-  font-size:11px;
-  white-space:nowrap;
-}
-.footer{
-  margin-top:18px;
-  padding-top:14px;
-  border-top:1px solid rgba(255,255,255,.06);
-  display:flex;
-  justify-content:space-between;
-  gap:12px;
-  color:#66758b;
-  font-size:10px;
-}
-@media(max-width:480px){
-  body{padding:15px 11px}
-  .card{padding:20px;border-radius:24px}
-  .brand h1{font-size:22px}
-  .logo{width:48px;height:48px;border-radius:15px}
-  .status{font-size:10px;padding:6px 9px}
-  .urlbox{display:block}
-  .url{display:block;padding:10px 9px}
-  .copy{width:100%;height:42px}
-  .supportbar{align-items:flex-start}
-  .supportbar a{align-self:center}
-}
+
 </style>
 </head>
+
 <body>
-<main class="shell">
-  <section class="card">
-    <div class="brand">
-      <div class="logo">N</div>
-      <div>
-        <h1>ONEX Panel</h1>
-        <p>درگاه امن اشتراک گروه</p>
-      </div>
-      <div class="status"><i></i> آماده</div>
-    </div>
 
-    <div class="message">
-      اشتراک شما آماده است؛ لینک زیر را در کلاینت موردنظر خود وارد کنید.
-      <span class="version">نسخه سرویس 13.8.0</span>
-    </div>
+<div class="card">
 
-    <div class="label">لینک اشتراک</div>
-    <div class="urlbox">
-      <div class="url" id="subUrl"></div>
-      <button class="copy" id="copyBtn" type="button" onclick="copySubUrl()">کپی لینک</button>
-    </div>
+<h1>
+PX Panel
+</h1>
 
-    <div class="supportbar">
-      <div class="supporticon">✦</div>
-      <div class="supporttext">
-        <strong>پشتیبانی ONEX</strong>
-        <span>برای راهنمایی و دریافت پشتیبانی با ما در ارتباط باشید</span>
-      </div>
-      <a href="https://t.me/V2rayTun0" target="_blank" rel="noopener">@V2rayTun0</a>
-    </div>
+<div class="version">
+13.8.0
+</div>
 
-    <div class="footer">
-      <span>ONEX Subscription</span>
-      <span>© ONEX Panel</span>
-    </div>
-  </section>
-</main>
+<div class="text">
+اشتراک شما آماده است.
+</div>
+
+<div
+class="url"
+id="subUrl"
+></div>
+
+<a
+class="support"
+href="https://t.me/Pixonal"
+target="_blank"
+rel="noopener"
+>
+پشتیبانی @Pixonal
+</a>
+
+</div>
+
 <script>
-const url = location.origin + location.pathname.replace("/p/","/sub-group/");
-document.getElementById("subUrl").textContent = url;
-async function copySubUrl(){
-  const btn=document.getElementById("copyBtn");
-  try{
-    await navigator.clipboard.writeText(url);
-    btn.textContent="✓ کپی شد";
-  }catch(e){
-    const ta=document.createElement("textarea");
-    ta.value=url;document.body.appendChild(ta);ta.select();
-    document.execCommand("copy");ta.remove();btn.textContent="✓ کپی شد";
-  }
-  setTimeout(()=>btn.textContent="کپی لینک",1800);
-}
+
+const url =
+    location.origin +
+    location.pathname.replace(
+        "/p/",
+        "/sub-group/"
+    );
+
+document.getElementById(
+    "subUrl"
+).textContent = url;
+
 </script>
+
 </body>
 </html>
 """
@@ -6095,7 +5806,7 @@ async def public_sub_page(
         )
 
     return HTMLResponse(
-        PUBLIC_SUB_HTML
+        PUBLIC_SUB_HTML.replace("__ONEX_VERSION__", str(APP_VERSION))
     )
 
 
@@ -6131,9 +5842,6 @@ async def public_sub_data(
         )
 
     _, sub = entry
-
-    if not bool(sub.get("active", True)):
-        return JSONResponse({"active": False, "name": sub.get("name", "گروه")})
 
     has_password = (
         sub.get(
@@ -6188,7 +5896,6 @@ async def public_sub_data(
         if not link:
             continue
 
-        protocols = [p for p in (sub.get("protocols") or PROTOCOLS) if str(p) in PROTOCOLS]
         allowed = is_link_allowed(
             link
         )
@@ -6203,35 +5910,105 @@ async def public_sub_data(
             connection_count
         )
 
-        # Mirror the real group subscription: one public item per enabled
-        # protocol, while usage/limits stay attached to the same underlying config.
-        for proto in protocols:
-            links_out.append({
-                "uuid": link_id,
-                "label": link.get("label"),
-                "active": allowed,
-                "protocol": proto,
-                "used_bytes": link.get("used_bytes", 0),
-                "used_fmt": fmt_bytes(link.get("used_bytes", 0)),
-                "limit_bytes": link.get("limit_bytes", 0),
-                "limit_fmt": ("∞" if not link.get("limit_bytes", 0) else fmt_bytes(link["limit_bytes"])),
-                "expires_at": link.get("expires_at"),
-                "vless_link": generate_vless_link(
-                    link_id, host,
-                    remark=f"{link.get('label') or 'Config'} | {PROTOCOL_LABELS.get(proto, proto)}",
-                    protocol=proto,
-                    fingerprint=link.get("fingerprint", DEFAULT_FINGERPRINT),
-                    alpn=DEFAULT_ALPN_BY_PROTOCOL.get(proto, link.get("alpn")),
-                    port=protocol_public_port(link, proto, link.get("port", DEFAULT_PORT)),
-                    link=link,
-                ),
-                "sub_url": f"https://{host}/sub/{link_id}",
-                "info_url": f"https://{host}/info/{link_id}",
-                "connections": connection_count,
-                "ip_limit": link.get("ip_limit", 0),
-                "speed_limit_bytes": link.get("speed_limit_bytes", 0),
-                "connection_limit": link.get("connection_limit", 0),
-            })
+        links_out.append(
+            {
+                "uuid":
+                    link_id,
+
+                "label":
+                    link.get(
+                        "label"
+                    ),
+
+                "active":
+                    allowed,
+
+                "protocol":
+                    link.get(
+                        "protocol",
+                        DEFAULT_PROTOCOL,
+                    ),
+
+                "used_bytes":
+                    link.get(
+                        "used_bytes",
+                        0,
+                    ),
+
+                "used_fmt":
+                    fmt_bytes(
+                        link.get(
+                            "used_bytes",
+                            0,
+                        )
+                    ),
+
+                "limit_bytes":
+                    link.get(
+                        "limit_bytes",
+                        0,
+                    ),
+
+                "limit_fmt":
+                    (
+                        "∞"
+                        if not link.get(
+                            "limit_bytes",
+                            0,
+                        )
+                        else fmt_bytes(
+                            link[
+                                "limit_bytes"
+                            ]
+                        )
+                    ),
+
+                "expires_at":
+                    link.get(
+                        "expires_at"
+                    ),
+
+                "vless_link":
+                    vless_link_for_link(
+                        link,
+                        link_id,
+                        host,
+                    ),
+
+                "sub_url":
+                    (
+                        f"https://{host}"
+                        f"/sub/{link_id}"
+                    ),
+
+                "info_url":
+                    (
+                        f"https://{host}"
+                        f"/info/{link_id}"
+                    ),
+
+                "connections":
+                    connection_count,
+
+                "ip_limit":
+                    link.get(
+                        "ip_limit",
+                        0,
+                    ),
+
+                "speed_limit_bytes":
+                    link.get(
+                        "speed_limit_bytes",
+                        0,
+                    ),
+
+                "connection_limit":
+                    link.get(
+                        "connection_limit",
+                        0,
+                    ),
+            }
+        )
 
     total_used = sum(
         item["used_bytes"]
@@ -6463,15 +6240,6 @@ async def get_stats(
             stats[
                 "total_bytes"
             ],
-
-        "download_bytes":
-            stats.get("download_bytes", stats["total_bytes"]),
-
-        "upload_bytes":
-            stats.get("upload_bytes", 0),
-
-        "hourly_upload":
-            dict(hourly_upload),
 
         "total_requests":
             stats[
@@ -7072,7 +6840,6 @@ async def fetch_update_info():
             "commit_sha": sha,
             "repo": UPDATE_REPO,
             "branch": UPDATE_BRANCH,
-            "release_url": str(meta.get("release_url") or f"https://github.com/{UPDATE_REPO}/commits/{UPDATE_BRANCH}").strip(),
         }
 
 
@@ -7081,29 +6848,15 @@ async def api_update_check(token=Depends(require_auth)):
     try:
         remote = await fetch_update_info()
         remote_version = remote.get("version") or APP_VERSION
-        version_newer = _is_newer_version(remote_version, APP_VERSION)
-        commit_changed = bool(
-            remote.get("commit_sha")
-            and ONEX_CURRENT_COMMIT_SHA
-            and remote.get("commit_sha") != ONEX_CURRENT_COMMIT_SHA
-        )
-        # Version metadata remains the primary signal.  A commit change is a
-        # secondary signal for deployments where version.json was not bumped.
-        update_available = version_newer or commit_changed
         return {
             "ok": True,
             "current_version": APP_VERSION,
             "latest_version": remote_version,
-            "update_available": update_available,
-            "version_changed": version_newer,
-            "commit_changed": commit_changed,
-            "current_commit": ONEX_CURRENT_COMMIT_SHA or None,
-            "latest_commit": remote.get("commit_sha"),
+            "update_available": _is_newer_version(remote_version, APP_VERSION),
             "title": remote.get("title", ""),
             "message": remote.get("message", ""),
             "changelog": remote.get("changelog", []),
             "published_at": remote.get("published_at", ""),
-            "release_url": remote.get("release_url", ""),
             "configured": bool(RAILWAY_API_TOKEN and RAILWAY_SERVICE_ID and RAILWAY_ENVIRONMENT_ID),
         }
     except Exception as exc:
@@ -7114,7 +6867,6 @@ async def api_update_check(token=Depends(require_auth)):
             "latest_version": None,
             "update_available": False,
             "message": "بررسی نسخه جدید انجام نشد",
-            "error": str(exc),
         }
 
 
@@ -7130,16 +6882,13 @@ async def api_update_deploy(token=Depends(require_auth)):
     try:
         remote = await fetch_update_info()
         remote_version = remote.get("version") or APP_VERSION
-        version_newer = _is_newer_version(remote_version, APP_VERSION)
-        commit_changed = bool(remote.get("commit_sha") and ONEX_CURRENT_COMMIT_SHA and remote.get("commit_sha") != ONEX_CURRENT_COMMIT_SHA)
-        if not (version_newer or commit_changed):
+        if not _is_newer_version(remote_version, APP_VERSION):
             return {
                 "ok": True,
                 "update_available": False,
                 "message": "پنل شما آخرین نسخه را دارد",
                 "current_version": APP_VERSION,
                 "latest_version": remote_version,
-                "latest_commit": remote.get("commit_sha"),
             }
 
         commit_sha = remote.get("commit_sha")
@@ -7292,7 +7041,7 @@ async def backup_bot(token=Depends(require_auth)):
     except Exception:
         data = {}
     payload = {
-        "type": "pxpanel_bot_backup",
+        "type": "onex_bot_backup",
         "version": APP_VERSION,
         "created_at": datetime.now().isoformat(),
         "telegram": data,
@@ -7302,7 +7051,7 @@ async def backup_bot(token=Depends(require_auth)):
         content=body,
         media_type="application/json",
         headers={
-            "Content-Disposition": f'attachment; filename="pxpanel-bot-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
+            "Content-Disposition": f'attachment; filename="onex-bot-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
         },
     )
 
@@ -7399,68 +7148,6 @@ async def restore_bot(request: Request, token=Depends(require_auth)):
     return {"ok": True, "message": "ربات بازیابی و فعال شد"}
 
 
-
-# TELEGRAM DASHBOARD / MANAGEMENT API
-# ============================================================
-
-@app.get("/api/telegram/dashboard")
-async def api_tg_dashboard(_=Depends(require_auth)):
-    try:
-        from telegram_bot import get_dashboard_snapshot
-        return {"ok": True, **(await get_dashboard_snapshot())}
-    except Exception as exc:
-        logger.warning("telegram dashboard snapshot failed: %s", exc)
-        s = load_tg_settings()
-        return {"ok": True, "enabled": bool(s.get("enabled")), "users": [], "user_count": 0, "active_today": 0, "messages_today": 0, "webhook": bool(s.get("webhook")), "bot": {}, "error": str(exc)}
-
-@app.get("/api/telegram/users")
-async def api_tg_users(_=Depends(require_auth)):
-    try:
-        from telegram_bot import list_bot_users
-        return {"ok": True, "users": list_bot_users()}
-    except Exception as exc:
-        return {"ok": False, "users": [], "error": str(exc)}
-
-@app.post("/api/telegram/users/{user_id}/block")
-async def api_tg_user_block(user_id: int, request: Request, _=Depends(require_auth)):
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    try:
-        from telegram_bot import set_bot_user_blocked
-        ok = set_bot_user_blocked(user_id, bool(body.get("blocked", True)))
-        return {"ok": bool(ok)}
-    except Exception as exc:
-        raise HTTPException(400, detail=str(exc))
-
-@app.post("/api/telegram/broadcast")
-async def api_tg_broadcast(request: Request, _=Depends(require_auth)):
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(400, detail="invalid json")
-    text = str(body.get("message") or "").strip()
-    audience = str(body.get("audience") or "all").strip().lower()
-    if not text:
-        raise HTTPException(400, detail="message is required")
-    if len(text) > 4096:
-        raise HTTPException(400, detail="message is too long")
-    try:
-        from telegram_bot import broadcast_message
-        result = await broadcast_message(text, audience)
-        log_activity("telegram", f"پیام همگانی ارسال شد: {result.get('sent', 0)} موفق", "ok")
-        return {"ok": True, **result}
-    except Exception as exc:
-        raise HTTPException(502, detail=str(exc))
-
-@app.post("/api/telegram/test")
-async def api_tg_test(_=Depends(require_auth)):
-    try:
-        from telegram_bot import telegram_health
-        return {"ok": True, **(await telegram_health())}
-    except Exception as exc:
-        return {"ok": False, "error": str(exc)}
 
 # TELEGRAM SETTINGS API
 # ============================================================
@@ -7653,11 +7340,6 @@ async def http_proxy(
             )
         }
 
-        request_size = len(body or b"")
-        stats["upload_bytes"] = stats.get("upload_bytes", 0) + request_size
-        hour_key = now_ir().strftime("%H:00")
-        hourly_upload[hour_key] += request_size
-
         response = await http_client.request(
             method=request.method,
             url=target_url,
@@ -7665,13 +7347,19 @@ async def http_proxy(
             content=body,
         )
 
-        response_size = len(response.content)
-        stats["total_bytes"] += response_size
-        stats["download_bytes"] = stats.get("download_bytes", 0) + response_size
+        stats["total_bytes"] += len(
+            response.content
+        )
 
         stats["total_requests"] += 1
 
-        hourly_traffic[hour_key] += response_size
+        hourly_traffic[
+            now_ir().strftime(
+                "%H:00"
+            )
+        ] += len(
+            response.content
+        )
 
         output_headers = {
             key: value
@@ -7854,16 +7542,6 @@ body.en{font-family:'Inter',system-ui,sans-serif}
 .card{background:var(--card);border:1px solid var(--card-b);border-radius:var(--radius);padding:20px;margin-bottom:14px;box-shadow:var(--shadow);backdrop-filter:var(--glass);transition:border-color .2s,box-shadow .2s}
 .card-title{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .card-title svg{width:16px;height:16px;color:var(--accent2)}
-
-/* ============================================================
-   ONEX GROUP MANAGER — fast glass / neon red + blue
-   ============================================================ */
-.group-manager{min-width:0}.group-hero{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 20px;margin-bottom:14px;border:1px solid rgba(59,130,246,.24);border-radius:22px;background:linear-gradient(135deg,rgba(7,24,49,.96),rgba(7,13,27,.96));box-shadow:0 12px 30px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.04)}
-.group-hero-copy{display:flex;align-items:center;gap:13px;min-width:0}.group-hero-icon{width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;border-radius:17px;color:#60a5fa;background:rgba(37,99,235,.13);border:1px solid rgba(96,165,250,.32);box-shadow:0 0 24px rgba(37,99,235,.12)}.group-hero-icon svg{width:31px;height:31px}.group-hero-kicker{font-size:9px;letter-spacing:.16em;color:#60a5fa;font-weight:900}.group-hero h1{font-size:22px;font-weight:900;margin-top:3px}.group-hero p{font-size:10px;color:var(--t3);margin-top:4px}.group-stats{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}.group-stat{min-width:116px;height:58px;padding:9px 11px;border:1px solid rgba(96,165,250,.18);border-radius:15px;background:rgba(10,25,48,.78);display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr;column-gap:8px}.group-stat span{font-size:9px;color:var(--t3)}.group-stat b{font-size:18px;line-height:1.1;align-self:end}.group-stat i{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;color:#60a5fa;font-size:20px}.group-stat:nth-child(2) i{color:#22c55e}.group-create-btn{height:58px;padding:0 20px;border:1px solid rgba(255,38,104,.8);border-radius:15px;background:linear-gradient(135deg,#f43f70,#db185f);color:#fff;font:800 11px Vazirmatn,sans-serif;box-shadow:0 8px 24px rgba(225,29,72,.24);cursor:pointer}.group-create-btn span{font-size:18px;vertical-align:-2px;margin-left:5px}.group-create-btn:hover{filter:brightness(1.08)}
-.group-workspace{display:grid;grid-template-columns:minmax(0,1.28fr) minmax(360px,.72fr);gap:14px;align-items:stretch}.group-list-pane,.group-detail-pane{min-width:0;border:1px solid rgba(59,130,246,.18);border-radius:21px;background:linear-gradient(145deg,rgba(7,19,39,.94),rgba(5,11,23,.94));box-shadow:0 12px 30px rgba(0,0,0,.22);overflow:hidden}.group-list-toolbar{padding:12px;border-bottom:1px solid rgba(96,165,250,.12);display:flex;gap:10px;align-items:center;flex-wrap:wrap}.group-search{flex:1;min-width:190px;height:42px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid rgba(59,130,246,.32);border-radius:13px;background:rgba(2,9,22,.7)}.group-search svg{width:17px;color:#60a5fa;flex:0 0 auto}.group-search input{width:100%;border:0;background:none;outline:0;color:var(--t1);font:600 11px Vazirmatn,sans-serif}.group-filters{display:flex;gap:5px}.group-filter{height:34px;padding:0 11px;border:1px solid rgba(96,165,250,.16);border-radius:10px;background:rgba(255,255,255,.025);color:var(--t3);font:700 9px Vazirmatn,sans-serif;cursor:pointer}.group-filter.on{background:linear-gradient(135deg,#f43f70,#d61f61);border-color:#ff356f;color:#fff;box-shadow:0 5px 15px rgba(225,29,72,.2)}.group-filter em{display:inline-block;width:6px;height:6px;border-radius:50%;background:#22c55e;margin-right:3px}.group-filter[data-filter="inactive"] em{background:#ef4444}.group-cards-list{padding:11px;max-height:650px;overflow:auto}.group-card{position:relative;padding:14px;margin-bottom:9px;border:1px solid rgba(59,130,246,.28);border-radius:18px;background:linear-gradient(145deg,rgba(5,22,48,.94),rgba(4,12,27,.94));cursor:pointer;transition:border-color .16s,transform .16s,box-shadow .16s}.group-card:last-child{margin-bottom:0}.group-card:hover{border-color:rgba(96,165,250,.58);transform:translateY(-1px)}.group-card.selected{border-color:#21b9ff;box-shadow:0 0 0 1px rgba(33,185,255,.16),0 8px 22px rgba(37,99,235,.12)}.group-card-top{display:flex;align-items:center;gap:10px}.group-card-icon{width:48px;height:48px;flex:0 0 48px;border-radius:14px;display:grid;place-items:center;color:#ff2d73;border:1px solid rgba(255,45,115,.7);background:rgba(255,45,115,.06)}.group-card-icon svg{width:25px;height:25px}.group-card-main{min-width:0;flex:1}.group-card-title{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.group-card-title b{font-size:13px}.group-status{font-size:8px;font-weight:900;padding:3px 8px;border-radius:99px;background:rgba(34,197,94,.12);color:#34d399;border:1px solid rgba(34,197,94,.22)}.group-status.off{background:rgba(239,68,68,.11);color:#fb7185;border-color:rgba(239,68,68,.22)}.group-card-desc{font-size:9px;color:var(--t3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-card-menu{font-size:18px;color:var(--t3);padding:0 3px}.group-card-meta{display:flex;gap:12px;flex-wrap:wrap;margin:9px 0 10px 58px;color:var(--t3);font-size:9px}.group-card-meta strong{color:var(--t2);font-weight:800}
-.group-detail-pane{padding:14px;overflow:auto}.group-detail{display:flex;flex-direction:column;gap:10px}.group-detail-head{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid rgba(96,165,250,.12)}.group-detail-icon{width:53px;height:53px;border-radius:15px;display:grid;place-items:center;color:#ff2d73;border:1px solid rgba(255,45,115,.7);background:rgba(255,45,115,.07)}.group-detail-icon svg{width:28px;height:28px}.group-detail-title{min-width:0;flex:1}.group-detail-title h2{font-size:15px;font-weight:900}.group-detail-title p{font-size:9px;color:var(--t3);margin-top:3px}.group-three-dot{width:34px;height:34px;border:1px solid rgba(59,130,246,.25);border-radius:10px;background:rgba(255,255,255,.025);color:var(--t2);font-size:18px}.group-info-card,.group-link-card,.group-proto-card,.group-manage-card{border:1px solid rgba(59,130,246,.22);border-radius:16px;background:rgba(3,13,29,.7);padding:12px}.group-section-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}.group-section-head b{font-size:11px}.group-section-head span{font-size:8px;color:var(--t3)}.group-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.group-info-item{padding:8px 9px;border-radius:10px;background:rgba(15,42,78,.3);border:1px solid rgba(96,165,250,.1)}.group-info-item small{display:block;color:var(--t3);font-size:8px;margin-bottom:3px}.group-info-item b{font-size:10px}.group-link-line{display:grid;grid-template-columns:1fr 58px;gap:7px}.group-link-url{min-width:0;height:37px;padding:0 10px;display:flex;align-items:center;border:1px solid rgba(59,130,246,.28);border-radius:10px;background:rgba(2,8,20,.7);color:#9bd2ff;font:9px Inter,system-ui,sans-serif;direction:ltr;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-copy-btn{height:37px;border:1px solid rgba(255,45,115,.55);border-radius:10px;background:rgba(225,29,72,.16);color:#ff5a8d;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-link-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}.group-link-actions button{height:35px;border-radius:10px;border:1px solid rgba(96,165,250,.25);background:rgba(37,99,235,.13);color:#b9ddff;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-link-actions button:last-child{background:rgba(225,29,72,.12);border-color:rgba(255,45,115,.42);color:#ff6a98}.group-proto-list{display:flex;flex-direction:column}.group-proto-row{display:flex;align-items:center;gap:8px;min-height:38px;border-top:1px solid rgba(96,165,250,.09)}.group-proto-row:first-child{border-top:0}.group-proto-icon{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;background:rgba(37,99,235,.12);color:#60a5fa;overflow:hidden}.group-proto-icon img{width:22px;height:22px;object-fit:contain}.group-proto-copy{min-width:0;flex:1}.group-proto-copy b{display:block;font-size:9px}.group-proto-copy small{font-size:7px;color:var(--t3)}.group-proto-tag{font-size:7px;padding:3px 6px;border-radius:7px;background:rgba(37,99,235,.13);color:#93c5fd}.group-switch{position:relative;width:35px;height:20px;flex:0 0 35px}.group-switch input{display:none}.group-switch span{position:absolute;inset:0;border-radius:99px;background:#334155;cursor:pointer;transition:.15s}.group-switch span:before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.15s}.group-switch input:checked+span{background:#f43f70}.group-switch input:checked+span:before{transform:translateX(15px)}.group-manage-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}.group-manage-actions button{height:36px;border-radius:10px;font:800 9px Vazirmatn,sans-serif;cursor:pointer;border:1px solid rgba(59,130,246,.3);background:rgba(37,99,235,.13);color:#8fc8ff}.group-manage-actions button:nth-child(2),.group-manage-actions button:nth-child(3){background:rgba(225,29,72,.12);border-color:rgba(255,45,115,.4);color:#ff6a98}.group-configs-card{border:1px solid rgba(59,130,246,.22);border-radius:16px;background:rgba(3,13,29,.7);padding:12px}.group-config-list{max-height:190px;overflow:auto}.group-config-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(96,165,250,.08);font-size:9px}.group-config-row:first-child{border-top:0}.group-config-row input{accent-color:#f43f70}.group-config-row span{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.group-config-row small{color:var(--t3)}.group-config-save{margin-top:8px;width:100%;height:34px;border:1px solid rgba(255,45,115,.5);border-radius:10px;background:linear-gradient(135deg,#f43f70,#d61f61);color:#fff;font:800 9px Vazirmatn,sans-serif;cursor:pointer}.group-empty,.group-detail-empty{text-align:center;color:var(--t3);padding:45px 20px;font-size:10px}.group-detail-empty{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:400px;justify-content:center}.group-detail-empty-icon{width:52px;height:52px;display:grid;place-items:center;border-radius:15px;color:#60a5fa;border:1px solid rgba(96,165,250,.25);background:rgba(37,99,235,.1);font-size:22px;margin-bottom:5px}.group-detail-empty b{color:var(--t2);font-size:12px}.group-modal{width:min(460px,100%)}.group-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.modal-x{width:32px;height:32px;border:1px solid var(--card-b);border-radius:9px;background:rgba(255,255,255,.025);color:var(--t2);font-size:20px;cursor:pointer}.group-qr-modal{width:min(390px,100%)}.group-qr-box{display:grid;place-items:center;background:#fff;border-radius:15px;padding:15px;min-height:250px}.group-qr-box img{max-width:220px;height:auto}.group-qr-text{margin-top:9px;padding:9px;border-radius:10px;background:rgba(2,8,20,.8);border:1px solid rgba(96,165,250,.15);font:8px Inter,system-ui,sans-serif;color:#9bd2ff;word-break:break-all;text-align:center}
-@media(max-width:900px){.group-hero{align-items:flex-start;flex-direction:column}.group-stats{width:100%;justify-content:stretch}.group-stat{flex:1}.group-create-btn{flex:1}.group-workspace{grid-template-columns:1fr}.group-detail-pane{min-height:520px}.group-cards-list{max-height:none}}
-@media(max-width:600px){.group-hero{padding:13px;border-radius:16px}.group-hero-icon{width:44px;height:44px;flex-basis:44px;border-radius:13px}.group-hero-icon svg{width:24px}.group-hero h1{font-size:16px}.group-hero p{font-size:8px}.group-stats{display:grid;grid-template-columns:1fr 1fr}.group-create-btn{grid-column:1/-1;width:100%}.group-workspace{gap:9px}.group-list-pane,.group-detail-pane{border-radius:15px}.group-list-toolbar{padding:8px}.group-search{min-width:100%;height:38px}.group-filters{width:100%}.group-filter{flex:1}.group-card{padding:10px;border-radius:14px}.group-card-meta{margin-right:0;margin-left:0}.group-detail-pane{padding:9px}.group-info-grid{grid-template-columns:1fr 1fr}}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .action-card{cursor:pointer;transition:.2s;border:1px solid var(--card-b)}
 .action-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px);box-shadow:0 12px 28px rgba(59,130,246,.12)}
@@ -7915,6 +7593,23 @@ tr:hover td{background:var(--hover)}
 
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(90px);background:var(--bg2);border:1px solid var(--card-b);color:var(--t1);padding:13px 22px;border-radius:14px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:.3s;pointer-events:none;box-shadow:var(--shadow)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ONEX PERFORMANCE MODE — keep the visual language, remove GPU-heavy effects */
+html{scroll-behavior:auto!important}
+body:before{animation:none!important}
+.sidebar,.metric,.card,.support-tile,.modal,.sb-logo-icon{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.sidebar{box-shadow:0 8px 28px rgba(0,0,0,.20)!important}
+.metric,.card,.support-tile{box-shadow:0 6px 22px rgba(0,0,0,.16)!important}
+.page{animation:none!important}
+.action-card:hover,.support-tile:hover{transform:none!important}
+.sb-logo-icon{animation:none!important;transform:none!important}
+.sb-logo-icon:after{animation:none!important}
+.modal-bg{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.toast{box-shadow:0 8px 24px rgba(0,0,0,.22)!important}
+.table-wrap{contain:layout paint}
+.card,.metric,.support-tile{contain:layout paint}
+@media(max-width:700px){.main{padding:18px 12px 48px}.card,.metric,.support-tile{box-shadow:0 4px 16px rgba(0,0,0,.14)!important}}
+
 
 .switch{position:relative;display:inline-block;width:44px;height:26px;vertical-align:middle}
 .switch input{opacity:0;width:0;height:0}
@@ -8495,8 +8190,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
 .top-notify-panel{position:absolute;top:calc(100% + 9px);right:0;width:300px;max-width:min(300px,calc(100vw - 24px));z-index:1200;border:1px solid rgba(88,180,255,.24);border-radius:16px;background:linear-gradient(145deg,rgba(9,22,43,.96),rgba(2,9,20,.94));box-shadow:0 22px 70px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.07);backdrop-filter:blur(25px) saturate(130%);overflow:hidden}.top-notify-panel[hidden]{display:none}.notify-panel-head{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid rgba(122,180,235,.12);color:var(--t1);font-size:12px}.notify-panel-head button{border:0;background:transparent;color:var(--t3);font-size:20px;cursor:pointer;line-height:1}.notify-list{padding:8px;max-height:360px;overflow:auto}.notify-empty{padding:18px 10px;text-align:center;color:var(--t3);font-size:11px}.notify-item{padding:11px 12px;border:1px solid rgba(88,180,255,.15);border-radius:12px;background:rgba(22,140,255,.045);margin-bottom:7px}.notify-item-title{font-weight:800;color:var(--t1);font-size:12px;margin-bottom:5px}.notify-item-text{color:var(--t2);font-size:11px;line-height:1.8}.notify-item-meta{color:var(--t3);font-size:9px;margin-top:5px}.notify-update-btn{width:100%;border:0;border-radius:9px;padding:8px;background:linear-gradient(135deg,#2563eb,#6366f1);color:#fff;font:inherit;font-size:10px;font-weight:800;cursor:pointer;margin-top:9px}
 html.light .top-setting-group,html.light .top-notify-btn{background:#fff!important;border-color:rgba(15,23,42,.10)!important}html.light .top-setting-btn{color:#64748b}html.light .top-setting-btn:hover{background:#f1f5f9;color:#0f172a}html.light .top-notify-panel{background:#fff!important;border-color:rgba(15,23,42,.10)!important;box-shadow:0 18px 50px rgba(15,23,42,.14)!important;backdrop-filter:none}
 @media(max-width:700px){.notify-label{display:none}.top-notify-btn{padding:7px 8px}.top-notify-panel{right:-42px;width:290px}}
-\n.cfg-page-hero{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}.cfg-hero-actions{display:flex;gap:8px}.cfg-hero-actions .btn{height:42px;width:42px;padding:0;display:grid;place-items:center}.cfg-primary-btn{height:42px;padding:0 16px;border-radius:13px;border:1px solid rgba(255,92,126,.75);background:linear-gradient(135deg,#ff315f,#d91f61);color:#fff;font:900 11px Vazirmatn,sans-serif;box-shadow:0 10px 26px rgba(255,31,92,.24);cursor:pointer}.cfg-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}.cfg-stat-card{min-height:92px;padding:13px;border-radius:18px;border:1px solid rgba(74,151,255,.24);background:linear-gradient(145deg,rgba(8,27,56,.9),rgba(3,12,27,.86));box-shadow:0 12px 28px rgba(0,0,0,.2);display:flex;align-items:center;gap:11px}.cfg-stat-icon{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:20px;font-weight:900;background:rgba(37,99,235,.12);border:1px solid rgba(96,165,250,.28);color:#63c8ff}.cfg-stat-card.purple .cfg-stat-icon{color:#b48cff}.cfg-stat-card.blue .cfg-stat-icon{color:#60a5fa}.cfg-stat-card.pink .cfg-stat-icon{color:#ff67a4}.cfg-stat-card small{display:block;color:var(--t3);font-size:9px;margin-bottom:4px}.cfg-stat-card b{display:block;font-size:20px;color:#f8fbff}.cfg-tools{display:flex;gap:9px;margin-bottom:9px;align-items:stretch}.cfg-search-box{height:48px;flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid rgba(64,155,255,.3);border-radius:15px;background:linear-gradient(145deg,rgba(5,21,43,.82),rgba(2,10,24,.68));box-shadow:inset 0 1px rgba(255,255,255,.035)}.cfg-search-box>span{font-size:23px;color:#70b6ff;flex:0 0 auto}.cfg-search-box input{width:100%;min-width:0;border:0;outline:0;background:none;color:var(--t1);font:600 11px Vazirmatn,sans-serif}.cfg-filter-btn{width:48px;height:48px;flex:0 0 48px;border-radius:15px;border:1px solid rgba(64,155,255,.3);background:linear-gradient(145deg,rgba(5,21,43,.82),rgba(2,10,24,.68));color:#7fbfff;font-size:20px;cursor:pointer;transition:.18s ease}.cfg-filter-btn:hover{border-color:rgba(96,165,250,.6);transform:translateY(-1px)}.cfg-filter-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;max-height:100px;opacity:1;overflow:hidden;transform:none;transition:max-height .22s ease,opacity .18s ease,transform .22s ease}.cfg-filter-row.open{max-height:150px}.cfg-select{height:42px;min-width:0;border-radius:13px;border:1px solid rgba(64,155,255,.25);background:rgba(4,17,36,.72);color:var(--t2);font:700 9px Vazirmatn,sans-serif;cursor:pointer;transition:.18s ease}.cfg-select b{color:#f8fbff;margin:0 5px}.cfg-select.on{border-color:rgba(64,155,255,.62);background:linear-gradient(135deg,rgba(37,99,235,.18),rgba(9,31,62,.8));box-shadow:0 7px 18px rgba(37,99,235,.08)}.cfg-filter-row .cfg-select:nth-child(n+3){display:none}.cfg-filter-row.open .cfg-select:nth-child(n+3){display:block}.cfg-list-shell{border:1px solid rgba(64,155,255,.23);border-radius:21px;background:linear-gradient(145deg,rgba(5,20,42,.72),rgba(2,10,23,.76));box-shadow:0 18px 42px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.045);overflow:hidden;padding-bottom:10px}.cfg-list-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border-bottom:1px solid rgba(96,165,250,.12)}.cfg-list-head b{font-size:13px;color:#f8fbff}.cfg-list-head small{color:var(--t3);font-size:9px;margin-right:8px}.cfg-check-all{display:flex;align-items:center;gap:6px;color:var(--t3);font-size:9px;white-space:nowrap}.cfg-check-all input{width:15px;height:15px;accent-color:#ff2d68}.cfg-cards{padding:11px}.cfg-card{position:relative;display:grid;grid-template-columns:58px minmax(0,1fr) 190px 30px;align-items:center;gap:12px;padding:12px 10px;margin-bottom:9px;border:1px solid rgba(41,133,245,.38);border-radius:18px;background:linear-gradient(145deg,rgba(4,23,50,.92),rgba(3,12,28,.94));box-shadow:inset 0 1px rgba(255,255,255,.035),0 9px 25px rgba(0,0,0,.16);transition:border-color .18s ease,box-shadow .18s ease}.cfg-card:last-child{margin-bottom:0}.cfg-card:hover{border-color:rgba(70,168,255,.62);box-shadow:inset 0 1px rgba(255,255,255,.045),0 12px 30px rgba(0,0,0,.2)}.cfg-card.expired{border-color:rgba(255,45,112,.42)}.cfg-proto-icon{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:rgba(1,9,22,.78);border:1px solid rgba(52,148,255,.48);overflow:hidden}.cfg-proto-icon img{width:100%;height:100%;object-fit:contain}.cfg-main{min-width:0}.cfg-name-row{display:flex;align-items:center;gap:7px;min-width:0}.cfg-name-row b{font-size:13px;color:#f8fbff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cfg-edit-dot{width:28px;height:28px;display:grid;place-items:center;flex:0 0 28px;border:1px solid rgba(89,173,255,.18);border-radius:9px;background:rgba(59,130,246,.08);color:#59adff;cursor:pointer;transition:.18s ease}.cfg-edit-dot:hover{background:rgba(59,130,246,.16);border-color:rgba(89,173,255,.45)}.cfg-proto{font-size:10px;color:#79baff;margin-top:3px}.cfg-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;color:#8fa6c3;font-size:9px}.cfg-meta span{display:inline-flex;gap:4px}.cfg-meta i{color:#55a9ff;font-style:normal}.cfg-side{border-right:1px solid rgba(96,165,250,.12);padding-right:13px}.cfg-status{display:inline-flex;gap:5px;padding:5px 10px;border-radius:999px;font-size:9px;font-weight:900;background:rgba(16,185,129,.12);border:1px solid rgba(52,211,153,.27);color:#38e0ad}.cfg-status i{width:6px;height:6px;border-radius:50%;background:#34e3b0}.cfg-status.bad{background:rgba(255,31,92,.11);border-color:rgba(255,69,112,.35);color:#ff7198}.cfg-status.bad i{background:#ff5b83}.cfg-usage{display:flex;align-items:center;gap:7px;margin-top:9px}.cfg-usage-ring{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#b84cff var(--pct),rgba(49,82,125,.32) 0);position:relative;flex:0 0 30px}.cfg-usage-ring:after{content:'';position:absolute;inset:5px;border-radius:50%;background:#06162d}.cfg-usage-ring span{position:relative;z-index:1;font-size:7px;color:#eaf4ff}.cfg-usage-copy{min-width:0}.cfg-usage-copy b{font-size:10px;color:#f1f6ff;white-space:nowrap}.cfg-usage-track{height:6px;width:110px;border-radius:99px;background:rgba(39,73,120,.45);overflow:hidden;margin-top:5px}.cfg-usage-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#8b5cf6,#ec35b8)}.cfg-menu-btn{width:32px;height:50px;border:1px solid transparent;border-radius:10px;background:rgba(59,130,246,.04);color:#5baaff;font-size:24px;cursor:pointer;transition:.18s ease}.cfg-menu-btn:hover,.cfg-menu-btn:focus-visible{background:rgba(59,130,246,.12);border-color:rgba(89,173,255,.2);outline:none}.cfg-menu{position:fixed;z-index:99999;width:236px;max-width:calc(100vw - 16px);padding:8px;border:1px solid rgba(96,175,255,.38);border-radius:18px;background:linear-gradient(145deg,rgba(9,27,53,.96),rgba(3,12,27,.97));box-shadow:0 24px 70px rgba(0,0,0,.66),0 0 35px rgba(37,99,235,.12),inset 0 1px rgba(255,255,255,.10);backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%);display:none}.cfg-menu.open{display:block;animation:cfgMenuIn .14s ease-out}.cfg-menu-head{padding:8px 10px 9px;margin-bottom:3px;border-bottom:1px solid rgba(148,190,240,.10);display:flex;flex-direction:column;gap:2px}.cfg-menu-head span{font-size:12px;font-weight:900;color:#f7fbff}.cfg-menu-head small{font-size:8px;color:rgba(190,211,237,.48)}.cfg-menu button{width:100%;height:43px;border:0;border-radius:11px;background:transparent;color:#e4efff;text-align:right;padding:0 13px;font:800 11px Vazirmatn,sans-serif;cursor:pointer;transition:.15s ease}.cfg-menu button:hover{background:rgba(67,146,244,.14);transform:translateX(-1px)}.cfg-menu button.danger{color:#ff7898}.cfg-menu button.danger:hover{background:rgba(255,45,95,.10)}.cfg-side-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.cfg-active-toggle{height:31px;min-width:78px;padding:0 10px;border-radius:999px;border:1px solid rgba(255,65,111,.38);background:linear-gradient(135deg,rgba(255,45,95,.20),rgba(205,24,77,.14));color:#ff7c9d;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:900 9px Vazirmatn,sans-serif;cursor:pointer;box-shadow:inset 0 1px rgba(255,255,255,.06),0 6px 18px rgba(255,31,92,.08);transition:.16s ease}.cfg-active-toggle:hover{transform:translateY(-1px);border-color:rgba(255,95,132,.68);box-shadow:inset 0 1px rgba(255,255,255,.08),0 9px 24px rgba(255,31,92,.16)}.cfg-active-toggle.on{background:linear-gradient(135deg,#ff315f,#d91f61);border-color:rgba(255,132,157,.78);color:#fff;box-shadow:0 8px 22px rgba(255,31,92,.22),inset 0 1px rgba(255,255,255,.16)}.cfg-active-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}.cfg-card:not(.expired) .cfg-active-toggle.on .cfg-active-dot{background:#fff;box-shadow:0 0 9px rgba(255,255,255,.8)}@keyframes cfgMenuIn{from{opacity:0;transform:translateY(-4px) scale(.985)}to{opacity:1;transform:none}}.cfg-card-check{position:absolute;left:9px;top:9px;z-index:2}.cfg-card-check input{width:15px;height:15px;accent-color:#ff2d68}.cfg-empty{text-align:center;padding:42px 20px;color:var(--t3);font-size:11px}.cfg-page-hero{padding:14px 16px;border-radius:22px;border:1px solid rgba(93,169,255,.20);background:linear-gradient(135deg,rgba(20,44,78,.46),rgba(6,17,35,.34));box-shadow:0 16px 38px rgba(0,0,0,.14),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%)}.cfg-page-hero .page-title{font-size:21px;font-weight:950}.cfg-page-hero .page-sub{font-size:11px;line-height:1.8}.cfg-stat-card,.cfg-search-box,.cfg-filter-btn,.cfg-list-shell,.cfg-card{backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%)}.cfg-stat-card{background:linear-gradient(145deg,rgba(16,40,75,.64),rgba(4,15,31,.58));border-color:rgba(105,177,255,.24);box-shadow:0 14px 34px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.07)}.cfg-search-box{background:linear-gradient(145deg,rgba(16,38,68,.64),rgba(3,13,28,.56));min-height:50px}.cfg-search-box input{font-size:13px}.cfg-filter-btn{background:linear-gradient(145deg,rgba(16,38,68,.64),rgba(3,13,28,.56))}.cfg-list-shell{background:linear-gradient(145deg,rgba(11,31,58,.58),rgba(2,11,25,.62));border-color:rgba(105,177,255,.25);box-shadow:0 20px 48px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.08)}.cfg-list-head{padding:15px 17px}.cfg-list-head b{font-size:15px}.cfg-list-head small,.cfg-check-all{font-size:10px}.cfg-card{padding:14px 12px;border-radius:21px;background:linear-gradient(145deg,rgba(13,39,73,.66),rgba(3,15,31,.68));border-color:rgba(89,166,255,.32);box-shadow:inset 0 1px rgba(255,255,255,.075),0 12px 32px rgba(0,0,0,.20)}.cfg-card:hover{box-shadow:inset 0 1px rgba(255,255,255,.10),0 16px 38px rgba(0,0,0,.24)}.cfg-name-row b{font-size:15px}.cfg-proto{font-size:11px}.cfg-meta{font-size:10px}.cfg-status{font-size:10px}.cfg-usage-copy b{font-size:11px}.cfg-list-head,.cfg-card{font-family:'Vazirmatn',sans-serif}.cfg-card-check input{width:18px;height:18px}.cfg-menu-btn{width:36px;height:54px;font-size:27px}.cfg-edit-dot{width:30px;height:30px;flex-basis:30px;font-size:15px}html.light .cfg-page-hero{background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(236,244,255,.62));border-color:rgba(37,99,235,.12);box-shadow:0 14px 36px rgba(30,64,175,.08),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-stat-card,html.light .cfg-search-box,html.light .cfg-filter-btn,html.light .cfg-list-shell{background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(239,246,255,.62));border-color:rgba(37,99,235,.14);box-shadow:0 12px 30px rgba(30,64,175,.07),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-card{background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(235,244,255,.72));border-color:rgba(37,99,235,.16);box-shadow:inset 0 1px rgba(255,255,255,.95),0 12px 28px rgba(30,64,175,.08)}html.light .cfg-name-row b,html.light .cfg-list-head b,html.light .cfg-stat-card b{color:#0f172a}html.light .cfg-proto{color:#2563eb}html.light .cfg-meta{color:#64748b}html.light .cfg-menu{background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(238,246,255,.96));border-color:rgba(37,99,235,.20);box-shadow:0 24px 70px rgba(15,23,42,.20),0 0 30px rgba(37,99,235,.08),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-menu-head span{color:#0f172a}html.light .cfg-menu-head small{color:#64748b}html.light .cfg-menu button{color:#1e3a5f}html.light .cfg-menu button:hover{background:rgba(37,99,235,.08)}@media(max-width:800px){.cfg-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cfg-card{grid-template-columns:50px minmax(0,1fr) 118px 32px;gap:8px}.cfg-proto-icon{width:48px;height:48px}.cfg-side{padding-right:8px}.cfg-usage-track{width:78px}}@media(max-width:560px){.cfg-page-hero{padding:12px 13px}.cfg-page-hero .page-title{font-size:18px}.cfg-page-hero .page-sub{font-size:10px}.cfg-stat-card small{font-size:9px}.cfg-card{padding:12px 10px}.cfg-name-row b{font-size:13px}.cfg-proto{font-size:9px}.cfg-meta{font-size:9px}.cfg-active-toggle{height:30px;min-width:74px;font-size:8px}.cfg-status{font-size:9px}.cfg-menu{width:min(250px,calc(100vw - 14px));padding:8px;border-radius:17px}.cfg-menu button{height:45px;font-size:11px}.cfg-menu-head span{font-size:12px}.cfg-menu-head small{font-size:8px}}@media(max-width:560px){.cfg-page-hero{align-items:flex-start}.cfg-hero-actions .btn{display:none}.cfg-primary-btn{height:38px;padding:0 11px;font-size:9px}.cfg-stat-card{min-height:78px;padding:9px}.cfg-stat-icon{width:32px;height:32px;flex-basis:32px;font-size:16px}.cfg-stat-card b{font-size:16px}.cfg-stat-card small{font-size:8px}.cfg-tools{gap:7px}.cfg-search-box,.cfg-filter-btn{height:43px}.cfg-filter-btn{width:43px;flex-basis:43px}.cfg-filter-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.cfg-filter-row.open{max-height:150px}.cfg-select{height:40px;font-size:8px}.cfg-card{grid-template-columns:43px minmax(0,1fr) 32px;align-items:start;padding:11px 9px;border-radius:17px}.cfg-proto-icon{width:43px;height:43px}.cfg-side{grid-column:2/-1;border-right:0;border-top:1px solid rgba(96,165,250,.1);padding:8px 0 0;margin-top:2px}.cfg-menu-btn{grid-column:3;grid-row:1;width:32px;height:43px}.cfg-meta{font-size:8px;gap:8px}.cfg-name-row b{font-size:11px}.cfg-proto{font-size:8px}.cfg-edit-dot{width:26px;height:26px;flex-basis:26px}.cfg-list-head{padding:11px 12px}.cfg-cards{padding:9px}.cfg-menu{width:min(220px,calc(100vw - 16px))}.cfg-menu button{height:40px;font-size:10px}}
-/* ============================================================\n   ONEX THEME ENFORCER — SECONDARY PAGES + NESTED COMPONENTS\n   This block intentionally comes last so old hard-coded dashboard\n   colors cannot win over the selected global theme.\n   ============================================================ */\n\n/* DARK: login glass recipe applied to every structural surface. */\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric,\nhtml:not(.light) .page .table-wrap,\nhtml:not(.light) .page .support-tile,\nhtml:not(.light) .page .link-box,\nhtml:not(.light) .page .sub-box,\nhtml:not(.light) .page .quick-item,\nhtml:not(.light) .page .range-tabs,\nhtml:not(.light) .page .range-mini,\nhtml:not(.light) .page .mini-action,\nhtml:not(.light) .page .chart-badge,\nhtml:not(.light) .page .health-track,\nhtml:not(.light) .page .xray-state,\nhtml:not(.light) .page .recent-table,\nhtml:not(.light) .page .recent-table th,\nhtml:not(.light) .page .recent-table td,\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n  border-color:rgba(88,180,255,.18) !important;\n  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 32px rgba(22,140,255,.035),0 14px 38px rgba(0,0,0,.18) !important;\n  backdrop-filter:blur(25px) saturate(120%) !important;\n  -webkit-backdrop-filter:blur(25px) saturate(120%) !important;\n}\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric{\n  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(22,140,255,.045) !important;\n}\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(2,11,24,.68),rgba(4,14,29,.52)) !important;\n  color:#f8fbff !important;\n}\nhtml:not(.light) .page .page-title,\nhtml:not(.light) .page .card-title,\nhtml:not(.light) .page .metric-val,\nhtml:not(.light) .page .quick-name{color:#f8fbff !important}\nhtml:not(.light) .page .page-sub,\nhtml:not(.light) .page .field label,\nhtml:not(.light) .page .metric-label,\nhtml:not(.light) .page .quick-desc{color:rgba(248,250,252,.55) !important}\n\n/* Preserve intentional accent controls/badges in dark mode. */\nhtml:not(.light) .page .btn-p,\nhtml:not(.light) .page .btn-d,\nhtml:not(.light) .page .range-tab.on,\nhtml:not(.light) .page .conn-badge,\nhtml:not(.light) .page .support-icon,\nhtml:not(.light) .page .quick-icon,\nhtml:not(.light) .page .metric-icon{\n  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\n\n/* LIGHT: every structural panel becomes pure white, not gray. */\nhtml.light .page,\nhtml.light .page.on{color:#0f172a !important}\nhtml.light .page .card,\nhtml.light .page .metric,\nhtml.light .page .table-wrap,\nhtml.light .page .support-tile,\nhtml.light .page .link-box,\nhtml.light .page .sub-box,\nhtml.light .page .quick-item,\nhtml.light .page .range-tabs,\nhtml.light .page .range-mini,\nhtml.light .page .mini-action,\nhtml.light .page .chart-badge,\nhtml.light .page .health-track,\nhtml.light .page .xray-state,\nhtml.light .page .recent-table,\nhtml.light .page .recent-table th,\nhtml.light .page .recent-table td,\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea,\nhtml.light .page .onex-topbar,\nhtml.light .page .onex-control-dock,\nhtml.light .page .onex-card,\nhtml.light .page .onex-metric{\n  background:#fff !important;\n  color:#0f172a !important;\n  border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 10px 30px rgba(15,23,42,.07),inset 0 1px rgba(255,255,255,.98) !important;\n  backdrop-filter:none !important;\n  -webkit-backdrop-filter:none !important;\n}\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.14) !important;\n}\nhtml.light .page .page-title,\nhtml.light .page .card-title,\nhtml.light .page .metric-val,\nhtml.light .page .quick-name,\nhtml.light .page .support-val{color:#0f172a !important}\nhtml.light .page .page-sub,\nhtml.light .page .field label,\nhtml.light .page .metric-label,\nhtml.light .page .quick-desc,\nhtml.light .page .support-label,\nhtml.light .page .log-time,\nhtml.light .page .health-name,\nhtml.light .page .health-pct{color:#64748b !important}\nhtml.light .page .log-msg{color:#334155 !important}\nhtml.light .page .onex-card-head,\nhtml.light .page .sb-foot{border-color:rgba(15,23,42,.08) !important}\nhtml.light .page th{background:#fff !important;color:#64748b !important}\nhtml.light .page td{background:#fff !important;color:#334155 !important;border-color:rgba(15,23,42,.08) !important}\nhtml.light .page tr:hover td{background:#f8fafc !important}\n\n/* Inline background declarations on secondary pages: normalize containers\n   while leaving action buttons, badges and icons untouched. */\nhtml.light .page div[style*="background:"],\nhtml.light .page section[style*="background:"],\nhtml.light .page article[style*="background:"],\nhtml.light .page aside[style*="background:"]{\n  background:#fff !important;\n  color:inherit;\n}\nhtml:not(.light) .page div[style*="background:"],\nhtml:not(.light) .page section[style*="background:"],\nhtml:not(.light) .page article[style*="background:"],\nhtml:not(.light) .page aside[style*="background:"]{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n/* Re-apply accent colors to controls after the broad inline rule. */\nhtml.light .page .btn-p{background:linear-gradient(135deg,#3b82f6,#6366f1) !important;color:#fff !important;border-color:transparent !important}\nhtml.light .page .btn-d{background:rgba(239,68,68,.08) !important;color:#dc2626 !important;border-color:rgba(239,68,68,.20) !important}\nhtml.light .page .range-tab.on{background:#2563eb !important;color:#fff !important}\nhtml.light .page .switch .slider{background:rgba(148,163,184,.35) !important}\nhtml.light .page .switch input:checked + .slider{background:#16a34a !important}\nhtml.light .page .quick-icon,\nhtml.light .page .support-icon,\nhtml.light .page .metric-icon{background:#f1f5f9 !important}\n\n/* Drawer and mobile top bar use exactly the same theme surfaces. */\nhtml.light .sidebar,html.light .mob-bar{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 18px 50px rgba(15,23,42,.12) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\nhtml:not(.light) .sidebar,html:not(.light) .mob-bar{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n\n/* Theme switch itself is instant enough that pages never look half-painted. */\nhtml,body,.sidebar,.mob-bar,.main,.page,.page .card,.page .metric,.page .onex-card,.page .onex-metric,\n.page .field input,.page .field select,.page .field textarea,.page .table-wrap,.page .link-box,.page .sub-box{\n  transition:background-color .12s ease,background .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease !important;\n}\n/* ============================================================
+\n/* ============================================================\n   ONEX THEME ENFORCER — SECONDARY PAGES + NESTED COMPONENTS\n   This block intentionally comes last so old hard-coded dashboard\n   colors cannot win over the selected global theme.\n   ============================================================ */\n\n/* DARK: login glass recipe applied to every structural surface. */\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric,\nhtml:not(.light) .page .table-wrap,\nhtml:not(.light) .page .support-tile,\nhtml:not(.light) .page .link-box,\nhtml:not(.light) .page .sub-box,\nhtml:not(.light) .page .quick-item,\nhtml:not(.light) .page .range-tabs,\nhtml:not(.light) .page .range-mini,\nhtml:not(.light) .page .mini-action,\nhtml:not(.light) .page .chart-badge,\nhtml:not(.light) .page .health-track,\nhtml:not(.light) .page .xray-state,\nhtml:not(.light) .page .recent-table,\nhtml:not(.light) .page .recent-table th,\nhtml:not(.light) .page .recent-table td,\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n  border-color:rgba(88,180,255,.18) !important;\n  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 32px rgba(22,140,255,.035),0 14px 38px rgba(0,0,0,.18) !important;\n  backdrop-filter:blur(25px) saturate(120%) !important;\n  -webkit-backdrop-filter:blur(25px) saturate(120%) !important;\n}\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric{\n  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(22,140,255,.045) !important;\n}\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,rgba(2,11,24,.68),rgba(4,14,29,.52)) !important;\n  color:#f8fbff !important;\n}\nhtml:not(.light) .page .page-title,\nhtml:not(.light) .page .card-title,\nhtml:not(.light) .page .metric-val,\nhtml:not(.light) .page .quick-name{color:#f8fbff !important}\nhtml:not(.light) .page .page-sub,\nhtml:not(.light) .page .field label,\nhtml:not(.light) .page .metric-label,\nhtml:not(.light) .page .quick-desc{color:rgba(248,250,252,.55) !important}\n\n/* Preserve intentional accent controls/badges in dark mode. */\nhtml:not(.light) .page .btn-p,\nhtml:not(.light) .page .btn-d,\nhtml:not(.light) .page .range-tab.on,\nhtml:not(.light) .page .conn-badge,\nhtml:not(.light) .page .support-icon,\nhtml:not(.light) .page .quick-icon,\nhtml:not(.light) .page .metric-icon{\n  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\n\n/* LIGHT: every structural panel becomes pure white, not gray. */\nhtml.light .page,\nhtml.light .page.on{color:#0f172a !important}\nhtml.light .page .card,\nhtml.light .page .metric,\nhtml.light .page .table-wrap,\nhtml.light .page .support-tile,\nhtml.light .page .link-box,\nhtml.light .page .sub-box,\nhtml.light .page .quick-item,\nhtml.light .page .range-tabs,\nhtml.light .page .range-mini,\nhtml.light .page .mini-action,\nhtml.light .page .chart-badge,\nhtml.light .page .health-track,\nhtml.light .page .xray-state,\nhtml.light .page .recent-table,\nhtml.light .page .recent-table th,\nhtml.light .page .recent-table td,\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea,\nhtml.light .page .onex-topbar,\nhtml.light .page .onex-control-dock,\nhtml.light .page .onex-card,\nhtml.light .page .onex-metric{\n  background:#fff !important;\n  color:#0f172a !important;\n  border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 10px 30px rgba(15,23,42,.07),inset 0 1px rgba(255,255,255,.98) !important;\n  backdrop-filter:none !important;\n  -webkit-backdrop-filter:none !important;\n}\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.14) !important;\n}\nhtml.light .page .page-title,\nhtml.light .page .card-title,\nhtml.light .page .metric-val,\nhtml.light .page .quick-name,\nhtml.light .page .support-val{color:#0f172a !important}\nhtml.light .page .page-sub,\nhtml.light .page .field label,\nhtml.light .page .metric-label,\nhtml.light .page .quick-desc,\nhtml.light .page .support-label,\nhtml.light .page .log-time,\nhtml.light .page .health-name,\nhtml.light .page .health-pct{color:#64748b !important}\nhtml.light .page .log-msg{color:#334155 !important}\nhtml.light .page .onex-card-head,\nhtml.light .page .sb-foot{border-color:rgba(15,23,42,.08) !important}\nhtml.light .page th{background:#fff !important;color:#64748b !important}\nhtml.light .page td{background:#fff !important;color:#334155 !important;border-color:rgba(15,23,42,.08) !important}\nhtml.light .page tr:hover td{background:#f8fafc !important}\n\n/* Inline background declarations on secondary pages: normalize containers\n   while leaving action buttons, badges and icons untouched. */\nhtml.light .page div[style*="background:"],\nhtml.light .page section[style*="background:"],\nhtml.light .page article[style*="background:"],\nhtml.light .page aside[style*="background:"]{\n  background:#fff !important;\n  color:inherit;\n}\nhtml:not(.light) .page div[style*="background:"],\nhtml:not(.light) .page section[style*="background:"],\nhtml:not(.light) .page article[style*="background:"],\nhtml:not(.light) .page aside[style*="background:"]{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n/* Re-apply accent colors to controls after the broad inline rule. */\nhtml.light .page .btn-p{background:linear-gradient(135deg,#3b82f6,#6366f1) !important;color:#fff !important;border-color:transparent !important}\nhtml.light .page .btn-d{background:rgba(239,68,68,.08) !important;color:#dc2626 !important;border-color:rgba(239,68,68,.20) !important}\nhtml.light .page .range-tab.on{background:#2563eb !important;color:#fff !important}\nhtml.light .page .switch .slider{background:rgba(148,163,184,.35) !important}\nhtml.light .page .switch input:checked + .slider{background:#16a34a !important}\nhtml.light .page .quick-icon,\nhtml.light .page .support-icon,\nhtml.light .page .metric-icon{background:#f1f5f9 !important}\n\n/* Drawer and mobile top bar use exactly the same theme surfaces. */\nhtml.light .sidebar,html.light .mob-bar{\n  background:#fff !important;color:#0f172a !important;border-color:rgba(15,23,42,.10) !important;\n  box-shadow:0 18px 50px rgba(15,23,42,.12) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\nhtml:not(.light) .sidebar,html:not(.light) .mob-bar{\n  background:linear-gradient(145deg,rgba(9,22,43,.78),rgba(2,9,20,.68)) !important;\n}\n\n/* Theme switch itself is instant enough that pages never look half-painted. */\nhtml,body,.sidebar,.mob-bar,.main,.page,.page .card,.page .metric,.page .onex-card,.page .onex-metric,\n.page .field input,.page .field select,.page .field textarea,.page .table-wrap,.page .link-box,.page .sub-box{\n  transition:background-color .12s ease,background .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease !important;\n}\n/* ============================================================
    LIGHT STATIC 3D PROTOCOL PICKER
    ============================================================ */
 #page-create select.protocol-native,#page-create .protocol-field select{display:none!important;position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;visibility:hidden!important}
@@ -8633,9 +8327,6 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   .protocol-option{min-height:112px !important;}
 }
 
-/* CONFIG MANAGER FINAL UI — legacy table is data-only, cards are the visible manager. */
-#linksTable{display:none!important;width:0!important;height:0!important;overflow:hidden!important;position:absolute!important;pointer-events:none!important}
-#cfgCards{display:grid!important;gap:10px!important}
 /* FINAL PROTOCOL DESIGN: one unified grid, no separator bars, true inline 3D protocol cubes */
 .protocol-picker-scroll{padding:16px!important;overflow:auto}
 .protocol-section{margin:0!important}
@@ -8664,7 +8355,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
   <button class="mob-menu-btn" id="mobMenuBtn" aria-label="منو">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
   </button>
-  <div class="mob-brand"><div class="mob-brand-icon" aria-label="ONEX 3D logo"><div class="onex-mark"><i class="onex-ring ring-a"></i><i class="onex-ring ring-b"></i><i class="onex-core"></i><b class="onex-n">N</b><i class="onex-glint"></i></div></div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
+  <div class="mob-brand"><div class="mob-brand-icon">N</div><div class="mob-brand-text"><span>پنل مدیریت</span></div></div>
   <div class="mob-status"><i></i><span>آنلاین</span></div>
 </div>
 <div class="overlay" id="overlay"></div>
@@ -8674,7 +8365,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
   </button>
   <div class="sb-logo">
-    <div class="sb-logo-icon" aria-label="ONEX 3D logo"><div class="onex-mark"><i class="onex-ring ring-a"></i><i class="onex-ring ring-b"></i><i class="onex-core"></i><b class="onex-n">N</b><i class="onex-glint"></i></div></div>
+    <div class="sb-logo-icon" aria-label="ONEX 3D logo">N</div>
   </div>
   <nav class="nav">
     <div class="nav-sec" data-i18n="sec_panel">پنــــل</div>
@@ -8705,7 +8396,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
     <div class="nav-sec" data-i18n="sec_sys">سیستـم</div>
     <button class="nav-item" data-page="telegram" data-perm="telegram">
       <svg class="nav-ico nav-ico-telegram" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m6.5 12 11-4-3.2 8-2.1-3-3.2-1Z"/><path d="m12.2 13 2.1-2.2"/></svg>
-      <span class="nav-label" data-i18n="nav_telegram">پی ایکس بات</span>
+      <span class="nav-label" data-i18n="nav_telegram">ربات ONEX</span>
     </button>
     <button class="nav-item" data-page="news" data-perm="news">
       <svg class="nav-ico nav-ico-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 8h8M8 12h5M8 16h8"/><path d="m15 12 1.5 1.5L19 11"/></svg>
@@ -8832,24 +8523,45 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
 </section>
 
 <section class="page" id="page-configs">
-  <div class="cfg-page-hero"><div><div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71 1.71"/></svg><span data-i18n="nav_configs">کانفیگ‌ها</span></div><div class="page-sub" data-i18n="configs_sub">مدیریت و مشاهده لیست کانفیگ‌های سرویس</div></div><div class="cfg-hero-actions"><button class="btn btn-sm" onclick="refreshAll()" title="بروزرسانی">↻</button><button class="cfg-primary-btn" onclick="goPage('create')">＋ ساخت کانفیگ</button></div></div>
-  <div class="cfg-stat-grid"><div class="cfg-stat-card cyan"><span class="cfg-stat-icon">▱</span><div><small>کل کانفیگ‌ها</small><b id="cfgStatTotal">0</b></div></div><div class="cfg-stat-card purple"><span class="cfg-stat-icon">◉</span><div><small>مصرف شده</small><b id="cfgStatUsed">0 B</b></div></div><div class="cfg-stat-card blue"><span class="cfg-stat-icon">♧</span><div><small>فعال</small><b id="cfgStatActive">0</b></div></div><div class="cfg-stat-card pink"><span class="cfg-stat-icon">⌫</span><div><small>منقضی شده</small><b id="cfgStatExpired">0</b></div></div></div>
-  <div class="cfg-tools"><div class="cfg-search-box"><span>⌕</span><input id="cfgSearch" placeholder="جستجوی نام، UUID یا لینک..." oninput="filterConfigs()"></div><button class="cfg-filter-btn" onclick="toggleConfigFilters()">☷</button></div>
-  <div class="cfg-filter-row" id="cfgFilterRow"><button class="cfg-select on" data-status="all" onclick="setCfgStatus('all',this)">وضعیت <b>همه</b>⌄</button><button class="cfg-select on" data-sort="newest" onclick="setCfgSort('newest',this)">مرتب‌سازی <b>جدیدترین</b>⌄</button><button class="cfg-select" data-status="active" onclick="setCfgStatus('active',this)">● فعال</button><button class="cfg-select" data-status="expired" onclick="setCfgStatus('expired',this)">● منقضی</button></div>
-  <div class="cfg-list-shell"><div class="cfg-list-head"><div><b>کانفیگ‌های سرویس</b><small id="cfgVisibleCount">0 مورد</small></div><label class="cfg-check-all"><input type="checkbox" id="chkAll" onchange="toggleSelectAll(this.checked);updateBulkBar()"><span>انتخاب همه</span></label></div><div id="cfgCards" class="cfg-cards"><div class="cfg-empty">در حال بارگذاری...</div></div></div>
-  <button type="button" class="delete-all-configs-glass" onclick="openDeleteAllConfigs()"><span class="delete-all-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></span><span class="delete-all-copy"><b>حذف همه کانفیگ‌ها</b><small>تمام کانفیگ‌های ساخته‌شده را پاک می‌کند</small></span><span class="delete-all-arrow">‹</span></button>
-  <table id="linksTable" style="display:none"><tbody></tbody></table>
+  <div class="page-head">
+    <div>
+      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span data-i18n="nav_configs">کانفیگ‌ها</span></div>
+      <div class="page-sub" data-i18n="configs_sub">مدیریـت لینک‌هــا · VLESS و سـاب</div>
+    </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="cfgSearch" placeholder="جستجو..." oninput="filterConfigs()" style="padding:8px 12px;border-radius:10px;border:1px solid var(--card-b);background:var(--input-bg);color:var(--t1);font-family:inherit;font-size:12px;min-width:140px">
+
+      <button class="btn btn-p btn-sm" onclick="goPage('create')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="btn btn-sm" onclick="refreshAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10"/></svg></button>
+    </div>
+  </div>
+  <div class="card" style="padding:0">
+    <div class="table-wrap">
+      <div id="bulkBar" style="display:none"></div>
+      <table>
+        <thead><tr>
+          <th style="width:40px;text-align:center;padding:10px 8px">
+            <input type="checkbox" id="chkAll" onchange="toggleSelectAll(this.checked);updateBulkBar()" title="انتخاب همه" style="width:16px;height:16px;margin:0;vertical-align:middle;cursor:pointer">
+          </th>
+          <th style="width:28px;padding:10px 4px"></th>
+          <th data-i18n="th_name">نـام</th><th data-i18n="th_proto">پروتکـل</th><th data-i18n="th_status">وضعیت</th>
+          <th data-i18n="th_usage">مصـرف</th><th data-i18n="th_ops">عملیـات</th>
+        </tr></thead>
+        <tbody id="linksTable"><tr><td colspan="7" style="text-align:center;color:var(--t3);padding:32px">...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <button type="button" class="delete-all-configs-glass" onclick="openDeleteAllConfigs()" aria-label="حذف همه کانفیگ‌ها">
+    <span class="delete-all-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5"/></svg></span>
+    <span class="delete-all-copy"><b>حذف همه کانفیگ‌ها</b><small>تمام کانفیگ‌های ساخته‌شده را پاک می‌کند</small></span>
+    <span class="delete-all-arrow">‹</span>
+  </button>
 </section>
 
-<style>
-.create-edit-actions{display:flex;gap:8px;align-items:center}.config-edit-banner{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:11px 13px;border:1px solid rgba(255,71,120,.28);border-radius:15px;background:linear-gradient(135deg,rgba(255,31,92,.10),rgba(37,99,235,.08));color:#dcecff}.config-edit-banner-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:rgba(255,71,120,.12);border:1px solid rgba(255,71,120,.24);color:#ff7092;font-size:16px}.config-edit-banner div{min-width:0;display:flex;flex-direction:column;gap:2px}.config-edit-banner b{font-size:11px;color:#fff}.config-edit-banner small{font-size:9px;color:#ff9ab0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48vw}.config-edit-banner-hint{margin-right:auto;color:var(--t3);font-size:8px}@media(max-width:560px){.config-edit-banner{align-items:flex-start}.config-edit-banner-hint{display:none}.create-edit-actions{margin-top:2px}.create-edit-actions .btn{font-size:9px;height:36px;padding:0 10px}}
-</style>
 <section class="page" id="page-create">
   <div class="page-head">
-    <div><div class="page-title"><svg id="createPageTitleIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><span id="createPageTitle" data-i18n="nav_create">ساخت کانفیگ</span></div><div class="page-sub" id="createPageSubtitle">ایجاد کانفیگ جدید با تنظیمات پایه و پیشرفته</div></div>
-    <div class="create-edit-actions"><button type="button" class="btn btn-sm" id="cancelConfigEditBtn" onclick="cancelConfigEdit()" hidden>انصراف</button></div>
+    <div><div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="nav_create">ساخت کانفیگ</span></div></div>
   </div>
-  <div class="config-edit-banner" id="configEditBanner" hidden><span class="config-edit-banner-icon">✎</span><div><b>در حال ویرایش کانفیگ</b><small id="configEditBannerName">—</small></div><span class="config-edit-banner-hint">تغییرات فقط با «ذخیره تغییرات» اعمال می‌شود</span></div>
   <div class="g2">
     <div class="card">
       <div class="card-title" data-i18n="manual_create">ساخت دستی</div>
@@ -8862,8 +8574,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         </div>
       </div>
             <div class="field protocol-field" data-protocol-picker="cProto"><label data-i18n="label_proto">پروتکـل</label><select id="cProto" class="protocol-native" tabindex="-1" aria-hidden="true"></select><button type="button" class="protocol-trigger" data-for="cProto" onclick="window.openProtocolPicker&&window.openProtocolPicker('cProto')"><span class="protocol-trigger-main"><span class="protocol-trigger-icon">🚀</span><span class="protocol-trigger-text"><span class="protocol-trigger-name">ONEX WB</span><span class="protocol-trigger-sub">برای تغییر پروتکل، اینجا بزنید</span></span></span><span class="protocol-trigger-arrow">⌄</span></button></div>
-      <div class="field"><label>دسته تنظیمات</label><select id="cGroup"></select></div>
-      <div class="field"><label>گروه اشتراک</label><select id="cSubGroup"><option value="">بدون گروه (عمومی)</option></select><small style="display:block;margin-top:5px;color:var(--t3);font-size:9px">با انتخاب گروه، این کانفیگ بعد از ساخت خودکار عضو همان گروه می‌شود.</small></div>
+      <div class="field"><label>گروه</label><select id="cGroup"></select></div>
 <div class="form-row">
         <label class="all-proto-toggle" title="یک اکانت با همه پروتکل‌ها و یک ساب"><span><b>همه پروتکل‌ها در یک ساب</b><small>یک اکانت · همه پروتکل‌های پنل · یک لینک اشتراک</small></span><input id="cAllProtocols" type="checkbox"><i aria-hidden="true"></i></label>
         <div class="field"><label data-i18n="label_days">انقضـا (روز)</label><input id="cDays" type="number" value="0" min="0"></div>
@@ -8876,7 +8587,7 @@ html.light .protocol-picker-bg{background:rgba(15,23,42,.28)}html.light .protoco
         <div class="field"><label data-i18n="label_ip">محدودیت IP</label><input id="cIp" type="number" value="0" min="0"></div>
         <div class="field"><label data-i18n="label_speed">سرعـت (Mbps)</label><input id="cSpeed" type="number" value="0" min="0"></div>
       </div>
-      <button id="manualConfigSubmit" class="btn btn-p" style="width:100%" onclick="doManualCreate()">
+      <button class="btn btn-p" style="width:100%" onclick="doManualCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
         <span data-i18n="btn_create">ساخت</span>
       </button>
@@ -9027,91 +8738,44 @@ Cache-Control: no-cache"></textarea></div>
 
 
 <section class="page" id="page-groups">
-  <div class="group-manager">
-    <div class="group-hero">
-      <div class="group-hero-copy">
-        <div class="group-hero-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 20c.5-3.1 2.4-4.7 5.5-4.7s5 1.6 5.5 4.7"/><path d="M14 15.8c2.8-.8 5 .5 6 3.2"/></svg></div>
-        <div><div class="group-hero-kicker">ONEX GROUP MANAGER</div><h1>مدیریت گروه‌ها</h1><p>ساخت گروه‌های اشتراک، مدیریت کانفیگ‌ها و کنترل پروتکل‌های قابل ارائه</p></div>
-      </div>
-      <div class="group-stats">
-        <div class="group-stat"><span>کل گروه‌ها</span><b id="groupTotal">0</b><i>◉</i></div>
-        <div class="group-stat"><span>کاربران فعال</span><b id="groupActiveUsers">0</b><i>●</i></div>
-        <button class="group-create-btn" type="button" onclick="openGroupModal()"><span>＋</span>ساخت گروه جدید</button>
-      </div>
-    </div>
-
-    <div class="group-workspace">
-      <div class="group-list-pane">
-        <div class="group-list-toolbar">
-          <div class="group-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="groupSearch" placeholder="جستجوی گروه..." oninput="renderGroupList()"></div>
-          <div class="group-filters"><button type="button" class="group-filter on" data-filter="all" onclick="setGroupFilter('all',this)">همه</button><button type="button" class="group-filter" data-filter="active" onclick="setGroupFilter('active',this)">فعال <em></em></button><button type="button" class="group-filter" data-filter="inactive" onclick="setGroupFilter('inactive',this)">غیرفعال <em></em></button></div>
-        </div>
-        <div id="groupsList" class="group-cards-list"><div class="group-empty">در حال بارگذاری گروه‌ها...</div></div>
-      </div>
-
-      <aside class="group-detail-pane" id="groupDetailPane">
-        <div class="group-detail-empty"><div class="group-detail-empty-icon">◉</div><b>یک گروه را انتخاب کنید</b><span>برای مشاهده لینک اشتراک، پروتکل‌ها و کانفیگ‌های گروه</span></div>
-      </aside>
+  <div class="page-head">
+    <div>
+      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span data-i18n="nav_groups">گروه‌ها</span></div>
+      <div class="page-sub">ساخـت گـروه و اختصـاص کانفیـگ هـای دستـی و خودکـار</div>
     </div>
   </div>
-
-  <div class="modal-bg" id="groupModal" hidden>
-    <div class="modal group-modal" role="dialog" aria-modal="true">
-      <div class="modal-head"><div><div class="card-title" id="groupModalTitle">ساخت گروه جدید</div><div class="page-sub">اطلاعات گروه اشتراک</div></div><button class="modal-x" type="button" onclick="closeGroupModal()">×</button></div>
-      <div class="field"><label>نام گروه</label><input id="groupFormName" maxlength="60" placeholder="مثلاً ONEX VIP"></div>
-      <div class="field"><label>توضیحات</label><input id="groupFormDesc" maxlength="200" placeholder="توضیح کوتاه برای این گروه"></div>
-      <div class="field"><label>رمز عبور اشتراک <small>(اختیاری)</small></label><input id="groupFormPassword" type="password" placeholder="خالی = بدون رمز"></div>
-      <div class="group-modal-actions"><button class="btn" type="button" onclick="closeGroupModal()">لغو</button><button class="btn btn-p" type="button" id="groupModalSave" onclick="saveGroupForm()">ساخت گروه</button></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-title">ساخت گروه جدیـد</div>
+      <div class="field"><label>نام گروه</label><input id="grpName" placeholder="مثلا اختصاصـی"></div>
+      <button class="btn btn-p" style="width:100%" onclick="createGroup()">ساخـت گروه</button>
     </div>
-  </div>
-
-  <div class="modal-bg" id="groupQrModal" hidden>
-    <div class="modal group-qr-modal" role="dialog" aria-modal="true">
-      <div class="modal-head"><div><div class="card-title">QR Code گروه</div><div class="page-sub" id="groupQrTitle">لینک اشتراک</div></div><button class="modal-x" type="button" onclick="closeGroupQr()">×</button></div>
-      <div id="groupQrBox" class="group-qr-box"></div><div id="groupQrText" class="group-qr-text" dir="ltr"></div>
-      <div class="group-modal-actions"><button class="btn" onclick="copyText(document.getElementById('groupQrText').textContent)">کپی لینک</button><button class="btn btn-p" onclick="closeGroupQr()">بستن</button></div>
+    <div class="card" style="padding:0">
+      <div style="padding:16px 18px;border-bottom:1px solid var(--card-b);font-weight:700">لیست گروه‌ها</div>
+      <div id="groupsList" style="padding:12px;max-height:480px;overflow:auto">...</div>
     </div>
   </div>
 </section>
 <section class="page" id="page-stats">
-  <div class="stats-page-wrap">
-    <div class="stats-head-row">
-      <div>
-        <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 5 5-8"/></svg><span data-i18n="nav_stats">آمار</span></div>
-        <div class="stats-subtitle">ترافیک و اتصالات، فیلتر زمانی و وضعیت لحظه‌ای سرویس</div>
-      </div>
-      <button class="stats-refresh-btn" type="button" onclick="loadStatsDashboard(true)">↻ بروزرسانی</button>
+  <div class="page-head">
+    <div>
+      <div class="page-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-6"/></svg><span data-i18n="nav_stats">آمار</span></div>
+      <div class="page-sub" data-i18n="stats_sub">ترافیـک و اتصـالات · فیلتـر زمانـی</div>
     </div>
-
-    <div class="stats-range" id="rangeTabs">
+    <div class="range-tabs" id="rangeTabs">
       <button class="range-tab" data-r="day" onclick="setRange('day',this)" data-i18n="r_day">روز</button>
-      <button class="range-tab" data-r="week" onclick="setRange('week',this)" data-i18n="r_week">هفته</button>
-      <button class="range-tab on" data-r="month" onclick="setRange('month',this)" data-i18n="r_month">ماه</button>
-      <button class="range-tab" data-r="all" onclick="setRange('all',this)" data-i18n="r_all">کل</button>
+      <button class="range-tab" data-r="week" onclick="setRange('week',this)" data-i18n="r_week">هفتـه</button>
+      <button class="range-tab on" data-r="month" onclick="setRange('month',this)" data-i18n="r_month">مـاه</button>
+      <button class="range-tab" data-r="all" onclick="setRange('all',this)" data-i18n="r_all">کـل</button>
     </div>
-
-    <div class="stats-kpi-grid">
-      <div class="stats-kpi cyan"><span class="stats-kpi-icon">↓</span><div><small>دانلود</small><b id="stDownload">0 B</b><em id="stDownloadDelta">واقعی</em></div><div class="stats-spark" id="sparkDownload"></div></div>
-      <div class="stats-kpi pink"><span class="stats-kpi-icon">↑</span><div><small>آپلود</small><b id="stUpload">0 B</b><em id="stUploadDelta">واقعی</em></div><div class="stats-spark" id="sparkUpload"></div></div>
-      <div class="stats-kpi purple"><span class="stats-kpi-icon">↗</span><div><small>اتصالات فعال</small><b id="stConnections">0</b><em>لحظه‌ای</em></div><div class="stats-kpi-mini-dot"></div></div>
-      <div class="stats-kpi blue"><span class="stats-kpi-icon">♣</span><div><small>کاربران فعال</small><b id="stUsers">0</b><em>کانفیگ فعال</em></div><div class="stats-kpi-mini-dot"></div></div>
-      <div class="stats-kpi violet"><span class="stats-kpi-icon">▤</span><div><small>کل کانفیگ‌ها</small><b id="stConfigs">0</b><em id="stExpiredText">0 منقضی</em></div><div class="stats-kpi-mini-dot"></div></div>
-      <div class="stats-kpi green"><span class="stats-kpi-icon">▣</span><div><small>وضعیت سرور</small><b id="stServer">آنلاین</b><em id="stServerHost">ONEX</em></div><div class="online-pulse"></div></div>
-    </div>
-
-    <div class="stats-panel traffic-panel">
-      <div class="stats-panel-head"><div><b>نمودار ترافیک</b><small>دانلود و آپلود در ساعات ثبت‌شده</small></div><span class="stats-live-badge"><i></i> LIVE</span></div>
-      <div class="stats-legend"><span><i class="legend-download"></i>دانلود</span><span><i class="legend-upload"></i>آپلود</span><span id="statsChartRange">امروز</span></div>
-      <div class="traffic-chart-wrap"><svg id="trafficChart" viewBox="0 0 900 310" preserveAspectRatio="none" role="img" aria-label="نمودار ترافیک"></svg></div>
-    </div>
-
-    <div class="stats-two-col">
-      <div class="stats-panel uptime-panel"><div class="stats-panel-head"><div><b>آپتایم سرور</b><small>از زمان راه‌اندازی</small></div><span class="panel-icon">◷</span></div><div class="uptime-body"><div class="uptime-ring" id="uptimeRing"><span id="uptimePct">99.9%</span></div><div><small>زمان فعالیت</small><strong id="stUptime">—</strong><em id="stRequests">0 درخواست</em></div></div></div>
-      <div class="stats-panel server-panel"><div class="stats-panel-head"><div><b>وضعیت سرویس</b><small>اطلاعات لحظه‌ای</small></div><span class="panel-icon">⌁</span></div><div class="server-stat-list"><div><span>آدرس پنل</span><b id="stHost">—</b></div><div><span>کانفیگ فعال</span><b id="stActiveConfigs">0</b></div><div><span>اتصالات</span><b id="stConn2">0</b></div><div><span>خطاها</span><b id="stErrors">0</b></div></div></div>
-    </div>
-
-    <div class="stats-panel panel-summary"><div class="stats-panel-head"><div><b>اطلاعات کل پنل</b><small>خلاصه عملکرد سرویس</small></div><span class="panel-icon">↗</span></div><div class="summary-grid"><div><span>کل کانفیگ‌ها</span><b id="sumConfigs">0</b></div><div><span>فعال</span><b id="sumActive">0</b></div><div><span>مصرف کل</span><b id="sumTraffic">0 B</b></div><div><span>آپلود</span><b id="sumUpload">0 B</b></div><div><span>درخواست‌ها</span><b id="sumRequests">0</b></div><div><span>گروه‌ها</span><b id="sumGroups">0</b></div></div></div>
   </div>
+  <div class="metrics">
+    <div class="metric"><div class="metric-label" data-i18n="m_traffic">ترافیـک</div><div class="metric-val" id="sTraffic">—</div></div>
+    <div class="metric"><div class="metric-label" data-i18n="m_conns">اتصـالات</div><div class="metric-val" id="sConns">—</div></div>
+    <div class="metric"><div class="metric-label" data-i18n="m_links">کانفیـگ فعـال</div><div class="metric-val" id="sActive">—</div></div>
+    <div class="metric"><div class="metric-label" data-i18n="m_uptime">آپتایـم</div><div class="metric-val" id="sUptime" style="font-size:16px">—</div></div>
+  </div>
+  <div class="card"><div class="card-title" data-i18n="panel_info">اطلاعات کل پنل</div><div id="panelInfo" style="font-size:13px;color:var(--t2);line-height:2"></div></div>
 </section>
 
 <section class="page" id="page-logs">
@@ -9438,36 +9102,6 @@ html:not(.light) body:has(.page) .table-wrap{{
 
 
 /* ============================================================
-   ONEX 3D BRAND MARK — APPROVED FINAL ASSET
-   ============================================================ */
-.sb-logo-icon{font-size:0!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
-.sb-logo-icon:before,.sb-logo-icon:after{display:none!important}
-.sb-logo-icon img{width:78px!important;height:58px!important;object-fit:contain!important;display:block!important;filter:drop-shadow(0 5px 10px rgba(0,120,255,.30))!important}
-.mob-brand-icon{position:relative!important;display:grid!important;place-items:center!important;font-size:0!important;background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible!important}
-.mob-brand-icon:before,.mob-brand-icon:after{display:none!important}
-.mob-brand-icon img{width:54px!important;height:42px!important;object-fit:contain!important;display:block!important;filter:drop-shadow(0 4px 8px rgba(0,120,255,.30))!important}
-
-/* ============================================================
-   ONEX 3D LOGO — CLEAN GLASS PRESENTATION
-   Keep the approved 3D artwork, but present it inside a
-   controlled glass badge so the raster background never looks
-   like a broken rectangular image on light/dark themes.
-   ============================================================ */
-.sb-logo{padding:14px 12px!important;min-height:88px;}
-.sb-logo-icon{position:relative!important;width:92px!important;height:66px!important;border-radius:22px!important;display:grid!important;place-items:center!important;flex:0 0 auto!important;overflow:visible!important;background:transparent!important;border:0!important;box-shadow:none!important;transform-style:preserve-3d!important;isolation:isolate!important;}
-.sb-logo-icon img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;border-radius:0!important;}
-.sidebar.collapsed .sb-logo{padding:12px 8px!important;min-height:84px;}
-.sidebar.collapsed .sb-logo-icon{width:72px!important;height:54px!important;margin:0 auto!important;border-radius:19px!important;}
-.mob-brand{display:flex!important;align-items:center!important;gap:9px!important;}
-.mob-brand-icon{position:relative!important;width:58px!important;height:44px!important;display:grid!important;place-items:center!important;flex:0 0 auto!important;border-radius:15px!important;overflow:visible!important;background:transparent!important;border:0!important;box-shadow:none!important;transform-style:preserve-3d!important;isolation:isolate!important;}
-.mob-brand-icon img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;border-radius:0!important;}
-@media(max-width:700px){
-  .sb-logo{min-height:82px!important;padding:12px 10px!important;}
-  .sb-logo-icon{width:88px!important;height:64px!important;border-radius:21px!important;}
-  .mob-brand-icon{width:56px!important;height:43px!important;border-radius:15px!important;}
-}
-
-/* ============================================================
    ONEX RED ACTION PALETTE — FINAL
    Keep the navy/blue glass surfaces, but make primary/action
    controls red so the panel has a deliberate blue + red identity.
@@ -9683,73 +9317,6 @@ html:not(.light) .range-tab.on,html.light .range-tab.on{
   .sidebar .nav-item .nav-ico{width:20px !important;height:20px !important;min-width:20px !important}
   .sidebar .sb-foot{padding:10px !important}
 }
-
-/* ============================================================
-   ONEX TRUE CSS 3D BRAND MARK — NO RASTER IMAGE
-   Animated depth/orbits/glass lighting. Used in header + sidebar.
-   ============================================================ */
-.sb-logo-icon,.mob-brand-icon{perspective:900px!important;transform-style:preserve-3d!important;}
-.onex-mark{position:relative;width:82px;height:82px;display:block;transform-style:preserve-3d;perspective:900px;animation:onexMarkFloat 4.8s ease-in-out infinite;}
-.mob-brand-icon .onex-mark{width:50px;height:50px;}
-.onex-core{position:absolute;inset:10%;border-radius:27% 35% 28% 34%;background:linear-gradient(145deg,#0e9fff 0%,#1267ee 45%,#3036d9 72%,#7b22f2 100%);border:1px solid rgba(255,255,255,.42);box-shadow:inset 3px 4px 8px rgba(255,255,255,.25),inset -7px -9px 15px rgba(0,19,88,.45),0 13px 24px rgba(0,92,255,.34),0 0 28px rgba(0,207,255,.24);transform:translateZ(8px) rotateX(5deg) rotateY(-7deg);animation:onexCore 5.4s ease-in-out infinite;}
-.onex-core:before{content:"";position:absolute;inset:6%;border-radius:24% 31% 23% 29%;background:linear-gradient(135deg,rgba(255,255,255,.22),transparent 37%,rgba(0,0,0,.12));border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 0 16px rgba(130,225,255,.12);}
-.onex-n{position:absolute;inset:13%;display:grid;place-items:center;font:900 55px/1 Inter,system-ui,sans-serif;letter-spacing:-.10em;color:#e9fbff;text-shadow:2px 2px 0 #1264ce,4px 4px 0 #0b3d9a,7px 7px 0 rgba(4,24,78,.58),0 0 18px rgba(205,250,255,.72);transform:translateZ(30px) rotateX(2deg) rotateY(-7deg);animation:onexN 4.6s ease-in-out infinite;}
-.mob-brand-icon .onex-n{font-size:33px;}
-.onex-ring{position:absolute;left:50%;top:50%;width:104%;height:38%;border-radius:50%;border:2px solid rgba(51,220,255,.95);box-shadow:0 0 8px rgba(0,209,255,.75),0 0 18px rgba(0,110,255,.34),inset 0 0 5px rgba(255,255,255,.22);transform-style:preserve-3d;pointer-events:none;z-index:5;}
-.ring-a{transform:translate(-50%,-50%) rotateX(67deg) rotateZ(-17deg) translateZ(20px);animation:onexRingA 4.2s linear infinite;}
-.ring-b{width:88%;height:31%;border-color:rgba(244,63,255,.92);box-shadow:0 0 8px rgba(236,72,255,.72),0 0 18px rgba(168,85,247,.30);transform:translate(-50%,-50%) rotateY(65deg) rotateZ(25deg) translateZ(12px);animation:onexRingB 6.5s linear infinite reverse;}
-.onex-glint{position:absolute;width:30%;height:10%;left:12%;top:22%;border-radius:999px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.95),transparent);filter:blur(1px);opacity:.75;transform:translateZ(42px) rotate(-20deg);animation:onexGlint 3.4s ease-in-out infinite;z-index:8;}
-.onex-mark:after{content:"";position:absolute;left:14%;right:14%;bottom:2%;height:16%;border-radius:50%;background:radial-gradient(ellipse,rgba(0,170,255,.40),rgba(161,70,255,.16) 45%,transparent 75%);filter:blur(5px);transform:translateZ(-10px);animation:onexMarkShadow 4.8s ease-in-out infinite;}
-@keyframes onexMarkFloat{0%,100%{transform:translateY(0) rotateX(2deg) rotateY(-4deg) scale(1)}50%{transform:translateY(-3px) rotateX(-4deg) rotateY(6deg) scale(1.035)}}
-@keyframes onexCore{0%,100%{transform:translateZ(8px) rotateX(5deg) rotateY(-7deg)}50%{transform:translateZ(18px) rotateX(-4deg) rotateY(9deg)}}
-@keyframes onexN{0%,100%{transform:translateZ(30px) rotateX(2deg) rotateY(-7deg)}50%{transform:translateZ(40px) rotateX(-3deg) rotateY(8deg)}}
-@keyframes onexRingA{0%{transform:translate(-50%,-50%) rotateX(67deg) rotateZ(-17deg) translateZ(20px)}100%{transform:translate(-50%,-50%) rotateX(67deg) rotateZ(343deg) translateZ(20px)}}
-@keyframes onexRingB{0%{transform:translate(-50%,-50%) rotateY(65deg) rotateZ(25deg) translateZ(12px)}100%{transform:translate(-50%,-50%) rotateY(65deg) rotateZ(-335deg) translateZ(12px)}}
-@keyframes onexGlint{0%,100%{transform:translate3d(-5px,0,42px) rotate(-20deg);opacity:.25}45%{transform:translate3d(26px,13px,52px) rotate(-20deg);opacity:.9}70%{opacity:.2}}
-@keyframes onexMarkShadow{0%,100%{transform:translateZ(-10px) scale(.88);opacity:.25}50%{transform:translateZ(-10px) scale(1.12);opacity:.55}}
-@media(max-width:700px){.onex-mark{width:76px;height:76px}.mob-brand-icon .onex-mark{width:48px;height:48px}.mob-brand-icon .onex-n{font-size:31px}.onex-ring{border-width:1.5px}}
-@media(prefers-reduced-motion:reduce){.onex-mark,.onex-core,.onex-n,.onex-ring,.onex-glint,.onex-mark:after{animation:none!important}}
-
-
-  /* ================= ONEX STATISTICS — LIVE NEON GLASS ================= */
-  .stats-page-wrap{max-width:1180px;margin:0 auto;padding-bottom:34px}
-  .stats-head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px}
-  .stats-head-row .page-title{font-size:30px;font-weight:950;gap:10px}.stats-head-row .page-title svg{width:34px;height:34px;color:#49a7ff}
-  .stats-subtitle{margin-top:6px;color:var(--t3);font-size:11px}
-  .stats-refresh-btn{height:40px;padding:0 15px;border-radius:13px;border:1px solid rgba(69,157,255,.32);background:linear-gradient(135deg,rgba(13,46,91,.75),rgba(6,18,38,.9));color:#9dcbff;font:800 10px Vazirmatn,sans-serif;cursor:pointer}
-  .stats-range{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:5px;border:1px solid rgba(54,139,255,.24);border-radius:18px;background:rgba(4,15,33,.62);margin-bottom:16px}
-  .stats-range .range-tab{height:46px;border:1px solid transparent;border-radius:13px;background:transparent;color:#9aaec9;font:800 11px Vazirmatn,sans-serif;cursor:pointer;transition:.2s}
-  .stats-range .range-tab.on{color:#fff;background:linear-gradient(110deg,#ff2364,#f01968);border-color:rgba(255,116,158,.65);box-shadow:0 0 24px rgba(255,24,101,.22)}
-  .stats-kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
-  .stats-kpi{position:relative;min-height:126px;padding:18px;border-radius:22px;border:1px solid rgba(63,145,255,.36);overflow:hidden;background:linear-gradient(145deg,rgba(8,31,65,.86),rgba(4,13,30,.94));display:grid;grid-template-columns:48px 1fr;gap:13px;align-items:start;box-shadow:inset 0 1px rgba(255,255,255,.05),0 16px 35px rgba(0,0,0,.18)}
-  .stats-kpi::after{content:"";position:absolute;inset:auto -20% -55% -10%;height:85px;background:radial-gradient(ellipse,rgba(0,153,255,.16),transparent 65%);pointer-events:none}
-  .stats-kpi.pink{border-color:rgba(255,36,135,.42);background:linear-gradient(145deg,rgba(48,13,56,.78),rgba(13,8,30,.94))}.stats-kpi.purple{border-color:rgba(117,76,255,.42)}.stats-kpi.violet{border-color:rgba(97,110,255,.42)}.stats-kpi.green{border-color:rgba(35,211,164,.36)}
-  .stats-kpi-icon{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:25px;font-weight:900;color:#38a9ff;border:1px solid rgba(45,157,255,.45);background:rgba(0,117,255,.08);text-shadow:0 0 14px currentColor}.pink .stats-kpi-icon{color:#ff3192;border-color:rgba(255,49,146,.45)}.purple .stats-kpi-icon{color:#9c72ff}.blue .stats-kpi-icon{color:#5a8dff}.violet .stats-kpi-icon{color:#9a7cff}.green .stats-kpi-icon{color:#2ce4aa}
-  .stats-kpi small{display:block;color:#aab8cc;font-size:10px;font-weight:700}.stats-kpi b{display:block;margin-top:7px;color:#f8fbff;font-size:23px;font-weight:950;direction:ltr;text-align:right}.stats-kpi em{display:block;margin-top:5px;color:#20e7b1;font-size:9px;font-style:normal;font-weight:900}.pink em{color:#28e2ad}
-  .stats-spark{position:absolute;right:18px;bottom:12px;width:42%;height:26px;opacity:.75}.stats-spark::before{content:"";position:absolute;inset:12px 0 auto;background:linear-gradient(90deg,transparent,#26a9ff,transparent);height:2px;box-shadow:0 0 12px #26a9ff;transform:skewY(-7deg)}.pink .stats-spark::before{background:linear-gradient(90deg,transparent,#ff2694,transparent);box-shadow:0 0 12px #ff2694}.stats-kpi-mini-dot,.online-pulse{position:absolute;right:18px;bottom:18px;width:11px;height:11px;border-radius:50%;background:#36e7ae;box-shadow:0 0 18px #36e7ae;animation:statsPulse 1.7s ease-in-out infinite}.stats-kpi-mini-dot{background:#3b9dff;box-shadow:0 0 16px #3b9dff}.online-pulse{right:22px;bottom:22px}
-  .stats-panel{position:relative;border:1px solid rgba(53,139,255,.34);border-radius:23px;background:linear-gradient(145deg,rgba(6,25,55,.84),rgba(3,11,26,.94));overflow:hidden;box-shadow:inset 0 1px rgba(255,255,255,.045),0 17px 42px rgba(0,0,0,.18);margin-bottom:14px}.stats-panel::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,.025) 48%,transparent 65%);pointer-events:none}
-  .stats-panel-head{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;padding:18px 20px 10px}.stats-panel-head b{display:block;color:#f8fbff;font-size:16px;font-weight:950}.stats-panel-head small{display:block;color:#778ca8;font-size:9px;margin-top:4px}.panel-icon{color:#3e9dff;font-size:22px;text-shadow:0 0 15px rgba(48,154,255,.5)}.stats-live-badge{display:flex;align-items:center;gap:6px;color:#2ee4b0;font-size:8px;font-weight:900}.stats-live-badge i{width:7px;height:7px;border-radius:50%;background:#2ee4b0;box-shadow:0 0 12px #2ee4b0}
-  .stats-legend{display:flex;align-items:center;gap:18px;padding:5px 20px 10px;color:#8da2bf;font-size:9px}.stats-legend span:last-child{margin-right:auto;color:#68aef5}.stats-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:5px;background:#18aaff;box-shadow:0 0 8px #18aaff}.stats-legend .legend-upload{background:#ff2494;box-shadow:0 0 8px #ff2494}
-  .traffic-chart-wrap{height:310px;padding:0 10px 14px}.traffic-chart-wrap svg{width:100%;height:100%;display:block}.traffic-grid{stroke:rgba(89,139,199,.14);stroke-width:1}.traffic-axis{fill:#7187a7;font:11px Vazirmatn,sans-serif}.traffic-line-d{fill:none;stroke:#18aaff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 5px rgba(24,170,255,.7))}.traffic-line-u{fill:none;stroke:#ff2695;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 5px rgba(255,38,149,.65))}.traffic-area-d{fill:url(#areaD)}.traffic-area-u{fill:url(#areaU)}.traffic-point{r:3;fill:#fff;stroke:#18aaff;stroke-width:2}
-  .stats-two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}.stats-two-col .stats-panel{margin-bottom:14px}.uptime-body{display:flex;align-items:center;gap:20px;padding:10px 22px 23px}.uptime-ring{width:116px;height:116px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#18e6ae 0 99.9%,rgba(55,82,117,.24) 99.9%);position:relative;flex:0 0 116px;box-shadow:0 0 22px rgba(24,230,174,.12)}.uptime-ring::after{content:"";position:absolute;inset:9px;border-radius:50%;background:#071a35;border:1px solid rgba(77,134,190,.16)}.uptime-ring span{position:relative;z-index:1;color:#eafff8;font-size:18px;font-weight:950}.uptime-body small{color:#778ca8;font-size:10px}.uptime-body strong{display:block;color:#f7fbff;font-size:23px;margin-top:5px;direction:ltr}.uptime-body em{display:block;color:#50aef8;font-size:9px;font-style:normal;margin-top:8px}.server-stat-list{padding:8px 20px 18px}.server-stat-list div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(99,145,197,.09)}.server-stat-list div:last-child{border-bottom:0}.server-stat-list span{color:#7e93ae;font-size:10px}.server-stat-list b{color:#edf5ff;font-size:10px;direction:ltr;max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .summary-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;padding:10px 18px 20px}.summary-grid div{padding:12px 10px;border-radius:14px;background:rgba(7,24,48,.72);border:1px solid rgba(65,133,218,.16)}.summary-grid span{display:block;color:#7187a4;font-size:8px}.summary-grid b{display:block;color:#eaf3ff;font-size:13px;margin-top:6px;direction:ltr}
-  @keyframes statsPulse{0%,100%{transform:scale(.85);opacity:.7}50%{transform:scale(1.15);opacity:1}}
-  @media(max-width:800px){.stats-kpi-grid{grid-template-columns:repeat(2,1fr)}.stats-two-col{grid-template-columns:1fr}.summary-grid{grid-template-columns:repeat(3,1fr)}.stats-head-row .page-title{font-size:25px}.traffic-chart-wrap{height:250px}}
-  @media(max-width:560px){.stats-page-wrap{padding:0 0 22px}.stats-head-row{align-items:center}.stats-refresh-btn{width:40px;padding:0;font-size:0}.stats-refresh-btn:first-letter{font-size:20px}.stats-subtitle{font-size:8px}.stats-range{gap:4px;border-radius:15px}.stats-range .range-tab{height:42px;font-size:9px}.stats-kpi-grid{gap:8px}.stats-kpi{min-height:112px;padding:13px;border-radius:18px;grid-template-columns:38px 1fr;gap:9px}.stats-kpi-icon{width:38px;height:38px;font-size:20px}.stats-kpi b{font-size:17px}.stats-kpi small{font-size:8px}.stats-kpi em{font-size:7px}.stats-panel{border-radius:18px}.stats-panel-head{padding:14px 14px 8px}.stats-panel-head b{font-size:13px}.stats-panel-head small{font-size:8px}.stats-legend{padding:4px 14px 8px;font-size:8px}.traffic-chart-wrap{height:205px;padding:0 4px 9px}.traffic-axis{font-size:9px}.uptime-body{padding:8px 15px 18px;gap:14px}.uptime-ring{width:92px;height:92px;flex-basis:92px}.uptime-ring::after{inset:7px}.uptime-ring span{font-size:15px}.uptime-body strong{font-size:18px}.summary-grid{grid-template-columns:repeat(2,1fr);padding:8px 12px 14px}.summary-grid div{padding:10px}.summary-grid b{font-size:12px}}
-  @media(prefers-reduced-motion:reduce){.stats-kpi-mini-dot,.online-pulse{animation:none}}
-
-  /* Config toolbar/menu mobile fixes */
-  .cfg-filter-row{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:7px !important}
-  .cfg-filter-row .cfg-select:nth-child(n){display:block !important}
-  .cfg-card,.cfg-list-shell{overflow:visible !important}
-  @media(max-width:560px){.cfg-filter-row{display:grid !important}.cfg-card{overflow:visible !important}.cfg-list-shell{overflow:visible !important}}
-
-/* ONEX TELEGRAM CONTROL CENTER */
-.tg-dashboard-shell{display:flex;flex-direction:column;gap:12px}.tg-hero,.tg-glass{position:relative;overflow:hidden;border:1px solid rgba(68,151,255,.24);background:linear-gradient(145deg,rgba(8,27,55,.82),rgba(3,12,28,.88));box-shadow:inset 0 1px rgba(255,255,255,.05),0 14px 34px rgba(0,0,0,.20);border-radius:22px}.tg-hero{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;background:radial-gradient(circle at 12% 50%,rgba(37,99,235,.18),transparent 28%),linear-gradient(135deg,rgba(8,25,51,.94),rgba(8,10,24,.96))}.tg-hero-brand{display:flex;align-items:center;gap:14px}.tg-hero-icon{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(145deg,#20a9ff,#2563eb);box-shadow:0 0 30px rgba(32,169,255,.28)}.tg-hero-icon svg{width:30px}.tg-hero-brand span,.tg-card-head span{font-size:8px;letter-spacing:.16em;color:rgba(255,255,255,.38);font-weight:900}.tg-hero h1{font-size:24px;font-weight:950;margin:3px 0}.tg-hero p{font-size:10px;color:var(--t3)}.tg-hero-status{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.22);color:#42e3a5;font-size:10px;font-weight:900}.tg-hero-status i{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}.tg-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}.tg-stat{min-height:86px;display:flex;align-items:center;gap:10px;padding:11px;border-radius:18px;border:1px solid rgba(68,151,255,.22);background:linear-gradient(145deg,rgba(12,31,60,.72),rgba(4,13,29,.82));box-shadow:inset 0 1px rgba(255,255,255,.04)}.tg-stat-icon{width:38px;height:38px;flex:0 0 38px;border-radius:13px;display:grid;place-items:center;font-size:17px;background:rgba(37,99,235,.14);border:1px solid rgba(96,165,250,.20);color:#73bfff}.tg-stat small{display:block;color:var(--t3);font-size:8px}.tg-stat b{display:block;font-size:18px;margin-top:3px}.tg-stat em{font-style:normal;font-size:7px;color:#36dba1}.tg-tabs{display:flex;gap:7px;padding:7px;border:1px solid rgba(68,151,255,.20);border-radius:17px;background:rgba(3,13,28,.65);overflow:auto}.tg-tabs button,.tg-audience button{flex:1;min-width:100px;height:38px;border-radius:12px;border:1px solid rgba(68,151,255,.18);background:rgba(37,99,235,.055);color:var(--t2);font:800 9px Vazirmatn,sans-serif;cursor:pointer}.tg-tabs button.on,.tg-audience button.on{background:linear-gradient(135deg,#147cff,#5b4cff);border-color:rgba(114,180,255,.55);color:#fff;box-shadow:0 7px 18px rgba(37,99,235,.18)}.tg-tab-panel{display:none;gap:12px}.tg-tab-panel.on{display:flex;flex-direction:column}.tg-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tg-glass{padding:16px}.tg-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}.tg-card-head h2{font-size:14px;font-weight:950;margin-top:3px}.tg-card-head p{font-size:9px;color:var(--t3);margin-top:4px}.tg-card-badge{padding:5px 9px;border-radius:999px;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.22);color:#42e3a5;font-size:8px}.tg-card-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(37,99,235,.12);color:#60a5fa;font-size:16px}.tg-field{margin-bottom:11px}.tg-field label{display:block;color:var(--t3);font-size:9px;margin-bottom:5px}.tg-field input,.tg-input-wrap input,.tg-search input,.tg-user-tools input,.tg-user-tools select{width:100%;height:43px;border-radius:13px;border:1px solid rgba(88,166,255,.20);background:rgba(2,10,24,.62);color:var(--t1);padding:0 12px;font:600 10px Vazirmatn,sans-serif;outline:none}.tg-input-wrap{display:flex;gap:6px}.tg-input-wrap input{flex:1;direction:ltr;text-align:left}.tg-input-wrap button{width:50px;border-radius:12px;border:1px solid rgba(88,166,255,.22);background:rgba(37,99,235,.10);color:#8cc8ff;font:800 9px Vazirmatn,sans-serif}.tg-toggle-row,.tg-notify-list label{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(96,165,250,.08)}.tg-toggle-row b,.tg-notify-list b{display:block;font-size:10px}.tg-toggle-row small,.tg-notify-list small{display:block;color:var(--t3);font-size:8px;margin-top:2px}.tg-actions,.tg-broadcast-foot,.tg-send-preview{display:flex;gap:8px;margin-top:12px}.tg-btn{height:42px;padding:0 15px;border-radius:12px;border:1px solid rgba(88,166,255,.22);font:900 9px Vazirmatn,sans-serif;cursor:pointer}.tg-btn.primary{flex:1;color:#fff;background:linear-gradient(135deg,#ff315d,#b91c5a);border-color:rgba(255,98,132,.55);box-shadow:0 8px 24px rgba(255,31,92,.16)}.tg-btn.secondary{color:#b9dcff;background:rgba(37,99,235,.08)}.tg-btn.full{width:100%;margin-top:14px}.tg-link-btn{border:0;background:none;color:#65b5ff;font:800 8px Vazirmatn,sans-serif;cursor:pointer}.tg-search{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;border:1px solid rgba(88,166,255,.20);border-radius:12px;background:rgba(2,10,24,.52);margin-bottom:8px}.tg-search span{font-size:19px;color:#60a5fa}.tg-search input{height:34px;border:0;background:transparent;padding:0}.tg-mini-users{display:flex;flex-direction:column;gap:6px}.tg-mini-user,.tg-user-row{display:flex;align-items:center;gap:9px;padding:9px;border-radius:13px;border:1px solid rgba(96,165,250,.10);background:rgba(2,10,24,.30)}.tg-avatar{width:32px;height:32px;flex:0 0 32px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#2563eb,#7c3aed);font-weight:900;font-size:11px}.tg-user-copy{min-width:0;flex:1}.tg-user-copy b{display:block;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tg-user-copy small{display:block;color:var(--t3);font-size:7px;margin-top:2px}.tg-user-state{font-size:7px;padding:4px 7px;border-radius:8px;color:#4ade80;background:rgba(34,197,94,.08)}.tg-user-state.bad{color:#fb7185;background:rgba(244,63,94,.08)}.tg-audience{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tg-audience button{flex:0 0 auto;min-width:0;height:32px;padding:0 10px;font-size:8px}.tg-glass textarea{width:100%;min-height:112px;resize:vertical;border-radius:14px;border:1px solid rgba(88,166,255,.20);background:rgba(2,10,24,.55);color:var(--t1);padding:12px;font:500 10px/1.9 Vazirmatn,sans-serif;outline:none}.tg-broadcast-foot{align-items:center;justify-content:space-between}.tg-broadcast-foot span,.tg-send-preview span{font-size:8px;color:var(--t3)}.tg-broadcast-foot b,.tg-send-preview b{color:#fff;font-size:12px}.tg-activity{display:flex;flex-direction:column;gap:7px;max-height:240px;overflow:auto}.tg-activity-row{display:flex;gap:9px;align-items:flex-start;padding:8px;border-bottom:1px solid rgba(96,165,250,.07)}.tg-activity-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;background:#42e3a5;box-shadow:0 0 10px rgba(66,227,165,.35)}.tg-activity-row b{display:block;font-size:8px}.tg-activity-row small{display:block;color:var(--t3);font-size:7px;margin-top:2px}.tg-users-list{display:flex;flex-direction:column;gap:7px}.tg-user-tools{display:flex;gap:7px;min-width:280px}.tg-user-tools input{height:36px}.tg-user-tools select{height:36px;width:110px}.tg-user-row{min-height:58px}.tg-user-row .tg-avatar{width:38px;height:38px;flex-basis:38px}.tg-user-actions{display:flex;gap:5px}.tg-user-actions button{height:30px;padding:0 9px;border-radius:9px;border:1px solid rgba(96,165,250,.18);background:rgba(37,99,235,.07);color:#8cc8ff;font:800 8px Vazirmatn,sans-serif}.tg-user-actions button.danger{color:#ff7190;border-color:rgba(255,71,112,.25);background:rgba(255,31,92,.07)}.tg-config-owners{display:flex;flex-direction:column;gap:8px}.tg-config-owner{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:12px;border:1px solid rgba(96,165,250,.10);background:rgba(2,10,24,.3)}.tg-config-owner b{font-size:9px}.tg-config-owner span{font-size:8px;color:var(--t3)}.tg-notify-list{display:flex;flex-direction:column}.tg-security-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(96,165,250,.08);font-size:9px;color:var(--t3)}.tg-security-row b{color:var(--t1)}.tg-help-list{padding-right:18px;color:var(--t2);font-size:10px;line-height:2.2}.tg-empty{padding:24px;text-align:center;color:var(--t3);font-size:9px}.tg-result{margin-top:10px;padding:10px;border-radius:10px;font-size:9px;display:none}.tg-result.show{display:block;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.18);color:#4ade80}html.light .tg-hero,html.light .tg-glass,html.light .tg-stat{background:linear-gradient(145deg,rgba(255,255,255,.92),rgba(239,246,255,.82));border-color:rgba(37,99,235,.14);box-shadow:0 10px 28px rgba(30,64,175,.07),inset 0 1px rgba(255,255,255,.95)}html.light .tg-tabs{background:#fff;border-color:rgba(15,23,42,.10)}html.light .tg-field input,html.light .tg-input-wrap input,html.light .tg-search,html.light .tg-search input,html.light .tg-user-tools input,html.light .tg-user-tools select,html.light .tg-glass textarea{background:#f8fafc;color:#0f172a;border-color:rgba(37,99,235,.14)}html.light .tg-hero h1,html.light .tg-card-head h2{color:#0f172a}@media(max-width:900px){.tg-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tg-grid-2{grid-template-columns:1fr}.tg-user-tools{min-width:0}}.tg-build-badge{position:absolute;left:14px;bottom:10px;padding:4px 8px;border-radius:999px;font:800 7px/1 Vazirmatn,sans-serif;letter-spacing:.08em;color:#79c8ff;background:rgba(37,99,235,.08);border:1px solid rgba(96,165,250,.18)}
-@media(max-width:560px){.tg-hero{padding:14px;align-items:flex-start;padding-bottom:30px}.tg-hero-icon{width:48px;height:48px}.tg-hero h1{font-size:19px}.tg-hero p{font-size:8px}.tg-hero-status{font-size:8px}.tg-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.tg-stat{min-height:72px;padding:8px}.tg-stat-icon{width:32px;height:32px;flex-basis:32px}.tg-stat b{font-size:15px}.tg-stat small{font-size:7px}.tg-tabs{overflow:auto}.tg-tabs button{min-width:90px;height:36px;font-size:8px}.tg-glass{padding:12px;border-radius:18px}.tg-card-head h2{font-size:12px}.tg-user-tools{width:100%}.tg-user-tools select{width:90px}.tg-user-row{align-items:flex-start;flex-wrap:wrap}.tg-user-actions{margin-right:auto}.tg-user-actions button{height:28px}.tg-broadcast-foot{align-items:stretch;flex-direction:column}.tg-broadcast-foot .tg-btn{width:100%}}
-html:not(.light) *{animation:none!important}html:not(.light) [style*="backdrop-filter"],html:not(.light) [style*="filter:blur"]{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;filter:none!important}
-/* Dark-mode performance: keep the visual language, remove costly compositor effects. */
-html:not(.light) body{transition:none!important}html:not(.light) .sidebar{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}html:not(.light) .modal-bg{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}html:not(.light) .onex-card,html:not(.light) .onex-metric,html:not(.light) .card,html:not(.light) .metric,html:not(.light) .support-tile,html:not(.light) .quick-item,html:not(.light) .table-wrap,html:not(.light) .sub-box,html:not(.light) .link-box,html:not(.light) .tg-hero,html:not(.light) .tg-glass,html:not(.light) .tg-stat{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;transform:none!important}html:not(.light) .hero:before,html:not(.light) .grid-floor,html:not(.light) .telegram-card:before,html:not(.light) .telegram-icon,html:not(.light) .tg-orbit,html:not(.light) .tg-logo,html:not(.light) .tg-btn:before{animation:none!important}html:not(.light) .hero:before,html:not(.light) .sub-hero-glow,html:not(.light) .telegram-sub-card:after{filter:none!important}html:not(.light) .card,html:not(.light) .onex-card,html:not(.light) .onex-metric,html:not(.light) .metric,html:not(.light) .support-tile,html:not(.light) .quick-item{box-shadow:0 10px 28px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.035)!important}html:not(.light) .onex-topbar,html:not(.light) .onex-control-dock{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 </style>
 <section class="page" id="page-news">
   <div class="page-head">
@@ -9840,36 +9407,37 @@ html:not(.light) body{transition:none!important}html:not(.light) .sidebar{backdr
   </div>
 </section>
 
-<section class="page" id="page-telegram" data-build="ONEX-1.3.1-TELEGRAM-CONTROL-CENTER">
-  <div class="tg-dashboard-shell">
-    <div class="tg-hero">
-      <div class="tg-hero-brand"><div class="tg-hero-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 3.5 18.2 20c-.25 1.17-.9 1.45-1.83.9l-5.05-3.72-2.43 2.34c-.27.27-.5.27-1.02.5l.37-5.23 9.52-8.6c.41-.37-.09-.58-.64-.21L5.35 13.2.43 11.66c-1.07-.33-1.09-1.07.22-1.58L19.9 2.52c.91-.34 1.71.21 1.6.98Z"/></svg></div><div><span>TELEGRAM CONTROL CENTER</span><h1>ربات تلگرام</h1><p>مدیریت کامل ربات، کاربران، کانفیگ‌ها و اعلان‌ها</p></div></div>
-      <div class="tg-hero-status" id="tgHeroStatus"><i></i><span>در حال بررسی</span></div><div class="tg-build-badge">ONEX 1.3.1</div>
-    </div>
-    <div class="tg-stats-grid">
-      <div class="tg-stat"><div class="tg-stat-icon">👥</div><div><small>تعداد کاربران</small><b id="tgUserCount">0</b><em id="tgUserDelta">—</em></div></div>
-      <div class="tg-stat"><div class="tg-stat-icon">◉</div><div><small>کاربران فعال امروز</small><b id="tgActiveToday">0</b><em>زنده</em></div></div>
-      <div class="tg-stat"><div class="tg-stat-icon">✉</div><div><small>پیام‌های امروز</small><b id="tgMessagesToday">0</b><em>ارسالی/دریافتی</em></div></div>
-      <div class="tg-stat"><div class="tg-stat-icon">🔗</div><div><small>وضعیت Webhook</small><b id="tgWebhookState">—</b><em id="tgWebhookMeta">—</em></div></div>
-      <div class="tg-stat"><div class="tg-stat-icon">◷</div><div><small>آخرین ارتباط</small><b id="tgLastSeen">—</b><em id="tgMode">—</em></div></div>
-    </div>
-    <div class="tg-tabs" id="tgTabs">
-      <button class="on" data-tg-tab="overview">داشبورد ربات</button><button data-tg-tab="users">کاربران</button><button data-tg-tab="broadcast">ارسال پیام</button><button data-tg-tab="configs">کانفیگ‌ها</button><button data-tg-tab="settings">تنظیمات</button>
-    </div>
-    <div class="tg-tab-panel on" data-tg-panel="overview">
-      <div class="tg-grid-2">
-        <div class="tg-glass tg-settings-card"><div class="tg-card-head"><div><span>BOT CONNECTION</span><h2>تنظیمات اتصال ربات</h2></div><div class="tg-card-badge" id="tgStatus">—</div></div><div class="tg-field"><label>توکن ربات (BotFather)</label><div class="tg-input-wrap"><input id="tgToken" placeholder="123456:ABC-DEF..." autocomplete="off"><button type="button" onclick="copyText(document.getElementById('tgToken').value)">کپی</button></div></div><div class="tg-field"><label>آیدی عددی ادمین</label><input id="tgAdmin" placeholder="123456789" inputmode="numeric"></div><div class="tg-toggle-row"><div><b>Webhook</b><small>پیشنهادی برای Railway</small></div><label class="switch"><input type="checkbox" id="tgWebhook" checked><span class="slider"></span></label></div><div class="tg-actions"><button class="tg-btn secondary" onclick="testTelegram()">تست اتصال</button><button class="tg-btn primary" onclick="saveTelegram()">ذخیره و فعال‌سازی</button></div></div>
-        <div class="tg-glass tg-user-card"><div class="tg-card-head"><div><span>USER MANAGEMENT</span><h2>مدیریت کاربران</h2></div><button class="tg-link-btn" onclick="switchTgTab('users')">مشاهده همه</button></div><div class="tg-search"><span>⌕</span><input id="tgUserSearchMini" oninput="renderTelegramUsers(true)" placeholder="جستجو بر اساس ID یا Username..."></div><div id="tgMiniUsers" class="tg-mini-users"><div class="tg-empty">در حال بارگذاری...</div></div></div>
+<section class="page" id="page-telegram">
+  <div class="page-head">
+    <div>
+      <div class="page-title">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.2-1.86 8.77c-.14.62-.5.77-1.01.48l-2.8-2.06-1.35 1.3c-.15.15-.27.27-.55.27l.2-2.84 5.18-4.68c.22-.2-.05-.31-.35-.12l-6.4 4.03-2.76-.86c-.6-.19-.61-.6.12-.89l10.78-4.16c.5-.18.94.12.78.86z"/></svg>
+        <span data-i18n="nav_telegram">ربات ONEX</span>
       </div>
-      <div class="tg-grid-2">
-        <div class="tg-glass"><div class="tg-card-head"><div><span>BROADCAST</span><h2>ارسال پیام همگانی</h2></div><span class="tg-card-icon">➤</span></div><div class="tg-audience"><button class="on" data-aud="all">همه کاربران</button><button data-aud="active">کاربران فعال</button><button data-aud="configs">دارندگان کانفیگ</button><button data-aud="expired">منقضی‌شده</button></div><textarea id="tgBroadcastMini" placeholder="متن پیام خود را بنویسید..."></textarea><div class="tg-broadcast-foot"><span>گیرندگان: <b id="tgAudienceCount">0</b></span><button class="tg-btn primary" onclick="sendTelegramBroadcast()">ارسال پیام</button></div></div>
-        <div class="tg-glass"><div class="tg-card-head"><div><span>ACTIVITY</span><h2>آخرین فعالیت‌ها</h2></div><span class="tg-card-icon">◷</span></div><div id="tgActivity" class="tg-activity"><div class="tg-empty">در حال بارگذاری...</div></div></div>
-      </div>
+      <div class="page-sub" data-i18n="tg_sub">توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک</div>
     </div>
-    <div class="tg-tab-panel" data-tg-panel="users"><div class="tg-glass"><div class="tg-card-head"><div><span>USERS</span><h2>کاربران ربات</h2></div><div class="tg-user-tools"><input id="tgUserSearch" oninput="renderTelegramUsers(false)" placeholder="ID / Username"><select id="tgUserFilter" onchange="renderTelegramUsers(false)"><option value="all">همه</option><option value="active">فعال</option><option value="blocked">مسدود</option><option value="configs">دارای کانفیگ</option></select></div></div><div id="tgUsersList" class="tg-users-list"></div></div></div>
-    <div class="tg-tab-panel" data-tg-panel="broadcast"><div class="tg-glass tg-broadcast-large"><div class="tg-card-head"><div><span>MESSAGE CENTER</span><h2>ارسال پیام به کاربران</h2><p>قبل از ارسال، تعداد گیرندگان نمایش داده می‌شود.</p></div></div><div class="tg-audience large"><button class="on" data-aud="all">همه کاربران</button><button data-aud="active">کاربران فعال</button><button data-aud="configs">دارندگان کانفیگ</button><button data-aud="expired">منقضی‌شده</button></div><textarea id="tgBroadcastText" placeholder="پیام شما..."></textarea><div class="tg-send-preview"><span>تعداد گیرندگان: <b id="tgBroadcastCount">0</b></span><button class="tg-btn primary" onclick="sendTelegramBroadcast(true)">ارسال پیام</button></div><div id="tgBroadcastResult" class="tg-result"></div></div></div>
-    <div class="tg-tab-panel" data-tg-panel="configs"><div class="tg-grid-2"><div class="tg-glass"><div class="tg-card-head"><div><span>CONFIGS</span><h2>کانفیگ‌های متصل به تلگرام</h2></div></div><div id="tgConfigOwners" class="tg-config-owners"></div></div><div class="tg-glass"><div class="tg-card-head"><div><span>NOTIFICATIONS</span><h2>اعلان‌های خودکار</h2></div></div><div class="tg-notify-list"><label><span><b>نزدیک شدن انقضا</b><small>ارسال هشدار قبل از پایان اعتبار</small></span><label class="switch"><input type="checkbox" id="tgNotifyExpiry" checked><span class="slider"></span></label></label><label><span><b>نزدیک شدن حجم</b><small>هشدار هنگام مصرف بالا</small></span><label class="switch"><input type="checkbox" id="tgNotifyUsage" checked><span class="slider"></span></label></label><label><span><b>تغییر وضعیت سرویس</b><small>اعلان فعال/غیرفعال شدن</small></span><label class="switch"><input type="checkbox" id="tgNotifyStatus" checked><span class="slider"></span></label></label></div></div></div></div>
-    <div class="tg-tab-panel" data-tg-panel="settings"><div class="tg-grid-2"><div class="tg-glass"><div class="tg-card-head"><div><span>ACCESS</span><h2>امنیت و دسترسی</h2></div></div><div class="tg-security-row"><span>ادمین‌های مجاز</span><b id="tgAdminCount">0</b></div><div class="tg-security-row"><span>عضویت اجباری</span><b id="tgForceJoinState">خاموش</b></div><div class="tg-security-row"><span>حالت اجرا</span><b id="tgRuntimeMode">—</b></div><button class="tg-btn secondary full" onclick="openTgForceJoin()">مدیریت عضویت اجباری</button></div><div class="tg-glass"><div class="tg-card-head"><div><span>HELP</span><h2>راهنمای سریع</h2></div></div><ol class="tg-help-list"><li>از <b>@BotFather</b> ربات بساز و Token را وارد کن.</li><li>Telegram ID ادمین را در بخش اتصال ثبت کن.</li><li>Webhook را روی Railway فعال نگه دار.</li><li>کاربران پس از ارسال /start در پنل ثبت می‌شوند.</li></ol></div></div></div>
+  </div>
+  <div class="card">
+    <div class="card-title" data-i18n="tg_config">پیکربندی ربات</div>
+    <div class="field"><label data-i18n="tg_token">توکن ربات (BotFather)</label><input id="tgToken" placeholder="123456:ABC-DEF..." autocomplete="off"></div>
+    <div class="field"><label data-i18n="tg_admin">آیدی عددی ادمین</label><input id="tgAdmin" placeholder="123456789" inputmode="numeric"></div>
+    <div class="field" style="display:flex;align-items:center;gap:10px">
+      <label class="switch"><input type="checkbox" id="tgWebhook" checked><span class="slider"></span></label>
+      <span data-i18n="tg_webhook" style="font-size:13px;color:var(--t2)">فعال‌سازی Webhook (پیشنهادی روی Railway)</span>
+    </div>
+    <div id="tgStatus" style="font-size:12px;color:var(--t3);margin:10px 0"></div>
+    <button class="btn btn-p" style="width:100%" onclick="saveTelegram()">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      <span data-i18n="tg_activate">ذخیره و فعال‌سازی ربات</span>
+    </button>
+  </div>
+  <div class="card">
+    <div class="card-title" data-i18n="tg_help">راهنما</div>
+    <ol style="color:var(--t2);font-size:13px;line-height:2;padding-right:18px">
+      <li data-i18n="tg_h1">از @BotFather یک ربات بساز و توکن را کپی کن</li>
+      <li data-i18n="tg_h2">آیدی عددی خودت را از @userinfobot بگیر</li>
+      <li data-i18n="tg_h3">ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود</li>
+    </ol>
   </div>
 </section>
 
@@ -9921,7 +9489,6 @@ html:not(.light) body{transition:none!important}html:not(.light) .sidebar{backdr
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script>
 const I18N={
 fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
@@ -9985,9 +9552,7 @@ function goPage(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id==='page-'+name));
   window.scrollTo({top:0,behavior:'smooth'});
   if(name==='logs')loadLogs();
-  if(name==='groups')loadGroups();
-  if(name==='configs'||name==='dash')refreshAll();
-  if(name==='stats'){refreshAll();loadStatsDashboard(false);}
+  if(name==='configs'||name==='dash'||name==='stats')refreshAll();
 }
 document.querySelectorAll('.nav-item').forEach(el=>el.addEventListener('click',()=>goPage(el.dataset.page)));
 
@@ -10026,24 +9591,26 @@ async function api(url,opts={}){
 function fmtB(b){b=Number(b)||0;if(b<1024)return b+' B';if(b<1024**2)return (b/1024).toFixed(1)+' KB';if(b<1024**3)return (b/1024**2).toFixed(2)+' MB';return (b/1024**3).toFixed(2)+' GB'}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
+let __refreshBusy=false;
 async function refreshAll(){
-  if(typeof loadCategories==='function') try{await loadCategories()}catch(e){}
+  if(__refreshBusy || document.hidden)return;
+  __refreshBusy=true;
+  try{
   const links=await api('/api/links');
   if(!links)return;
   const arr=Array.isArray(links.links)?links.links:(Array.isArray(links)?links:[]);
-  const setRefresh=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
-  setRefresh('mLinks',arr.length);
+  document.getElementById('mLinks').textContent=arr.length;
   let active=0,used=0;
   arr.forEach(l=>{if(l.active!==false)active++;used+=Number(l.used_bytes||0)});
-  setRefresh('mTraffic',fmtB(used));
-  setRefresh('sTraffic',fmtB(used));
-  setRefresh('sActive',active);
-  setRefresh('lastUpd',(lang==='fa'?'بروزرسانی: ':'Updated: ')+new Date().toLocaleTimeString(lang==='fa'?'fa-IR':'en-US'));
+  document.getElementById('mTraffic').textContent=fmtB(used);
+  document.getElementById('sTraffic').textContent=fmtB(used);
+  document.getElementById('sActive').textContent=active;
+  document.getElementById('lastUpd').textContent=(lang==='fa'?'بروزرسانی: ':'Updated: ')+new Date().toLocaleTimeString(lang==='fa'?'fa-IR':'en-US');
   try{
     const c=await api('/api/connections');
     const cnt=(c&&c.connections)?c.connections.length:((c&&typeof c.count==='number')?c.count:0);
-    setRefresh('mConns',cnt);
-    setRefresh('sConns',cnt);
+    document.getElementById('mConns').textContent=cnt;
+    document.getElementById('sConns').textContent=cnt;
   }catch(e){}
   try{
     const h=await fetch('/health',{cache:'no-store'}).then(r=>r.json());
@@ -10054,7 +9621,7 @@ async function refreshAll(){
   }catch(e){}
     __allLinks=arr;
   softUpdateLinks(arr);
-  const panelInfo=document.getElementById('panelInfo'); if(panelInfo) panelInfo.innerHTML=lang==='fa'
+  document.getElementById('panelInfo').innerHTML=lang==='fa'
     ?`کل کانفیگ: <b>${arr.length}</b> · فعال: <b>${active}</b> · مصرف: <b>${fmtB(used)}</b> · بازه: <b>${statRange}</b>`
     :`Total: <b>${arr.length}</b> · Active: <b>${active}</b> · Usage: <b>${fmtB(used)}</b> · Range: <b>${statRange}</b>`;
   renderOnexRecent(arr);
@@ -10090,19 +9657,93 @@ function linkBadgeClass(l){
   return 'conn-badge gray';
 }
 function softUpdateLinks(arr){
-  // FINAL CONFIG CARDS RENDERER — never fall back to the legacy table.
-  window.__linksMap={};
-  (arr||[]).forEach(l=>{window.__linksMap[String(l.uuid||l.id||'')]=l});
-  renderConfigCards(getFilteredConfigs());
+  const tb=document.getElementById('linksTable');
+  if(!tb) return;
+  const rows=[...tb.querySelectorAll('tr[data-uid]')];
+  const existing=rows.map(r=>r.getAttribute('data-uid'));
+  const incoming=arr.map(l=>String(l.uuid||l.id||''));
+  const same = existing.length===incoming.length && existing.every((id,i)=>id===incoming[i]);
+  // اگر در حال درگ یا انتخاب هستیم، فقط سلول‌ها را آپدیت کن
+  const selecting = document.querySelectorAll('.cfg-chk:checked').length>0;
+  const dragging = !!__dragUid;
+  if(!same || existing.length===0){
+    if(dragging || selecting){
+      // فقط آمار ردیف‌های موجود را آپدیت کن، ساختار را نشکن
+      window.__linksMap = window.__linksMap || {};
+      arr.forEach(l=>{
+        const uid=String(l.uuid||l.id||'');
+        window.__linksMap[uid]=l;
+        const tr=tb.querySelector(`tr[data-uid="${uid}"]`);
+        if(!tr) return;
+        patchLinkRow(tr, l);
+      });
+      return;
+    }
+    renderLinks(arr);
+    return;
+  }
+  window.__linksMap = window.__linksMap || {};
+  arr.forEach(l=>{
+    const uid=String(l.uuid||l.id||'');
+    window.__linksMap[uid]=l;
+    const tr=tb.querySelector(`tr[data-uid="${uid}"]`);
+    if(tr) patchLinkRow(tr, l);
+  });
 }
 function patchLinkRow(tr, l){
-  // Legacy table patcher retained for compatibility; cards are the active UI.
-  renderConfigCards(getFilteredConfigs());
+  const conn=Number(l.connected_ips||0);
+  const badge=tr.querySelector('.conn-badge');
+  if(badge){ badge.textContent=String(conn); badge.className=linkBadgeClass(l); }
+  const usageCell=tr.querySelector('[data-usage]');
+  if(usageCell){
+    usageCell.textContent = fmtB(l.used_bytes) + (l.limit_bytes?(' / '+fmtB(l.limit_bytes)):'');
+  }
+  // وضعیت سوئیچ را اگر کاربر همین الان عوض نکرده دست نزن — فقط اگر API فرق دارد و فوکوس نیست
+  const sw=tr.querySelector('.switch input[type=checkbox]');
+  if(sw && document.activeElement!==sw){
+    const on=l.active!==false&&!l.expired;
+    if(sw.checked!==on) sw.checked=on;
+  }
 }
 function renderLinks(arr){
+  const tb=document.getElementById('linksTable');
+  if(!arr.length){tb.innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:28px">${lang==='fa'?'کانفیگی نیست':'No configs'}</td></tr>`;updateBulkBar();return}
   window.__linksMap={};
-  (arr||[]).forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l);
-  renderConfigCards(getFilteredConfigs());
+  const catMap=window.__catMap||{};
+  // preserve checked state
+  const prevChecked=new Set([...document.querySelectorAll('.cfg-chk:checked')].map(c=>c.value));
+  tb.innerHTML=arr.map(l=>{
+    const uid=l.uuid||l.id||'';
+    window.__linksMap[uid]=l;
+    const name=l.label||l.name||String(uid).slice(0,8);
+    const proto=l.protocol||'vless-ws';
+    const on=l.active!==false&&!l.expired;
+    const conn=Number(l.connected_ips||0);
+    const gname=catMap[String(l.category_id||'')]||'';
+    const chk=prevChecked.has(uid)?'checked':'';
+    return `<tr draggable="true" data-uid="${esc(uid)}" ondragstart="cfgDragStart(event)" ondragover="cfgDragOver(event)" ondrop="cfgDrop(event)" ondragend="cfgDragEnd(event)">
+      <td style="text-align:center;padding:10px 8px;vertical-align:middle"><input type="checkbox" class="cfg-chk" value="${esc(uid)}" ${chk} onchange="updateBulkBar()" style="width:16px;height:16px;margin:0;vertical-align:middle;cursor:pointer"></td>
+      <td style="cursor:grab;color:var(--t3);user-select:none" title="کشیدن">⋮⋮</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <b>${esc(name)}</b>
+          <span class="${linkBadgeClass(l)}" title="${lang==='fa'?'متصل الان':'Online now'}">${conn}</span>
+          ${gname?`<span style="font-size:10px;padding:2px 7px;border-radius:8px;background:var(--hover);color:var(--t3)">${esc(gname)}</span>`:''}
+        </div>
+      </td>
+      <td style="color:var(--t3);font-size:11px">${esc(proto)}</td>
+      <td><label class="switch"><input type="checkbox" ${on?'checked':''} onchange="toggleLink('${esc(uid)}',this.checked)"><span class="slider"></span></label></td>
+      <td data-usage>${fmtB(l.used_bytes)}${l.limit_bytes?(' / '+fmtB(l.limit_bytes)):''}</td>
+      <td class="ops">
+        <button class="btn btn-sm" onclick="copyLinkById('${esc(uid)}')" title="VLESS"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        <button class="btn btn-sm" onclick="copySubById('${esc(uid)}')" title="Sub"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg></button>
+        <a class="btn btn-sm" href="/info/${esc(uid)}" target="_blank" title="INFO" style="text-decoration:none"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></a>
+        <button class="btn btn-sm" onclick="resetUsage('${esc(uid)}')" title="Reset"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button class="btn btn-sm btn-d" onclick="deleteLink('${esc(uid)}')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+      </td>
+    </tr>`;
+  }).join('');
+  updateBulkBar();
 }
 function getLinkUrl(l){if(!l)return '';return l.vless_full||l.vless||l.vless_link||l.link||''}
 function getSubUrl(l){if(!l)return '';return l.sub||l.sub_url||l.info||''}
@@ -10135,16 +9776,6 @@ async function toggleLink(uid,state){
     return;
   }
   toast(state?(lang==='fa'?'فعال شد':'Enabled'):(lang==='fa'?'غیرفعال شد':'Disabled'));
-}
-async function toggleConfigActive(e,uid,state){
-  e.preventDefault();e.stopPropagation();
-  const next=!!state;
-  if(window.__linksMap&&window.__linksMap[uid])window.__linksMap[uid].active=next;
-  if(typeof __allLinks!=='undefined'&&Array.isArray(__allLinks)){const item=__allLinks.find(x=>String(x.uuid||x.id)===String(uid));if(item)item.active=next;}
-  const r=await api('/api/links/'+encodeURIComponent(uid),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:next})});
-  if(r===null){if(window.__linksMap&&window.__linksMap[uid])window.__linksMap[uid].active=!next;const item=__allLinks?.find?.(x=>String(x.uuid||x.id)===String(uid));if(item)item.active=!next;renderConfigCards(getFilteredConfigs());return}
-  toast(next?(lang==='fa'?'کانفیگ فعال شد':'Config enabled'):(lang==='fa'?'کانفیگ غیرفعال شد':'Config disabled'));
-  renderConfigCards(getFilteredConfigs());
 }
 function openDeleteAllConfigs(){
   const modal=document.getElementById('deleteAllConfigsModal');
@@ -10230,69 +9861,10 @@ function setAdvancedValidation(kind, html){const el=document.getElementById('adv
 async function validateAdvancedConfig(showPreview=false){const protocol=document.getElementById('cProto')?.value||'';const advanced=advancedFormObject();setAdvancedValidation('warn',lang==='fa'?'در حال اعتبارسنجی...':'Validating...');const r=await api('/api/advanced/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({protocol,advanced})});if(!r){setAdvancedValidation('err',lang==='fa'?'اعتبارسنجی انجام نشد':'Validation failed');return false}const parts=[];if(r.ok)parts.push('✓ '+(lang==='fa'?'تنظیمات معتبر است':'Configuration is valid'));if(r.native)parts.push('• '+(lang==='fa'?'Native sing-box فعال است':'Native sing-box is available'));(r.warnings||[]).forEach(x=>parts.push('⚠ '+esc(x)));(r.errors||[]).forEach(x=>parts.push('✕ '+esc(x)));setAdvancedValidation(r.ok?(r.warnings?.length?'warn':'ok'):'err',parts.join('<br>'));__advancedPreview=r.preview||null;const box=document.getElementById('advancedPreviewBox'),pre=document.getElementById('advancedPreviewCode');if(box&&pre){box.hidden=!showPreview||!__advancedPreview;if(__advancedPreview)pre.textContent=JSON.stringify(__advancedPreview,null,2)}await loadAdvancedCapabilities(protocol);return !!r.ok}
 async function loadAdvancedCapabilities(protocol){const r=await api('/api/advanced/capabilities?protocol='+encodeURIComponent(protocol||''));const el=document.getElementById('advancedCapabilityStatus');if(!el||!r)return;const labels={tls:'TLS',reality:'Reality',sni:'SNI',alpn:'ALPN',fingerprint:'Fingerprint',ports:'چند پورت',listener:'Listener',routing:'Routing',sniffing:'Sniffing',custom_headers:'Headers'};el.innerHTML=Object.entries(r.supported||{}).map(([k,v])=>(v?'✓ ':'✕ ')+(labels[k]||k)+(v?' · پشتیبانی':' · اعمال نمی‌شود')).join(' &nbsp; | &nbsp; ');el.className='advanced-validation-status '+(r.native?'ok':'warn');el.style.display='block'}
 function copyAdvancedPreview(){if(__advancedPreview)copyText(JSON.stringify(__advancedPreview,null,2));}
-let __configEditUid='';let __configEditOriginalExpiresAt=null;let __configEditOriginalDays=0;
-function configEditValue(id){return document.getElementById(id)?.value??''}
-function setConfigEditValue(id,value){const el=document.getElementById(id);if(el)el.value=value??''}
-function setConfigEditMode(on,link){
-  __configEditUid=on?(String(link?.uuid||link?.id||'')):'';if(!on){__configEditOriginalExpiresAt=null;__configEditOriginalDays=0;}
-  const title=document.getElementById('createPageTitle'),sub=document.getElementById('createPageSubtitle'),btn=document.getElementById('manualConfigSubmit'),cancel=document.getElementById('cancelConfigEditBtn'),banner=document.getElementById('configEditBanner'),bannerName=document.getElementById('configEditBannerName'),icon=document.getElementById('createPageTitleIcon');
-  if(title)title.textContent=on?'ویرایش کانفیگ':'ساخت کانفیگ';
-  if(sub)sub.textContent=on?'تنظیمات کانفیگ را تغییر دهید و در پایان ذخیره کنید':'ایجاد کانفیگ جدید با تنظیمات پایه و پیشرفته';
-  if(btn){btn.innerHTML=on?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span>ذخیره تغییرات</span>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg><span>ساخت</span>';btn.setAttribute('onclick',on?'doManualCreate()':'doManualCreate()')}
-  if(cancel)cancel.hidden=!on;
-  if(banner){banner.hidden=!on;if(on&&bannerName)bannerName.textContent=link?.label||link?.uuid||'—'}
-  if(icon)icon.innerHTML=on?'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>':'<path d="M12 5v14M5 12h14"/>';
-}
-function cancelConfigEdit(){setConfigEditMode(false);goPage('configs')}
-async function openConfigEditor(e,uid){
-  e?.preventDefault();e?.stopPropagation();
-  const link=(window.__linksMap||{})[uid]||__allLinks.find(x=>String(x.uuid||x.id||'')===String(uid));
-  if(!link){toast(lang==='fa'?'کانفیگ پیدا نشد':'Config not found');return}
-  closeConfigMenus();
-  goPage('create');
-  await Promise.all([loadProtocols(),loadCategories(),loadGroups()]);
-  setConfigEditMode(true,link);
-  setConfigEditValue('cName',link.label||'');
-  const proto=document.getElementById('cProto');if(proto){proto.value=link.protocol||'vless-ws';syncProtocolPicker('cProto')}
-  setConfigEditValue('cGroup',link.category_id||'0');
-  setConfigEditValue('cSubGroup',link.sub_id||'');
-  const limitBytes=Number(link.limit_bytes||0);let limitUnit='GB',limitValue=0;
-  if(limitBytes){if(limitBytes%(1024**3)===0){limitUnit='GB';limitValue=limitBytes/(1024**3)}else if(limitBytes%(1024**2)===0){limitUnit='MB';limitValue=limitBytes/(1024**2)}else{limitUnit='KB';limitValue=limitBytes/1024}}
-  setConfigEditValue('cLimit',limitValue);setConfigEditValue('cUnit',limitUnit);
-  let days=0;if(link.expires_at){const ms=new Date(link.expires_at).getTime()-Date.now();days=Math.max(0,Math.ceil(ms/86400000))}
-  __configEditOriginalExpiresAt=link.expires_at||null;__configEditOriginalDays=days;setConfigEditValue('cDays',days);
-  setConfigEditValue('cIp',link.ip_limit||0);
-  const speedBytes=Number(link.speed_limit_bytes||0);setConfigEditValue('cSpeed',speedBytes?Math.round((speedBytes*8/(1024*1024))*100)/100:0);
-  const all=document.getElementById('cAllProtocols');if(all)all.checked=!!link.all_protocols;
-  fillAdvancedForm(link.advanced||{ports:[Number(link.port)||443]});
-  document.getElementById('advancedValidationStatus')?.replaceChildren();
-  document.getElementById('advancedPreviewBox')?.setAttribute('hidden','');
-  window.scrollTo({top:0,behavior:'smooth'});
-  toast(lang==='fa'?'فرم ویرایش آماده شد':'Edit form loaded');
-}
-function collectConfigFormBody(){
-  const advanced=advancedFormObject(),ports=advanced.ports.length?advanced.ports:[Number(configEditValue('cPort'))||443];
-  return {label:configEditValue('cName').trim()||undefined,protocol:configEditValue('cProto')||undefined,category_id:configEditValue('cGroup')||'0',sub_id:configEditValue('cSubGroup')||undefined,limit_value:Number(configEditValue('cLimit'))||0,limit_unit:configEditValue('cUnit')||'GB',expires_days:Number(configEditValue('cDays'))||0,ip_limit:Number(configEditValue('cIp'))||0,speed_limit_value:Number(configEditValue('cSpeed'))||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
-}
-async function saveEditedConfig(){
-  const uid=__configEditUid;if(!uid)return false;
-  const valid=await validateAdvancedConfig(false);if(!valid)return false;
-  const body=collectConfigFormBody();
-  const currentDays=Number(configEditValue('cDays'))||0;
-  if(currentDays===__configEditOriginalDays) body.expires_at=__configEditOriginalExpiresAt;
-  else body.expires_days=currentDays;
-  const r=await api('/api/links/'+encodeURIComponent(uid),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!r)return false;
-  toast(lang==='fa'?'تغییرات ذخیره شد':'Changes saved');
-  setConfigEditMode(false);
-  await refreshAll();
-  goPage('configs');
-  return true;
-}
 async function doManualCreate(){
-  if(__configEditUid)return saveEditedConfig();
   const valid=await validateAdvancedConfig(false); if(!valid)return;
-  const body=collectConfigFormBody();
+  const advanced=advancedFormObject(); const ports=advanced.ports.length?advanced.ports:[443];
+  const body={label:document.getElementById('cName').value||undefined,protocol:document.getElementById('cProto')?.value||undefined,category_id:document.getElementById('cGroup')?.value||'0',limit_value:Number(document.getElementById('cLimit').value)||0,limit_unit:document.getElementById('cUnit').value||'GB',expires_days:Number(document.getElementById('cDays').value)||0,ip_limit:Number(document.getElementById('cIp').value)||0,speed_limit_value:Number(document.getElementById('cSpeed').value)||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
   const r=await api('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); if(r){showResult(r);refreshAll();saveAdvancedDraft()}
 }
 document.addEventListener('change',e=>{if(e.target?.id==='advTlsMode')updateRealityVisibility();if(e.target?.id==='cProto')loadAdvancedCapabilities(e.target.value)});
@@ -10313,41 +9885,10 @@ async function loadLogs(){
     return `<div class="log-item"><div class="log-time">${esc(tm)}</div><div class="log-msg">${esc(l.message||l.msg||JSON.stringify(l))}</div></div>`;
   }).join('');
 }
-function statsHoursFromMap(map){
-  const out=[];for(let h=0;h<24;h++){const key=String(h).padStart(2,'0')+':00';out.push({label:key,value:Number(map?.[key]||0)})}return out;
-}
-function makeSmoothPath(vals,w=900,h=250,pad=32){
-  const max=Math.max(1,...vals);const step=(w-pad*2)/Math.max(1,vals.length-1);return vals.map((v,i)=>{const x=pad+i*step,y=h-pad-(v/max)*(h-pad*2);return [x,y]}).map((p,i)=>{if(i===0)return `M ${p[0].toFixed(1)} ${p[1].toFixed(1)}`;const a=arguments;return ` L ${p[0].toFixed(1)} ${p[1].toFixed(1)}`}).join('');
-}
-function drawTrafficChart(downloadMap,uploadMap){
-  const svg=document.getElementById('trafficChart');if(!svg)return;
-  const d=statsHoursFromMap(downloadMap),u=statsHoursFromMap(uploadMap),dv=d.map(x=>x.value),uv=u.map(x=>x.value),all=[...dv,...uv],max=Math.max(1,...all);
-  const W=900,H=310,P=42, chartH=220, step=(W-P*2)/23;
-  const pts=(vals)=>vals.map((v,i)=>[P+i*step,H-P-(v/max)*chartH]);
-  const dp=pts(dv),up=pts(uv),line=(ps)=>ps.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-  const area=(ps)=>`${line(ps)} L ${ps[ps.length-1][0].toFixed(1)} ${H-P} L ${ps[0][0].toFixed(1)} ${H-P} Z`;
-  let grid='';for(let i=0;i<5;i++){const y=P+i*(chartH/4),v=max*(1-i/4);grid+=`<line class="traffic-grid" x1="${P}" y1="${y}" x2="${W-P}" y2="${y}"/><text class="traffic-axis" x="${P-8}" y="${y+4}" text-anchor="end">${fmtB(v)}</text>`}
-  let labels='';for(let i=0;i<24;i+=4){const x=P+i*step;labels+=`<text class="traffic-axis" x="${x}" y="${H-8}" text-anchor="middle">${String(i).padStart(2,'0')}:00</text>`}
-  svg.innerHTML=`<defs><linearGradient id="areaD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#18aaff" stop-opacity=".24"/><stop offset="1" stop-color="#18aaff" stop-opacity="0"/></linearGradient><linearGradient id="areaU" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff2695" stop-opacity=".20"/><stop offset="1" stop-color="#ff2695" stop-opacity="0"/></linearGradient></defs>${grid}${labels}<path class="traffic-area-d" d="${area(dp)}"/><path class="traffic-area-u" d="${area(up)}"/><path class="traffic-line-d" d="${line(dp)}"/><path class="traffic-line-u" d="${line(up)}"/>`;
-  const sd=document.getElementById('sparkDownload'),su=document.getElementById('sparkUpload');if(sd)sd.style.setProperty('--spark',dv.join(','));if(su)su.style.setProperty('--spark',uv.join(','));
-}
-function updateStatsUI(r,links,connections){
-  const arr=Array.isArray(links)?links:[];const active=arr.filter(l=>l.active!==false&&!configExpired(l)).length,expired=arr.filter(configExpired).length,used=arr.reduce((n,l)=>n+Number(l.used_bytes||0),0);
-  const down=Number(r.download_bytes??r.total_traffic_bytes??0),up=Number(r.upload_bytes||0),conns=Number(r.active_connections||connections||0);
-  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};
-  set('stDownload',fmtB(down));set('stUpload',fmtB(up));set('stConnections',conns);set('stUsers',active);set('stConfigs',arr.length);set('stExpiredText',expired+' منقضی');set('stServer', 'آنلاین');set('stServerHost',location.host||'ONEX');set('stHost',location.host||'—');set('stActiveConfigs',active);set('stConn2',conns);set('stErrors',Number(r.total_errors||0));set('stRequests',Number(r.total_requests||0).toLocaleString('fa-IR')+' درخواست');set('stUptime',r.uptime||'—');set('sumConfigs',arr.length);set('sumActive',active);set('sumTraffic',fmtB(used));set('sumUpload',fmtB(up));set('sumRequests',Number(r.total_requests||0).toLocaleString('fa-IR'));set('sumGroups',Number(r.subs_count||0));
-  const ring=document.getElementById('uptimeRing');if(ring)ring.style.background='conic-gradient(#18e6ae 0 99.9%,rgba(55,82,117,.24) 99.9%)';
-  const rangeText={day:'امروز',week:'این هفته',month:'این ماه',all:'کل'}[statRange]||'امروز';set('statsChartRange',rangeText);drawTrafficChart(r.hourly||{},r.hourly_upload||{});
-}
-async function loadStatsDashboard(showToast=false){
-  const r=await api('/stats');if(!r)return;const linksR=await api('/api/links');const links=Array.isArray(linksR?.links)?linksR.links:(Array.isArray(linksR)?linksR:[]);let conn=0;try{const c=await api('/api/connections');conn=Number(c?.count||c?.connections?.length||0)}catch(e){}updateStatsUI(r,links,conn);if(showToast)toast(lang==='fa'?'آمار بروزرسانی شد':'Statistics refreshed');
-}
-
 function setRange(r,el){
   statRange=r;
   document.querySelectorAll('#rangeTabs .range-tab').forEach(t=>t.classList.toggle('on',t.dataset.r===r));
-  loadStatsDashboard(false);
-  toast(t('r_'+r));
+  refreshAll();toast(t('r_'+r));
 }
 function randomName(){
   const chars='abcdefghijklmnopqrstuvwxyz0123456789';
@@ -10413,24 +9954,11 @@ async function deployPanelUpdate(){
   if(btn){btn.disabled=false;btn.textContent=updateText('شروع بروزرسانی پنل','Update panel now')}
   toast((r&&r.detail)||updateText('شروع بروزرسانی ناموفق بود','Could not start the update'));
 }
-
-let __tgUsers=[]; let __tgAudience='all';
-function switchTgTab(tab){document.querySelectorAll('#tgTabs button').forEach(b=>b.classList.toggle('on',b.dataset.tgTab===tab));document.querySelectorAll('.tg-tab-panel').forEach(p=>p.classList.toggle('on',p.dataset.tgPanel===tab));if(tab==='users')renderTelegramUsers(false);}
-document.querySelectorAll('#tgTabs button').forEach(b=>b.addEventListener('click',()=>switchTgTab(b.dataset.tgTab)));
-document.querySelectorAll('.tg-audience button').forEach(b=>b.addEventListener('click',()=>{__tgAudience=b.dataset.aud;document.querySelectorAll('.tg-audience button').forEach(x=>x.classList.toggle('on',x.dataset.aud===__tgAudience));updateTelegramAudienceCount();}));
-function telegramAudienceUsers(){return __tgUsers.filter(u=>{if(u.blocked)return false;if(__tgAudience==='active')return !!u.active_today;if(__tgAudience==='configs')return Number(u.config_count||0)>0;if(__tgAudience==='expired')return Number(u.expired_count||0)>0;return true})}
-function updateTelegramAudienceCount(){const n=telegramAudienceUsers().length;['tgAudienceCount','tgBroadcastCount'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=n})}
-function renderTelegramUsers(mini=false){const q=(document.getElementById(mini?'tgUserSearchMini':'tgUserSearch')?.value||'').trim().toLowerCase();const f=document.getElementById('tgUserFilter')?.value||'all';let arr=__tgUsers.filter(u=>{const hay=String(u.user_id)+' '+String(u.username||'')+' '+String(u.first_name||'');if(q&&!hay.toLowerCase().includes(q))return false;if(f==='active'&&!u.active_today)return false;if(f==='blocked'&&!u.blocked)return false;if(f==='configs'&&!Number(u.config_count||0))return false;return true});if(mini)arr=arr.slice(0,4);const box=document.getElementById(mini?'tgMiniUsers':'tgUsersList');if(!box)return;if(!arr.length){box.innerHTML='<div class="tg-empty">کاربری ثبت نشده است.</div>';return}box.innerHTML=arr.map(u=>{const initial=esc((u.first_name||u.username||String(u.user_id)).slice(0,1).toUpperCase());return `<div class="tg-${mini?'mini-':''}user"><div class="tg-avatar">${initial}</div><div class="tg-user-copy"><b>${esc(u.first_name||u.username||'Telegram User')}</b><small>${u.username?'@'+esc(u.username)+' · ':''}${esc(u.user_id)} · ${Number(u.config_count||0)} کانفیگ</small></div><span class="tg-user-state ${u.blocked?'bad':''}">${u.blocked?'مسدود':'فعال'}</span>${mini?'':`<div class="tg-user-actions"><button onclick="toggleTelegramUser(${Number(u.user_id)},${!u.blocked})" class="${u.blocked?'':'danger'}">${u.blocked?'فعال‌سازی':'مسدود'}</button></div>`}</div>`}).join('')}
-async function loadTelegramDashboard(){try{const r=await api('/api/telegram/dashboard');if(!r)return;document.getElementById('tgUserCount').textContent=r.user_count??0;document.getElementById('tgActiveToday').textContent=r.active_today??0;document.getElementById('tgMessagesToday').textContent=r.messages_today??0;document.getElementById('tgWebhookState').textContent=r.webhook?'متصل':'خاموش';document.getElementById('tgWebhookMeta').textContent=r.webhook_url||'—';document.getElementById('tgLastSeen').textContent=r.last_seen||'—';document.getElementById('tgMode').textContent=r.bot?.mode||'—';document.getElementById('tgAdminCount').textContent=r.admin_count??0;document.getElementById('tgRuntimeMode').textContent=r.bot?.mode||'—';document.getElementById('tgForceJoinState').textContent=r.force_join?.enabled?'فعال':'خاموش';const hs=document.getElementById('tgHeroStatus');if(hs){hs.classList.toggle('bad',!r.enabled);hs.querySelector('span').textContent=r.enabled?'ربات فعال و متصل':'ربات غیرفعال'}__tgUsers=Array.isArray(r.users)?r.users:[];renderTelegramUsers(true);renderTelegramUsers(false);updateTelegramAudienceCount();const act=document.getElementById('tgActivity');const logs=Array.isArray(r.activity)?r.activity.slice(-8).reverse():[];act.innerHTML=logs.length?logs.map(x=>`<div class="tg-activity-row"><i class="tg-activity-dot"></i><div><b>${esc(x.message||'—')}</b><small>${esc(String(x.time||'').replace('T',' ').slice(0,19))}</small></div></div>`).join(''):'<div class="tg-empty">فعالیتی ثبت نشده است.</div>';const owners=document.getElementById('tgConfigOwners');const cfg=Array.isArray(r.config_owners)?r.config_owners:[];owners.innerHTML=cfg.length?cfg.slice(0,12).map(x=>`<div class="tg-config-owner"><b>${esc(x.label||x.uuid||'—')}</b><span>${esc(x.owner||'بدون مالک')} · ${esc(x.status||'فعال')}</span></div>`).join(''):'<div class="tg-empty">هنوز کانفیگی به کاربر تلگرام متصل نشده است.</div>';}catch(e){}}
-async function toggleTelegramUser(id,blocked){const r=await api('/api/telegram/users/'+id+'/block',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocked})});if(r&&r.ok){toast(blocked?'کاربر مسدود شد':'کاربر فعال شد');loadTelegramDashboard()}}
-async function sendTelegramBroadcast(full=false){const el=document.getElementById(full?'tgBroadcastText':'tgBroadcastMini');const msg=(el?.value||'').trim();if(!msg){toast('متن پیام را وارد کنید');return}const r=await api('/api/telegram/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,audience:__tgAudience})});if(r&&r.ok){const out=document.getElementById('tgBroadcastResult');if(out){out.textContent=`ارسال تمام شد: ${r.sent} موفق · ${r.failed} ناموفق`;out.classList.add('show')}toast(`ارسال شد: ${r.sent}`);el.value=''}}
-async function testTelegram(){const r=await api('/api/telegram/test');if(r&&r.ok)toast(r.message||'اتصال برقرار است');else toast('اتصال ربات برقرار نشد')}
-function openTgForceJoin(){toast('تنظیم عضویت اجباری از بخش تنظیمات ربات قابل مدیریت است')}
 async function saveTelegram(){
   const token=document.getElementById('tgToken').value.trim();
   const admin=document.getElementById('tgAdmin').value.trim();
   const webhook=document.getElementById('tgWebhook').checked;
-  if(!admin){toast(lang==='fa'?'آیدی ادمین لازم است':'Admin ID required');return}
+  if(!token||!admin){toast(lang==='fa'?'توکن و آیدی لازم است':'Token and admin ID required');return}
   toast(lang==='fa'?'در حال فعال‌سازی...':'Activating...');
   const r=await api('/api/telegram/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,admin_ids:admin,webhook})});
   if(r){
@@ -10439,7 +9967,6 @@ async function saveTelegram(){
   }
 }
 async function loadTelegram(){
-  loadTelegramDashboard();
   const r=await api('/api/telegram/settings');
   if(!r)return;
   if(r.admin_ids) document.getElementById('tgAdmin').value=r.admin_ids;
@@ -10659,9 +10186,8 @@ async function deleteAdmin(id){
 
 
 async function loadProtocols(){
-  window.__protocolList=window.__protocolList||[];
   const r=await api('/api/protocols');
-  const list=(r&&r.protocols)||[]; window.__protocolList=list;
+  const list=(r&&r.protocols)||[];
   const def=(r&&r.default)||'vless-ws';
   __protocolPickerOptions=list;
   ['cProto','aProto'].forEach(id=>{
@@ -10673,39 +10199,16 @@ async function loadProtocols(){
   setupProtocolPickers();
 }
 let __allLinks=[];
-let cfgStatusFilter='all',cfgSortMode='newest';
-function toggleConfigFilters(){document.getElementById('cfgFilterRow')?.classList.toggle('open')}
-function setCfgStatus(v,el){cfgStatusFilter=v;document.querySelectorAll('#cfgFilterRow [data-status]').forEach(x=>x.classList.toggle('on',x===el));renderConfigCards(getFilteredConfigs())}
-function setCfgSort(v,el){cfgSortMode=v;document.querySelectorAll('#cfgFilterRow [data-sort]').forEach(x=>x.classList.toggle('on',x===el));renderConfigCards(getFilteredConfigs())}
-function configExpired(l){return !!l.expired||(l.expires_at&&new Date(l.expires_at).getTime()<=Date.now())||(Number(l.limit_bytes)>0&&Number(l.used_bytes||0)>=Number(l.limit_bytes))}
-function getFilteredConfigs(){const q=(document.getElementById('cfgSearch')?.value||'').trim().toLowerCase();let a=__allLinks.filter(l=>{const dead=configExpired(l),active=l.active!==false&&!dead;if(cfgStatusFilter==='active'&&!active)return false;if(cfgStatusFilter==='expired'&&!dead)return false;if(!q)return true;return [l.label,l.name,l.protocol,l.protocol_label,l.uuid,l.id,l.sub,l.sub_url,l.vless,l.vless_full].map(x=>String(x||'').toLowerCase()).some(x=>x.includes(q))});a.sort((x,y)=>cfgSortMode==='name'?String(x.label||x.name||'').localeCompare(String(y.label||y.name||'')):cfgSortMode==='usage'?Number(y.used_bytes||0)-Number(x.used_bytes||0):String(y.created_at||'').localeCompare(String(x.created_at||'')));return a}
-function filterConfigs(){renderConfigCards(getFilteredConfigs())}
-function protocolUi(id){const m={'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png'],'xhttp-stream-one':['ONEX Stream','/api/protocol-icon/xhttp-stream-one.png']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png']}
-function cfgDate(v){if(!v)return 'بدون انقضا';try{return new Date(v).toLocaleDateString('fa-IR',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){return String(v).slice(0,10)}}
-function updateConfigStats(){const total=__allLinks.length,expired=__allLinks.filter(configExpired).length,active=__allLinks.filter(l=>l.active!==false&&!configExpired(l)).length,used=__allLinks.reduce((n,l)=>n+Number(l.used_bytes||0),0),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('cfgStatTotal',total);set('cfgStatUsed',fmtB(used));set('cfgStatActive',active);set('cfgStatExpired',expired);set('cfgVisibleCount',`${getFilteredConfigs().length} مورد`)}
-let __openConfigMenuUid='';
-function closeConfigMenus(){__openConfigMenuUid='';document.querySelectorAll('.cfg-menu.open').forEach(m=>m.classList.remove('open'));document.querySelectorAll('.cfg-menu[data-portal="1"]').forEach(m=>{const hostId=m.dataset.hostId;const host=hostId?document.getElementById(hostId):null;if(host&&m.parentElement===document.body)host.appendChild(m);m.style.left='';m.style.top='';m.style.right='';m.style.bottom='';m.style.display='';m.dataset.portal='';delete m.dataset.hostId})}
-function positionConfigMenu(menu,btn){if(!menu||!btn)return;const r=btn.getBoundingClientRect();const gap=8;const width=Math.min(236,window.innerWidth-16);menu.style.width=width+'px';menu.style.right='auto';menu.style.left=Math.max(8,Math.min(window.innerWidth-width-8,r.right-width))+'px';menu.style.top='0px';menu.style.display='block';const mh=menu.offsetHeight||220;let top=r.bottom+gap;if(top+mh>window.innerHeight-8)top=r.top-mh-gap;if(top<8)top=8;menu.style.top=top+'px'}
-function toggleConfigMenu(e,uid){e.preventDefault();e.stopPropagation();const id='cfgMenu_'+uid.replace(/[^a-zA-Z0-9_-]/g,'_'),m=document.getElementById(id);if(!m)return;const was=(__openConfigMenuUid===uid&&m.classList.contains('open'));if(was){closeConfigMenus();return}closeConfigMenus();const btn=e.currentTarget||e.target.closest('.cfg-menu-btn');m.dataset.hostId=id.replace('cfgMenu_','cfgHost_');const host=document.createElement('span');host.id=m.dataset.hostId;host.hidden=true;m.parentElement.insertBefore(host,m);document.body.appendChild(m);m.dataset.portal='1';m.classList.add('open');__openConfigMenuUid=uid;positionConfigMenu(m,btn)}
-function configMenuAction(a,uid){closeConfigMenus();if(a==='copy')return copyLinkById(uid);if(a==='sub')return copySubById(uid);if(a==='info'){window.open('/info/'+encodeURIComponent(uid),'_blank','noopener');return}if(a==='reset')return resetUsage(uid);if(a==='delete')return deleteLink(uid)}
-document.addEventListener('click',e=>{if(!e.target.closest('.cfg-menu')&&!e.target.closest('.cfg-menu-btn'))closeConfigMenus()});
-window.addEventListener('resize',()=>{const m=document.querySelector('.cfg-menu.open[data-portal="1"]');if(!m)return;const uid=(m.id||'').replace(/^cfgMenu_/,'');const btn=document.querySelector('.cfg-menu-btn[data-menu-uid="'+CSS.escape(uid)+'"]');if(btn)positionConfigMenu(m,btn)});
-window.addEventListener('scroll',()=>{const m=document.querySelector('.cfg-menu.open[data-portal="1"]');if(!m)return;const uid=(m.id||'').replace(/^cfgMenu_/,'');const btn=document.querySelector('.cfg-menu-btn[data-menu-uid="'+CSS.escape(uid)+'"]');if(btn)positionConfigMenu(m,btn)},true);
-function renderConfigCards(arr){const box=document.getElementById('cfgCards');if(!box)return;
-  const selectedIds=new Set([...document.querySelectorAll('#cfgCards .cfg-chk:checked')].map(c=>String(c.value)));
-  const openMenuUid=__openConfigMenuUid||'';
-  const oldMenu=openMenuUid?document.getElementById('cfgMenu_'+openMenuUid):null;
-  if(oldMenu)oldMenu.remove();
-  updateConfigStats();
-  if(!arr.length){box.innerHTML='<div class="cfg-empty">'+(lang==='fa'?'کانفیگی با این فیلتر پیدا نشد':'No configs match the filter')+'</div>';updateBulkBar();__openConfigMenuUid='';return}
-  box.innerHTML=arr.map(l=>{const uid=String(l.uuid||l.id||''),dead=configExpired(l),active=l.active!==false&&!dead,[pl,icon]=protocolUi(l.protocol),used=Number(l.used_bytes||0),lim=Number(l.limit_bytes||0),pct=lim>0?Math.min(100,Math.round(used/lim*100)):0,conn=Number(l.connected_ips||0),safeUid=esc(uid),mid='cfgMenu_'+uid.replace(/[^a-zA-Z0-9_-]/g,'_'),usage=lim>0?`${fmtB(used)} / ${fmtB(lim)}`:fmtB(used),activeState=l.active!==false;return `<article class="cfg-card ${dead?'expired':''}" draggable="true" data-uid="${safeUid}" ondragstart="cfgDragStart(event)" ondragover="cfgDragOver(event)" ondrop="cfgDrop(event)" ondragend="cfgDragEnd(event)"><label class="cfg-card-check"><input type="checkbox" class="cfg-chk" value="${safeUid}" onchange="updateBulkBar()"></label><div class="cfg-proto-icon"><img src="${icon}" alt=""></div><div class="cfg-main"><div class="cfg-name-row"><b>${esc(l.label||l.name||uid.slice(0,8))}</b><button type="button" class="cfg-edit-dot" title="ویرایش کانفیگ" aria-label="ویرایش کانفیگ" onclick="openConfigEditor(event,'${safeUid}')">✎</button></div><div class="cfg-proto">${esc(pl)}</div><div class="cfg-meta"><span><i>♧</i>${conn} اتصال</span><span><i>◷</i>${dead?'منقضی شده':(l.expires_at?'انقضا '+cfgDate(l.expires_at):'بدون انقضا')}</span></div></div><div class="cfg-side"><div class="cfg-side-top"><span class="cfg-status ${active?'':'bad'}"><i></i>${active?'فعال':'غیرفعال'}</span><button type="button" class="cfg-active-toggle ${activeState?'on':''}" onclick="toggleConfigActive(event,'${safeUid}',${activeState?'false':'true'})" aria-pressed="${activeState?'true':'false'}"><span class="cfg-active-dot"></span><span>${activeState?'فعال':'خاموش'}</span></button></div><div class="cfg-usage"><div class="cfg-usage-ring" style="--pct:${pct}%"><span>${pct}%</span></div><div class="cfg-usage-copy"><b>${esc(usage)}</b>${lim>0?`<div class="cfg-usage-track"><div class="cfg-usage-fill" style="width:${pct}%"></div></div>`:''}</div></div></div><button class="cfg-menu-btn" type="button" data-menu-uid="${safeUid}" onclick="toggleConfigMenu(event,'${safeUid}')" aria-label="عملیات">⋮</button><div class="cfg-menu" id="${mid}"><div class="cfg-menu-head"><span>عملیات کانفیگ</span><small>برای بستن بیرون منو بزنید</small></div><button type="button" onclick="configMenuAction('copy','${safeUid}')">کپی VLESS</button><button type="button" onclick="configMenuAction('sub','${safeUid}')">کپی ساب</button><button type="button" onclick="configMenuAction('info','${safeUid}')">صفحه اطلاعات</button><button type="button" onclick="configMenuAction('reset','${safeUid}')">ریست مصرف</button><button type="button" class="danger" onclick="configMenuAction('delete','${safeUid}')">حذف کانفیگ</button></div></article>`}).join('');
-  document.querySelectorAll('#cfgCards .cfg-chk').forEach(c=>{c.checked=selectedIds.has(String(c.value))});
-  updateBulkBar();
-  if(openMenuUid){const menu=document.getElementById('cfgMenu_'+openMenuUid);const btn=document.querySelector('.cfg-menu-btn[data-menu-uid="'+CSS.escape(openMenuUid)+'"]');if(menu&&btn){document.body.appendChild(menu);menu.dataset.portal='1';menu.classList.add('open');__openConfigMenuUid=openMenuUid;positionConfigMenu(menu,btn)}else{__openConfigMenuUid=''}}
+function filterConfigs(){
+  const q=(document.getElementById('cfgSearch')?.value||'').trim().toLowerCase();
+  if(!q){renderLinks(__allLinks);return}
+  renderLinks(__allLinks.filter(l=>{
+    const name=(l.label||l.name||'').toLowerCase();
+    const proto=(l.protocol||'').toLowerCase();
+    const uid=String(l.uuid||l.id||'').toLowerCase();
+    return name.includes(q)||proto.includes(q)||uid.includes(q);
+  }));
 }
-function renderLinks(arr){window.__linksMap={};arr.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l);renderConfigCards(getFilteredConfigs())}
-function softUpdateLinks(arr){window.__linksMap={};arr.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l);renderConfigCards(getFilteredConfigs())}
-function patchLinkRow(tr,l){renderConfigCards(getFilteredConfigs())}
 async function resetUsage(uid){
   if(!confirm(lang==='fa'?'مصرف ریست شود؟':'Reset usage?'))return;
   const r=await api('/api/links/'+uid+'/reset-usage',{method:'POST'});
@@ -10715,9 +10218,24 @@ async function resetUsage(uid){
 
 let __dragUid=null;
 function cfgDragStart(e){__dragUid=e.currentTarget.getAttribute('data-uid');e.currentTarget.style.opacity='.5';e.dataTransfer.effectAllowed='move';}
-function cfgDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';const card=e.currentTarget;if(card&&card.classList.contains('cfg-card'))card.style.boxShadow='0 0 0 1px rgba(70,168,255,.55),0 12px 28px rgba(37,99,235,.14)';}
-function cfgDragEnd(e){e.currentTarget.style.opacity='1';document.querySelectorAll('.cfg-card').forEach(card=>card.style.boxShadow='');__dragUid=null;}
-async function cfgDrop(e){e.preventDefault();const target=e.currentTarget.getAttribute('data-uid');document.querySelectorAll('.cfg-card').forEach(card=>card.style.boxShadow='');if(!__dragUid||!target||__dragUid===target)return;const cards=[...document.querySelectorAll('#cfgCards .cfg-card')],ids=cards.map(card=>card.getAttribute('data-uid'));const from=ids.indexOf(__dragUid),to=ids.indexOf(target);if(from<0||to<0)return;ids.splice(from,1);ids.splice(to,0,__dragUid);const box=document.getElementById('cfgCards');ids.forEach(id=>{const el=box.querySelector('.cfg-card[data-uid="'+CSS.escape(id)+'"]');if(el)box.appendChild(el)});await api('/api/links/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:ids})});toast(lang==='fa'?'ترتیب ذخیره شد':'Order saved');__dragUid=null;}
+function cfgDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';const tr=e.currentTarget;if(tr&&tr.tagName==='TR')tr.style.background='var(--hover)';}
+function cfgDragEnd(e){e.currentTarget.style.opacity='1';document.querySelectorAll('#linksTable tr').forEach(tr=>tr.style.background='');}
+async function cfgDrop(e){
+  e.preventDefault();
+  const target=e.currentTarget.getAttribute('data-uid');
+  document.querySelectorAll('#linksTable tr').forEach(tr=>tr.style.background='');
+  if(!__dragUid||!target||__dragUid===target)return;
+  const rows=[...document.querySelectorAll('#linksTable tr[data-uid]')];
+  const ids=rows.map(r=>r.getAttribute('data-uid'));
+  const from=ids.indexOf(__dragUid), to=ids.indexOf(target);
+  if(from<0||to<0)return;
+  ids.splice(from,1);ids.splice(to,0,__dragUid);
+  // reorder DOM optimistically
+  const tb=document.getElementById('linksTable');
+  ids.forEach(id=>{const el=tb.querySelector(`tr[data-uid="${id}"]`);if(el)tb.appendChild(el);});
+  await api('/api/links/reorder',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order:ids})});
+  toast(lang==='fa'?'ترتیب ذخیره شد':'Order saved');
+}
 
 function updateBulkBar(){
   const n=document.querySelectorAll('.cfg-chk:checked').length;
@@ -10754,7 +10272,7 @@ async function bulkMoveGroup(){
   const r=await api('/api/links/bulk-category',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids,category_id:cid})});
   if(r){toast(lang==='fa'?'به گروه منتقل شد':'Moved');refreshAll()}
 }
-async function loadCategories(){
+async function loadGroups(){
   const r=await api('/api/categories');
   const list=(r&&r.categories)||[];
   window.__catMap={};
@@ -10764,125 +10282,31 @@ async function loadCategories(){
   const opts=list.map(g=>`<option value="${esc(g.id)}">${esc(g.name||g.id)}</option>`).join('');
   if(bulk) bulk.innerHTML=opts||'<option value="0">عمومی</option>';
   if(cGroup) cGroup.innerHTML=opts||'<option value="0">عمومی</option>';
-}
-
-let __subGroups=[];
-let __selectedSubId='';
-let __groupFilter='all';
-let __groupProtocols=[];
-
-function groupProtocolLabel(id){
-  const labels={'vless-ws':'ONEX WB','xhttp-packet-up':'ONEX Xhttp','xhttp-stream-up':'ONEX Gamig','xhttp-stream-one':'ONEX Stream','trojan':'Trojan','shadowsocks':'Shadowsocks','socks5':'SOCKS5','http':'HTTP Proxy','hysteria2':'Hysteria2','vless-grpc-reality':'VLESS gRPC Reality','wireguard':'WireGuard'};
-  return labels[id]||id;
-}
-function groupProtocolIcon(id){
-  const map={'vless-ws':'/api/protocol-icon/vless-ws.png','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png'};
-  return map[id]||'';
-}
-function setGroupFilter(f,btn){__groupFilter=f;document.querySelectorAll('.group-filter').forEach(x=>x.classList.toggle('on',x===btn));renderGroupList()}
-function selectedSub(){return __subGroups.find(g=>String(g.sub_id)===String(__selectedSubId))||null}
-function groupIsActive(g){return g ? g.active !== false : false}
-async function loadGroups(){
-  const r=await api('/api/subs');
-  __subGroups=(r&&r.subs)||[];
-  const cSubGroup=document.getElementById('cSubGroup');
-  if(cSubGroup){
-    const current=cSubGroup.value;
-    cSubGroup.innerHTML='<option value="">بدون گروه (عمومی)</option>'+__subGroups.map(g=>`<option value="${esc(g.sub_id)}">${esc(g.name||'گروه')}</option>`).join('');
-    if(current && __subGroups.some(g=>String(g.sub_id)===String(current))) cSubGroup.value=current;
-  }
-  const activeUsers=__subGroups.reduce((n,g)=>n+Number(g.active_count||0),0);
-  const total=document.getElementById('groupTotal'); if(total) total.textContent=__subGroups.length;
-  const au=document.getElementById('groupActiveUsers'); if(au) au.textContent=activeUsers;
-  const af=document.querySelector('.group-filter[data-filter="active"] em'); if(af) af.title=String(__subGroups.filter(groupIsActive).length);
-  const inf=document.querySelector('.group-filter[data-filter="inactive"] em'); if(inf) inf.title=String(__subGroups.filter(g=>!groupIsActive(g)).length);
-  if(!__selectedSubId || !selectedSub()) __selectedSubId=__subGroups[0]?.sub_id||'';
-  renderGroupList();
-  if(__selectedSubId) await loadGroupDetail(__selectedSubId);
-  else renderGroupDetail(null);
-}
-function renderGroupList(){
-  const box=document.getElementById('groupsList'); if(!box)return;
-  const q=(document.getElementById('groupSearch')?.value||'').trim().toLowerCase();
-  const list=__subGroups.filter(g=>{const active=groupIsActive(g); if(__groupFilter==='active'&&!active)return false; if(__groupFilter==='inactive'&&active)return false; return !q||String(g.name||'').toLowerCase().includes(q)||String(g.desc||'').toLowerCase().includes(q)});
-  if(!list.length){box.innerHTML='<div class="group-empty">گروهی مطابق جستجو پیدا نشد</div>';return}
-  box.innerHTML=list.map(g=>{
-    const on=groupIsActive(g), selected=String(g.sub_id)===String(__selectedSubId);
-    return `<article class="group-card ${selected?'selected':''}" onclick="selectGroup('${esc(g.sub_id)}')">
-      <div class="group-card-top"><div class="group-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 20c.5-3.1 2.4-4.7 5.5-4.7s5 1.6 5.5 4.7"/><path d="M14 15.8c2.8-.8 5 .5 6 3.2"/></svg></div><div class="group-card-main"><div class="group-card-title"><b>${esc(g.name||'گروه')}</b><span class="group-status ${on?'':'off'}">${on?'● فعال':'● غیرفعال'}</span></div><div class="group-card-desc">${esc(g.desc||'گروه اشتراک ONEX')}</div></div><div class="group-card-menu">•••</div></div>
-      <div class="group-card-meta"><span><strong>${Number(g.active_count||0)}</strong> کاربر فعال</span><span>•</span><span><strong>${Number(g.links_count||0)}</strong> کانفیگ</span><span>•</span><span>${g.has_password?'🔒 رمزدار':'عمومی'}</span></div>
-    </article>`;
-  }).join('');
-}
-async function selectGroup(id){__selectedSubId=id;renderGroupList();await loadGroupDetail(id)}
-async function loadGroupDetail(id){
-  const g=__subGroups.find(x=>String(x.sub_id)===String(id)); if(!g){renderGroupDetail(null);return}
-  let links=window.__allLinks;
-  if(!Array.isArray(links)||!links.length){const r=await api('/api/links');links=(r&&r.links)||[];window.__allLinks=links}
-  if(!Array.isArray(window.__protocolList)||!window.__protocolList.length){try{await loadProtocols()}catch(e){}}
-  __groupProtocols=Array.isArray(g.protocols)?g.protocols.slice():((window.__protocolList||[]).map(x=>x.id));
-  renderGroupDetail(g,links||[]);
-}
-function renderGroupDetail(g,links){
-  const pane=document.getElementById('groupDetailPane'); if(!pane)return;
-  if(!g){pane.innerHTML='<div class="group-detail-empty"><div class="group-detail-empty-icon">◉</div><b>یک گروه را انتخاب کنید</b><span>برای مشاهده لینک اشتراک، پروتکل‌ها و کانفیگ‌های گروه</span></div>';return}
-  const protocols=(window.__protocolList&&window.__protocolList.length?window.__protocolList.map(x=>x.id):['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one','trojan','shadowsocks','socks5','http','hysteria2','vless-grpc-reality','wireguard']);
-  const current=new Set(__groupProtocols.length?__groupProtocols:protocols);
-  const memberIds=new Set((g.link_ids||[]).map(String));
-  const allLinks=Array.isArray(links)?links:[];
-  const protoRows=protocols.map(id=>{const checked=current.has(id),icon=groupProtocolIcon(id);return `<div class="group-proto-row"><div class="group-proto-icon">${icon?`<img src="${icon}" alt="">`:'◈'}</div><div class="group-proto-copy"><b>${esc(groupProtocolLabel(id))}</b><small>${checked?'پروتکل مجاز برای این گروه':'در این گروه نمایش داده نمی‌شود'}</small></div><span class="group-proto-tag">${id.startsWith('vless')||id.startsWith('xhttp')?'ONEX':'Native'}</span><label class="group-switch"><input type="checkbox" ${checked?'checked':''} onchange="toggleGroupProtocol('${esc(id)}',this.checked)"><span></span></label></div>`}).join('');
-  const configRows=allLinks.slice().sort((a,b)=>String(a.label||'').localeCompare(String(b.label||''))).map(l=>{const id=String(l.uuid||l.id||'');const checked=memberIds.has(id);return `<label class="group-config-row"><input type="checkbox" class="group-config-check" value="${esc(id)}" ${checked?'checked':''}><span>${esc(l.label||id)}</span><small>${esc(groupProtocolLabel(l.protocol||''))}</small></label>`}).join('');
-  pane.innerHTML=`<div class="group-detail">
-    <div class="group-detail-head"><div class="group-detail-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 20c.5-3.1 2.4-4.7 5.5-4.7s5 1.6 5.5 4.7"/><path d="M14 15.8c2.8-.8 5 .5 6 3.2"/></svg></div><div class="group-detail-title"><h2>${esc(g.name||'گروه')}</h2><p>${esc(g.desc||'گروه ویژه با بالاترین سرعت و پایداری')}</p></div><button class="group-three-dot" onclick="openGroupModal('${esc(g.sub_id)}')">•••</button></div>
-    <div class="group-info-card"><div class="group-section-head"><b>⚙ اطلاعات گروه</b><span>Group profile</span></div><div class="group-info-grid"><div class="group-info-item"><small>نام گروه</small><b>${esc(g.name||'—')}</b></div><div class="group-info-item"><small>وضعیت</small><b style="color:${groupIsActive(g)?'#34d399':'#fb7185'}">${groupIsActive(g)?'فعال':'غیرفعال'}</b></div><div class="group-info-item"><small>کاربران فعال</small><b>${Number(g.active_count||0)}</b></div><div class="group-info-item"><small>تعداد کانفیگ‌ها</small><b>${Number(g.links_count||0)}</b></div></div></div>
-    <div class="group-link-card"><div class="group-section-head"><b>◉ لینک اشتراک گروه</b><span>${g.has_password?'🔒 محافظت‌شده':'Public'}</span></div><div class="group-link-line"><div class="group-link-url">${esc(g.sub_url||'—')}</div><button class="group-copy-btn" onclick="copyText('${esc(g.sub_url||'')}')">کپی</button></div><div class="group-link-actions"><button onclick="openGroupQr('${esc(g.sub_url||'')}','${esc(g.name||'')}')">▦ QR کد</button><button onclick="window.open('${esc(g.public_url||g.sub_url||'')}','_blank')">↗ باز کردن لینک</button></div></div>
-    <div class="group-proto-card"><div class="group-section-head"><b>⚙ پروتکل‌های فعال</b><span>کنترل خروجی اشتراک</span></div><div class="group-proto-list">${protoRows}</div></div>
-    <div class="group-configs-card"><div class="group-section-head"><b>کانفیگ‌های گروه</b><span>${Number(g.links_count||0)} مورد</span></div><div class="group-config-list">${configRows||'<div class="group-empty" style="padding:18px">هنوز کانفیگی در پنل وجود ندارد؛ ابتدا از بخش کانفیگ‌ها یک کانفیگ بسازید.</div>'}</div><button class="group-config-save" onclick="saveGroupConfigs('${esc(g.sub_id)}')">ذخیره کانفیگ‌های گروه</button></div>
-    <div class="group-manage-card"><div class="group-section-head"><b>مدیریت گروه</b><span>Group actions</span></div><div class="group-manage-actions"><button onclick="openGroupModal('${esc(g.sub_id)}')">✎ ویرایش</button><button onclick="toggleGroupMembership('${esc(g.sub_id)}')">${groupIsActive(g)?'⏸ غیرفعال کردن':'▶ فعال کردن'}</button><button onclick="deleteSubGroup('${esc(g.sub_id)}')">♜ حذف</button></div></div>
-  </div>`;
-}
-async function saveGroupConfigs(subId){
-  const ids=[...document.querySelectorAll('.group-config-check:checked')].map(x=>x.value);
-  const r=await api('/api/subs/'+encodeURIComponent(subId)+'/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({link_ids:ids})});
-  if(r){toast(lang==='fa'?'کانفیگ‌های گروه ذخیره شد':'Group configs saved');await loadGroups();}
-}
-async function toggleGroupProtocol(id,state){
-  const g=selectedSub(); if(!g)return;
-  const current=new Set(Array.isArray(g.protocols)?g.protocols:(window.__protocolList||[]).map(x=>x.id));
-  if(state) current.add(id); else current.delete(id);
-  const protocols=[...current];
-  const r=await api('/api/subs/'+encodeURIComponent(g.sub_id),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({protocols})});
-  if(r){g.protocols=protocols;__groupProtocols=protocols;toast(state?'پروتکل فعال شد':'پروتکل غیرفعال شد');renderGroupDetail(g,window.__allLinks||[])}
-}
-async function toggleGroupMembership(subId){
-  const g=__subGroups.find(x=>String(x.sub_id)===String(subId));if(!g)return;
-  const next=g.active===false;
-  const r=await api('/api/subs/'+encodeURIComponent(subId),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:next})});
-  if(r){
-    g.active=next;
-    toast(next?'گروه فعال شد':'گروه غیرفعال شد');
-    renderGroupList();
-    renderGroupDetail(g,window.__allLinks||[]);
+  const box=document.getElementById('groupsList');
+  if(box){
+    if(!list.length){box.innerHTML='<div style="color:var(--t3);text-align:center;padding:16px">—</div>';}
+    else{
+      box.innerHTML=list.map(g=>{
+        const cnt=(__allLinks||[]).filter(l=>String(l.category_id||'0')===String(g.id)).length;
+        return `<div style="border:1px solid var(--card-b);border-radius:12px;padding:12px;margin-bottom:8px;background:var(--bg3);display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">
+          <div><b>${esc(g.name)}</b> <span style="font-size:11px;color:var(--t3)">${cnt} کانفیگ</span></div>
+          <button class="btn btn-sm btn-d" onclick="deleteGroup('${esc(g.id)}')">حذف</button>
+        </div>`;
+      }).join('');
+    }
   }
 }
-function openGroupModal(subId=''){
-  const modal=document.getElementById('groupModal');if(!modal)return;
-  modal.hidden=false;modal.classList.add('open');
-  const g=__subGroups.find(x=>String(x.sub_id)===String(subId));
-  document.getElementById('groupModalTitle').textContent=g?'ویرایش گروه':'ساخت گروه جدید';
-  document.getElementById('groupFormName').value=g?.name||'';document.getElementById('groupFormDesc').value=g?.desc||'';document.getElementById('groupFormPassword').value='';
-  modal.dataset.subId=g?.sub_id||'';
+async function createGroup(){
+  const name=document.getElementById('grpName').value.trim();
+  if(!name){toast('نام لازم است');return}
+  const r=await api('/api/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  if(r){toast('گروه ساخته شد');document.getElementById('grpName').value='';loadGroups()}
 }
-function closeGroupModal(){const m=document.getElementById('groupModal');if(m){m.hidden=true;m.classList.remove('open')}}
-async function saveGroupForm(){
-  const m=document.getElementById('groupModal');const name=document.getElementById('groupFormName').value.trim();if(!name){toast('نام گروه لازم است');return}
-  const subId=m?.dataset.subId||'';const body={name,desc:document.getElementById('groupFormDesc').value.trim()};const pw=document.getElementById('groupFormPassword').value.trim();if(pw)body.password=pw;
-  const r=await api(subId?'/api/subs/'+encodeURIComponent(subId):'/api/subs',{method:subId?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r){closeGroupModal();toast(subId?'گروه ویرایش شد':'گروه ساخته شد');await loadGroups()}
+async function deleteGroup(id){
+  if(!confirm('حذف گروه؟'))return;
+  const r=await api('/api/categories/'+id,{method:'DELETE'});
+  if(r){toast('حذف شد');loadGroups();refreshAll()}
 }
-async function deleteSubGroup(id){if(!confirm('این گروه حذف شود؟ کانفیگ‌ها حذف نمی‌شوند و فقط از گروه خارج می‌شوند.'))return;const r=await api('/api/subs/'+encodeURIComponent(id),{method:'DELETE'});if(r){toast('گروه حذف شد');__selectedSubId='';await loadGroups()}}
-function openGroupQr(url,label){const m=document.getElementById('groupQrModal'),box=document.getElementById('groupQrBox'),txt=document.getElementById('groupQrText');if(!m||!box||!url)return;txt.textContent=url;document.getElementById('groupQrTitle').textContent=label||'لینک اشتراک';box.innerHTML='';try{if(typeof qrcode==='function'){const qr=qrcode(0,'M');qr.addData(url);qr.make();box.innerHTML=qr.createImgTag(6,8)}else{box.innerHTML='<div style="color:#111;font:12px sans-serif;padding:30px">QR آماده نشد</div>'}}catch(e){box.innerHTML='<div style="color:#111;font:12px sans-serif;padding:30px">خطا در تولید QR</div>'}m.hidden=false;m.classList.add('open')}
-function closeGroupQr(){const m=document.getElementById('groupQrModal');if(m){m.hidden=true;m.classList.remove('open')}}
 
 
 async function loadSecurity(){
@@ -10957,8 +10381,8 @@ async function restoreBot(){
 const PROTOCOL_PICKER_GROUPS=[
   {title:'',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']}
 ];
-const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gamig","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
-const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP (Packet-Up)","xhttp-stream-up":"VLESS + XHTTP (Gaming / Stream-Up)","xhttp-stream-one":"VLESS + XHTTP (Stream-One)","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
+const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gaming","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
+const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP (Packet Up)","xhttp-stream-up":"VLESS + XHTTP (Gaming)","xhttp-stream-one":"VLESS + XHTTP","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
 const PROTOCOL_3D_ICONS={
   "vless-ws":{c1:"#24a9ff",c2:"#1264ff",c3:"#6d3cff",mark:"V",glow:"#168cff"},
   "xhttp-packet-up":{c1:"#35c8ff",c2:"#0877d8",c3:"#3155ff",mark:"XP",glow:"#21b8ff"},
@@ -10992,16 +10416,25 @@ function closeProtocolPicker(){const bg=document.getElementById('protocolPickerB
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeProtocolPicker()});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupProtocolPickers);else setupProtocolPickers();setTimeout(setupProtocolPickers,300);setTimeout(setupProtocolPickers,1000);
 
-applyLang();loadMe();loadProtocols();loadCategories();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]});loadAdvancedCapabilities(document.getElementById('cProto')?.value||'vless-ws')},250);
+applyLang();loadMe();loadProtocols();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]});loadAdvancedCapabilities(document.getElementById('cProto')?.value||'vless-ws')},250);
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
 setTimeout(()=>checkPanelUpdate(true),2500);
-setInterval(()=>checkPanelUpdate(false),10*60*1000);
+setInterval(()=>checkPanelUpdate(true),10*60*1000);
 // Protocol picker bootstrap: keep the native select only as the data/control source.
 function bootProtocolPickers(){ try{ setupProtocolPickers(); }catch(e){ console.warn('Protocol picker:',e); } }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootProtocolPickers); else bootProtocolPickers();
 setTimeout(bootProtocolPickers,300);
 setTimeout(bootProtocolPickers,1000);
-setInterval(refreshAll,5000);
+let __panelRefreshTimer=null;
+let __groupRefreshTimer=null;
+function startLightPolling(){
+  if(__panelRefreshTimer)clearInterval(__panelRefreshTimer);
+  if(__groupRefreshTimer)clearInterval(__groupRefreshTimer);
+  __panelRefreshTimer=setInterval(()=>{if(!document.hidden)refreshAll()},4000);
+  __groupRefreshTimer=setInterval(()=>{if(!document.hidden && typeof loadGroups==='function')loadGroups()},20000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshAll()},{passive:true});
+}
+startLightPolling();
 
 
 </script>

@@ -38,7 +38,7 @@ from main import (
     activity_logs,
 )
 
-BOT_NAME = "اونیکس بات"
+BOT_NAME = "ربات ONEX"
 BOT_NAME_EN = "ONEX Bot"
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -61,10 +61,10 @@ _pending: dict = {}
 WIZARD_STEPS = ["label", "protocol", "fingerprint", "alpn", "port", "volume", "speed", "iplimit", "days"]
 
 PROTOCOL_LABELS = {
-    "vless-ws": "🟢 Onex · WebSocket",
-    "xhttp-":Onex Stream "⚡ XHTTP ",
-    "xhttp-Onex Gaming": "⚡ XHTTP ",
-    "xhttp-Onex GPT": "⚡ XHTTP ",
+    "vless-ws": "🟢 VLESS · WebSocket",
+    "xhttp-packet-up": "⚡ ONEX Xhttp · Packet Up",
+    "xhttp-stream-up": "⚡ ONEX Gaming",
+    "xhttp-stream-one": "⚡ ONEX Stream",
     "vmess-ws": "🔵 VMess · WS",
     "trojan-ws": "🟠 Trojan · WS",
     "shadowsocks": "🟣 Shadowsocks",
@@ -579,7 +579,7 @@ def _wizard_prompt(step: str) -> tuple[str, dict | None]:
 
 
 async def _wizard_finish(chat_id: int, data: dict):
-    label = data.get("label") or "px-" + os.urandom(3).hex()
+    label = data.get("label") or "ONEX-" + os.urandom(3).hex()
     protocol = data.get("protocol") or DEFAULT_PROTOCOL
     fingerprint = data.get("fingerprint") or DEFAULT_FINGERPRINT
     alpn = data.get("alpn") or DEFAULT_ALPN_BY_PROTOCOL.get(protocol, "http/1.1")
@@ -672,7 +672,7 @@ async def _handle_message(msg: dict):
             return
         name = text[:40] or "group"
         try:
-            sid, sub = await create_sub_group(name=name, desc="از پی ایکس بات")
+            sid, sub = await create_sub_group(name=name, desc="از ربات ONEX")
             _pending.pop(chat_id, None)
             await _send(chat_id, _format_sub_detail(sid, sub), _sub_detail_kb(sid))
         except Exception as e:
@@ -994,7 +994,7 @@ async def _handle_callback(cb: dict):
 
     if data == "w:randlabel":
         st = _pending.setdefault(chat_id, {"action": "wizard", "step": "label", "data": {}})
-        st["data"]["label"] = "px" + os.urandom(4).hex()
+        st["data"]["label"] = "ONEX-" + os.urandom(4).hex()
         st["step"] = "protocol"
         prompt, kb = _wizard_prompt("protocol")
         await _edit(chat_id, mid, prompt, kb)
@@ -1162,7 +1162,7 @@ async def start_bot(mode: str = "polling"):
         await _call("setMyName", name=BOT_NAME)
         await _call(
             "setMyDescription",
-            description=f"{BOT_NAME} ({BOT_NAME_EN}) — مدیریت کامل پنل PXPanel از تلگرام",
+            description=f"{BOT_NAME} ({BOT_NAME_EN}) — مدیریت کامل پنل ONEX از تلگرام",
         )
         await _call(
             "setMyCommands",

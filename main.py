@@ -39,7 +39,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.1"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -118,6 +118,7 @@ RAILWAY_API_URL = os.environ.get("RAILWAY_API_URL", "https://backboard.railway.c
 RAILWAY_API_TOKEN = os.environ.get("RAILWAY_API_TOKEN", "").strip()
 RAILWAY_SERVICE_ID = os.environ.get("RAILWAY_SERVICE_ID", "").strip()
 RAILWAY_ENVIRONMENT_ID = os.environ.get("RAILWAY_ENVIRONMENT_ID", "").strip()
+ONEX_CURRENT_COMMIT_SHA = os.environ.get("RAILWAY_GIT_COMMIT_SHA", os.environ.get("ONEX_COMMIT_SHA", "")).strip()
 
 
 # ============================================================
@@ -7071,6 +7072,7 @@ async def fetch_update_info():
             "commit_sha": sha,
             "repo": UPDATE_REPO,
             "branch": UPDATE_BRANCH,
+            "release_url": str(meta.get("release_url") or f"https://github.com/{UPDATE_REPO}/commits/{UPDATE_BRANCH}").strip(),
         }
 
 
@@ -7079,15 +7081,29 @@ async def api_update_check(token=Depends(require_auth)):
     try:
         remote = await fetch_update_info()
         remote_version = remote.get("version") or APP_VERSION
+        version_newer = _is_newer_version(remote_version, APP_VERSION)
+        commit_changed = bool(
+            remote.get("commit_sha")
+            and ONEX_CURRENT_COMMIT_SHA
+            and remote.get("commit_sha") != ONEX_CURRENT_COMMIT_SHA
+        )
+        # Version metadata remains the primary signal.  A commit change is a
+        # secondary signal for deployments where version.json was not bumped.
+        update_available = version_newer or commit_changed
         return {
             "ok": True,
             "current_version": APP_VERSION,
             "latest_version": remote_version,
-            "update_available": _is_newer_version(remote_version, APP_VERSION),
+            "update_available": update_available,
+            "version_changed": version_newer,
+            "commit_changed": commit_changed,
+            "current_commit": ONEX_CURRENT_COMMIT_SHA or None,
+            "latest_commit": remote.get("commit_sha"),
             "title": remote.get("title", ""),
             "message": remote.get("message", ""),
             "changelog": remote.get("changelog", []),
             "published_at": remote.get("published_at", ""),
+            "release_url": remote.get("release_url", ""),
             "configured": bool(RAILWAY_API_TOKEN and RAILWAY_SERVICE_ID and RAILWAY_ENVIRONMENT_ID),
         }
     except Exception as exc:
@@ -7098,6 +7114,7 @@ async def api_update_check(token=Depends(require_auth)):
             "latest_version": None,
             "update_available": False,
             "message": "بررسی نسخه جدید انجام نشد",
+            "error": str(exc),
         }
 
 
@@ -7113,13 +7130,16 @@ async def api_update_deploy(token=Depends(require_auth)):
     try:
         remote = await fetch_update_info()
         remote_version = remote.get("version") or APP_VERSION
-        if not _is_newer_version(remote_version, APP_VERSION):
+        version_newer = _is_newer_version(remote_version, APP_VERSION)
+        commit_changed = bool(remote.get("commit_sha") and ONEX_CURRENT_COMMIT_SHA and remote.get("commit_sha") != ONEX_CURRENT_COMMIT_SHA)
+        if not (version_newer or commit_changed):
             return {
                 "ok": True,
                 "update_available": False,
                 "message": "پنل شما آخرین نسخه را دارد",
                 "current_version": APP_VERSION,
                 "latest_version": remote_version,
+                "latest_commit": remote.get("commit_sha"),
             }
 
         commit_sha = remote.get("commit_sha")
@@ -7379,6 +7399,68 @@ async def restore_bot(request: Request, token=Depends(require_auth)):
     return {"ok": True, "message": "ربات بازیابی و فعال شد"}
 
 
+
+# TELEGRAM DASHBOARD / MANAGEMENT API
+# ============================================================
+
+@app.get("/api/telegram/dashboard")
+async def api_tg_dashboard(_=Depends(require_auth)):
+    try:
+        from telegram_bot import get_dashboard_snapshot
+        return {"ok": True, **(await get_dashboard_snapshot())}
+    except Exception as exc:
+        logger.warning("telegram dashboard snapshot failed: %s", exc)
+        s = load_tg_settings()
+        return {"ok": True, "enabled": bool(s.get("enabled")), "users": [], "user_count": 0, "active_today": 0, "messages_today": 0, "webhook": bool(s.get("webhook")), "bot": {}, "error": str(exc)}
+
+@app.get("/api/telegram/users")
+async def api_tg_users(_=Depends(require_auth)):
+    try:
+        from telegram_bot import list_bot_users
+        return {"ok": True, "users": list_bot_users()}
+    except Exception as exc:
+        return {"ok": False, "users": [], "error": str(exc)}
+
+@app.post("/api/telegram/users/{user_id}/block")
+async def api_tg_user_block(user_id: int, request: Request, _=Depends(require_auth)):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    try:
+        from telegram_bot import set_bot_user_blocked
+        ok = set_bot_user_blocked(user_id, bool(body.get("blocked", True)))
+        return {"ok": bool(ok)}
+    except Exception as exc:
+        raise HTTPException(400, detail=str(exc))
+
+@app.post("/api/telegram/broadcast")
+async def api_tg_broadcast(request: Request, _=Depends(require_auth)):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, detail="invalid json")
+    text = str(body.get("message") or "").strip()
+    audience = str(body.get("audience") or "all").strip().lower()
+    if not text:
+        raise HTTPException(400, detail="message is required")
+    if len(text) > 4096:
+        raise HTTPException(400, detail="message is too long")
+    try:
+        from telegram_bot import broadcast_message
+        result = await broadcast_message(text, audience)
+        log_activity("telegram", f"پیام همگانی ارسال شد: {result.get('sent', 0)} موفق", "ok")
+        return {"ok": True, **result}
+    except Exception as exc:
+        raise HTTPException(502, detail=str(exc))
+
+@app.post("/api/telegram/test")
+async def api_tg_test(_=Depends(require_auth)):
+    try:
+        from telegram_bot import telegram_health
+        return {"ok": True, **(await telegram_health())}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
 
 # TELEGRAM SETTINGS API
 # ============================================================
@@ -9661,6 +9743,13 @@ html:not(.light) .range-tab.on,html.light .range-tab.on{
   .cfg-filter-row .cfg-select:nth-child(n){display:block !important}
   .cfg-card,.cfg-list-shell{overflow:visible !important}
   @media(max-width:560px){.cfg-filter-row{display:grid !important}.cfg-card{overflow:visible !important}.cfg-list-shell{overflow:visible !important}}
+
+/* ONEX TELEGRAM CONTROL CENTER */
+.tg-dashboard-shell{display:flex;flex-direction:column;gap:12px}.tg-hero,.tg-glass{position:relative;overflow:hidden;border:1px solid rgba(68,151,255,.24);background:linear-gradient(145deg,rgba(8,27,55,.82),rgba(3,12,28,.88));box-shadow:inset 0 1px rgba(255,255,255,.05),0 14px 34px rgba(0,0,0,.20);border-radius:22px}.tg-hero{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;background:radial-gradient(circle at 12% 50%,rgba(37,99,235,.18),transparent 28%),linear-gradient(135deg,rgba(8,25,51,.94),rgba(8,10,24,.96))}.tg-hero-brand{display:flex;align-items:center;gap:14px}.tg-hero-icon{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(145deg,#20a9ff,#2563eb);box-shadow:0 0 30px rgba(32,169,255,.28)}.tg-hero-icon svg{width:30px}.tg-hero-brand span,.tg-card-head span{font-size:8px;letter-spacing:.16em;color:rgba(255,255,255,.38);font-weight:900}.tg-hero h1{font-size:24px;font-weight:950;margin:3px 0}.tg-hero p{font-size:10px;color:var(--t3)}.tg-hero-status{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:999px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.22);color:#42e3a5;font-size:10px;font-weight:900}.tg-hero-status i{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}.tg-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}.tg-stat{min-height:86px;display:flex;align-items:center;gap:10px;padding:11px;border-radius:18px;border:1px solid rgba(68,151,255,.22);background:linear-gradient(145deg,rgba(12,31,60,.72),rgba(4,13,29,.82));box-shadow:inset 0 1px rgba(255,255,255,.04)}.tg-stat-icon{width:38px;height:38px;flex:0 0 38px;border-radius:13px;display:grid;place-items:center;font-size:17px;background:rgba(37,99,235,.14);border:1px solid rgba(96,165,250,.20);color:#73bfff}.tg-stat small{display:block;color:var(--t3);font-size:8px}.tg-stat b{display:block;font-size:18px;margin-top:3px}.tg-stat em{font-style:normal;font-size:7px;color:#36dba1}.tg-tabs{display:flex;gap:7px;padding:7px;border:1px solid rgba(68,151,255,.20);border-radius:17px;background:rgba(3,13,28,.65);overflow:auto}.tg-tabs button,.tg-audience button{flex:1;min-width:100px;height:38px;border-radius:12px;border:1px solid rgba(68,151,255,.18);background:rgba(37,99,235,.055);color:var(--t2);font:800 9px Vazirmatn,sans-serif;cursor:pointer}.tg-tabs button.on,.tg-audience button.on{background:linear-gradient(135deg,#147cff,#5b4cff);border-color:rgba(114,180,255,.55);color:#fff;box-shadow:0 7px 18px rgba(37,99,235,.18)}.tg-tab-panel{display:none;gap:12px}.tg-tab-panel.on{display:flex;flex-direction:column}.tg-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tg-glass{padding:16px}.tg-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}.tg-card-head h2{font-size:14px;font-weight:950;margin-top:3px}.tg-card-head p{font-size:9px;color:var(--t3);margin-top:4px}.tg-card-badge{padding:5px 9px;border-radius:999px;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.22);color:#42e3a5;font-size:8px}.tg-card-icon{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(37,99,235,.12);color:#60a5fa;font-size:16px}.tg-field{margin-bottom:11px}.tg-field label{display:block;color:var(--t3);font-size:9px;margin-bottom:5px}.tg-field input,.tg-input-wrap input,.tg-search input,.tg-user-tools input,.tg-user-tools select{width:100%;height:43px;border-radius:13px;border:1px solid rgba(88,166,255,.20);background:rgba(2,10,24,.62);color:var(--t1);padding:0 12px;font:600 10px Vazirmatn,sans-serif;outline:none}.tg-input-wrap{display:flex;gap:6px}.tg-input-wrap input{flex:1;direction:ltr;text-align:left}.tg-input-wrap button{width:50px;border-radius:12px;border:1px solid rgba(88,166,255,.22);background:rgba(37,99,235,.10);color:#8cc8ff;font:800 9px Vazirmatn,sans-serif}.tg-toggle-row,.tg-notify-list label{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(96,165,250,.08)}.tg-toggle-row b,.tg-notify-list b{display:block;font-size:10px}.tg-toggle-row small,.tg-notify-list small{display:block;color:var(--t3);font-size:8px;margin-top:2px}.tg-actions,.tg-broadcast-foot,.tg-send-preview{display:flex;gap:8px;margin-top:12px}.tg-btn{height:42px;padding:0 15px;border-radius:12px;border:1px solid rgba(88,166,255,.22);font:900 9px Vazirmatn,sans-serif;cursor:pointer}.tg-btn.primary{flex:1;color:#fff;background:linear-gradient(135deg,#ff315d,#b91c5a);border-color:rgba(255,98,132,.55);box-shadow:0 8px 24px rgba(255,31,92,.16)}.tg-btn.secondary{color:#b9dcff;background:rgba(37,99,235,.08)}.tg-btn.full{width:100%;margin-top:14px}.tg-link-btn{border:0;background:none;color:#65b5ff;font:800 8px Vazirmatn,sans-serif;cursor:pointer}.tg-search{display:flex;align-items:center;gap:8px;height:40px;padding:0 10px;border:1px solid rgba(88,166,255,.20);border-radius:12px;background:rgba(2,10,24,.52);margin-bottom:8px}.tg-search span{font-size:19px;color:#60a5fa}.tg-search input{height:34px;border:0;background:transparent;padding:0}.tg-mini-users{display:flex;flex-direction:column;gap:6px}.tg-mini-user,.tg-user-row{display:flex;align-items:center;gap:9px;padding:9px;border-radius:13px;border:1px solid rgba(96,165,250,.10);background:rgba(2,10,24,.30)}.tg-avatar{width:32px;height:32px;flex:0 0 32px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#2563eb,#7c3aed);font-weight:900;font-size:11px}.tg-user-copy{min-width:0;flex:1}.tg-user-copy b{display:block;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tg-user-copy small{display:block;color:var(--t3);font-size:7px;margin-top:2px}.tg-user-state{font-size:7px;padding:4px 7px;border-radius:8px;color:#4ade80;background:rgba(34,197,94,.08)}.tg-user-state.bad{color:#fb7185;background:rgba(244,63,94,.08)}.tg-audience{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tg-audience button{flex:0 0 auto;min-width:0;height:32px;padding:0 10px;font-size:8px}.tg-glass textarea{width:100%;min-height:112px;resize:vertical;border-radius:14px;border:1px solid rgba(88,166,255,.20);background:rgba(2,10,24,.55);color:var(--t1);padding:12px;font:500 10px/1.9 Vazirmatn,sans-serif;outline:none}.tg-broadcast-foot{align-items:center;justify-content:space-between}.tg-broadcast-foot span,.tg-send-preview span{font-size:8px;color:var(--t3)}.tg-broadcast-foot b,.tg-send-preview b{color:#fff;font-size:12px}.tg-activity{display:flex;flex-direction:column;gap:7px;max-height:240px;overflow:auto}.tg-activity-row{display:flex;gap:9px;align-items:flex-start;padding:8px;border-bottom:1px solid rgba(96,165,250,.07)}.tg-activity-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;background:#42e3a5;box-shadow:0 0 10px rgba(66,227,165,.35)}.tg-activity-row b{display:block;font-size:8px}.tg-activity-row small{display:block;color:var(--t3);font-size:7px;margin-top:2px}.tg-users-list{display:flex;flex-direction:column;gap:7px}.tg-user-tools{display:flex;gap:7px;min-width:280px}.tg-user-tools input{height:36px}.tg-user-tools select{height:36px;width:110px}.tg-user-row{min-height:58px}.tg-user-row .tg-avatar{width:38px;height:38px;flex-basis:38px}.tg-user-actions{display:flex;gap:5px}.tg-user-actions button{height:30px;padding:0 9px;border-radius:9px;border:1px solid rgba(96,165,250,.18);background:rgba(37,99,235,.07);color:#8cc8ff;font:800 8px Vazirmatn,sans-serif}.tg-user-actions button.danger{color:#ff7190;border-color:rgba(255,71,112,.25);background:rgba(255,31,92,.07)}.tg-config-owners{display:flex;flex-direction:column;gap:8px}.tg-config-owner{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:12px;border:1px solid rgba(96,165,250,.10);background:rgba(2,10,24,.3)}.tg-config-owner b{font-size:9px}.tg-config-owner span{font-size:8px;color:var(--t3)}.tg-notify-list{display:flex;flex-direction:column}.tg-security-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(96,165,250,.08);font-size:9px;color:var(--t3)}.tg-security-row b{color:var(--t1)}.tg-help-list{padding-right:18px;color:var(--t2);font-size:10px;line-height:2.2}.tg-empty{padding:24px;text-align:center;color:var(--t3);font-size:9px}.tg-result{margin-top:10px;padding:10px;border-radius:10px;font-size:9px;display:none}.tg-result.show{display:block;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.18);color:#4ade80}html.light .tg-hero,html.light .tg-glass,html.light .tg-stat{background:linear-gradient(145deg,rgba(255,255,255,.92),rgba(239,246,255,.82));border-color:rgba(37,99,235,.14);box-shadow:0 10px 28px rgba(30,64,175,.07),inset 0 1px rgba(255,255,255,.95)}html.light .tg-tabs{background:#fff;border-color:rgba(15,23,42,.10)}html.light .tg-field input,html.light .tg-input-wrap input,html.light .tg-search,html.light .tg-search input,html.light .tg-user-tools input,html.light .tg-user-tools select,html.light .tg-glass textarea{background:#f8fafc;color:#0f172a;border-color:rgba(37,99,235,.14)}html.light .tg-hero h1,html.light .tg-card-head h2{color:#0f172a}@media(max-width:900px){.tg-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tg-grid-2{grid-template-columns:1fr}.tg-user-tools{min-width:0}}.tg-build-badge{position:absolute;left:14px;bottom:10px;padding:4px 8px;border-radius:999px;font:800 7px/1 Vazirmatn,sans-serif;letter-spacing:.08em;color:#79c8ff;background:rgba(37,99,235,.08);border:1px solid rgba(96,165,250,.18)}
+@media(max-width:560px){.tg-hero{padding:14px;align-items:flex-start;padding-bottom:30px}.tg-hero-icon{width:48px;height:48px}.tg-hero h1{font-size:19px}.tg-hero p{font-size:8px}.tg-hero-status{font-size:8px}.tg-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.tg-stat{min-height:72px;padding:8px}.tg-stat-icon{width:32px;height:32px;flex-basis:32px}.tg-stat b{font-size:15px}.tg-stat small{font-size:7px}.tg-tabs{overflow:auto}.tg-tabs button{min-width:90px;height:36px;font-size:8px}.tg-glass{padding:12px;border-radius:18px}.tg-card-head h2{font-size:12px}.tg-user-tools{width:100%}.tg-user-tools select{width:90px}.tg-user-row{align-items:flex-start;flex-wrap:wrap}.tg-user-actions{margin-right:auto}.tg-user-actions button{height:28px}.tg-broadcast-foot{align-items:stretch;flex-direction:column}.tg-broadcast-foot .tg-btn{width:100%}}
+html:not(.light) *{animation:none!important}html:not(.light) [style*="backdrop-filter"],html:not(.light) [style*="filter:blur"]{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;filter:none!important}
+/* Dark-mode performance: keep the visual language, remove costly compositor effects. */
+html:not(.light) body{transition:none!important}html:not(.light) .sidebar{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}html:not(.light) .modal-bg{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}html:not(.light) .onex-card,html:not(.light) .onex-metric,html:not(.light) .card,html:not(.light) .metric,html:not(.light) .support-tile,html:not(.light) .quick-item,html:not(.light) .table-wrap,html:not(.light) .sub-box,html:not(.light) .link-box,html:not(.light) .tg-hero,html:not(.light) .tg-glass,html:not(.light) .tg-stat{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;transform:none!important}html:not(.light) .hero:before,html:not(.light) .grid-floor,html:not(.light) .telegram-card:before,html:not(.light) .telegram-icon,html:not(.light) .tg-orbit,html:not(.light) .tg-logo,html:not(.light) .tg-btn:before{animation:none!important}html:not(.light) .hero:before,html:not(.light) .sub-hero-glow,html:not(.light) .telegram-sub-card:after{filter:none!important}html:not(.light) .card,html:not(.light) .onex-card,html:not(.light) .onex-metric,html:not(.light) .metric,html:not(.light) .support-tile,html:not(.light) .quick-item{box-shadow:0 10px 28px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.035)!important}html:not(.light) .onex-topbar,html:not(.light) .onex-control-dock{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 </style>
 <section class="page" id="page-news">
   <div class="page-head">
@@ -9751,37 +9840,36 @@ html:not(.light) .range-tab.on,html.light .range-tab.on{
   </div>
 </section>
 
-<section class="page" id="page-telegram">
-  <div class="page-head">
-    <div>
-      <div class="page-title">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.56 8.2-1.86 8.77c-.14.62-.5.77-1.01.48l-2.8-2.06-1.35 1.3c-.15.15-.27.27-.55.27l.2-2.84 5.18-4.68c.22-.2-.05-.31-.35-.12l-6.4 4.03-2.76-.86c-.6-.19-.61-.6.12-.89l10.78-4.16c.5-.18.94.12.78.86z"/></svg>
-        <span data-i18n="nav_telegram">پی ایکس بات</span>
+<section class="page" id="page-telegram" data-build="ONEX-1.3.1-TELEGRAM-CONTROL-CENTER">
+  <div class="tg-dashboard-shell">
+    <div class="tg-hero">
+      <div class="tg-hero-brand"><div class="tg-hero-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 3.5 18.2 20c-.25 1.17-.9 1.45-1.83.9l-5.05-3.72-2.43 2.34c-.27.27-.5.27-1.02.5l.37-5.23 9.52-8.6c.41-.37-.09-.58-.64-.21L5.35 13.2.43 11.66c-1.07-.33-1.09-1.07.22-1.58L19.9 2.52c.91-.34 1.71.21 1.6.98Z"/></svg></div><div><span>TELEGRAM CONTROL CENTER</span><h1>ربات تلگرام</h1><p>مدیریت کامل ربات، کاربران، کانفیگ‌ها و اعلان‌ها</p></div></div>
+      <div class="tg-hero-status" id="tgHeroStatus"><i></i><span>در حال بررسی</span></div><div class="tg-build-badge">ONEX 1.3.1</div>
+    </div>
+    <div class="tg-stats-grid">
+      <div class="tg-stat"><div class="tg-stat-icon">👥</div><div><small>تعداد کاربران</small><b id="tgUserCount">0</b><em id="tgUserDelta">—</em></div></div>
+      <div class="tg-stat"><div class="tg-stat-icon">◉</div><div><small>کاربران فعال امروز</small><b id="tgActiveToday">0</b><em>زنده</em></div></div>
+      <div class="tg-stat"><div class="tg-stat-icon">✉</div><div><small>پیام‌های امروز</small><b id="tgMessagesToday">0</b><em>ارسالی/دریافتی</em></div></div>
+      <div class="tg-stat"><div class="tg-stat-icon">🔗</div><div><small>وضعیت Webhook</small><b id="tgWebhookState">—</b><em id="tgWebhookMeta">—</em></div></div>
+      <div class="tg-stat"><div class="tg-stat-icon">◷</div><div><small>آخرین ارتباط</small><b id="tgLastSeen">—</b><em id="tgMode">—</em></div></div>
+    </div>
+    <div class="tg-tabs" id="tgTabs">
+      <button class="on" data-tg-tab="overview">داشبورد ربات</button><button data-tg-tab="users">کاربران</button><button data-tg-tab="broadcast">ارسال پیام</button><button data-tg-tab="configs">کانفیگ‌ها</button><button data-tg-tab="settings">تنظیمات</button>
+    </div>
+    <div class="tg-tab-panel on" data-tg-panel="overview">
+      <div class="tg-grid-2">
+        <div class="tg-glass tg-settings-card"><div class="tg-card-head"><div><span>BOT CONNECTION</span><h2>تنظیمات اتصال ربات</h2></div><div class="tg-card-badge" id="tgStatus">—</div></div><div class="tg-field"><label>توکن ربات (BotFather)</label><div class="tg-input-wrap"><input id="tgToken" placeholder="123456:ABC-DEF..." autocomplete="off"><button type="button" onclick="copyText(document.getElementById('tgToken').value)">کپی</button></div></div><div class="tg-field"><label>آیدی عددی ادمین</label><input id="tgAdmin" placeholder="123456789" inputmode="numeric"></div><div class="tg-toggle-row"><div><b>Webhook</b><small>پیشنهادی برای Railway</small></div><label class="switch"><input type="checkbox" id="tgWebhook" checked><span class="slider"></span></label></div><div class="tg-actions"><button class="tg-btn secondary" onclick="testTelegram()">تست اتصال</button><button class="tg-btn primary" onclick="saveTelegram()">ذخیره و فعال‌سازی</button></div></div>
+        <div class="tg-glass tg-user-card"><div class="tg-card-head"><div><span>USER MANAGEMENT</span><h2>مدیریت کاربران</h2></div><button class="tg-link-btn" onclick="switchTgTab('users')">مشاهده همه</button></div><div class="tg-search"><span>⌕</span><input id="tgUserSearchMini" oninput="renderTelegramUsers(true)" placeholder="جستجو بر اساس ID یا Username..."></div><div id="tgMiniUsers" class="tg-mini-users"><div class="tg-empty">در حال بارگذاری...</div></div></div>
       </div>
-      <div class="page-sub" data-i18n="tg_sub">توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک</div>
+      <div class="tg-grid-2">
+        <div class="tg-glass"><div class="tg-card-head"><div><span>BROADCAST</span><h2>ارسال پیام همگانی</h2></div><span class="tg-card-icon">➤</span></div><div class="tg-audience"><button class="on" data-aud="all">همه کاربران</button><button data-aud="active">کاربران فعال</button><button data-aud="configs">دارندگان کانفیگ</button><button data-aud="expired">منقضی‌شده</button></div><textarea id="tgBroadcastMini" placeholder="متن پیام خود را بنویسید..."></textarea><div class="tg-broadcast-foot"><span>گیرندگان: <b id="tgAudienceCount">0</b></span><button class="tg-btn primary" onclick="sendTelegramBroadcast()">ارسال پیام</button></div></div>
+        <div class="tg-glass"><div class="tg-card-head"><div><span>ACTIVITY</span><h2>آخرین فعالیت‌ها</h2></div><span class="tg-card-icon">◷</span></div><div id="tgActivity" class="tg-activity"><div class="tg-empty">در حال بارگذاری...</div></div></div>
+      </div>
     </div>
-  </div>
-  <div class="card">
-    <div class="card-title" data-i18n="tg_config">پیکربندی ربات</div>
-    <div class="field"><label data-i18n="tg_token">توکن ربات (BotFather)</label><input id="tgToken" placeholder="123456:ABC-DEF..." autocomplete="off"></div>
-    <div class="field"><label data-i18n="tg_admin">آیدی عددی ادمین</label><input id="tgAdmin" placeholder="123456789" inputmode="numeric"></div>
-    <div class="field" style="display:flex;align-items:center;gap:10px">
-      <label class="switch"><input type="checkbox" id="tgWebhook" checked><span class="slider"></span></label>
-      <span data-i18n="tg_webhook" style="font-size:13px;color:var(--t2)">فعال‌سازی Webhook (پیشنهادی روی Railway)</span>
-    </div>
-    <div id="tgStatus" style="font-size:12px;color:var(--t3);margin:10px 0"></div>
-    <button class="btn btn-p" style="width:100%" onclick="saveTelegram()">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-      <span data-i18n="tg_activate">ذخیره و فعال‌سازی ربات</span>
-    </button>
-  </div>
-  <div class="card">
-    <div class="card-title" data-i18n="tg_help">راهنما</div>
-    <ol style="color:var(--t2);font-size:13px;line-height:2;padding-right:18px">
-      <li data-i18n="tg_h1">از @BotFather یک ربات بساز و توکن را کپی کن</li>
-      <li data-i18n="tg_h2">آیدی عددی خودت را از @userinfobot بگیر</li>
-      <li data-i18n="tg_h3">ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود</li>
-    </ol>
+    <div class="tg-tab-panel" data-tg-panel="users"><div class="tg-glass"><div class="tg-card-head"><div><span>USERS</span><h2>کاربران ربات</h2></div><div class="tg-user-tools"><input id="tgUserSearch" oninput="renderTelegramUsers(false)" placeholder="ID / Username"><select id="tgUserFilter" onchange="renderTelegramUsers(false)"><option value="all">همه</option><option value="active">فعال</option><option value="blocked">مسدود</option><option value="configs">دارای کانفیگ</option></select></div></div><div id="tgUsersList" class="tg-users-list"></div></div></div>
+    <div class="tg-tab-panel" data-tg-panel="broadcast"><div class="tg-glass tg-broadcast-large"><div class="tg-card-head"><div><span>MESSAGE CENTER</span><h2>ارسال پیام به کاربران</h2><p>قبل از ارسال، تعداد گیرندگان نمایش داده می‌شود.</p></div></div><div class="tg-audience large"><button class="on" data-aud="all">همه کاربران</button><button data-aud="active">کاربران فعال</button><button data-aud="configs">دارندگان کانفیگ</button><button data-aud="expired">منقضی‌شده</button></div><textarea id="tgBroadcastText" placeholder="پیام شما..."></textarea><div class="tg-send-preview"><span>تعداد گیرندگان: <b id="tgBroadcastCount">0</b></span><button class="tg-btn primary" onclick="sendTelegramBroadcast(true)">ارسال پیام</button></div><div id="tgBroadcastResult" class="tg-result"></div></div></div>
+    <div class="tg-tab-panel" data-tg-panel="configs"><div class="tg-grid-2"><div class="tg-glass"><div class="tg-card-head"><div><span>CONFIGS</span><h2>کانفیگ‌های متصل به تلگرام</h2></div></div><div id="tgConfigOwners" class="tg-config-owners"></div></div><div class="tg-glass"><div class="tg-card-head"><div><span>NOTIFICATIONS</span><h2>اعلان‌های خودکار</h2></div></div><div class="tg-notify-list"><label><span><b>نزدیک شدن انقضا</b><small>ارسال هشدار قبل از پایان اعتبار</small></span><label class="switch"><input type="checkbox" id="tgNotifyExpiry" checked><span class="slider"></span></label></label><label><span><b>نزدیک شدن حجم</b><small>هشدار هنگام مصرف بالا</small></span><label class="switch"><input type="checkbox" id="tgNotifyUsage" checked><span class="slider"></span></label></label><label><span><b>تغییر وضعیت سرویس</b><small>اعلان فعال/غیرفعال شدن</small></span><label class="switch"><input type="checkbox" id="tgNotifyStatus" checked><span class="slider"></span></label></label></div></div></div></div>
+    <div class="tg-tab-panel" data-tg-panel="settings"><div class="tg-grid-2"><div class="tg-glass"><div class="tg-card-head"><div><span>ACCESS</span><h2>امنیت و دسترسی</h2></div></div><div class="tg-security-row"><span>ادمین‌های مجاز</span><b id="tgAdminCount">0</b></div><div class="tg-security-row"><span>عضویت اجباری</span><b id="tgForceJoinState">خاموش</b></div><div class="tg-security-row"><span>حالت اجرا</span><b id="tgRuntimeMode">—</b></div><button class="tg-btn secondary full" onclick="openTgForceJoin()">مدیریت عضویت اجباری</button></div><div class="tg-glass"><div class="tg-card-head"><div><span>HELP</span><h2>راهنمای سریع</h2></div></div><ol class="tg-help-list"><li>از <b>@BotFather</b> ربات بساز و Token را وارد کن.</li><li>Telegram ID ادمین را در بخش اتصال ثبت کن.</li><li>Webhook را روی Railway فعال نگه دار.</li><li>کاربران پس از ارسال /start در پنل ثبت می‌شوند.</li></ol></div></div></div>
   </div>
 </section>
 
@@ -10325,11 +10413,24 @@ async function deployPanelUpdate(){
   if(btn){btn.disabled=false;btn.textContent=updateText('شروع بروزرسانی پنل','Update panel now')}
   toast((r&&r.detail)||updateText('شروع بروزرسانی ناموفق بود','Could not start the update'));
 }
+
+let __tgUsers=[]; let __tgAudience='all';
+function switchTgTab(tab){document.querySelectorAll('#tgTabs button').forEach(b=>b.classList.toggle('on',b.dataset.tgTab===tab));document.querySelectorAll('.tg-tab-panel').forEach(p=>p.classList.toggle('on',p.dataset.tgPanel===tab));if(tab==='users')renderTelegramUsers(false);}
+document.querySelectorAll('#tgTabs button').forEach(b=>b.addEventListener('click',()=>switchTgTab(b.dataset.tgTab)));
+document.querySelectorAll('.tg-audience button').forEach(b=>b.addEventListener('click',()=>{__tgAudience=b.dataset.aud;document.querySelectorAll('.tg-audience button').forEach(x=>x.classList.toggle('on',x.dataset.aud===__tgAudience));updateTelegramAudienceCount();}));
+function telegramAudienceUsers(){return __tgUsers.filter(u=>{if(u.blocked)return false;if(__tgAudience==='active')return !!u.active_today;if(__tgAudience==='configs')return Number(u.config_count||0)>0;if(__tgAudience==='expired')return Number(u.expired_count||0)>0;return true})}
+function updateTelegramAudienceCount(){const n=telegramAudienceUsers().length;['tgAudienceCount','tgBroadcastCount'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=n})}
+function renderTelegramUsers(mini=false){const q=(document.getElementById(mini?'tgUserSearchMini':'tgUserSearch')?.value||'').trim().toLowerCase();const f=document.getElementById('tgUserFilter')?.value||'all';let arr=__tgUsers.filter(u=>{const hay=String(u.user_id)+' '+String(u.username||'')+' '+String(u.first_name||'');if(q&&!hay.toLowerCase().includes(q))return false;if(f==='active'&&!u.active_today)return false;if(f==='blocked'&&!u.blocked)return false;if(f==='configs'&&!Number(u.config_count||0))return false;return true});if(mini)arr=arr.slice(0,4);const box=document.getElementById(mini?'tgMiniUsers':'tgUsersList');if(!box)return;if(!arr.length){box.innerHTML='<div class="tg-empty">کاربری ثبت نشده است.</div>';return}box.innerHTML=arr.map(u=>{const initial=esc((u.first_name||u.username||String(u.user_id)).slice(0,1).toUpperCase());return `<div class="tg-${mini?'mini-':''}user"><div class="tg-avatar">${initial}</div><div class="tg-user-copy"><b>${esc(u.first_name||u.username||'Telegram User')}</b><small>${u.username?'@'+esc(u.username)+' · ':''}${esc(u.user_id)} · ${Number(u.config_count||0)} کانفیگ</small></div><span class="tg-user-state ${u.blocked?'bad':''}">${u.blocked?'مسدود':'فعال'}</span>${mini?'':`<div class="tg-user-actions"><button onclick="toggleTelegramUser(${Number(u.user_id)},${!u.blocked})" class="${u.blocked?'':'danger'}">${u.blocked?'فعال‌سازی':'مسدود'}</button></div>`}</div>`}).join('')}
+async function loadTelegramDashboard(){try{const r=await api('/api/telegram/dashboard');if(!r)return;document.getElementById('tgUserCount').textContent=r.user_count??0;document.getElementById('tgActiveToday').textContent=r.active_today??0;document.getElementById('tgMessagesToday').textContent=r.messages_today??0;document.getElementById('tgWebhookState').textContent=r.webhook?'متصل':'خاموش';document.getElementById('tgWebhookMeta').textContent=r.webhook_url||'—';document.getElementById('tgLastSeen').textContent=r.last_seen||'—';document.getElementById('tgMode').textContent=r.bot?.mode||'—';document.getElementById('tgAdminCount').textContent=r.admin_count??0;document.getElementById('tgRuntimeMode').textContent=r.bot?.mode||'—';document.getElementById('tgForceJoinState').textContent=r.force_join?.enabled?'فعال':'خاموش';const hs=document.getElementById('tgHeroStatus');if(hs){hs.classList.toggle('bad',!r.enabled);hs.querySelector('span').textContent=r.enabled?'ربات فعال و متصل':'ربات غیرفعال'}__tgUsers=Array.isArray(r.users)?r.users:[];renderTelegramUsers(true);renderTelegramUsers(false);updateTelegramAudienceCount();const act=document.getElementById('tgActivity');const logs=Array.isArray(r.activity)?r.activity.slice(-8).reverse():[];act.innerHTML=logs.length?logs.map(x=>`<div class="tg-activity-row"><i class="tg-activity-dot"></i><div><b>${esc(x.message||'—')}</b><small>${esc(String(x.time||'').replace('T',' ').slice(0,19))}</small></div></div>`).join(''):'<div class="tg-empty">فعالیتی ثبت نشده است.</div>';const owners=document.getElementById('tgConfigOwners');const cfg=Array.isArray(r.config_owners)?r.config_owners:[];owners.innerHTML=cfg.length?cfg.slice(0,12).map(x=>`<div class="tg-config-owner"><b>${esc(x.label||x.uuid||'—')}</b><span>${esc(x.owner||'بدون مالک')} · ${esc(x.status||'فعال')}</span></div>`).join(''):'<div class="tg-empty">هنوز کانفیگی به کاربر تلگرام متصل نشده است.</div>';}catch(e){}}
+async function toggleTelegramUser(id,blocked){const r=await api('/api/telegram/users/'+id+'/block',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({blocked})});if(r&&r.ok){toast(blocked?'کاربر مسدود شد':'کاربر فعال شد');loadTelegramDashboard()}}
+async function sendTelegramBroadcast(full=false){const el=document.getElementById(full?'tgBroadcastText':'tgBroadcastMini');const msg=(el?.value||'').trim();if(!msg){toast('متن پیام را وارد کنید');return}const r=await api('/api/telegram/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,audience:__tgAudience})});if(r&&r.ok){const out=document.getElementById('tgBroadcastResult');if(out){out.textContent=`ارسال تمام شد: ${r.sent} موفق · ${r.failed} ناموفق`;out.classList.add('show')}toast(`ارسال شد: ${r.sent}`);el.value=''}}
+async function testTelegram(){const r=await api('/api/telegram/test');if(r&&r.ok)toast(r.message||'اتصال برقرار است');else toast('اتصال ربات برقرار نشد')}
+function openTgForceJoin(){toast('تنظیم عضویت اجباری از بخش تنظیمات ربات قابل مدیریت است')}
 async function saveTelegram(){
   const token=document.getElementById('tgToken').value.trim();
   const admin=document.getElementById('tgAdmin').value.trim();
   const webhook=document.getElementById('tgWebhook').checked;
-  if(!token||!admin){toast(lang==='fa'?'توکن و آیدی لازم است':'Token and admin ID required');return}
+  if(!admin){toast(lang==='fa'?'آیدی ادمین لازم است':'Admin ID required');return}
   toast(lang==='fa'?'در حال فعال‌سازی...':'Activating...');
   const r=await api('/api/telegram/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,admin_ids:admin,webhook})});
   if(r){
@@ -10338,6 +10439,7 @@ async function saveTelegram(){
   }
 }
 async function loadTelegram(){
+  loadTelegramDashboard();
   const r=await api('/api/telegram/settings');
   if(!r)return;
   if(r.admin_ids) document.getElementById('tgAdmin').value=r.admin_ids;
@@ -10893,13 +10995,13 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 applyLang();loadMe();loadProtocols();loadCategories();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]});loadAdvancedCapabilities(document.getElementById('cProto')?.value||'vless-ws')},250);
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
 setTimeout(()=>checkPanelUpdate(true),2500);
-setInterval(()=>checkPanelUpdate(true),10*60*1000);
+setInterval(()=>checkPanelUpdate(false),10*60*1000);
 // Protocol picker bootstrap: keep the native select only as the data/control source.
 function bootProtocolPickers(){ try{ setupProtocolPickers(); }catch(e){ console.warn('Protocol picker:',e); } }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootProtocolPickers); else bootProtocolPickers();
 setTimeout(bootProtocolPickers,300);
 setTimeout(bootProtocolPickers,1000);
-setInterval(refreshAll,1000);
+setInterval(refreshAll,5000);
 
 
 </script>

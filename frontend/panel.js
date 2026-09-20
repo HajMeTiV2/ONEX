@@ -1116,7 +1116,7 @@ async function unlockAllIps(){
 
 async function downloadBackup(kind){
   try{
-    const url = kind==='bot' ? '/api/backup/bot' : '/api/backup/users';
+    const url = kind==='full' ? '/api/backup/full' : (kind==='bot' ? '/api/backup/bot' : '/api/backup/users');
     const r = await fetch(url, {credentials:'same-origin', cache:'no-store'});
     if(r.status===401){ location.href='/login'; return; }
     if(!r.ok){
@@ -1131,12 +1131,21 @@ async function downloadBackup(kind){
     const a = document.createElement('a');
     const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
     a.href = URL.createObjectURL(blob);
-    a.download = kind==='bot' ? ('pxpanel-bot-'+stamp+'.json') : ('pxpanel-users-'+stamp+'.json');
+    a.download = kind==='full' ? ('ONEX-backup-'+stamp+'.json') : (kind==='bot' ? ('ONEX-bot-'+stamp+'.json') : ('ONEX-users-'+stamp+'.json'));
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
     toast(lang==='fa'?'دانلود شد':'Downloaded');
   }catch(e){ toast(String(e.message||e)); }
+}
+async function restoreFull(){
+  try{
+    const data = await readJsonFile('restoreFullFile');
+    if(data.type!=='onex_full_backup'){ toast(lang==='fa'?'این فایل بک‌آپ کامل ONEX نیست':'This is not a full ONEX backup'); return; }
+    if(!confirm(lang==='fa'?'تمام اطلاعات فعلی پنل و تنظیمات ربات با بک‌آپ جایگزین می‌شود. مطمئنی؟':'All current panel and bot data will be replaced. Continue?')) return;
+    const r = await api('/api/restore/full',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if(r){ toast(r.warning||r.message||(lang==='fa'?'بک‌آپ کامل بازیابی شد':'Full backup restored')); setTimeout(()=>location.reload(),900); }
+  }catch(e){ toast(e.message||String(e)); }
 }
 function readJsonFile(inputId){
   return new Promise((resolve,reject)=>{

@@ -1,82 +1,46 @@
-# ONEX 1.3.0 — Telegram Control Center & Advanced Native Runtime
+# 🚀 ONEX 1.3.1
 
-This build connects the Advanced Configuration UI to the ONEX native `sing-box` runtime without pretending unsupported fields are applied.
+<p align="center">
+  <img src="onex-logo-3d.png" alt="ONEX Logo" width="300">
+</p>
 
-## Runtime flow
+<p align="center">
+  <strong>Advanced Self-Hosted Management Panel</strong>
+</p>
 
-`Advanced UI → /api/links → persisted state → NativeCore builder → application validation → sing-box check → staged config → runtime start → health check → commit / rollback`
+<p align="center">
+  <a href="README.md">🇮🇷 فارسی</a> &nbsp;&nbsp; | &nbsp;&nbsp;
+  <a href="README.en.md">🇬🇧 English</a>
+</p>
 
-A native change is considered applied only after `sing-box check` succeeds and the new process remains alive. If startup fails, the previous known-good configuration is restored.
+<p align="center">
+  <a href="https://github.com/HajMeTiV2/ONEX">⭐ Star</a> •
+  <a href="https://github.com/HajMeTiV2/ONEX/fork">🍴 Fork</a> •
+  <a href="https://t.me/V2rayTun0">📢 Telegram</a> •
+  <a href="https://t.me/Mehtif">👨‍💻 Developer</a>
+</p>
 
-## Native protocols
+---
 
-- Trojan
-- Shadowsocks
-- SOCKS5
-- HTTP Proxy
-- Hysteria2
-- VLESS gRPC Reality
+## 🌐 Choose your language
 
-The existing ONEX VLESS WebSocket relay and XHTTP modules remain separate because they are implemented by ONEX itself rather than by native sing-box listeners.
+### 🇮🇷 فارسی
+برای مشاهده مستندات کامل فارسی، روی گزینه زیر بزنید:
 
-## Advanced settings
+**[📖 مشاهده README فارسی](README.fa.md)**
 
-The panel stores and validates:
+### 🇬🇧 English
+For the complete English documentation:
 
-- TLS / SNI / ALPN / TLS versions
-- certificate and key paths
-- Reality keypair, Short ID and handshake settings
-- client fingerprint and randomization metadata
-- WebSocket / HTTP / HTTPUpgrade / QUIC / gRPC transport options where the selected native protocol supports them
-- multiple ports and listener conflict detection
-- listener address, interface, routing mark and network namespace
-- TCP Fast Open / MPTCP / keepalive / UDP timeout / reuse address
-- sniffing options supported by the installed sing-box version
-- final outbound (`direct` or `block` in this build)
-- custom transport headers where the selected transport supports them
-- Shadowsocks method
-- Hysteria2 bandwidth, obfuscation and masquerade
+**[📖 Open English README](README.en.md)**
 
-Client-only fields such as fingerprint and `allow_insecure` are never injected into server listeners as fake fields. Fingerprint is represented in generated client links; `allow_insecure` is client metadata.
+---
 
-Reality public/private keys must be supplied together when custom keys are used. If both are empty, ONEX generates and persists a matching keypair with sing-box.
+### ❤️ Support ONEX
 
-## Native API
+⭐ Star the repository • 🍴 Fork the project • 📢 Join the Telegram channel
 
-- `GET /api/native/status`
-- `GET /api/native/config` (redacted by default; `?raw=1` is owner-only)
-- `POST /api/native/validate`
-- `POST /api/native/reload`
-- `GET /api/advanced/capabilities`
-- `POST /api/advanced/validate`
-- `POST /api/links/{uid}/advanced/reset`
+**Developer:** [@Mehtif](https://t.me/Mehtif)  
+**Telegram:** [@V2rayTun0](https://t.me/V2rayTun0)
 
-## Environment
-
-- `ONEX_NATIVE_CORE=auto|0|1`
-- `ONEX_SINGBOX_BIN=/absolute/path/to/sing-box`
-- `ONEX_SINGBOX_VERSION=1.14.1`
-- `ONEX_SINGBOX_AUTO_DOWNLOAD=1`
-- `ONEX_TLS_CERT=/absolute/path/cert.pem`
-- `ONEX_TLS_KEY=/absolute/path/key.pem`
-- `ONEX_REALITY_HANDSHAKE=www.cloudflare.com`
-- `ONEX_SS_METHOD=aes-256-gcm`
-
-For production, prefer a valid certificate/key or an ACME/certificate-provider setup instead of the generated self-signed fallback.
-
-## Validation
-
-The runtime uses the installed sing-box binary's `check` command before applying a configuration. The current sing-box documentation also provides a JSON Schema and recommends generating a schema matching the installed binary when exact version/build validation is needed.
-
-## Tests
-
-`tests/smoke_native.py` performs offline structural checks for protocol-safe defaults and transport mapping. Full runtime validation still requires a Linux host with the configured sing-box binary and its required privileges/capabilities.
-
-## Security
-
-Secrets, runtime state, generated certificates and Reality key material stay outside source control. The distributed archive does not contain the previous environment's panel secret.
-
-
-## Professional structure
-
-The project keeps `main.py` as the stable Railway/FastAPI entrypoint while implementation modules are organized under `onex/`, browser assets under `frontend/`, and visual assets under `assets/`. Root compatibility shims preserve legacy imports.
+<p align="center"><strong>ONEX — Fast · Secure · Stable</strong></p>

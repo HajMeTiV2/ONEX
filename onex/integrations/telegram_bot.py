@@ -39,8 +39,8 @@ from main import (
     save_state,
 )
 
-BOT_NAME = "پی ایکس بات"
-BOT_NAME_EN = "PX Bot"
+BOT_NAME = "ربات ONEX"
+BOT_NAME_EN = "ONEX Bot"
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 _admin_ids_raw = os.environ.get("TELEGRAM_ADMIN_IDS", "").strip()
@@ -803,7 +803,7 @@ async def _handle_message(msg: dict):
             return
         name = text[:40] or "group"
         try:
-            sid, sub = await create_sub_group(name=name, desc="از پی ایکس بات")
+            sid, sub = await create_sub_group(name=name, desc="از ربات ONEX")
             _pending.pop(chat_id, None)
             await _send(chat_id, _format_sub_detail(sid, sub), _sub_detail_kb(sid))
         except Exception as e:
@@ -1301,7 +1301,7 @@ async def start_bot(mode: str = "polling"):
         await _call("setMyName", name=BOT_NAME)
         await _call(
             "setMyDescription",
-            description=f"{BOT_NAME} ({BOT_NAME_EN}) — مدیریت کامل پنل PXPanel از تلگرام",
+            description=f"{BOT_NAME} ({BOT_NAME_EN}) — مدیریت کامل پنل ONEX از تلگرام",
         )
         await _call(
             "setMyCommands",

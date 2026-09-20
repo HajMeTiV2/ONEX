@@ -3018,7 +3018,14 @@ async def login_form(
 
     clear_login_failures(ip)
 
-    token = await create_session()
+    token = await create_session({
+        "role": "owner",
+        "admin_id": None,
+        "username": AUTH.get("username", "admin"),
+        "ip": ip,
+        "user_agent": request.headers.get("user-agent", ""),
+        "login_at": datetime.now().isoformat(timespec="seconds"),
+    })
 
     response = RedirectResponse(
         "/dashboard?login=1",
@@ -3078,6 +3085,12 @@ async def api_login(request: Request):
             raise HTTPException(status_code=429, detail="تعداد تلاش بیش از حد. ۱۵ دقیقه صبر کنید.", headers={"Retry-After": str(LOGIN_LOCKOUT_SECONDS)})
         raise HTTPException(status_code=401, detail=f"نام کاربری یا رمز اشتباه است. {value} تلاش باقی‌مانده")
     clear_login_failures(ip)
+    meta = dict(meta)
+    meta.update({
+        "ip": ip,
+        "user_agent": request.headers.get("user-agent", ""),
+        "login_at": datetime.now().isoformat(timespec="seconds"),
+    })
     token = await create_session(meta)
     response = JSONResponse({"ok": True, "role": meta["role"], "username": meta["username"]})
     set_auth_cookie(response, request, token)
@@ -7229,11 +7242,53 @@ async def security_status(token=Depends(require_auth)):
     meta = get_session_meta(token)
     if meta.get("role") != "owner":
         raise HTTPException(403, detail="فقط مالک")
+
     now = time.time()
     locked = []
     for ip, until in list(LOGIN_LOCKED_UNTIL.items()):
         if until > now:
-            locked.append({"ip": ip, "remaining_sec": int(until - now)})
+            locked.append({
+                "ip": ip,
+                "remaining_sec": int(until - now),
+                "attempts": 0,
+            })
+
+    # Recent authentication events are already retained by the panel activity log.
+    recent_logins = []
+    for item in reversed(list(activity_logs)):
+        if item.get("type") != "auth":
+            continue
+        message = str(item.get("message") or "")
+        if "ورود موفق" not in message and "تلاش ورود ناموفق" not in message:
+            continue
+        ip_match = re.search(r"(?:از|IP:?\s*)([0-9a-fA-F:.]+)", message)
+        recent_logins.append({
+            "time": item.get("time") or "",
+            "success": "ورود موفق" in message,
+            "ip": ip_match.group(1) if ip_match else "—",
+            "message": message,
+        })
+        if len(recent_logins) >= 8:
+            break
+
+    sessions = []
+    async with SESSIONS_LOCK:
+        for sid, expiry in list(SESSIONS.items()):
+            if expiry <= now:
+                SESSIONS.pop(sid, None)
+                SESSION_META.pop(sid, None)
+                continue
+            sm = get_session_meta(sid)
+            sessions.append({
+                "current": sid == token,
+                "username": sm.get("username") or "—",
+                "role": sm.get("role") or "—",
+                "ip": sm.get("ip") or "—",
+                "user_agent": sm.get("user_agent") or "—",
+                "login_at": sm.get("login_at") or "—",
+                "remaining_sec": int(expiry - now),
+            })
+
     return {
         "ok": True,
         "max_attempts": LOGIN_MAX_ATTEMPTS,
@@ -7241,7 +7296,33 @@ async def security_status(token=Depends(require_auth)):
         "lockout_seconds": LOGIN_LOCKOUT_SECONDS,
         "locked_ips": locked,
         "tracked_ips": len(LOGIN_FAILURES),
+        "failed_attempts": sum(len(v) for v in LOGIN_FAILURES.values()),
+        "active_sessions": len(sessions),
+        "sessions": sessions,
+        "recent_logins": recent_logins,
     }
+
+
+@app.post("/api/security/sessions/revoke")
+async def security_revoke_sessions(request: Request, token=Depends(require_auth)):
+    meta = get_session_meta(token)
+    if meta.get("role") != "owner":
+        raise HTTPException(403, detail="فقط مالک")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    keep_current = bool((body or {}).get("keep_current", True))
+    revoked = 0
+    async with SESSIONS_LOCK:
+        for sid in list(SESSIONS.keys()):
+            if keep_current and sid == token:
+                continue
+            SESSIONS.pop(sid, None)
+            SESSION_META.pop(sid, None)
+            revoked += 1
+    log_activity("auth", f"نشست‌های پنل لغو شدند: {revoked} نشست", "warn")
+    return {"ok": True, "revoked": revoked}
 
 
 @app.post("/api/security/unlock")
@@ -7264,6 +7345,45 @@ async def security_unlock(request: Request, token=Depends(require_auth)):
     return {"ok": True}
 
 
+@app.get("/api/backup/full")
+async def backup_full(token=Depends(require_auth)):
+    meta = get_session_meta(token)
+    if meta.get("role") != "owner":
+        if not (meta.get("permissions") or {}).get("settings"):
+            raise HTTPException(403, detail="دسترسی ندارید")
+
+    telegram = {}
+    try:
+        if TG_FILE.exists():
+            telegram = json.loads(TG_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        telegram = {}
+
+    payload = {
+        "type": "onex_full_backup",
+        "version": APP_VERSION,
+        "created_at": datetime.now().isoformat(),
+        "panel": {
+            "links": dict(LINKS),
+            "subs": dict(SUBS),
+            "categories": dict(CATEGORIES),
+            "admin_accounts": dict(ADMIN_ACCOUNTS),
+            "username": AUTH.get("username", "admin"),
+            "password_hash": AUTH.get("password_hash", ""),
+            "credentials_version": 1,
+        },
+        "telegram": telegram,
+    }
+    body = json.dumps(payload, ensure_ascii=False, indent=2)
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="ONEX-backup-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
+        },
+    )
+
+
 @app.get("/api/backup/users")
 async def backup_users(token=Depends(require_auth)):
     meta = get_session_meta(token)
@@ -7272,7 +7392,7 @@ async def backup_users(token=Depends(require_auth)):
         if not (meta.get("permissions") or {}).get("settings"):
             raise HTTPException(403, detail="دسترسی ندارید")
     payload = {
-        "type": "pxpanel_users_backup",
+        "type": "onex_users_backup",
         "version": APP_VERSION,
         "created_at": datetime.now().isoformat(),
         "links": dict(LINKS),
@@ -7285,7 +7405,7 @@ async def backup_users(token=Depends(require_auth)):
         content=body,
         media_type="application/json",
         headers={
-            "Content-Disposition": f'attachment; filename="pxpanel-users-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
+            "Content-Disposition": f'attachment; filename="ONEX-users-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
         },
     )
 
@@ -7303,7 +7423,7 @@ async def backup_bot(token=Depends(require_auth)):
     except Exception:
         data = {}
     payload = {
-        "type": "pxpanel_bot_backup",
+        "type": "onex_bot_backup",
         "version": APP_VERSION,
         "created_at": datetime.now().isoformat(),
         "telegram": data,
@@ -7313,9 +7433,109 @@ async def backup_bot(token=Depends(require_auth)):
         content=body,
         media_type="application/json",
         headers={
-            "Content-Disposition": f'attachment; filename="pxpanel-bot-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
+            "Content-Disposition": f'attachment; filename="ONEX-bot-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json"'
         },
     )
+
+
+@app.post("/api/restore/full")
+async def restore_full(request: Request, token=Depends(require_auth)):
+    meta = get_session_meta(token)
+    if meta.get("role") != "owner":
+        raise HTTPException(403, detail="فقط مالک پنل")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, detail="فایل JSON نامعتبر")
+
+    if not isinstance(body, dict) or body.get("type") != "onex_full_backup":
+        raise HTTPException(400, detail="فایل بک‌آپ کامل ONEX نیست")
+
+    panel = body.get("panel")
+    telegram = body.get("telegram", {})
+    if not isinstance(panel, dict):
+        raise HTTPException(400, detail="بخش پنل در بک‌آپ نامعتبر است")
+    if not isinstance(telegram, dict):
+        raise HTTPException(400, detail="بخش ربات در بک‌آپ نامعتبر است")
+
+    links = panel.get("links")
+    if not isinstance(links, dict):
+        raise HTTPException(400, detail="کانفیگ‌های بک‌آپ نامعتبر است")
+
+    async with LINKS_LOCK:
+        LINKS.clear()
+        SUBS.clear()
+        CATEGORIES.clear()
+        ADMIN_ACCOUNTS.clear()
+
+        LINKS.update(links)
+        if isinstance(panel.get("subs"), dict):
+            SUBS.update(panel["subs"])
+        if isinstance(panel.get("categories"), dict):
+            CATEGORIES.update(panel["categories"])
+        if isinstance(panel.get("admin_accounts"), dict):
+            ADMIN_ACCOUNTS.update(panel["admin_accounts"])
+
+        for uid, link in list(LINKS.items()):
+            if not isinstance(link, dict):
+                LINKS.pop(uid, None)
+                continue
+            link.setdefault("protocol", DEFAULT_PROTOCOL)
+            link.setdefault("fingerprint", DEFAULT_FINGERPRINT)
+            link.setdefault("used_bytes", 0)
+            link.setdefault("active", True)
+            link.setdefault("config_count", 1)
+
+    username = str(panel.get("username") or AUTH.get("username") or "admin").strip().lower()
+    password_hash = str(panel.get("password_hash") or AUTH.get("password_hash") or "").strip()
+    if not password_hash:
+        raise HTTPException(400, detail="اطلاعات ورود در بک‌آپ موجود نیست")
+
+    AUTH["username"] = username
+    AUTH["password_hash"] = password_hash
+    AUTH["credentials_version"] = int(panel.get("credentials_version") or 1)
+
+    await save_state()
+
+    bot_warning = None
+    try:
+        TG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        TG_FILE.write_text(
+            json.dumps(telegram, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        from onex.integrations.telegram_bot import configure_bot, start_bot, stop_bot, setup_webhook
+        await stop_bot()
+        configure_bot(telegram.get("token") or "", telegram.get("admin_ids") or "")
+        if telegram.get("token"):
+            host = get_host(request)
+            if telegram.get("webhook") and host and host != "localhost":
+                wh = f"https://{host}/telegram/webhook"
+                await setup_webhook(wh)
+                await start_bot(mode="webhook")
+            else:
+                await setup_webhook("")
+                await start_bot(mode="polling")
+    except Exception as exc:
+        bot_warning = str(exc)
+        logger.warning("full backup bot activation: %s", exc)
+
+    log_activity(
+        "backup",
+        f"بازیابی کامل ONEX انجام شد — {len(LINKS)} کانفیگ",
+        "warn" if bot_warning else "ok",
+    )
+    result = {
+        "ok": True,
+        "links": len(LINKS),
+        "subs": len(SUBS),
+        "mode": "full",
+        "message": "بک‌آپ کامل ONEX بازیابی شد",
+    }
+    if bot_warning:
+        result["warning"] = f"اطلاعات ربات بازیابی شد اما فعال‌سازی ربات خطا داشت: {bot_warning}"
+    return result
 
 
 @app.post("/api/restore/users")
@@ -7331,7 +7551,7 @@ async def restore_users(request: Request, token=Depends(require_auth)):
         raise HTTPException(400, detail="فرمت نامعتبر")
     # accept either wrapper or raw state
     links = body.get("links")
-    if links is None and body.get("type") == "pxpanel_users_backup":
+    if links is None and body.get("type") in ("onex_users_backup", "pxpanel_users_backup"):
         raise HTTPException(400, detail="لینک‌ها در بک‌آپ نیست")
     if links is None:
         raise HTTPException(400, detail="فایل بک‌آپ کاربران نیست")
@@ -9329,38 +9549,90 @@ Cache-Control: no-cache"></textarea></div>
     <button class="btn btn-p" onclick="doChangePw()"><span data-i18n="btn_save">ذخیـره</span></button>
   </div>
   
-  <div class="card">
-    <div class="card-title">امنیت بیشتـر</div>
-    <p style="font-size:12px;color:var(--t3);line-height:1.8;margin-bottom:12px">پـس از 5 تـلاش ناموفـق، ایپـی به مدت 30 دقیقه مسدود می‌شود.</p>
-    <div id="secStatus" style="font-size:12px;color:var(--t2);margin-bottom:10px">—</div>
-    <button class="btn btn-sm" onclick="loadSecurity()">بروزرسانی وضعیـت</button>
-    <button class="btn btn-sm btn-d" onclick="unlockAllIps()">رفع مسدودی همـه ایپــی هــا</button>
-  </div>
-<div class="card">
-    <div class="card-title">بــک آپ و بازیابــی</div>
-    <p style="font-size:12px;color:var(--t3);line-height:1.8;margin-bottom:14px">در صورت خرابی پنل، بک‌آپ را دانلود کنید و در پنل جدید وارد کنید.</p>
-    <div class="g2" style="margin-bottom:12px">
-      <button class="btn btn-p" style="width:100%" onclick="downloadBackup('users')">دانلود بک‌آپ کاربران</button>
-      <button class="btn btn-p" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="downloadBackup('bot')">دانلود بک‌آپ ربات</button>
+  <div class="card onex-security-card">
+    <div class="onex-security-head">
+      <div>
+        <div class="card-title">امنیت بیشتر</div>
+        <p>مدیریت امنیت ورود، IPهای مسدود و نشست‌های فعال پنل</p>
+      </div>
+      <span id="secHealth" class="security-health good">● خوب</span>
     </div>
-    <div class="field">
-      <label>وارد کردن بـک‌آپ کاربران</label>
-      <input type="file" id="restoreUsersFile" accept="application/json,.json" style="padding:10px">
-      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-        <button class="btn btn-sm" onclick="restoreUsers('merge')">ادغام بــــا فعلـی</button>
-        <button class="btn btn-sm btn-d" onclick="restoreUsers('replace')">جایگزینی کامـل</button>
+
+    <div class="security-login-box">
+      <div class="security-section-title"><span>🔐</span><div><b>محدودیت تلاش ورود</b><small>پس از 5 تلاش ناموفق، IP به مدت 30 دقیقه مسدود می‌شود.</small></div></div>
+      <div class="security-login-meta">
+        <span>حداکثر تلاش: <b id="secMaxAttempts">5</b></span>
+        <span>مدت قفل: <b id="secLockMinutes">30 دقیقه</b></span>
+        <button class="btn btn-sm" onclick="loadSecurity()">↻ بروزرسانی وضعیت</button>
       </div>
     </div>
+
+    <div class="security-stats">
+      <div><span>⛔</span><small>IPهای مسدود شده</small><b id="secLockedCount">0</b></div>
+      <div><span>⚠</span><small>ورودهای ناموفق</small><b id="secFailedCount">0</b></div>
+      <div><span>▣</span><small>نشست‌های فعال</small><b id="secSessionCount">0</b></div>
+      <button class="security-stat-action" onclick="showSecurityDetails()">☷<small>مشاهده آمار جزئی‌تر</small></button>
+    </div>
+
+    <div class="security-action-row">
+      <div><b>مدیریت IPهای مسدود</b><small>مشاهده و رفع مسدودی IPهایی که به دلیل تلاش ناموفق قفل شده‌اند.</small></div>
+      <button class="btn btn-sm" onclick="showBlockedIps()">مدیریت IPهای مسدود</button>
+    </div>
+
+    <div class="security-log-box">
+      <div class="security-section-title"><span>◷</span><div><b>ورودهای اخیر</b><small>آخرین ورودهای موفق و ناموفق به پنل</small></div><button class="btn btn-sm" onclick="showSecurityDetails()">مشاهده همه</button></div>
+      <div id="secRecentLogins" class="security-recent-list"><div class="security-empty">در حال بارگذاری...</div></div>
+    </div>
+
+    <div class="security-action-row danger-row">
+      <div><b>خروج از همه دستگاه‌ها</b><small>با این گزینه تمام نشست‌های فعال شما در سایر دستگاه‌ها قطع می‌شود.</small></div>
+      <button class="btn btn-sm btn-d" onclick="revokeAllSessions()">خروج از همه دستگاه‌ها</button>
+    </div>
+
+    <div id="secDetails" class="security-details" hidden>
+      <div class="security-details-head"><b>جزئیات امنیتی</b><button type="button" onclick="hideSecurityDetails()">×</button></div>
+      <div id="secDetailsBody"></div>
+    </div>
+  </div>
+<div class="card">
+    <div class="card-title">بــک آپ و بازیابــی ONEX</div>
+    <p style="font-size:12px;color:var(--t3);line-height:1.8;margin-bottom:14px">یک نسخه پشتیبان از اطلاعات پروژه ONEX تهیه کنید و در صورت نیاز روی پنل جدید بازیابی کنید.</p>
+
+    <div class="g2" style="margin-bottom:12px">
+      <button class="btn btn-p" style="width:100%" onclick="downloadBackup('full')">دانلود بک‌آپ کامل ONEX</button>
+      <button class="btn btn-p" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#6366f1)" onclick="downloadBackup('users')">دانلود بک‌آپ کاربران</button>
+      <button class="btn btn-p" style="width:100%;background:linear-gradient(135deg,#10b981,#059669)" onclick="downloadBackup('bot')">دانلود بک‌آپ ربات</button>
+    </div>
+
+    <div class="field">
+      <label>وارد کردن بک‌آپ کامل ONEX</label>
+      <input type="file" id="restoreFullFile" accept="application/json,.json" style="padding:10px">
+      <button class="btn btn-sm btn-d" style="margin-top:8px" onclick="restoreFull()">جایگزینی کامل پروژه</button>
+    </div>
+
     <div class="field" style="margin-top:12px">
-      <label>وارد کردن بــک آپ ربـات</label>
+      <label>وارد کردن بک‌آپ کاربران</label>
+      <input type="file" id="restoreUsersFile" accept="application/json,.json" style="padding:10px">
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="restoreUsers('merge')">ادغام با فعلی</button>
+        <button class="btn btn-sm btn-d" onclick="restoreUsers('replace')">جایگزینی کامل</button>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:12px">
+      <label>وارد کردن بک‌آپ ربات</label>
       <input type="file" id="restoreBotFile" accept="application/json,.json" style="padding:10px">
-      <button class="btn btn-sm" style="margin-top:8px" onclick="restoreBot()">بازیابـی ربـات</button>
+      <button class="btn btn-sm" style="margin-top:8px" onclick="restoreBot()">بازیابی ربات</button>
     </div>
   </div>
 </section>
 
 
 <style>
+/* ONEX SECURITY CARD — scoped only to Settings > Security */
+.onex-security-card{position:relative;overflow:hidden}.onex-security-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.onex-security-head .card-title{margin-bottom:4px}.onex-security-head p{margin:0;color:var(--t3);font-size:11px;line-height:1.8}.security-health{white-space:nowrap;padding:7px 11px;border-radius:999px;font-size:10px;font-weight:800}.security-health.good{color:#42e3a5;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.22)}.security-health.warn{color:#fbbf24;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.22)}.security-health.bad{color:#fb7185;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.22)}.security-login-box,.security-log-box,.security-action-row{margin-top:13px;padding:14px;border:1px solid var(--card-b);border-radius:16px;background:rgba(2,10,24,.16)}.security-section-title{display:flex;align-items:center;gap:10px}.security-section-title>span{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:rgba(37,99,235,.12);font-size:15px}.security-section-title b{display:block;color:var(--t1);font-size:12px}.security-section-title small{display:block;color:var(--t3);font-size:9px;line-height:1.7;margin-top:2px}.security-section-title>.btn{margin-right:auto}.security-login-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;color:var(--t3);font-size:10px}.security-login-meta span{padding:7px 10px;border-radius:10px;background:rgba(37,99,235,.06);border:1px solid rgba(96,165,250,.10)}.security-login-meta b{color:var(--t1)}.security-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:13px}.security-stats>div,.security-stat-action{min-height:74px;padding:10px;border-radius:14px;border:1px solid var(--card-b);background:rgba(2,10,24,.12)}.security-stats>div{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}.security-stats>div span{font-size:15px;margin-bottom:3px}.security-stats small{color:var(--t3);font-size:8px}.security-stats b{font-size:18px;margin-top:2px}.security-stats>div:nth-child(1) b{color:#fb7185}.security-stats>div:nth-child(2) b{color:#fbbf24}.security-stat-action{display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;color:#79bfff;font:800 9px Vazirmatn,sans-serif}.security-stat-action small{color:#79bfff}.security-action-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.security-action-row b{display:block;font-size:11px}.security-action-row small{display:block;color:var(--t3);font-size:8px;line-height:1.7;margin-top:3px}.security-recent-list{margin-top:10px;max-height:190px;overflow:auto}.security-recent-row{display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:9px;align-items:center;padding:8px 0;border-top:1px solid rgba(96,165,250,.08);font-size:9px}.security-recent-state{padding:4px 7px;border-radius:8px;font-size:8px}.security-recent-state.ok{color:#4ade80;background:rgba(34,197,94,.08)}.security-recent-state.bad{color:#fb7185;background:rgba(244,63,94,.08)}.security-recent-meta{color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.security-empty{padding:12px;text-align:center;color:var(--t3);font-size:9px}.security-details{margin-top:12px;border:1px solid rgba(96,165,250,.15);border-radius:14px;overflow:hidden}.security-details-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(37,99,235,.06)}.security-details-head button{border:0;background:none;color:var(--t3);font-size:18px;cursor:pointer}.security-detail-row{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-top:1px solid rgba(96,165,250,.07);font-size:9px}.security-detail-row span{color:var(--t3)}.security-detail-row b{direction:ltr;text-align:left}.danger-row{border-color:rgba(244,63,94,.16)}
+@media(max-width:650px){.security-stats{grid-template-columns:repeat(2,1fr)}.security-action-row{align-items:flex-start;flex-direction:column}.security-action-row .btn{width:100%}.security-login-meta{align-items:stretch;flex-direction:column}.security-login-meta .btn{width:100%}.security-section-title>.btn{margin-right:0;margin-left:auto}.security-recent-row{grid-template-columns:64px minmax(0,1fr);}.security-recent-state{grid-row:1 / span 2;grid-column:1}.security-recent-meta{grid-column:2}.security-health{font-size:9px}}
+html.light .security-login-box,html.light .security-log-box,html.light .security-action-row,html.light .security-stats>div,html.light .security-stat-action{background:rgba(248,250,252,.78)}
 .tg-page-card{overflow:hidden}.tg-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}.tg-head-icon{width:62px;height:62px;position:relative;perspective:500px;flex:0 0 auto}.tg-head-icon .cube{position:absolute;inset:7px;border-radius:14px;background:linear-gradient(145deg,#42dcff,#1687ff 55%,#5d32ff);box-shadow:inset 3px 3px 8px rgba(255,255,255,.35),inset -5px -6px 10px rgba(0,0,0,.2),0 8px 22px rgba(30,130,255,.35);transform:rotateX(-10deg) rotateY(15deg);display:flex;align-items:center;justify-content:center}.tg-head-icon svg{width:31px;height:31px;color:#fff}.tg-links{display:grid;gap:10px}.tg-link{display:flex;align-items:center;gap:13px;padding:13px 15px;border:1px solid rgba(54,151,255,.32);border-radius:17px;background:linear-gradient(135deg,rgba(10,39,78,.82),rgba(5,20,42,.78));text-decoration:none!important;transition:.2s ease}.tg-link:hover{transform:translateY(-2px);border-color:rgba(69,174,255,.8);box-shadow:0 0 22px rgba(31,137,255,.18)}.tg-logo{width:50px;height:50px;position:relative;flex:0 0 50px;perspective:450px}.tg-logo .face,.tg-logo .back{position:absolute;width:38px;height:38px;left:6px;top:6px;border-radius:10px;display:flex;align-items:center;justify-content:center;transform:rotateX(-8deg) rotateY(12deg)}.tg-logo .face{z-index:2;background:linear-gradient(145deg,#56eaff,#1489ff 55%,#5930e8);box-shadow:inset 2px 2px 6px rgba(255,255,255,.4),inset -3px -5px 8px rgba(0,0,0,.2),0 6px 15px rgba(20,125,255,.35)}.tg-logo .back{background:linear-gradient(145deg,#0b4b91,#16245f);transform:translate(6px,5px) rotateX(-8deg) rotateY(12deg)}.tg-logo svg{width:23px;height:23px;color:#fff}.tg-logo.github .face{background:linear-gradient(145deg,#eef4ff,#71839e 52%,#182234)}.tg-logo.github .back{background:linear-gradient(145deg,#44536a,#111a29)}.tg-copy{min-width:0;flex:1}.tg-copy b{display:block;color:var(--t1);font-size:14px;margin-bottom:4px}.tg-copy span{display:block;color:var(--accent2);font-size:13px;direction:ltr;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tg-arrow{font-size:22px;color:#76bdff}@media(max-width:600px){.tg-link{padding:11px 12px}.tg-copy b{font-size:13px}.tg-copy span{font-size:12px}.tg-head-icon{width:56px;height:56px}.tg-logo{width:46px;height:46px;flex-basis:46px}}
 
 
@@ -11217,21 +11489,61 @@ function closeGroupQr(){const m=document.getElementById('groupQrModal');if(m){m.
 
 async function loadSecurity(){
   const r=await api('/api/security/status');
-  const el=document.getElementById('secStatus');
-  if(!r||!el)return;
-  const locked=(r.locked_ips||[]).map(x=>`${x.ip} (${Math.ceil(x.remaining_sec/60)}د)`).join(' · ')||'—';
-  el.innerHTML=`حداکثر تلاش: <b>${r.max_attempts}</b> · قفل: <b>${Math.round(r.lockout_seconds/60)} دقیقه</b><br>IPهای مسدود: ${locked}`;
+  if(!r)return;
+  const set=(id,val)=>{const e=document.getElementById(id);if(e)e.textContent=val};
+  set('secMaxAttempts',r.max_attempts??5);
+  set('secLockMinutes',`${Math.round((r.lockout_seconds??1800)/60)} دقیقه`);
+  set('secLockedCount',(r.locked_ips||[]).length);
+  set('secFailedCount',r.failed_attempts??0);
+  set('secSessionCount',r.active_sessions??0);
+  const health=document.getElementById('secHealth');
+  const risk=((r.locked_ips||[]).length>0)||(r.failed_attempts||0)>=Math.max(3,Math.floor((r.max_attempts||5)*.6));
+  if(health){health.className=`security-health ${risk?'warn':'good'}`;health.textContent=risk?'● نیازمند بررسی':'● خوب'}
+  const box=document.getElementById('secRecentLogins');
+  if(box){
+    const rows=(r.recent_logins||[]).slice(0,8);
+    box.innerHTML=rows.length?rows.map(x=>`<div class="security-recent-row"><span class="security-recent-state ${x.success?'ok':'bad'}">${x.success?'ورود موفق':'ورود ناموفق'}</span><span class="security-recent-meta">IP: ${esc(x.ip||'—')} · ${esc(String(x.time||'').replace('T',' ').slice(0,19))}</span><span class="security-recent-meta">${esc((x.message||'').replace(/.*?(?:از|IP:?)[ ]*/,'').slice(0,35))}</span></div>`).join(''):'<div class="security-empty">هنوز ورود ثبت‌شده‌ای وجود ندارد.</div>';
+  }
+  window.__securitySnapshot=r;
+}
+function showSecurityDetails(){
+  const box=document.getElementById('secDetails'),body=document.getElementById('secDetailsBody'),r=window.__securitySnapshot;
+  if(!box||!body||!r)return;
+  const locked=(r.locked_ips||[]);
+  const sessions=(r.sessions||[]);
+  body.innerHTML=`<div class="security-detail-row"><span>IPهای در حال ردیابی</span><b>${r.tracked_ips??0}</b></div><div class="security-detail-row"><span>تلاش‌های ناموفق در پنجره فعلی</span><b>${r.failed_attempts??0}</b></div><div class="security-detail-row"><span>نشست‌های فعال</span><b>${sessions.length}</b></div><div class="security-detail-row"><span>IPهای مسدود</span><b>${locked.length?locked.map(x=>`${esc(x.ip)} (${Math.ceil((x.remaining_sec||0)/60)}د)`).join(' · '):'—'}</b></div>`;
+  box.hidden=false;
+}
+function hideSecurityDetails(){const box=document.getElementById('secDetails');if(box)box.hidden=true}
+function showBlockedIps(){
+  const r=window.__securitySnapshot||{};
+  const locked=r.locked_ips||[];
+  if(!locked.length){toast('هیچ IP مسدودی وجود ندارد');return}
+  const text=locked.map(x=>`${x.ip} — ${Math.ceil((x.remaining_sec||0)/60)} دقیقه باقی‌مانده`).join('\n');
+  const ip=prompt(`IP موردنظر را برای رفع مسدودی وارد کنید:\n\n${text}`,'');
+  if(ip===null)return;
+  if(!ip.trim()){toast('IP وارد نشد');return}
+  unlockIp(ip.trim());
+}
+async function unlockIp(ip){
+  const r=await api('/api/security/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ip})});
+  if(r){toast('مسدودی IP رفع شد');loadSecurity()}
 }
 async function unlockAllIps(){
-  if(!confirm('رفع مسدودی همه؟'))return;
+  if(!confirm('رفع مسدودی همه IPها انجام شود؟'))return;
   const r=await api('/api/security/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
-  if(r){toast('انجام شد');loadSecurity()}
+  if(r){toast('مسدودی همه IPها رفع شد');loadSecurity()}
+}
+async function revokeAllSessions(){
+  if(!confirm('از همه دستگاه‌ها خارج شوید؟ نشست فعلی حفظ می‌شود.'))return;
+  const r=await api('/api/security/sessions/revoke',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keep_current:true})});
+  if(r){toast(`${r.revoked||0} نشست قطع شد`);loadSecurity()}
 }
 
 
 async function downloadBackup(kind){
   try{
-    const url = kind==='bot' ? '/api/backup/bot' : '/api/backup/users';
+    const url = kind==='full' ? '/api/backup/full' : (kind==='bot' ? '/api/backup/bot' : '/api/backup/users');
     const r = await fetch(url, {credentials:'same-origin', cache:'no-store'});
     if(r.status===401){ location.href='/login'; return; }
     if(!r.ok){
@@ -11240,18 +11552,32 @@ async function downloadBackup(kind){
       toast(String(msg)); return;
     }
     const text = await r.text();
-    // validate json
     try{ JSON.parse(text); }catch(e){ toast('پاسخ نامعتبر'); return; }
     const blob = new Blob([text], {type:'application/json;charset=utf-8'});
     const a = document.createElement('a');
     const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
     a.href = URL.createObjectURL(blob);
-    a.download = kind==='bot' ? ('pxpanel-bot-'+stamp+'.json') : ('pxpanel-users-'+stamp+'.json');
+    a.download = kind==='full' ? ('ONEX-backup-'+stamp+'.json') : (kind==='bot' ? ('ONEX-bot-'+stamp+'.json') : ('ONEX-users-'+stamp+'.json'));
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
     toast(lang==='fa'?'دانلود شد':'Downloaded');
   }catch(e){ toast(String(e.message||e)); }
+}
+async function restoreFull(){
+  try{
+    const data = await readJsonFile('restoreFullFile');
+    if(data.type!=='onex_full_backup'){
+      toast(lang==='fa'?'این فایل بک‌آپ کامل ONEX نیست':'This is not a full ONEX backup');
+      return;
+    }
+    if(!confirm(lang==='fa'?'تمام اطلاعات فعلی پنل و تنظیمات ربات با بک‌آپ جایگزین می‌شود. مطمئنی؟':'All current panel and bot data will be replaced. Continue?')) return;
+    const r = await api('/api/restore/full',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if(r){
+      toast(r.warning || r.message || (lang==='fa'?'بک‌آپ کامل بازیابی شد':'Full backup restored'));
+      setTimeout(()=>location.reload(), 900);
+    }
+  }catch(e){ toast(e.message||String(e)); }
 }
 function readJsonFile(inputId){
   return new Promise((resolve,reject)=>{

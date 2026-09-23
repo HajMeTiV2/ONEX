@@ -813,7 +813,7 @@ SESSION_META: dict = {}
 
 ALL_PERMS = (
     "dash", "configs", "create", "stats", "logs",
-    "settings", "support", "telegram", "news", "admins", "update",
+    "settings", "support", "telegram", "news", "admins",
 )
 DEFAULT_PERMS = {p: True for p in ALL_PERMS}
 
@@ -1005,7 +1005,7 @@ def get_session_meta(token: str | None) -> dict:
     else:
         aid = meta.get("admin_id")
         admin = ADMIN_ACCOUNTS.get(aid or "") or {}
-        meta["permissions"] = {p: bool((admin.get("permissions") or {}).get(p, True if p == "update" else False)) for p in ALL_PERMS}
+        meta["permissions"] = {p: bool((admin.get("permissions") or {}).get(p, False)) for p in ALL_PERMS}
         meta["blocked"] = bool(admin.get("blocked"))
     return meta
 
@@ -2489,6 +2489,15 @@ table th:first-child, table td:first-child{overflow:visible}
 @keyframes onexAura{0%{transform:rotate(0deg) scale(.88);opacity:.30}50%{transform:rotate(180deg) scale(1.12);opacity:.68}100%{transform:rotate(360deg) scale(.88);opacity:.30}}
 @keyframes onexShadow{0%,100%{transform:scale(.88);opacity:.28}50%{transform:scale(1.12);opacity:.52}}
 @media (prefers-reduced-motion:reduce){.sb-logo-icon:before,.sb-logo-icon:after,.mob-brand-icon:before,.mob-brand-icon:after,.sb-logo-icon img,.mob-brand-icon img{animation:none!important}}
+
+.update-prompt-bg{z-index:5000;background:rgba(1,7,18,.72);backdrop-filter:blur(9px)}
+.update-prompt-modal{width:min(440px,calc(100vw - 28px));padding:26px 24px 22px;border:1px solid rgba(88,180,255,.30);border-radius:22px;background:linear-gradient(145deg,rgba(9,25,50,.98),rgba(2,9,20,.98));box-shadow:0 28px 90px rgba(0,0,0,.55),inset 0 1px rgba(255,255,255,.08);text-align:center;animation:updatePromptIn .22s ease-out}
+.update-prompt-icon{width:58px;height:58px;margin:0 auto 13px;border-radius:18px;display:grid;place-items:center;background:rgba(37,99,235,.14);border:1px solid rgba(96,165,250,.28);color:#67b7ff;font-size:32px;font-weight:900}
+.update-prompt-title{font-size:18px;font-weight:950;color:var(--t1);margin-bottom:8px}.update-prompt-text{font-size:11px;line-height:2;color:var(--t2)}
+.update-prompt-version{margin:12px 0;padding:9px 12px;border-radius:11px;background:rgba(37,99,235,.08);border:1px solid rgba(96,165,250,.13);color:var(--t3);font-size:10px}
+.update-prompt-actions{display:flex;gap:9px;margin-top:16px}.update-prompt-actions .btn{flex:1;height:42px}.update-prompt-confirm{background:linear-gradient(135deg,#2563eb,#6366f1)!important;color:#fff!important}.update-prompt-later{background:rgba(255,255,255,.04)}
+html.light .update-prompt-modal{background:#fff;border-color:rgba(37,99,235,.16);box-shadow:0 28px 80px rgba(15,23,42,.22)}
+@keyframes updatePromptIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 </style>
 
 /* ============================================================
@@ -2680,7 +2689,7 @@ async def root(
         )
 
     return HTMLResponse(
-        LOGIN_HTML,
+        render_login_html(),
         headers={
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             "Pragma": "no-cache",
@@ -2895,6 +2904,8 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
 :root{--onex-red:#ff315d;--onex-red-2:#d91f55;--onex-red-bright:#ff4f78;--onex-red-glow:rgba(255,31,92,.30)}
 .primary{background:linear-gradient(135deg,var(--onex-red),var(--onex-red-2)) !important;border:1px solid rgba(255,108,137,.72) !important;box-shadow:0 12px 30px var(--onex-red-glow),inset 0 1px rgba(255,255,255,.16) !important;color:#fff !important}
 .primary:hover{filter:brightness(1.10) !important;box-shadow:0 14px 34px rgba(255,31,92,.38),inset 0 1px rgba(255,255,255,.20) !important}
+.autofill-decoy{position:absolute !important;left:-10000px !important;top:-10000px !important;width:1px !important;height:1px !important;opacity:0 !important;pointer-events:none !important}
+.field input[readonly]{caret-color:transparent}
 .login-title b{color:var(--onex-red-bright) !important}
 .forgot,.credits a{color:var(--onex-red-bright) !important}
 .telegram-text b{color:var(--onex-red-bright) !important}
@@ -2929,9 +2940,12 @@ body:after{background:radial-gradient(circle at 50% 55%,transparent 0,rgba(0,0,0
 
       <div id="loginBox">
         <div class="err" id="loginErr"></div>
-        <form id="loginForm">
-          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg><input type="text" id="loginUser" value="admin" placeholder="نام کاربری ادمین" autocomplete="username"></div>
-          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="loginPw" value="admin" placeholder="رمز عبور" autocomplete="current-password" required><button class="eye" type="button" onclick="togglePassword()" aria-label="نمایش رمز"><svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div>
+        <form id="loginForm" autocomplete="off" novalidate>
+          <!-- Browser/password-manager decoys: keep saved credentials out of the visible login fields. -->
+          <input type="text" name="username" autocomplete="username" tabindex="-1" aria-hidden="true" class="autofill-decoy">
+          <input type="password" name="password" autocomplete="current-password" tabindex="-1" aria-hidden="true" class="autofill-decoy">
+          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg><input type="text" id="loginUser" name="onex_login_identifier" placeholder="__LOGIN_USERNAME__" autocomplete="off" autocapitalize="none" spellcheck="false" readonly required></div>
+          <div class="field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input type="password" id="loginPw" name="onex_login_secret" placeholder="__LOGIN_PASSWORD_PLACEHOLDER__" autocomplete="off" readonly required><button class="eye" type="button" onclick="togglePassword()" aria-label="نمایش رمز"><svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button></div>
           <button class="primary" type="submit" id="loginBtn"><span>ورود به پنل</span></button>
           <div class="row"><label class="remember"><input type="checkbox" checked> مرا به خاطر بسپار</label><span class="forgot">دسترسی امن به پنل</span></div>
         </form>
@@ -2959,11 +2973,33 @@ if(window.matchMedia('(pointer:fine)').matches){
   });
   document.addEventListener('mouseleave',()=>card.style.transform='');
 }
-function togglePassword(){
-  const input=document.getElementById('loginPw');
-  input.type=input.type==='password'?'text':'password';
+function unlockLoginField(input){
+  if(!input) return;
+  if(input.readOnly){
+    input.readOnly=false;
+    input.removeAttribute('readonly');
+  }
 }
-document.getElementById('loginPw').focus();
+const loginUser=document.getElementById('loginUser');
+const loginPw=document.getElementById('loginPw');
+[loginUser,loginPw].forEach(input=>{
+  input.addEventListener('focus',()=>unlockLoginField(input),{once:true});
+  input.addEventListener('pointerdown',()=>unlockLoginField(input),{once:true});
+});
+// Clear any credential injected by a browser/password manager before the user interacts.
+function clearInjectedLoginValues(){
+  [loginUser,loginPw].forEach(input=>{
+    if(input && document.activeElement!==input && input.value) input.value='';
+  });
+}
+clearInjectedLoginValues();
+requestAnimationFrame(clearInjectedLoginValues);
+setTimeout(clearInjectedLoginValues,150);
+setTimeout(clearInjectedLoginValues,600);
+function togglePassword(){
+  unlockLoginField(loginPw);
+  loginPw.type=loginPw.type==='password'?'text':'password';
+}
 document.getElementById('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const err=document.getElementById('loginErr');err.classList.remove('show');
@@ -2982,6 +3018,27 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
 
 
 
+def render_login_html() -> str:
+    """Render the login page without pre-filling credentials.
+
+    The username is shown only as a faint placeholder so the user knows which
+    account is expected. The password is never rendered or stored in plaintext;
+    the default password is mentioned only when the current password is still
+    the initial admin password.
+    """
+    username = escape_html(str(AUTH.get("username") or "admin").strip() or "admin")
+    password_placeholder = (
+        "admin"
+        if AUTH.get("password_hash") == hash_password("admin")
+        else "رمز عبور فعلی"
+    )
+    return (
+        LOGIN_HTML
+        .replace("__LOGIN_USERNAME__", username)
+        .replace("__LOGIN_PASSWORD_PLACEHOLDER__", password_placeholder)
+    )
+
+
 def login_error_html(
     message: str,
 ):
@@ -2989,7 +3046,7 @@ def login_error_html(
         message
     )
 
-    return LOGIN_HTML.replace(
+    return render_login_html().replace(
         "</form>",
         (
             f"""
@@ -3059,7 +3116,7 @@ async def login_page(
         )
 
     return HTMLResponse(
-        LOGIN_HTML,
+        render_login_html(),
         headers={
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             "Pragma": "no-cache",
@@ -7392,8 +7449,10 @@ async def api_update_check(token=Depends(require_auth)):
 
 
 @app.post("/api/update/deploy")
-async def api_update_deploy(token=Depends(require_perm("update"))):
+async def api_update_deploy(token=Depends(require_auth)):
     meta = get_session_meta(token)
+    if meta.get("role") != "owner":
+        raise HTTPException(403, detail="فقط مالک پنل می‌تواند پنل را بروزرسانی کند")
 
     if not (RAILWAY_API_TOKEN and RAILWAY_SERVICE_ID and RAILWAY_ENVIRONMENT_ID):
         raise HTTPException(503, detail="تنظیمات اتصال امن Railway برای بروزرسانی کامل نشده است")
@@ -9488,7 +9547,7 @@ html.light .onex-topbar-brand{background:#fff;border-color:rgba(37,99,235,.16);b
     <span class="control-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10M1 14l5.4 4.4A9 9 0 0 0 20.5 15"/></svg></span>
     <span class="control-copy"><span class="control-title" data-i18n="refresh_stats">بروزرسانی آمار</span><span class="control-sub">LIVE STATISTICS</span></span>
   </button>
-  <button type="button" class="onex-3d-control" id="panelUpdateControl" data-perm="update" onclick="panelUpdate()">
+  <button type="button" class="onex-3d-control" onclick="panelUpdate()">
     <span class="control-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg></span>
     <span class="control-copy"><span class="control-title" data-i18n="refresh_panel">بروزرسانی پنل</span><span class="control-sub">PANEL UPDATE</span></span>
   </button>
@@ -11945,6 +12004,19 @@ html.light.onex-themed .usage-fill{
   </div>
 </div>
 
+<div class="modal-bg update-prompt-bg" id="updatePromptModal" aria-hidden="true">
+  <div class="update-prompt-modal" role="dialog" aria-modal="true" aria-labelledby="updatePromptTitle">
+    <div class="update-prompt-icon">↻</div>
+    <div class="update-prompt-title" id="updatePromptTitle">بروزرسانی جدید در دسترس است</div>
+    <div class="update-prompt-text" id="updatePromptText">نسخه جدید پنل آماده است. آیا می‌خواهید پنل را بروزرسانی کنید؟</div>
+    <div class="update-prompt-version" id="updatePromptVersion"></div>
+    <div class="update-prompt-actions">
+      <button type="button" class="btn update-prompt-later" id="updatePromptLater">بعداً</button>
+      <button type="button" class="btn btn-primary update-prompt-confirm" id="updatePromptConfirm">بله، بروزرسانی</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="panelModal">
   <div class="modal">
     <div class="modal-title" id="panelModalTitle">...</div>
@@ -12545,22 +12617,8 @@ let __updatePollTimer=null;
 function updateText(fa,en){return lang==='fa'?fa:en}
 function toggleNotifications(force){const panel=document.getElementById('topNotifyPanel'),btn=document.getElementById('topNotifyBtn');if(!panel||!btn)return;const open=typeof force==='boolean'?force:panel.hidden;panel.hidden=!open;btn.setAttribute('aria-expanded',open?'true':'false')}
 function renderNotifications(){const list=document.getElementById('notifyList'),badge=document.getElementById('notifyBadge');if(!list||!badge)return;if(!__updateInfo||!__updateInfo.update_available){badge.textContent='0';badge.classList.remove('show');list.innerHTML=`<div class="notify-empty">${updateText('اعلان جدیدی وجود ندارد.','No new notifications.')}</div>`;return;}badge.textContent='1';badge.classList.add('show');const r=__updateInfo;const changes=Array.isArray(r.changelog)&&r.changelog.length?`<div class="notify-item-text" style="margin-top:5px">${r.changelog.slice(0,4).map(x=>`• ${esc(String(x))}`).join('<br>')}</div>`:'';list.innerHTML=`<div class="notify-item"><div class="notify-item-title">🔄 ${esc(r.title||updateText('بروزرسانی جدید پنل','New panel update'))}</div><div class="notify-item-text">${esc(r.message||updateText('نسخه جدید پنل منتشر شده است.','A new panel version is available.'))}</div>${changes}<div class="notify-item-meta">${updateText('نسخه فعلی','Current version')}: ${esc(r.current_version||'—')} → ${esc(r.latest_version||'—')}</div><button type="button" class="notify-update-btn" onclick="toggleNotifications(false);panelUpdate()">${updateText('مشاهده و بروزرسانی','View update')}</button></div>`}
-function updatePromptSeen(version){try{return localStorage.getItem('onex_update_prompt_seen')===String(version||'')}catch(e){return false}}
-function markUpdatePromptSeen(version){try{if(version)localStorage.setItem('onex_update_prompt_seen',String(version))}catch(e){}}
-function openUpdatePrompt(r){
-  if(!r||!r.update_available||!r.latest_version)return;
-  if(updatePromptSeen(r.latest_version))return;
-  const m=document.getElementById('panelModal'),t=document.getElementById('panelModalTitle'),b=document.getElementById('panelModalBody');
-  if(!m||!t||!b)return;
-  markUpdatePromptSeen(r.latest_version);
-  t.textContent=updateText('بروزرسانی جدید در دسترس است','A new panel update is available');
-  const changes=Array.isArray(r.changelog)&&r.changelog.length?`<div style="margin:12px 0;text-align:right"><strong>${updateText('تغییرات نسخه جدید:','What’s new:')}</strong><ul style="margin:8px 0;padding-right:20px">${r.changelog.slice(0,5).map(x=>`<li>${esc(String(x))}</li>`).join('')}</ul></div>`:'';
-  b.innerHTML=`<div style="padding:4px 0"><p style="margin-bottom:8px">${esc(r.message||updateText('نسخه جدید پنل آماده است.','A new panel version is available.'))}</p>${changes}<p style="color:var(--t3);font-size:12px">${updateText('نسخه فعلی: ','Current: ')}${esc(r.current_version||'—')} &nbsp;→&nbsp; ${updateText('نسخه جدید: ','New: ')}${esc(r.latest_version||'—')}</p><div style="display:flex;gap:8px;margin-top:14px"><button type="button" class="btn btn-primary" id="updatePromptYes" style="flex:1">${updateText('بله، بروزرسانی','Yes, update')}</button><button type="button" class="btn" id="updatePromptNo" style="flex:1">${updateText('بعداً','Later')}</button></div></div>`;
-  m.classList.add('open');
-  document.getElementById('updatePromptYes').onclick=()=>{m.classList.remove('open');panelUpdate()};
-  document.getElementById('updatePromptNo').onclick=()=>m.classList.remove('open');
-}
-async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.0.1',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&old!==r.latest_version){openUpdatePrompt(r);if(showToast)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}}return r}catch(e){return null}finally{__updateCheckBusy=false}}
+async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.0.1',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&old!==r.latest_version)showUpdatePrompt(r);if(r.update_available&&showToast&&old!==r.latest_version)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}return r}catch(e){return null}finally{__updateCheckBusy=false}}
+function showUpdatePrompt(r){const modal=document.getElementById('updatePromptModal');if(!modal||!r||!r.update_available)return;const version=String(r.latest_version||'');if(!version)return;let seen='';try{seen=localStorage.getItem('onex_update_prompt_seen')||''}catch(e){}if(seen===version)return;const title=document.getElementById('updatePromptTitle'),text=document.getElementById('updatePromptText'),ver=document.getElementById('updatePromptVersion'),yes=document.getElementById('updatePromptConfirm'),later=document.getElementById('updatePromptLater');if(title)title.textContent=r.title||updateText('بروزرسانی جدید در دسترس است','New update is available');if(text)text.textContent=r.message||updateText('نسخه جدید پنل آماده است. آیا می‌خواهید پنل را بروزرسانی کنید؟','A new panel version is available. Would you like to update the panel?');if(ver)ver.textContent=updateText(`نسخه فعلی: ${r.current_version||'—'}  →  نسخه جدید: ${version}`,`Current: ${r.current_version||'—'}  →  New: ${version}`);modal.classList.add('open');modal.setAttribute('aria-hidden','false');const close=()=>{modal.classList.remove('open');modal.setAttribute('aria-hidden','true');try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}};if(later)later.onclick=close;if(yes)yes.onclick=()=>{try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}modal.classList.remove('open');modal.setAttribute('aria-hidden','true');panelUpdate();}}
 function startUpdateNotificationPolling(){if(__updatePollTimer)clearInterval(__updatePollTimer);checkPanelUpdateWithNotify(false);__updatePollTimer=setInterval(()=>checkPanelUpdateWithNotify(false),45000)}
 async function checkPanelUpdate(showToast=true){
   if(__updateCheckBusy)return __updateInfo;
@@ -12655,7 +12713,7 @@ goPage=function(name){
 };
 
 const PERM_LABELS={
-  fa:{dash:'داشبورد',configs:'کانفیگ‌ها',create:'ساخت',stats:'آمار',logs:'لاگ',settings:'تنظیمات',support:'پشتیبانی',telegram:'ربات',news:'اخبار',admins:'ادمین‌ها',update:'بروزرسانی پنل'},
+  fa:{dash:'داشبورد',configs:'کانفیگ‌ها',create:'ساخت',stats:'آمار',logs:'لاگ',settings:'تنظیمات',support:'پشتیبانی',telegram:'ربات',news:'اخبار',admins:'ادمین‌ها'},
   en:{dash:'Dashboard',configs:'Configs',create:'Create',stats:'Stats',logs:'Logs',settings:'Settings',support:'Support',telegram:'Bot',news:'News',admins:'Admins'}
 };
 let USER_PERMS=null;
@@ -12689,11 +12747,6 @@ async function loadMe(){
     if(USER_ROLE==='owner'){el.style.display='';return}
     el.style.display=USER_PERMS[p]?'':'none';
   });
-  const updateControl=document.getElementById('panelUpdateControl');
-  if(updateControl){
-    const canUpdate=USER_ROLE==='owner'||!!USER_PERMS.update;
-    updateControl.style.display=canUpdate?'':'none';
-  }
   // hide admins for non-owner always if no perm
   document.querySelectorAll('.nav-item[data-page="admins"]').forEach(el=>{
     if(USER_ROLE!=='owner') el.style.display='none';
@@ -12714,17 +12767,17 @@ let SELECTED_ADMIN_ID='';
 const ADMIN_PERM_GROUPS={
   fa:[
     ['پنل و محتوا',['dash','configs','create','stats','logs']],
-    ['سیستم و پشتیبانی',['settings','support','telegram','news','update']],
+    ['سیستم و پشتیبانی',['settings','support','telegram','news']],
     ['مدیریت',['admins']]
   ],
   en:[
     ['Panel & Content',['dash','configs','create','stats','logs']],
-    ['System & Support',['settings','support','telegram','news','update']],
+    ['System & Support',['settings','support','telegram','news']],
     ['Management',['admins']]
   ]
 };
 const ADMIN_ROLE_PRESETS={
-  super:['dash','configs','create','stats','logs','settings','support','telegram','news','admins','update'],
+  super:['dash','configs','create','stats','logs','settings','support','telegram','news','admins'],
   admin:['dash','configs','create','stats','logs','news'],
   operator:['dash','configs','create'],
 };
@@ -13239,7 +13292,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 applyLang();loadMe();loadProtocols();loadCategories();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]});loadAdvancedCapabilities(document.getElementById('cProto')?.value||'vless-ws')},250);
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
-
+setTimeout(()=>checkPanelUpdate(true),2500);
+setInterval(()=>checkPanelUpdate(false),10*60*1000);
 // Protocol picker bootstrap: keep the native select only as the data/control source.
 function bootProtocolPickers(){ try{ setupProtocolPickers(); }catch(e){ console.warn('Protocol picker:',e); } }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootProtocolPickers); else bootProtocolPickers();

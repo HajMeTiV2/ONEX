@@ -621,25 +621,33 @@ async def _stream_one_uplink_iter(session_id: str, uuid: str, sess: dict, iterat
 
 
 def _stream_one_response(request: Request):
-    """Build the Stream-One response without waiting for the full VLESS header."""
+    """Build the Stream-One response as one full-duplex HTTP tunnel.
+
+    Xray sends the HTTP response headers before it waits for the request body.
+    This ordering is important because the client may wait for the response
+    before continuing to upload the VLESS stream.
+    """
     async def gen():
-        iterator = request.stream().__aiter__()
+        session_id = None
         try:
+            # Flush the VLESS response header immediately. Do not wait for the
+            # request body before producing the HTTP response.
+            yield VLESS_RESPONSE_HEADER
+
+            iterator = request.stream().__aiter__()
             iterator, first_chunk = await _stream_one_read_first(iterator)
             uuid = _stream_one_extract_uuid(first_chunk)
             await _check_link(uuid)
             session_id = "one-" + secrets.token_urlsafe(18)
-            sess = await _get_or_create_session(uuid, "stream-one", session_id, _req_client_ip(request))
+            sess = await _get_or_create_session(
+                uuid, "stream-one", session_id, _req_client_ip(request)
+            )
             if sess.get("closed"):
                 return
 
             sess["uplink_task"] = asyncio.create_task(
                 _stream_one_uplink_iter(session_id, uuid, sess, iterator, first_chunk)
             )
-
-            # Flush the VLESS response header immediately. The destination
-            # connection is opened by the uplink task concurrently.
-            yield VLESS_RESPONSE_HEADER
 
             while True:
                 chunk = await sess["down_q"].get()
@@ -653,9 +661,8 @@ def _stream_one_response(request: Request):
             error_logs.append({"error": str(exc), "time": datetime.now().isoformat()})
             return
         finally:
-            sid = locals().get("session_id")
-            if sid:
-                await _teardown(sid)
+            if session_id:
+                await _teardown(session_id)
 
     fp = request.query_params.get("fp", DEFAULT_FINGERPRINT)
     headers = _resp_headers(fp, stream_one=True)

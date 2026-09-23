@@ -895,7 +895,7 @@ function setCfgSort(v,el){cfgSortMode=v;document.querySelectorAll('#cfgFilterRow
 function configExpired(l){return !!l.expired||(l.expires_at&&new Date(l.expires_at).getTime()<=Date.now())||(Number(l.limit_bytes)>0&&Number(l.used_bytes||0)>=Number(l.limit_bytes))}
 function getFilteredConfigs(){const q=(document.getElementById('cfgSearch')?.value||'').trim().toLowerCase();let a=__allLinks.filter(l=>{const dead=configExpired(l),active=l.active!==false&&!dead;if(cfgStatusFilter==='active'&&!active)return false;if(cfgStatusFilter==='expired'&&!dead)return false;if(!q)return true;return [l.label,l.name,l.protocol,l.protocol_label,l.uuid,l.id,l.sub,l.sub_url,l.vless,l.vless_full].map(x=>String(x||'').toLowerCase()).some(x=>x.includes(q))});a.sort((x,y)=>cfgSortMode==='name'?String(x.label||x.name||'').localeCompare(String(y.label||y.name||'')):cfgSortMode==='usage'?Number(y.used_bytes||0)-Number(x.used_bytes||0):String(y.created_at||'').localeCompare(String(x.created_at||'')));return a}
 function filterConfigs(){renderConfigCards(getFilteredConfigs())}
-function protocolUi(id){const m={'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png'],'xhttp-stream-one':['ONEX Stream','/api/protocol-icon/xhttp-stream-one.png']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png']}
+function protocolUi(id){const m={'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png?v=1.3.5'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png?v=1.3.5'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png?v=1.3.5'],'xhttp-stream-one':['ONEX Stream','/api/protocol-icon/xhttp-stream-one.png?v=1.3.5']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png?v=1.3.5']}
 function cfgDate(v){if(!v)return 'بدون انقضا';try{return new Date(v).toLocaleDateString('fa-IR',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){return String(v).slice(0,10)}}
 function updateConfigStats(){const total=__allLinks.length,expired=__allLinks.filter(configExpired).length,active=__allLinks.filter(l=>l.active!==false&&!configExpired(l)).length,used=__allLinks.reduce((n,l)=>n+Number(l.used_bytes||0),0),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('cfgStatTotal',total);set('cfgStatUsed',fmtB(used));set('cfgStatActive',active);set('cfgStatExpired',expired);set('cfgVisibleCount',`${getFilteredConfigs().length} مورد`)}
 let __openConfigMenuUid='';
@@ -991,7 +991,7 @@ function groupProtocolLabel(id){
   return labels[id]||id;
 }
 function groupProtocolIcon(id){
-  const map={'vless-ws':'/api/protocol-icon/vless-ws.png','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png'};
+  const map={'vless-ws':'/api/protocol-icon/vless-ws.png?v=1.3.5','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png?v=1.3.5','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png?v=1.3.5','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png?v=1.3.5'};
   return map[id]||'';
 }
 function setGroupFilter(f,btn){__groupFilter=f;document.querySelectorAll('.group-filter').forEach(x=>x.classList.toggle('on',x===btn));renderGroupList()}
@@ -1200,7 +1200,7 @@ let __protocolPickerTarget='' ;
 let __protocolPickerOptions=[];
 function protocolPickerLabel(id){const p=__protocolPickerOptions.find(x=>x.id===id);return PROTOCOL_PICKER_NAMES[id]||p?.label||id||'Vortex Link'}
 function protocolPickerShort(id){return PROTOCOL_PICKER_NAMES[id]||id}
-const PROTOCOL_ICON_DATA={"vless-ws":"/api/protocol-icon/vless-ws.png","xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png","xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png","xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png"};
+const PROTOCOL_ICON_DATA={"vless-ws":"/api/protocol-icon/vless-ws.png?v=1.3.5","xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png?v=1.3.5","xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png?v=1.3.5","xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png?v=1.3.5"};
 function protocolIconMarkup(id){
   const srcMap=PROTOCOL_ICON_DATA;
   const src=srcMap[id]||srcMap["vless-ws"];

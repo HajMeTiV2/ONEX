@@ -813,7 +813,7 @@ SESSION_META: dict = {}
 
 ALL_PERMS = (
     "dash", "configs", "create", "stats", "logs",
-    "settings", "support", "telegram", "news", "admins", "update",
+    "settings", "support", "telegram", "news", "admins",
 )
 DEFAULT_PERMS = {p: True for p in ALL_PERMS}
 
@@ -1005,7 +1005,7 @@ def get_session_meta(token: str | None) -> dict:
     else:
         aid = meta.get("admin_id")
         admin = ADMIN_ACCOUNTS.get(aid or "") or {}
-        meta["permissions"] = {p: bool((admin.get("permissions") or {}).get(p, True if p == "update" else False)) for p in ALL_PERMS}
+        meta["permissions"] = {p: bool((admin.get("permissions") or {}).get(p, False)) for p in ALL_PERMS}
         meta["blocked"] = bool(admin.get("blocked"))
     return meta
 
@@ -7392,8 +7392,10 @@ async def api_update_check(token=Depends(require_auth)):
 
 
 @app.post("/api/update/deploy")
-async def api_update_deploy(token=Depends(require_perm("update"))):
+async def api_update_deploy(token=Depends(require_auth)):
     meta = get_session_meta(token)
+    if meta.get("role") != "owner":
+        raise HTTPException(403, detail="فقط مالک پنل می‌تواند پنل را بروزرسانی کند")
 
     if not (RAILWAY_API_TOKEN and RAILWAY_SERVICE_ID and RAILWAY_ENVIRONMENT_ID):
         raise HTTPException(503, detail="تنظیمات اتصال امن Railway برای بروزرسانی کامل نشده است")
@@ -9488,7 +9490,7 @@ html.light .onex-topbar-brand{background:#fff;border-color:rgba(37,99,235,.16);b
     <span class="control-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.1-3.4L23 10M1 14l5.4 4.4A9 9 0 0 0 20.5 15"/></svg></span>
     <span class="control-copy"><span class="control-title" data-i18n="refresh_stats">بروزرسانی آمار</span><span class="control-sub">LIVE STATISTICS</span></span>
   </button>
-  <button type="button" class="onex-3d-control" id="panelUpdateControl" data-perm="update" onclick="panelUpdate()">
+  <button type="button" class="onex-3d-control" onclick="panelUpdate()">
     <span class="control-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg></span>
     <span class="control-copy"><span class="control-title" data-i18n="refresh_panel">بروزرسانی پنل</span><span class="control-sub">PANEL UPDATE</span></span>
   </button>
@@ -12545,22 +12547,7 @@ let __updatePollTimer=null;
 function updateText(fa,en){return lang==='fa'?fa:en}
 function toggleNotifications(force){const panel=document.getElementById('topNotifyPanel'),btn=document.getElementById('topNotifyBtn');if(!panel||!btn)return;const open=typeof force==='boolean'?force:panel.hidden;panel.hidden=!open;btn.setAttribute('aria-expanded',open?'true':'false')}
 function renderNotifications(){const list=document.getElementById('notifyList'),badge=document.getElementById('notifyBadge');if(!list||!badge)return;if(!__updateInfo||!__updateInfo.update_available){badge.textContent='0';badge.classList.remove('show');list.innerHTML=`<div class="notify-empty">${updateText('اعلان جدیدی وجود ندارد.','No new notifications.')}</div>`;return;}badge.textContent='1';badge.classList.add('show');const r=__updateInfo;const changes=Array.isArray(r.changelog)&&r.changelog.length?`<div class="notify-item-text" style="margin-top:5px">${r.changelog.slice(0,4).map(x=>`• ${esc(String(x))}`).join('<br>')}</div>`:'';list.innerHTML=`<div class="notify-item"><div class="notify-item-title">🔄 ${esc(r.title||updateText('بروزرسانی جدید پنل','New panel update'))}</div><div class="notify-item-text">${esc(r.message||updateText('نسخه جدید پنل منتشر شده است.','A new panel version is available.'))}</div>${changes}<div class="notify-item-meta">${updateText('نسخه فعلی','Current version')}: ${esc(r.current_version||'—')} → ${esc(r.latest_version||'—')}</div><button type="button" class="notify-update-btn" onclick="toggleNotifications(false);panelUpdate()">${updateText('مشاهده و بروزرسانی','View update')}</button></div>`}
-function updatePromptSeen(version){try{return localStorage.getItem('onex_update_prompt_seen')===String(version||'')}catch(e){return false}}
-function markUpdatePromptSeen(version){try{if(version)localStorage.setItem('onex_update_prompt_seen',String(version))}catch(e){}}
-function openUpdatePrompt(r){
-  if(!r||!r.update_available||!r.latest_version)return;
-  if(updatePromptSeen(r.latest_version))return;
-  const m=document.getElementById('panelModal'),t=document.getElementById('panelModalTitle'),b=document.getElementById('panelModalBody');
-  if(!m||!t||!b)return;
-  markUpdatePromptSeen(r.latest_version);
-  t.textContent=updateText('بروزرسانی جدید در دسترس است','A new panel update is available');
-  const changes=Array.isArray(r.changelog)&&r.changelog.length?`<div style="margin:12px 0;text-align:right"><strong>${updateText('تغییرات نسخه جدید:','What’s new:')}</strong><ul style="margin:8px 0;padding-right:20px">${r.changelog.slice(0,5).map(x=>`<li>${esc(String(x))}</li>`).join('')}</ul></div>`:'';
-  b.innerHTML=`<div style="padding:4px 0"><p style="margin-bottom:8px">${esc(r.message||updateText('نسخه جدید پنل آماده است.','A new panel version is available.'))}</p>${changes}<p style="color:var(--t3);font-size:12px">${updateText('نسخه فعلی: ','Current: ')}${esc(r.current_version||'—')} &nbsp;→&nbsp; ${updateText('نسخه جدید: ','New: ')}${esc(r.latest_version||'—')}</p><div style="display:flex;gap:8px;margin-top:14px"><button type="button" class="btn btn-primary" id="updatePromptYes" style="flex:1">${updateText('بله، بروزرسانی','Yes, update')}</button><button type="button" class="btn" id="updatePromptNo" style="flex:1">${updateText('بعداً','Later')}</button></div></div>`;
-  m.classList.add('open');
-  document.getElementById('updatePromptYes').onclick=()=>{m.classList.remove('open');panelUpdate()};
-  document.getElementById('updatePromptNo').onclick=()=>m.classList.remove('open');
-}
-async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.0.1',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&old!==r.latest_version){openUpdatePrompt(r);if(showToast)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}}return r}catch(e){return null}finally{__updateCheckBusy=false}}
+async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.0.1',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&showToast&&old!==r.latest_version)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}return r}catch(e){return null}finally{__updateCheckBusy=false}}
 function startUpdateNotificationPolling(){if(__updatePollTimer)clearInterval(__updatePollTimer);checkPanelUpdateWithNotify(false);__updatePollTimer=setInterval(()=>checkPanelUpdateWithNotify(false),45000)}
 async function checkPanelUpdate(showToast=true){
   if(__updateCheckBusy)return __updateInfo;
@@ -12655,7 +12642,7 @@ goPage=function(name){
 };
 
 const PERM_LABELS={
-  fa:{dash:'داشبورد',configs:'کانفیگ‌ها',create:'ساخت',stats:'آمار',logs:'لاگ',settings:'تنظیمات',support:'پشتیبانی',telegram:'ربات',news:'اخبار',admins:'ادمین‌ها',update:'بروزرسانی پنل'},
+  fa:{dash:'داشبورد',configs:'کانفیگ‌ها',create:'ساخت',stats:'آمار',logs:'لاگ',settings:'تنظیمات',support:'پشتیبانی',telegram:'ربات',news:'اخبار',admins:'ادمین‌ها'},
   en:{dash:'Dashboard',configs:'Configs',create:'Create',stats:'Stats',logs:'Logs',settings:'Settings',support:'Support',telegram:'Bot',news:'News',admins:'Admins'}
 };
 let USER_PERMS=null;
@@ -12689,11 +12676,6 @@ async function loadMe(){
     if(USER_ROLE==='owner'){el.style.display='';return}
     el.style.display=USER_PERMS[p]?'':'none';
   });
-  const updateControl=document.getElementById('panelUpdateControl');
-  if(updateControl){
-    const canUpdate=USER_ROLE==='owner'||!!USER_PERMS.update;
-    updateControl.style.display=canUpdate?'':'none';
-  }
   // hide admins for non-owner always if no perm
   document.querySelectorAll('.nav-item[data-page="admins"]').forEach(el=>{
     if(USER_ROLE!=='owner') el.style.display='none';
@@ -12714,17 +12696,17 @@ let SELECTED_ADMIN_ID='';
 const ADMIN_PERM_GROUPS={
   fa:[
     ['پنل و محتوا',['dash','configs','create','stats','logs']],
-    ['سیستم و پشتیبانی',['settings','support','telegram','news','update']],
+    ['سیستم و پشتیبانی',['settings','support','telegram','news']],
     ['مدیریت',['admins']]
   ],
   en:[
     ['Panel & Content',['dash','configs','create','stats','logs']],
-    ['System & Support',['settings','support','telegram','news','update']],
+    ['System & Support',['settings','support','telegram','news']],
     ['Management',['admins']]
   ]
 };
 const ADMIN_ROLE_PRESETS={
-  super:['dash','configs','create','stats','logs','settings','support','telegram','news','admins','update'],
+  super:['dash','configs','create','stats','logs','settings','support','telegram','news','admins'],
   admin:['dash','configs','create','stats','logs','news'],
   operator:['dash','configs','create'],
 };
@@ -13239,7 +13221,8 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 applyLang();loadMe();loadProtocols();loadCategories();loadGroups();refreshAll();setTimeout(()=>{if(document.getElementById('advancedPorts')&&!getAdvancedPorts().length)fillAdvancedForm({ports:[443]});loadAdvancedCapabilities(document.getElementById('cProto')?.value||'vless-ws')},250);
 setTimeout(()=>{startUpdateNotificationPolling()},1200);
-
+setTimeout(()=>checkPanelUpdate(true),2500);
+setInterval(()=>checkPanelUpdate(false),10*60*1000);
 // Protocol picker bootstrap: keep the native select only as the data/control source.
 function bootProtocolPickers(){ try{ setupProtocolPickers(); }catch(e){ console.warn('Protocol picker:',e); } }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootProtocolPickers); else bootProtocolPickers();

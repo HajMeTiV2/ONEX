@@ -32,7 +32,15 @@ SUPPORTED = (
     "socks5",
     "http",
     "hysteria2",
+    "vless-reality",
     "vless-grpc-reality",
+    "vmess",
+    "tuic",
+    "anytls",
+    "naive",
+    "shadowtls",
+    "snell",
+    "hysteria",
 )
 
 # Legacy fallback ports.  A link's advanced.ports takes precedence.
@@ -42,7 +50,15 @@ DEFAULT_PORTS = {
     "socks5": 11080,
     "http": 18080,
     "hysteria2": 18444,
+    "vless-reality": 18446,
     "vless-grpc-reality": 18445,
+    "vmess": 18447,
+    "tuic": 18448,
+    "anytls": 18449,
+    "naive": 18450,
+    "shadowtls": 18451,
+    "snell": 18452,
+    "hysteria": 18453,
 }
 
 SUPPORTED_NETWORKS = {"tcp", "ws", "grpc", "http", "h2", "httpupgrade", "quic", "kcp", "xhttp"}
@@ -92,34 +108,66 @@ def _protocol_safe_advanced(advanced: dict[str, Any], protocol: str, *, all_prot
     tls = a.setdefault("tls", {})
     typ = str(n.get("type") or "tcp").lower()
 
-    if protocol in {"shadowsocks", "socks5", "http", "hysteria2"}:
+    if protocol in {"shadowsocks", "socks5", "http"}:
         n["type"] = "tcp"
         if protocol in {"shadowsocks", "socks5"}:
             tls["mode"] = "none"
             tls["enabled"] = False
+    elif protocol in {"hysteria2", "hysteria", "tuic"}:
+        n["type"] = "tcp"
+        tls["mode"] = "tls"
+        tls["enabled"] = True
+    elif protocol == "vless-reality":
+        n["type"] = "tcp"
+        tls["mode"] = "reality"
+        tls["enabled"] = True
     elif protocol == "vless-grpc-reality":
         n["type"] = "grpc"
         tls["mode"] = "reality"
         tls["enabled"] = True
+    elif protocol in {"vmess", "anytls", "naive"}:
+        n["type"] = "tcp"
+        tls["mode"] = "tls"
+        tls["enabled"] = True
+    elif protocol == "shadowtls":
+        n["type"] = "tcp"
+        tls["mode"] = "none"
+        tls["enabled"] = False
+    elif protocol == "snell":
+        n["type"] = "tcp"
+        tls["mode"] = "none"
+        tls["enabled"] = False
     elif protocol == "trojan":
-        if typ not in {"tcp", "ws", "http", "h2", "grpc", "quic", "httpupgrade"}:
-            n["type"] = "tcp"
+        n["type"] = "tcp"
         if str(tls.get("mode") or "tls").lower() == "none":
-            # Trojan requires TLS. Do not silently downgrade an explicit
-            # selection; validation will report it below.
-            pass
+            tls["mode"] = "tls"
+            tls["enabled"] = True
 
     if all_protocols:
-        # One account can expose all native protocols, but transports are not
-        # interchangeable between them.
-        if protocol in {"shadowsocks", "socks5", "http", "hysteria2"}:
+        # In an all-protocol account the selected UI transport is NOT reused
+        # blindly by every native protocol. Each native inbound gets a valid
+        # transport of its own; otherwise e.g. selecting XHTTP or gRPC in the
+        # UI can make the generated Trojan/HTTP/SS inbounds invalid.
+        if protocol in {"shadowsocks", "socks5", "http", "hysteria2", "hysteria", "vless-reality", "vmess", "tuic", "anytls", "naive", "shadowtls", "snell", "trojan"}:
             n["type"] = "tcp"
         elif protocol == "vless-grpc-reality":
             n["type"] = "grpc"
             tls["mode"] = "reality"
             tls["enabled"] = True
-        elif protocol == "trojan" and str(tls.get("mode") or "tls").lower() == "reality":
-            tls["mode"] = "tls"
+        if protocol in {"hysteria2", "hysteria", "tuic", "vless-reality", "vmess", "anytls", "naive", "trojan"}:
+            tls["mode"] = "reality" if protocol == "vless-reality" else "tls"
+            tls["enabled"] = True
+        elif protocol in {"shadowsocks", "socks5", "shadowtls", "snell"}:
+            tls["mode"] = "none"
+            tls["enabled"] = False
+
+    # Any native gRPC inbound needs a service name. This is a protocol-level
+    # default, not something the user should have to fill in when creating an
+    # all-protocol account.
+    host = a.setdefault("host", {})
+    if str(n.get("type") or "").lower() == "grpc" and not str(host.get("service_name") or n.get("service_name") or "").strip():
+        host["service_name"] = str(n.get("service_name") or "ONEX").strip() or "ONEX"
+        n["service_name"] = host["service_name"]
     return a
 
 
@@ -448,8 +496,11 @@ class NativeCore:
 
     @staticmethod
     def _native_protocols_for(link: dict[str, Any]) -> list[str]:
+        # The panel's "all protocols" subscription is Railway-only. Native/VPS
+        # protocols are always deployed one-by-one from an explicitly selected
+        # VPS protocol, never as part of the Railway subscription bundle.
         if _truth(link.get("all_protocols")):
-            return list(SUPPORTED)
+            return []
         proto = str(link.get("protocol") or "")
         return [proto] if proto in SUPPORTED else []
 
@@ -473,22 +524,20 @@ class NativeCore:
             errors.append(f"Unsupported network transport: {typ}")
         if typ in {"xhttp", "kcp"}:
             errors.append(f"{typ} is not emitted by sing-box native transport schema")
-        if protocol in {"socks5", "shadowsocks"} and mode != "none":
+        if protocol in {"socks5", "shadowsocks", "shadowtls", "snell"} and mode != "none":
             errors.append(f"TLS mode {mode} is not supported by {protocol} inbound")
-        if protocol in {"socks5", "shadowsocks", "http", "hysteria2"} and typ != "tcp":
+        if protocol in {"socks5", "shadowsocks", "http", "hysteria2", "hysteria", "vless-reality", "vmess", "tuic", "anytls", "naive", "shadowtls", "snell", "trojan"} and typ != "tcp":
             errors.append(f"Network transport {typ} is not supported by {protocol} native inbound")
-        if protocol == "trojan" and mode == "none":
-            errors.append("Trojan inbound requires TLS")
-        if protocol == "http" and mode == "reality":
-            errors.append("Reality is not supported by HTTP inbound")
-        if protocol == "hysteria2" and mode == "reality":
-            errors.append("Reality is not supported by Hysteria2 inbound")
-        if protocol == "trojan" and typ not in {"tcp", "ws", "grpc", "http", "h2", "httpupgrade", "quic"}:
-            errors.append(f"Transport {typ} is not valid for Trojan")
-        if protocol == "vless-grpc-reality" and mode != "reality":
-            errors.append("VLESS gRPC Reality requires TLS mode Reality")
+        if protocol in {"trojan", "vless-reality", "vless-grpc-reality", "vmess", "tuic", "anytls", "naive", "hysteria2", "hysteria"} and mode not in {"tls", "reality"}:
+            errors.append(f"{protocol} requires TLS/Reality")
+        if protocol in {"vless-reality", "vless-grpc-reality"} and mode != "reality":
+            errors.append(f"{protocol} requires TLS mode Reality")
         if protocol == "vless-grpc-reality" and typ != "grpc":
             errors.append("VLESS gRPC Reality requires gRPC transport")
+        if protocol == "vless-reality" and typ != "tcp":
+            errors.append("VLESS Reality requires TCP transport")
+        if protocol == "tuic" and mode != "tls":
+            errors.append("TUIC requires TLS")
         sid = str((tls.get("reality") or {}).get("short_id") or "")
         if mode == "reality" and sid and (len(sid) > 8 or any(c.lower() not in "0123456789abcdef" for c in sid)):
             errors.append("Reality Short ID must be 0-8 hexadecimal characters")
@@ -599,10 +648,16 @@ class NativeCore:
                 if not uid:
                     # main.py stores the UUID as the dict key. Preview supplies it in uuid.
                     uid = str(item.get("preview_uuid") or secrets.token_hex(16))
-                if proto == "vless-grpc-reality":
+                if proto in {"vless-reality", "vless-grpc-reality", "vmess"}:
                     users.append({"name": uid, "uuid": uid})
-                elif proto in {"trojan", "hysteria2"}:
+                elif proto in {"trojan", "hysteria2", "anytls", "shadowtls"}:
                     users.append({"name": uid, "password": uid})
+                elif proto == "hysteria":
+                    users.append({"name": uid, "auth_str": uid})
+                elif proto == "tuic":
+                    users.append({"name": uid, "uuid": uid, "password": uid})
+                elif proto == "snell":
+                    users.append({"name": uid, "userkey": uid})
                 elif proto == "shadowsocks":
                     users.append({"name": uid, "password": uid})
                 else:
@@ -610,9 +665,7 @@ class NativeCore:
 
             if proto == "trojan":
                 inbound = {"type": "trojan", "tag": tag, **listen, "users": users}
-                tls = await self._tls_for(adv, domain)
-                if tls:
-                    inbound["tls"] = tls
+                inbound["tls"] = await self._tls_for(adv, domain)
                 transport = self._transport(adv)
                 if transport:
                     inbound["transport"] = transport
@@ -626,25 +679,53 @@ class NativeCore:
                 tls = await self._tls_for(adv, domain)
                 if tls:
                     inbound["tls"] = tls
-            elif proto == "hysteria2":
-                inbound = {"type": "hysteria2", "tag": tag, **listen, "users": users}
+            elif proto in {"hysteria2", "hysteria"}:
+                inbound = {"type": proto, "tag": tag, **listen, "users": users}
                 tls = await self._tls_for(adv, domain)
                 if not tls:
-                    raise RuntimeError("Hysteria2 requires TLS")
+                    raise RuntimeError(f"{proto} requires TLS")
                 inbound["tls"] = tls
                 hy = adv.get("hysteria2") or {}
-                if hy.get("up_mbps") is not None:
-                    inbound["up_mbps"] = int(hy.get("up_mbps") or 0)
-                if hy.get("down_mbps") is not None:
-                    inbound["down_mbps"] = int(hy.get("down_mbps") or 0)
-                if hy.get("obfs_type") and hy.get("obfs_password"):
+                if proto == "hysteria":
+                    inbound["up_mbps"] = max(1, int(hy.get("up_mbps") or 100))
+                    inbound["down_mbps"] = max(1, int(hy.get("down_mbps") or 100))
+                else:
+                    if hy.get("up_mbps") is not None and int(hy.get("up_mbps") or 0) > 0:
+                        inbound["up_mbps"] = int(hy.get("up_mbps"))
+                    if hy.get("down_mbps") is not None and int(hy.get("down_mbps") or 0) > 0:
+                        inbound["down_mbps"] = int(hy.get("down_mbps"))
+                if proto == "hysteria2" and hy.get("obfs_type") and hy.get("obfs_password"):
                     inbound["obfs"] = {"type": str(hy["obfs_type"]), "password": str(hy["obfs_password"])}
-                if hy.get("masquerade"):
+                if proto == "hysteria2" and hy.get("masquerade"):
                     inbound["masquerade"] = str(hy["masquerade"])
+            elif proto == "vless-reality":
+                inbound = {"type": "vless", "tag": tag, **listen, "users": users}
+                inbound["tls"] = await self._tls_for(adv, domain, reality_data=reality)
             elif proto == "vless-grpc-reality":
                 inbound = {"type": "vless", "tag": tag, **listen, "users": users}
                 inbound["tls"] = await self._tls_for(adv, domain, reality_data=reality)
                 inbound["transport"] = self._transport(adv) or {"type": "grpc", "service_name": "ONEX"}
+            elif proto == "vmess":
+                inbound = {"type": "vmess", "tag": tag, **listen, "users": [{**u, "alter_id": 0} for u in users]}
+                inbound["tls"] = await self._tls_for(adv, domain)
+                transport = self._transport(adv)
+                if transport:
+                    inbound["transport"] = transport
+            elif proto == "tuic":
+                inbound = {"type": "tuic", "tag": tag, **listen, "users": users, "congestion_control": "bbr", "zero_rtt_handshake": False, "heartbeat": "10s"}
+                inbound["tls"] = await self._tls_for(adv, domain)
+            elif proto == "anytls":
+                inbound = {"type": "anytls", "tag": tag, **listen, "users": users}
+                inbound["tls"] = await self._tls_for(adv, domain)
+            elif proto == "naive":
+                inbound = {"type": "naive", "tag": tag, **listen, "network": "tcp", "users": users, "quic_congestion_control": "bbr"}
+                inbound["tls"] = await self._tls_for(adv, domain)
+            elif proto == "shadowtls":
+                handshake_server = str(os.getenv("ONEX_SHADOWTLS_HANDSHAKE", (adv.get("tls") or {}).get("sni") or domain)).strip()
+                inbound = {"type": "shadowtls", "tag": tag, **listen, "version": 3, "users": users, "handshake": {"server": handshake_server, "server_port": 443}, "strict_mode": False}
+            elif proto == "snell":
+                psk = str(os.getenv("ONEX_SNELL_PSK", "ONEX-Snell-PSK-ChangeMe"))
+                inbound = {"type": "snell", "tag": tag, **listen, "version": 5, "psk": psk, "users": users, "obfs_mode": "http"}
             else:
                 continue
             inbounds.append(inbound)
@@ -758,7 +839,11 @@ class NativeCore:
             typ = inbound.get("type")
             port = inbound.get("listen_port")
             if typ == "vless":
-                result["vless-grpc-reality"] = port
+                # A VLESS listener may be TCP Reality or gRPC Reality; infer by transport.
+                if (inbound.get("transport") or {}).get("type") == "grpc":
+                    result["vless-grpc-reality"] = port
+                else:
+                    result["vless-reality"] = port
             elif typ == "trojan":
                 result["trojan"] = port
             elif typ == "shadowsocks":
@@ -767,6 +852,6 @@ class NativeCore:
                 result["socks5"] = port
             elif typ == "http":
                 result["http"] = port
-            elif typ == "hysteria2":
-                result["hysteria2"] = port
+            elif typ in {"hysteria2", "hysteria", "vmess", "tuic", "anytls", "naive", "shadowtls", "snell"}:
+                result[typ] = port
         return result

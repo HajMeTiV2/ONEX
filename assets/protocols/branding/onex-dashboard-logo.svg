@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" fill="none">
+  <defs>
+    <linearGradient id="g" x1="18" y1="14" x2="342" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#45D9FF"/>
+      <stop offset=".48" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="45" y1="20" x2="130" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-50%" width="160%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#glow)">
+    <path d="M76 17c-30 0-53 19-53 43s23 43 53 43c30 0 53-19 53-43S106 17 76 17Zm0 16c20 0 35 11 35 27S96 87 76 87 41 76 41 60s15-27 35-27Z" fill="url(#g)"/>
+    <path d="M52 29 100 91M100 29 52 91" stroke="url(#g)" stroke-width="12" stroke-linecap="round"/>
+    <path d="M52 29 100 91" stroke="url(#shine)" stroke-width="2.2" stroke-linecap="round" opacity=".8"/>
+  </g>
+  <text x="145" y="70" fill="white" font-family="Inter,Arial,sans-serif" font-size="50" font-weight="900" letter-spacing="-2">ONEX</text>
+  <text x="148" y="93" fill="#9FB5D6" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="4">CONTROL PANEL</text>
+</svg>

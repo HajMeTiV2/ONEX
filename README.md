@@ -1,46 +1,144 @@
-# 🚀 ONEX 1.3.9
+🚀 ONEX PANEL 1.5.0
 
-<p align="center">
-  <img src="onex-logo-3d.png" alt="ONEX Logo" width="300">
-</p>
+⚡ PROFESSIONAL V2RAY / XRAY MANAGEMENT PANEL
 
-<p align="center">
-  <strong>Advanced Self-Hosted Management Panel</strong>
-</p>
-
-<p align="center">
-  <a href="README.md">🇮🇷 فارسی</a> &nbsp;&nbsp; | &nbsp;&nbsp;
-  <a href="README.en.md">🇬🇧 English</a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/HajMeTiV2/ONEX">⭐ Star</a> •
-  <a href="https://github.com/HajMeTiV2/ONEX/fork">🍴 Fork</a> •
-  <a href="https://t.me/V2rayTun0">📢 Telegram</a> •
-  <a href="https://t.me/Mehtif">👨‍💻 Developer</a>
-</p>
+ONEX Panel یک پنل حرفه‌ای و مدرن برای مدیریت، ساخت و کنترل کانفیگ‌های V2Ray / Xray است که با تمرکز بر سرعت، پایداری، عملکرد و تجربه کاربری توسعه داده شده است.
 
 ---
 
-## 🌐 Choose your language
+## LICENSE / مجوز استفاده
 
-### 🇮🇷 فارسی
-برای مشاهده مستندات کامل فارسی، روی گزینه زیر بزنید:
+این پروژه **اختصاصی و غیرقابل‌کپی** است. هرگونه کپی، انتشار، فروش، میزبانی،
+دیپلوی عمومی، تغییر، مهندسی معکوس یا ساخت نسخه مشتق بدون اجازه کتبی صاحب
+حق نشر ممنوع است. فایل کامل شرایط در `LICENSE` قرار دارد.
 
-**[📖 مشاهده README فارسی](README.fa.md)**
+وجود وابستگی‌های شخص ثالث، حقوق مربوط به مجوز همان وابستگی‌ها را تغییر نمی‌دهد.
 
-### 🇬🇧 English
-For the complete English documentation:
+✨ FEATURES
 
-**[📖 Open English README](README.en.md)**
+🎛️ PROFESSIONAL PANEL
+
+- 🖥️ رابط کاربری مدرن و حرفه‌ای
+- ⚡ مدیریت سریع و آسان کانفیگ‌ها
+- 🔧 ساخت و مدیریت سرویس‌ها
+- 📊 امکانات مدیریتی و کنترلی
+- 🚀 طراحی شده با تمرکز بر عملکرد و پایداری
+
+🌐 PROTOCOL SUPPORT
+
+پشتیبانی از ساختارها و پروتکل‌های مختلف Xray و امکان مدیریت کانفیگ‌ها از طریق یک پنل یکپارچه.
 
 ---
 
-### ❤️ Support ONEX
+☁️ RAILWAY DEPLOY
 
-⭐ Star the repository • 🍴 Fork the project • 📢 Join the Telegram channel
+🚀 EASY DEPLOYMENT ON RAILWAY
 
-**Developer:** [@Mehtif](https://t.me/Mehtif)  
-**Telegram:** [@V2rayTun0](https://t.me/V2rayTun0)
+ONEX Panel قابلیت اجرا و Deploy روی Railway را دارد و می‌توانید پروژه را بدون نیاز به مدیریت مستقیم سرور، در محیط ابری Railway اجرا کنید.
 
-<p align="center"><strong>ONEX — Fast · Secure · Stable</strong></p>
+📌 DEPLOYMENT STEPS
+
+1️⃣ FORK THE PROJECT
+
+ابتدا پروژه را در GitHub به حساب خود Fork کنید.
+
+2️⃣ CONNECT TO RAILWAY
+
+ریپوی Fork شده را به حساب Railway خود متصل کنید.
+
+3️⃣ CREATE A NEW SERVICE
+
+یک سرویس جدید برای اجرای پروژه ایجاد کنید.
+
+4️⃣ CONFIGURE ENVIRONMENT
+
+متغیرهای محیطی و تنظیمات موردنیاز پروژه را وارد کنید.
+
+5️⃣ DEPLOY
+
+پروژه را Deploy کرده و منتظر تکمیل فرآیند Build و اجرا بمانید.
+
+6️⃣ OPEN THE PANEL
+
+پس از اجرای موفق، از آدرس ایجادشده توسط Railway برای ورود به پنل استفاده کنید.
+
+«⚠️ قبل از Deploy، تنظیمات و متغیرهای محیطی موردنیاز پروژه را بررسی کنید.»
+
+---
+
+📦 CURRENT VERSION
+
+🟢 ONEX PANEL v1.5.0
+
+نسخه فعلی پروژه:
+
+"v1.5.0"
+
+این نسخه شامل بهبودهای مختلف در پنل، مدیریت سرویس‌ها و ساختار پروژه است.
+
+---
+
+⚡ PERFORMANCE
+
+🚀 SPEED & STABILITY
+
+ONEX Panel با تمرکز بر ارائه یک تجربه سریع، پایدار و روان برای مدیریت کانفیگ‌ها طراحی شده است.
+
+🔥 KEY POINTS
+
+- ⚡ مدیریت سریع کانفیگ‌ها
+- 🚀 عملکرد بهینه پنل
+- 🔧 مدیریت ساده سرویس‌ها
+- 📡 مناسب برای استفاده در سرویس‌های مختلف
+- 🛠️ ساختار قابل توسعه برای بروزرسانی‌های آینده
+
+---
+
+❤️ SUPPORT THE PROJECT
+
+⭐ YOUR SUPPORT MATTERS
+
+اگر ONEX Panel برای شما مفید بوده، با حمایت خود به ادامه توسعه پروژه کمک کنید.
+
+⭐ STAR
+
+به پروژه Star ⭐ بدهید تا حمایت خود را نشان دهید.
+
+📢 SHARE
+
+لینک رسمی پروژه را به اشتراک بگذارید؛ بازنشر کد یا ساخت نسخه مشتق بدون اجازه
+کتبی مجاز نیست.
+
+---
+
+💰 FINANCIAL SUPPORT
+
+📢 TELEGRAM CHANNEL
+
+برای حمایت مالی از پروژه، دریافت اخبار، بروزرسانی‌ها و اطلاع از نسخه‌های جدید به کانال تلگرام بپیوندید:
+
+👉 "@V2rayTun0" (https://t.me/V2rayTun0)
+
+---
+
+👨‍💻 DEVELOPER
+
+🧑‍💻 @MEHTIF
+
+Developer & Creator: "@Mehtif" (https://github.com/Mehtif)
+
+---
+
+🌟 THANK YOU
+
+اگر از ONEX Panel استفاده می‌کنید، یک Star ⭐ در GitHub بگذارید.
+
+هر Star، Fork و Share شما باعث انگیزه بیشتر برای توسعه قابلیت‌های جدید و انتشار نسخه‌های بهتر پروژه می‌شود. ❤️
+
+---
+
+🚀 ONEX PANEL
+
+FAST • POWERFUL • PROFESSIONAL
+
+Built with ❤️ by @Mehtif

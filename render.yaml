@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: onex
+    runtime: docker
+    healthCheckPath: /health
+    plan: starter
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: onex-data
+      mountPath: /var/data
+      sizeGB: 1

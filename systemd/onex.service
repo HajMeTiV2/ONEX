@@ -1,0 +1,19 @@
+[Unit]
+Description=ONEX Panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=onex
+Group=onex
+WorkingDirectory=/opt/onex
+EnvironmentFile=-/etc/onex/onex.env
+ExecStart=/opt/onex/.venv/bin/python /opt/onex/main.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

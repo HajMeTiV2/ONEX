@@ -1,0 +1,16 @@
+# Koyeb deploy manifest. Create the app from this repository and select Docker.
+services:
+  - name: onex
+    type: web
+    docker:
+      dockerfile: Dockerfile
+    ports:
+      - port: 8000
+        protocol: http
+    health_checks:
+      - type: http
+        port: 8000
+        path: /health
+    env:
+      - key: DATA_DIR
+        value: /data

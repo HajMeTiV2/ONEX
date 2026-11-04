@@ -1,5 +1,5 @@
 # ============================================================
-# ONEX SELF-UPDATE BOOTLOADER (1.3.9)
+# ONEX SELF-UPDATE BOOTLOADER (1.5.0)
 # Zero-config in-panel updates: the panel downloads the newest public release
 # into the data dir and re-executes itself from there. No Railway/GitHub
 # tokens are needed. A bundled build that is newer (manual redeploy) always
@@ -7,6 +7,12 @@
 # ============================================================
 import os as _ob_os, sys as _ob_sys, json as _ob_json
 from pathlib import Path as _ob_Path
+
+# When launched as `python main.py`, child modules import `main` by name.
+# Alias the running __main__ module first so they do not boot a second copy
+# of the application, duplicate routes, or trigger circular-import failures.
+if __name__ == "__main__":
+    _ob_sys.modules.setdefault("main", _ob_sys.modules[__name__])
 
 
 def _ob_ver(v):
@@ -67,17 +73,21 @@ if __name__ == "__main__":
 import asyncio
 import base64
 import hashlib
+import hmac
+import ipaddress
 import json
+import re
 import logging
 import os
 import secrets
+import socket
 import string
 import time
 from collections import defaultdict, deque
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
-from urllib.parse import quote, parse_qs
+from urllib.parse import quote, parse_qs, unquote
 import aiofiles
 import httpx
 import uvicorn
@@ -95,13 +105,15 @@ from fastapi.responses import (
     FileResponse,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from onex.core.edge_scanner import load_candidates, scan as scan_edge_candidates
+from onex.deploy import public_endpoint_candidates
 
 # ============================================================
 # APP
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.3.9"
+APP_VERSION = "1.5.0"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -132,8 +144,8 @@ except Exception:
 
 PORT = int(
     os.environ.get(
-        "PORT",
-        "8000",
+        "SERVER_PORT",
+        os.environ.get("PORT", "8000"),
     )
 )
 
@@ -245,13 +257,70 @@ async def protocol_icon(protocol_id: str):
         raise HTTPException(status_code=404, detail="Protocol icon not found")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "no-cache, max-age=0, must-revalidate"})
 
+_cors_origins = [x.strip().rstrip("/") for x in os.environ.get("ONEX_ALLOWED_ORIGINS", "").split(",") if x.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Requested-With", "Authorization"],
 )
+
+# Lightweight in-memory abuse guard for public HTTP deployments.
+HTTP_RATE_STATE = defaultdict(deque)
+HTTP_RATE_LOCK = asyncio.Lock()
+HTTP_RATE_RULES = {
+    "/api/login": (12, 60),
+    "/login": (20, 60),
+    "/api/scanner/edge/scan": (8, 300),
+    "/api/scanner/sni": (10, 300),
+    "/api/cfedge/deploy": (3, 600),
+    "/api/cfedge/test": (12, 300),
+    "/api/restore/": (5, 600),
+    "/api/backup/": (20, 300),
+}
+
+
+@app.middleware("http")
+async def public_security_middleware(request: Request, call_next):
+    path = request.url.path
+    edge_header = request.headers.get("x-onex-edge", "")
+    if edge_header:
+        try:
+            from onex.integrations.cf_edge import valid_edge_secret
+            if not valid_edge_secret(edge_header):
+                return JSONResponse({"ok": False, "error": "invalid edge relay"}, status_code=403)
+        except Exception:
+            return JSONResponse({"ok": False, "error": "edge relay unavailable"}, status_code=503)
+    # Set ONEX_EDGE_ONLY=1 when the origin must accept WebSocket relay traffic
+    # only from the managed Worker. Leave it off while direct subscription links
+    # are still in use.
+    strict_edge = str(os.environ.get("ONEX_EDGE_ONLY", "")).lower() in {"1", "true", "yes", "on"}
+    is_relay_path = request.headers.get("upgrade", "").lower() == "websocket" or path.startswith(("/siderail/", "/xhttp-siz10/", "/ws/"))
+    if strict_edge and is_relay_path and not edge_header:
+        return JSONResponse({"ok": False, "error": "edge relay required"}, status_code=403)
+    rule = None if request.method in ("GET", "HEAD", "OPTIONS") else next((v for k, v in HTTP_RATE_RULES.items() if path == k or path.startswith(k)), None)
+    if rule:
+        limit, window = rule
+        ip = client_ip(request) if "client_ip" in globals() else (request.client.host if request.client else "unknown")
+        now = time.time()
+        async with HTTP_RATE_LOCK:
+            key = (path, ip)
+            q = HTTP_RATE_STATE.setdefault(key, deque())
+            while q and q[0] <= now - window:
+                q.popleft()
+            if len(q) >= limit:
+                return JSONResponse({"detail": "درخواست‌های زیاد؛ کمی بعد دوباره تلاش کنید"}, status_code=429, headers={"Retry-After": str(window)})
+            q.append(now)
+            if len(HTTP_RATE_STATE) > 2000:
+                for old_key in list(HTTP_RATE_STATE)[:500]:
+                    HTTP_RATE_STATE.pop(old_key, None)
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    return response
 
 
 # ============================================================
@@ -469,11 +538,21 @@ def subscription_usage_texts(link: dict) -> tuple[str, str]:
     return vol, tm
 
 
+def subscription_expiry_text(link: dict) -> str:
+    exp = link.get("expires_at")
+    if not exp:
+        return "📅 پایان: نامحدود ♾️"
+    try:
+        return "📅 پایان: " + datetime.fromisoformat(str(exp)).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return "📅 پایان: " + str(exp)[:16]
+
+
 def subscription_info_lines(uid: str, link: dict) -> list[str]:
     """Two placeholder entries that only carry the usage text in their name."""
     vol, tm = subscription_usage_texts(link)
     proto = "vless-ws" if "vless-ws" in PROTOCOLS else (PROTOCOLS[0] if PROTOCOLS else DEFAULT_PROTOCOL)
-    return [generate_vless_link(uid, "0.0.0.0", remark=text, protocol=proto, port=443) for text in (vol, tm)]
+    return [generate_vless_link(uid, "0.0.0.0", remark=text, protocol=proto, port=443) for text in (vol, tm, subscription_expiry_text(link))]
 
 
 def subscription_config_name(link: dict, proto: str, used: set, index: int = 0) -> str:
@@ -887,31 +966,46 @@ def unique_ips_for_uuid(
     }
 
 
-def client_ip(
-    request: Request,
-):
-    forwarded = request.headers.get(
-        "x-forwarded-for"
-    )
+def _is_cloudflare_edge_ip(value: str) -> bool:
+    """Recognize Cloudflare edge addresses left by an earlier Edge session."""
+    try:
+        addr = ipaddress.ip_address(str(value or "").strip())
+    except ValueError:
+        return False
+    return any(addr in ipaddress.ip_network(cidr) for cidr in (
+        "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22",
+        "103.31.4.0/22", "141.101.64.0/18", "108.162.192.0/18",
+        "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22",
+        "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+        "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+    ))
 
-    if forwarded:
-        return (
-            forwarded
-            .split(",")[0]
-            .strip()
-        )
 
-    real = request.headers.get(
-        "x-real-ip"
-    )
+def _trusted_proxy(request: Request) -> bool:
+    # Never trust spoofable forwarding headers unless the deployment opts in.
+    if os.environ.get("ONEX_TRUST_PROXY", "0").strip().lower() not in {"1", "true", "yes"}:
+        return False
+    peer = request.client.host if request.client else ""
+    raw = os.environ.get("ONEX_TRUSTED_PROXIES", "").strip()
+    if not raw:
+        return True
+    try:
+        addr = ipaddress.ip_address(peer)
+        return any(addr in ipaddress.ip_network(item.strip(), strict=False) for item in raw.split(",") if item.strip())
+    except ValueError:
+        return False
 
-    if real:
-        return real.strip()
 
-    if request.client:
-        return request.client.host
-
-    return "unknown"
+def client_ip(request: Request):
+    if _trusted_proxy(request):
+        forwarded = request.headers.get("x-forwarded-for", "")
+        if forwarded:
+            # The left-most value is the client only after a trusted proxy verified the chain.
+            return forwarded.split(",")[0].strip()
+        real = request.headers.get("x-real-ip", "")
+        if real:
+            return real.strip()
+    return request.client.host if request.client else "unknown"
 
 
 def is_ip_allowed(
@@ -938,41 +1032,58 @@ def is_ip_allowed(
     if ip in ips:
         return True
 
+    # Edge -> direct handoff: the old Worker connections are transient runtime
+    # state, not real devices. Remove only known Cloudflare-edge sessions for
+    # this UUID before evaluating the saved IP limit.
+    if not _is_cloudflare_edge_ip(ip):
+        stale_edge_ids = [cid for cid, conn in connections.items()
+                          if conn.get("uuid") == uuid and _is_cloudflare_edge_ip(conn.get("ip"))]
+        for cid in stale_edge_ids:
+            connections.pop(cid, None)
+        if stale_edge_ids:
+            ips = unique_ips_for_uuid(uuid)
+            if ip in ips:
+                return True
+
+    # Do not let disconnected/stale in-memory sessions permanently consume the
+    # limit. This table is runtime-only and is cleared on restart.
+    if len(ips) >= limit and connections:
+        now = time.time()
+        recent = False
+        for connection in connections.values():
+            if connection.get("uuid") != uuid:
+                continue
+            try:
+                age = now - datetime.fromisoformat(str(connection.get("connected_at"))).timestamp()
+            except Exception:
+                age = 0
+            if age < 90:
+                recent = True
+                break
+        if not recent:
+            return True
+
     return len(ips) < limit
 
 
 def get_host(
     request: Request | None = None,
 ) -> str:
-
+    # Explicit deployment values win; request headers are only a fallback.
+    candidates = public_endpoint_candidates()
     if request is not None:
-        forwarded = request.headers.get(
-            "x-forwarded-host"
-        )
-
-        normal = request.headers.get(
-            "host"
-        )
-
-        host = (
-            forwarded
-            or normal
-        )
-
-        if host:
-            host = host.split(":")[0].strip()
-
+        if _trusted_proxy(request):
+            candidates.append(request.headers.get("x-forwarded-host", ""))
+        candidates.append(request.headers.get("host", ""))
+    for raw in candidates:
+        value = str(raw or "").strip().strip("'\"")
+        if "://" in value:
+            value = value.split("://", 1)[1]
+        value = value.split("/", 1)[0].split(",", 1)[0].strip()
+        host = value.rsplit(":", 1)[0] if value.count(":") == 1 else value.strip("[]")
+        if host and host.lower() not in {"localhost", "127.0.0.1", "0.0.0.0"}:
             CONFIG["host"] = host
-
             return host
-
-    railway_domain = os.environ.get(
-        "RAILWAY_PUBLIC_DOMAIN"
-    )
-
-    if railway_domain:
-        return railway_domain
-
     return CONFIG["host"]
 
 
@@ -980,18 +1091,38 @@ def get_host(
 # PASSWORD
 # ============================================================
 
-def hash_password(
-    password: str,
-) -> str:
+def hash_password(password: str) -> str:
+    """Hash with scrypt; the prefix makes migration and verification explicit."""
+    salt = secrets.token_bytes(16)
+    digest = hashlib.scrypt(str(password).encode("utf-8"), salt=salt, n=2**14, r=8, p=1, dklen=32)
+    return "scrypt$16384$8$1$" + salt.hex() + "$" + digest.hex()
 
-    payload = (
-        password
-        + SECRET_KEY
-    ).encode("utf-8")
 
-    return hashlib.sha256(
-        payload
-    ).hexdigest()
+def _legacy_hash_password(password: str) -> str:
+    return hashlib.sha256((str(password) + SECRET_KEY).encode("utf-8")).hexdigest()
+
+
+def verify_password(password: str, stored: str) -> bool:
+    stored = str(stored or "")
+    try:
+        if stored.startswith("scrypt$"):
+            _, n, r, p, salt_hex, digest_hex = stored.split("$", 5)
+            actual = hashlib.scrypt(str(password).encode("utf-8"), salt=bytes.fromhex(salt_hex), n=int(n), r=int(r), p=int(p), dklen=len(bytes.fromhex(digest_hex)))
+            return hmac.compare_digest(actual, bytes.fromhex(digest_hex))
+        # One-way compatibility for existing installations. Successful login is migrated.
+        return hmac.compare_digest(_legacy_hash_password(password), stored)
+    except (ValueError, TypeError):
+        return False
+
+
+def password_needs_upgrade(stored: str) -> bool:
+    return not str(stored or "").startswith("scrypt$")
+
+
+def upgrade_password_if_needed(record: dict, password: str) -> None:
+    stored = str(record.get("password_hash") or "")
+    if password_needs_upgrade(stored) and verify_password(password, stored):
+        record["password_hash"] = hash_password(password)
 
 
 # ONEX default owner credentials.
@@ -1134,12 +1265,8 @@ def clear_login_failures(ip: str):
 
 SESSION_COOKIE = "pixonpanel_session"
 
-SESSION_TTL = (
-    60
-    * 60
-    * 24
-    * 365
-)
+# Public panel sessions expire; users can log in again.
+SESSION_TTL = 60 * 60 * 24 * 7
 
 
 async def create_session(meta: dict | None = None) -> str:
@@ -1306,10 +1433,20 @@ def protocol_public_port(link: dict | None, protocol: str, fallback: int = DEFAU
     except Exception:
         return safe_int((link or {}).get("port", fallback), fallback, MIN_PORT, MAX_PORT)
 
-def generate_vless_link(
+def _ip_front_host(panel_host: str) -> str:
+    """SNI/Host for IP-paired configs: the Cloudflare Worker domain when deployed, else the panel host."""
+    try:
+        from onex.integrations import cf_edge as _cf
+        return _cf.edge_host(_cf.load()) or panel_host
+    except Exception:
+        return panel_host
+
+
+def _generate_vless_link_base(
     uuid: str, host: str, remark: str = "ONEX",
     protocol: str = DEFAULT_PROTOCOL, fingerprint: str | None = None,
     alpn: str | None = None, port: int | None = None, link: dict | None = None,
+    front_host: str = "",
 ):
     protocol = normalize_protocol(protocol)
     fp = (fingerprint or DEFAULT_FINGERPRINT).strip().lower()
@@ -1320,9 +1457,10 @@ def generate_vless_link(
     adv = normalize_advanced_config((link or {}).get("advanced"))
     if link and link.get("all_protocols"):
         adv = _protocol_safe_advanced(adv, protocol, all_protocols=True)
-    adv_host = adv["host"].get("host") or adv["host"].get("address") or host
+    _front = front_host or host
+    adv_host = adv["host"].get("host") or adv["host"].get("address") or _front
     adv_path = adv["host"].get("path") or adv["network"].get("path")
-    adv_sni = adv["tls"].get("sni") or adv["tls"].get("server_name") or host
+    adv_sni = adv["tls"].get("sni") or adv["tls"].get("server_name") or _front
     adv_fp = adv["fingerprint"].get("value") or fp
     adv_alpn = adv["tls"].get("alpn") or alpn_value
     security = adv["tls"].get("mode") if adv["tls"].get("enabled", True) else "none"
@@ -1460,6 +1598,104 @@ def generate_vless_link(
     if protocol == "tuic": return f"tuic://{uuid}:{uuid}@{host}:{port_value}?sni={quote(host)}&alpn=h3#{label}"
     return f"vless://{uuid}@{host}:{port_value}"
 
+
+# ============================================================
+# CONFIG OPTIMIZER (cs + fm) for VLESS / Trojan
+# ============================================================
+CDN_OPT_CIPHER_SUITES = (
+    "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:"
+    "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:"
+    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:"
+    "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:"
+    "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:"
+    "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+)
+CDN_OPT_FINAL_MASK = json.dumps({
+    "tcp": [
+        {"type": "fragment", "settings": {"packets": "tlshello", "lengths": ["0", "104", "1"], "delays": ["0"], "maxSplit": "0"}},
+        {"type": "fragment", "settings": {"packets": "1-1", "lengths": ["114", "1"], "delays": ["1"], "maxSplit": "11"}},
+    ]
+}, separators=(",", ":"))
+CDN_OPT_DEFAULT_ECH = "cloudflare-ech.com+udp://1.1.1.1"
+_CDN_ECH_RE = re.compile(r"^[A-Za-z0-9.\-]{1,190}(\+(udp|tcp|https?)://[A-Za-z0-9.\-:\[\]/]{1,120})?$")
+
+
+def normalize_cdn_ech(value) -> str:
+    """Accept one ECH value like 'cloudflare-ech.com+udp://1.1.1.1'; empty disables ECH."""
+    v = str(value or "").strip()
+    if not v:
+        return ""
+    return v if _CDN_ECH_RE.match(v) else ""
+
+
+def apply_cdn_optimizer(uri: str, link: dict | None) -> str:
+    """Add cs (Cipher Suites) + fm (FinalMask) to a vless:// or trojan:// URI.
+
+    Only those parameters are replaced; host, port, path, sni, remark and every
+    other parameter are kept exactly as generated. Other protocols pass through.
+    """
+    if not link or not link.get("cdn_optimizer") or not isinstance(uri, str):
+        return uri
+    if not (link.get("bundle_protocols") or link.get("all_protocols")):
+        return uri  # only ONEX VIP (multi-protocol) configs
+    low = uri[:10].lower()
+    if not (low.startswith("vless://") or low.startswith("trojan://")):
+        return uri
+    base, sep, frag = uri.partition("#")
+    head, qsep, query = base.partition("?")
+    pairs = []
+    security = ""
+    for part in (query.split("&") if query else []):
+        if not part:
+            continue
+        key = part.split("=", 1)[0]
+        if key in ("cs", "fm"):
+            continue
+        if key == "security":
+            security = unquote(part.split("=", 1)[1] if "=" in part else "").lower()
+        pairs.append(part)
+    extra = [
+        "cs=" + quote(CDN_OPT_CIPHER_SUITES, safe=""),
+        "fm=" + quote(CDN_OPT_FINAL_MASK, safe=""),
+    ]
+    out = head + "?" + "&".join(extra + pairs)
+    return out + (sep + frag if sep else "")
+
+
+def _apply_cdn_ech_vmess(uri: str, ech: str) -> str:
+    """VMess links are base64 JSON: store the ECH value as an extra "ech" key."""
+    try:
+        raw_b64 = uri[len("vmess://"):].strip()
+        data = json.loads(base64.b64decode(raw_b64 + "=" * (-len(raw_b64) % 4)).decode("utf-8"))
+    except Exception:
+        return uri
+    if not isinstance(data, dict):
+        return uri
+    data["ech"] = ech
+    return "vmess://" + base64.b64encode(json.dumps(data, separators=(",", ":"), ensure_ascii=False).encode()).decode()
+
+
+def apply_cdn_ech(uri: str, link: dict | None) -> str:
+    """Add the Cloudflare ECH value (ech=...) to a vless:// or trojan:// URI when the link has one."""
+    ech = normalize_cdn_ech((link or {}).get("cdn_ech"))
+    if not ech or not isinstance(uri, str):
+        return uri
+    low = uri[:10].lower()
+    if low.startswith("vmess://"):
+        return _apply_cdn_ech_vmess(uri, ech)
+    if not (low.startswith("vless://") or low.startswith("trojan://")):
+        return uri
+    base, sep, frag = uri.partition("#")
+    head, qsep, query = base.partition("?")
+    pairs = [p for p in (query.split("&") if query else []) if p and p.split("=", 1)[0] != "ech"]
+    out = head + "?" + "&".join(["ech=" + quote(ech, safe="")] + pairs)
+    return out + (sep + frag if sep else "")
+
+
+def generate_vless_link(*args, link: dict | None = None, **kwargs):
+    return apply_cdn_ech(apply_cdn_optimizer(_generate_vless_link_base(*args, link=link, **kwargs), link), link)
+
+
 def vless_link_for_link(
     link: dict,
     uid: str,
@@ -1555,6 +1791,20 @@ def link_config_uris(link: dict, uid: str, host: str) -> list[str]:
         hosts = hosts[:max(cfg_count, len(clean_ips) if multi else cfg_count)]
     else:
         hosts = [host] * cfg_count
+    pairs = link.get("ip_proto_pairs") or []
+    if pairs:
+        pair_names: set = set()
+        pair_uris = []
+        for idx, (target, proto) in enumerate(pairs, 1):
+            name = subscription_config_name(link, proto, pair_names, idx)
+            pair_uris.append(generate_vless_link(
+                uid, (target or host), remark=name, protocol=proto, front_host=_ip_front_host(host),
+                fingerprint=link.get("fingerprint", DEFAULT_FINGERPRINT),
+                alpn=DEFAULT_ALPN_BY_PROTOCOL.get(proto, link.get("alpn")),
+                port=protocol_public_port(link, proto, link.get("port", DEFAULT_PORT)),
+                link=link,
+            ))
+        return pair_uris
     used_names: set = set()
     uris = []
     for idx, target in enumerate(hosts, 1):
@@ -1601,6 +1851,8 @@ def get_link_info(
         "protocol": link.get("protocol", DEFAULT_PROTOCOL),
         "bundle_protocols": list(link.get("bundle_protocols") or []),
         "ad_block_enabled": bool(link.get("ad_block_enabled", AD_BLOCKER.get("enabled"))),
+        "cdn_optimizer": bool(link.get("cdn_optimizer", False)),
+        "cdn_ech": str(link.get("cdn_ech") or ""),
         "active": is_active,
         "used_bytes": used_b,
         "limit_bytes": limit_b,
@@ -1662,6 +1914,8 @@ async def load_state():
             raw = await file.read()
 
         data = json.loads(raw)
+        if isinstance(data.get("edge_scan_state"), dict):
+            EDGE_SCAN_STATE.update(data["edge_scan_state"])
 
         LINKS.update(
             data.get(
@@ -1833,6 +2087,7 @@ async def save_state():
 
                 "saved_at":
                     datetime.now().isoformat(),
+                "edge_scan_state": dict(EDGE_SCAN_STATE),
             }
 
             temp_file = (
@@ -1914,6 +2169,8 @@ async def make_link(
     bundle_protocols=None,
     ad_blocker: bool | None = None,
     advanced: dict | None = None,
+    cdn_optimizer: bool = False,
+    cdn_ech: str = "",
 ):
 
     if not PROTOCOLS:
@@ -2029,6 +2286,8 @@ async def make_link(
         "native_protocols": [p for p in PROTOCOLS if p not in {"vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one", "trojan-ws", "vmess-ws"}],
         "usage_history": [],
         "ad_block_enabled": bool(AD_BLOCKER.get("enabled") if ad_blocker is None else ad_blocker),
+        "cdn_optimizer": bool(cdn_optimizer),
+        "cdn_ech": normalize_cdn_ech(cdn_ech),
     }
 
     async with LINKS_LOCK:
@@ -2385,10 +2644,15 @@ async def remove_sub_group(
 async def startup():
 
     global http_client
+    try:
+        from onex.integrations import sell as _sell_boot
+        _sell_boot.start_background()
+    except Exception as _sell_exc:
+        logger.warning("sell background not started: %s", _sell_exc)
 
     limits = httpx.Limits(
-        max_connections=128,
-        max_keepalive_connections=32,
+        max_connections=500,
+        max_keepalive_connections=100,
     )
 
     timeout = httpx.Timeout(
@@ -2816,7 +3080,7 @@ html.light .update-prompt-modal{background:#fff;border-color:rgba(37,99,235,.16)
 </style>
 
 <style>
-/* ONEX 1.3.9 — single 3D wordmark in the top chrome.
+/* ONEX 1.5.0 — single 3D wordmark in the top chrome.
    The navigation drawer intentionally has no logo block. */
 #sidebar > .sb-logo{display:none!important;}
 #sidebar .sb-logo-icon{display:none!important;}
@@ -3015,10 +3279,10 @@ def render_login_html() -> str:
     username = escape_html(str(AUTH.get("username") or "admin").strip() or "admin")
     password_placeholder = (
         "admin"
-        if AUTH.get("password_hash") == hash_password("admin")
+        if verify_password("admin", AUTH.get("password_hash"))
         else "رمز عبور فعلی"
     )
-    hint_attr = "" if AUTH.get("password_hash") == hash_password("admin") else " hidden"
+    hint_attr = "" if verify_password("admin", AUTH.get("password_hash")) else " hidden"
     return (
         LOGIN_HTML
         .replace("__LOGIN_USERNAME__", username)
@@ -3207,7 +3471,7 @@ async def login_form(
             status_code=400,
         )
 
-    if username != AUTH.get("username", "admin") or hash_password(password) != AUTH["password_hash"]:
+    if username != AUTH.get("username", "admin") or not verify_password(password, AUTH["password_hash"]):
 
         locked, value = register_login_failure(ip)
         if locked:
@@ -3237,6 +3501,8 @@ async def login_form(
         )
 
     clear_login_failures(ip)
+    upgrade_password_if_needed(AUTH, password)
+    await save_state()
 
     token = await create_session({
         "role": "owner",
@@ -3290,11 +3556,11 @@ async def api_login(request: Request):
     meta = {"role": "owner", "admin_id": None, "username": AUTH.get("username", "admin")}
     ok = False
     if username and username == AUTH.get("username", "admin"):
-        if hash_password(password) == AUTH["password_hash"]:
+        if verify_password(password, AUTH["password_hash"]):
             ok = True
     elif username:
         aid, admin = find_admin_by_username(username)
-        if admin and admin.get("password_hash") == hash_password(password):
+        if admin and verify_password(password, admin.get("password_hash")):
             if not admin_is_valid(admin):
                 raise HTTPException(status_code=403, detail="حساب مسدود یا منقضی شده است")
             ok = True
@@ -3312,7 +3578,7 @@ async def api_login(request: Request):
         "login_at": datetime.now().isoformat(timespec="seconds"),
     })
     token = await create_session(meta)
-    must_change = meta["role"] == "owner" and AUTH.get("password_hash") == hash_password("admin")
+    must_change = meta["role"] == "owner" and verify_password("admin", AUTH.get("password_hash"))
     response = JSONResponse({"ok": True, "role": meta["role"], "username": meta["username"], "must_change": must_change})
     set_auth_cookie(response, request, token)
     log_activity("auth", f"ورود موفق ({meta['username']}) از {ip}", "ok")
@@ -3365,8 +3631,7 @@ async def api_change_password(
     new_username = str(body.get("new_username") or AUTH.get("username", "admin")).strip().lower()
 
     if (
-        hash_password(current_password)
-        != AUTH["password_hash"]
+        not verify_password(current_password, AUTH["password_hash"])
     ):
         raise HTTPException(
             status_code=400,
@@ -3785,6 +4050,8 @@ async def create_link_api(
         bundle_protocols=bundle_protocols,
         ad_blocker=bool(body.get("ad_block_enabled", AD_BLOCKER.get("enabled"))),
         advanced=advanced,
+        cdn_optimizer=bool(body.get("cdn_optimizer", False)),
+        cdn_ech=body.get("cdn_ech", ""),
     )
 
     host = get_host(request)
@@ -3876,8 +4143,7 @@ async def create_auto_link(
 # ============================================================
 
 @app.get("/api/protocols")
-async def api_protocols(request: Request):
-    require_auth(request)
+async def api_protocols(request: Request, _=Depends(require_auth)):
     native_ready = bool(NATIVE_CORE and getattr(NATIVE_CORE, "is_runtime_ready", lambda: False)())
     return {
         "protocols": [{"id": p, "label": PROTOCOL_LABELS.get(p, p), "backend": "native" if p in getattr(NATIVE_CORE, "SUPPORTED", ()) else "panel"} for p in PROTOCOLS],
@@ -4283,6 +4549,21 @@ async def update_link(
 
         if "ad_block_enabled" in body:
             link["ad_block_enabled"] = bool(body.get("ad_block_enabled"))
+
+        if "cdn_optimizer" in body:
+            link["cdn_optimizer"] = bool(body.get("cdn_optimizer"))
+        if "cdn_ech" in body:
+            link["cdn_ech"] = normalize_cdn_ech(body.get("cdn_ech"))
+        if "clean_ips" in body:
+            link["clean_ips"] = [str(x).strip()[:64] for x in (body.get("clean_ips") or []) if str(x).strip()][:500]
+        if "ip_proto_pairs" in body:
+            pairs_in = []
+            for item in (body.get("ip_proto_pairs") or [])[:500]:
+                if isinstance(item, (list, tuple)) and len(item) == 2:
+                    ip_v, pr_v = str(item[0]).strip()[:64], str(item[1])
+                    if pr_v in PROTOCOLS:
+                        pairs_in.append([ip_v, pr_v])
+            link["ip_proto_pairs"] = pairs_in
 
         if "bundle_protocols" in body:
             raw_bundle = body.get("bundle_protocols") or []
@@ -4826,6 +5107,79 @@ def request_is_browser(request: Request) -> bool:
     return "mozilla" in ua and "text/html" in accept
 
 
+# ============================================================
+# EDGE GROUP SUB: one subscription for every Cloudflare Edge config
+# ============================================================
+
+def _edge_group_uris(entries, host):
+    from onex.integrations import cf_edge as _cf
+    out = []
+    for uid, link in entries:
+        try:
+            base = link_config_uris(link, uid, host)
+        except Exception:
+            base = [vless_link_for_link(link, uid, host)]
+        if link.get("ip_proto_pairs"):
+            edge = _cf.edge_variants_own(base)
+        else:
+            edge = _cf.edge_variants(base, list(link.get("clean_ips") or []) or None)
+        out.extend(edge or base)
+    return out
+
+
+async def _edge_group_payload(request: Request):
+    from onex.integrations import cf_edge as _cf
+    host = get_host(request)
+    ids = _cf.edge_uids()
+    async with LINKS_LOCK:
+        entries = [
+            (uid, dict(link)) for uid, link in LINKS.items()
+            if (uid in ids or str(link.get("uuid") or "") in ids) and is_link_allowed(link)
+        ]
+    uris = _edge_group_uris(entries, host)
+    used = sum(int(l.get("used_bytes", 0) or 0) for _, l in entries)
+    limits = [int(l.get("limit_bytes", 0) or 0) for _, l in entries]
+    limit = sum(limits) if entries and all(x > 0 for x in limits) else 0
+    exps = [str(l.get("expires_at")) for _, l in entries if l.get("expires_at")]
+    expires = min(exps) if entries and len(exps) == len(entries) else None
+    snapshot = {
+        "label": "ساب Edge", "used_bytes": used, "limit_bytes": limit, "expires_at": expires,
+        "active": bool(entries), "protocol": "vless-ws", "fingerprint": "chrome", "usage_history": [],
+    }
+    token = _cf.get_sub_token()
+    return host, snapshot, uris, token
+
+
+@app.get("/sub/edge/{token}")
+async def edge_group_sub(token: str, request: Request, format: str = ""):
+    from onex.integrations import cf_edge as _cf
+    if not _cf.valid_sub_token(token):
+        raise HTTPException(status_code=404, detail="not found")
+    host, snapshot, uris, _ = await _edge_group_payload(request)
+    sub_url = f"https://{host}/sub/edge/{token}"
+    if str(format).lower() == "plain":
+        return Response(content="\n".join(uris) + "\n", media_type="text/plain; charset=utf-8")
+    if request_is_browser(request):
+        return await render_info_page("edge", snapshot, uris, sub_url, host)
+    lines = subscription_info_lines("edge", snapshot) + uris
+    content = base64.b64encode("\n".join(lines).encode()).decode()
+    vol, tm = subscription_usage_texts(snapshot)
+    headers = subscription_metadata_headers(
+        snapshot["used_bytes"], snapshot["limit_bytes"], snapshot["expires_at"], host,
+        sub_url, f"ساب Edge | {vol} | {tm}",
+    )
+    return Response(content=content, media_type="text/plain; charset=utf-8", headers=headers)
+
+
+@app.get("/info/edge/{token}", response_class=HTMLResponse)
+async def edge_group_info(token: str, request: Request):
+    from onex.integrations import cf_edge as _cf
+    if not _cf.valid_sub_token(token):
+        raise HTTPException(status_code=404, detail="not found")
+    host, snapshot, uris, _ = await _edge_group_payload(request)
+    return await render_info_page("edge", snapshot, uris, f"https://{host}/sub/edge/{token}", host)
+
+
 @app.get("/sub/{uuid}")
 async def subscription_single(
     uuid: str,
@@ -4873,7 +5227,18 @@ async def subscription_single(
     # 1) usage info (remaining volume + remaining time) with icons, always first
     lines = subscription_info_lines(uuid, link)
     # 2) every config of this sub (all selected protocols, all clean IPs)
-    lines.extend(link_config_uris(link, uuid, host))
+    _uris = link_config_uris(link, uuid, host)
+    # Edge variants only go to the dedicated Edge subscription, never to every sub
+    try:
+        from onex.integrations.cf_edge import is_edge_only, edge_only_uris as _edge_only, edge_variants_own as _edge_own
+        if is_edge_only(uuid, link.get("uuid")):
+            _edge_lines = _edge_own(_uris) if link.get("ip_proto_pairs") else _edge_only(_uris)
+            lines.extend(_edge_lines or _uris)
+        else:
+            lines.extend(_uris)
+    except Exception as _edge_exc:
+        logger.debug("edge sub skipped: %s", _edge_exc)
+        lines.extend(_uris)
     content = base64.b64encode("\n".join(lines).encode()).decode()
     _vol_t, _time_t = subscription_usage_texts(link)
     profile_title = f"{label} | {_vol_t} | {_time_t}"
@@ -4958,8 +5323,13 @@ async def info_page(
         all_config_uris = link_config_uris(snapshot, uid, host)
     except Exception:
         all_config_uris = [vless_link_for_link(snapshot, uid, host)]
-    vless_url = "\n".join(all_config_uris)
     sub_url = f"https://{host}/sub/{uid}"
+    return await render_info_page(uid, snapshot, all_config_uris, sub_url, host)
+
+
+async def render_info_page(uid, snapshot, all_config_uris, sub_url, host):
+    link = snapshot
+    vless_url = "\n".join(all_config_uris)
     used = int(snapshot.get("used_bytes", 0) or 0)
     limit = int(snapshot.get("limit_bytes", 0) or 0)
     if limit > 0:
@@ -5609,10 +5979,10 @@ const vlessUrlData = document.getElementById('vlessLinkText').textContent;
 
 // Theme toggle logic with localStorage support (2 themes total)
 function toggleTheme() {{
-  const body = document.body;
-  body.classList.toggle('theme-lighter');
-  const isLighter = body.classList.contains('theme-lighter');
-  localStorage.setItem('px_theme', isLighter ? 'lighter' : 'dark');
+  document.body.classList.remove('theme-lighter');
+  const isLight = document.documentElement.classList.contains('light');
+  if (typeof setTheme === 'function') {{ setTheme(isLight ? 'dark' : 'light'); return; }}
+  document.documentElement.classList.toggle('light');
 }}
 
 // Initialize saved theme on load
@@ -6103,8 +6473,7 @@ async def sub_group_subscription(
         )
 
         if (
-            hash_password(password)
-            != sub["password_hash"]
+            not verify_password(password, sub["password_hash"])
         ):
 
             raise HTTPException(
@@ -6567,10 +6936,7 @@ async def public_sub_data(
         )
 
         if (
-            hash_password(password)
-            != sub[
-                "password_hash"
-            ]
+            not verify_password(password, sub["password_hash"])
         ):
 
             return JSONResponse(
@@ -7459,6 +7825,25 @@ except Exception as exc:
         "XHTTP module unavailable: %s",
         exc,
     )
+
+# Keep integrations isolated: a missing optional file must not prevent ONEX
+# itself, Cloudflare Edge, or the scanner from booting.
+try:
+    from onex.integrations import sell as _sell_mod
+    app.include_router(_sell_mod.build_router(require_perm))
+except Exception as exc:
+    logger.warning("Sell integration unavailable: %s", exc)
+try:
+    from onex.integrations import cf_edge as _edge_mod
+    app.include_router(_edge_mod.build_router(require_perm))
+except Exception as exc:
+    logger.warning("Cloudflare Edge integration unavailable: %s", exc)
+try:
+    from onex.integrations import scanner as _scan_mod
+    app.include_router(_scan_mod.build_router(require_perm))
+except Exception as exc:
+    logger.warning("Scanner integration unavailable: %s", exc)
+
 
 if "vless-httpupgrade" not in PROTOCOLS and "vless-ws" in PROTOCOLS:
     # Real HTTPUpgrade relay lives in the front proxy (101 + raw VLESS stream).
@@ -9859,7 +10244,7 @@ body,.sidebar,.main,.card,.metric,.onex-card,.onex-metric,.support-tile,.modal,.
 .top-notify-panel{position:absolute;top:calc(100% + 9px);right:0;width:300px;max-width:min(300px,calc(100vw - 24px));z-index:1200;border:1px solid rgba(var(--accent2-rgb),.24);border-radius:16px;background:linear-gradient(145deg,color-mix(in srgb, rgb(21 21 21 / .96) 92%, var(--accent)),color-mix(in srgb, rgb(8 8 8 / .94) 92%, var(--accent)));box-shadow:0 22px 70px rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.07);backdrop-filter:blur(25px) saturate(130%);overflow:hidden}.top-notify-panel[hidden]{display:none}.notify-panel-head{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border-bottom:1px solid rgba(var(--accent2-rgb),.12);color:var(--t1);font-size:12px}.notify-panel-head button{border:0;background:transparent;color:var(--t3);font-size:20px;cursor:pointer;line-height:1}.notify-list{padding:8px;max-height:360px;overflow:auto}.notify-empty{padding:18px 10px;text-align:center;color:var(--t3);font-size:11px}.notify-item{padding:11px 12px;border:1px solid rgba(var(--accent2-rgb),.15);border-radius:12px;background:rgba(var(--accent-rgb),.045);margin-bottom:7px}.notify-item-title{font-weight:800;color:var(--t1);font-size:12px;margin-bottom:5px}.notify-item-text{color:var(--t2);font-size:11px;line-height:1.8}.notify-item-meta{color:var(--t3);font-size:9px;margin-top:5px}.notify-update-btn{width:100%;border:0;border-radius:9px;padding:8px;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font:inherit;font-size:10px;font-weight:800;cursor:pointer;margin-top:9px}
 html.light .top-setting-group,html.light .top-notify-btn{background:#fff!important;border-color:color-mix(in srgb, rgb(23 23 23 / .10) 92%, var(--accent))!important}html.light .top-setting-btn{color:color-mix(in srgb, rgb(114 114 114) 82%, var(--accent))}html.light .top-setting-btn:hover{background:#f1f5f9;color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent))}html.light .top-notify-panel{background:#fff!important;border-color:color-mix(in srgb, rgb(23 23 23 / .10) 92%, var(--accent))!important;box-shadow:0 18px 50px color-mix(in srgb, rgb(23 23 23 / .14) 92%, var(--accent))!important;backdrop-filter:none}
 @media(max-width:700px){.notify-label{display:none}.top-notify-btn{padding:7px 8px}.top-notify-panel{right:-42px;width:290px}}
-\n.cfg-page-hero{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}.cfg-hero-actions{display:flex;gap:8px}.cfg-hero-actions .btn{height:42px;width:42px;padding:0;display:grid;place-items:center}.cfg-primary-btn{height:42px;padding:0 16px;border-radius:13px;border:1px solid rgba(var(--accent-rgb),.75);background:linear-gradient(135deg,var(--accent),var(--accent));color:#fff;font:900 11px Vazirmatn,sans-serif;box-shadow:0 10px 26px rgba(var(--accent-rgb),.24);cursor:pointer}.cfg-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}.cfg-stat-card{min-height:92px;padding:13px;border-radius:18px;border:1px solid rgba(var(--accent2-rgb),.24);background:linear-gradient(145deg,color-mix(in srgb, rgb(25 25 25 / .9) 88%, var(--accent)),color-mix(in srgb, rgb(11 11 11 / .86) 92%, var(--accent)));box-shadow:0 12px 28px rgba(0,0,0,.2);display:flex;align-items:center;gap:11px}.cfg-stat-icon{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:20px;font-weight:900;background:rgba(var(--accent-rgb),.12);border:1px solid rgba(var(--accent2-rgb),.28);color:var(--accent2)}.cfg-stat-card.purple .cfg-stat-icon{color:var(--purple)}.cfg-stat-card.blue .cfg-stat-icon{color:var(--accent2)}.cfg-stat-card.pink .cfg-stat-icon{color:var(--accent2)}.cfg-stat-card small{display:block;color:var(--t3);font-size:9px;margin-bottom:4px}.cfg-stat-card b{display:block;font-size:20px;color:#f8fbff}.cfg-tools{display:flex;gap:9px;margin-bottom:9px;align-items:stretch}.cfg-search-box{height:48px;flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid rgba(var(--accent-rgb),.3);border-radius:15px;background:linear-gradient(145deg,color-mix(in srgb, rgb(19 19 19 / .82) 92%, var(--accent)),color-mix(in srgb, rgb(9 9 9 / .68) 92%, var(--accent)));box-shadow:inset 0 1px rgba(255,255,255,.035)}.cfg-search-box>span{font-size:23px;color:var(--accent2);flex:0 0 auto}.cfg-search-box input{width:100%;min-width:0;border:0;outline:0;background:none;color:var(--t1);font:600 11px Vazirmatn,sans-serif}.cfg-filter-btn{width:48px;height:48px;flex:0 0 48px;border-radius:15px;border:1px solid rgba(var(--accent-rgb),.3);background:linear-gradient(145deg,color-mix(in srgb, rgb(19 19 19 / .82) 92%, var(--accent)),color-mix(in srgb, rgb(9 9 9 / .68) 92%, var(--accent)));color:var(--accent2);font-size:20px;cursor:pointer;transition:.18s ease}.cfg-filter-btn:hover{border-color:rgba(var(--accent2-rgb),.6);transform:translateY(-1px)}.cfg-filter-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;max-height:100px;opacity:1;overflow:hidden;transform:none;transition:max-height .22s ease,opacity .18s ease,transform .22s ease}.cfg-filter-row.open{max-height:150px}.cfg-select{height:42px;min-width:0;border-radius:13px;border:1px solid rgba(var(--accent-rgb),.25);background:color-mix(in srgb, rgb(15 15 15 / .72) 92%, var(--accent));color:var(--t2);font:700 9px Vazirmatn,sans-serif;cursor:pointer;transition:.18s ease}.cfg-select b{color:#f8fbff;margin:0 5px}.cfg-select.on{border-color:rgba(var(--accent-rgb),.62);background:linear-gradient(135deg,rgba(var(--accent-rgb),.18),color-mix(in srgb, rgb(28 28 28 / .8) 88%, var(--accent)));box-shadow:0 7px 18px rgba(var(--accent-rgb),.08)}.cfg-filter-row .cfg-select:nth-child(n+3){display:none}.cfg-filter-row.open .cfg-select:nth-child(n+3){display:block}.cfg-list-shell{border:1px solid rgba(var(--accent-rgb),.23);border-radius:21px;background:linear-gradient(145deg,color-mix(in srgb, rgb(18 18 18 / .72) 92%, var(--accent)),color-mix(in srgb, rgb(9 9 9 / .76) 92%, var(--accent)));box-shadow:0 18px 42px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.045);overflow:hidden;padding-bottom:10px}.cfg-list-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border-bottom:1px solid rgba(var(--accent2-rgb),.12)}.cfg-list-head b{font-size:13px;color:#f8fbff}.cfg-list-head small{color:var(--t3);font-size:9px;margin-right:8px}.cfg-check-all{display:flex;align-items:center;gap:6px;color:var(--t3);font-size:9px;white-space:nowrap}.cfg-check-all input{width:15px;height:15px;accent-color:var(--accent)}.cfg-cards{padding:11px}.cfg-card{position:relative;display:grid;grid-template-columns:58px minmax(0,1fr) 190px 30px;align-items:center;gap:12px;padding:12px 10px;margin-bottom:9px;border:1px solid rgba(var(--accent-rgb),.38);border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb, rgb(20 20 20 / .92) 92%, var(--accent)),color-mix(in srgb, rgb(11 11 11 / .94) 92%, var(--accent)));box-shadow:inset 0 1px rgba(255,255,255,.035),0 9px 25px rgba(0,0,0,.16);transition:border-color .18s ease,box-shadow .18s ease}.cfg-card:last-child{margin-bottom:0}.cfg-card:hover{border-color:rgba(var(--accent2-rgb),.62);box-shadow:inset 0 1px rgba(255,255,255,.045),0 12px 30px rgba(0,0,0,.2)}.cfg-card.expired{border-color:rgba(255,45,112,.42)}.cfg-proto-icon{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:color-mix(in srgb, rgb(8 8 8 / .78) 92%, var(--accent));border:1px solid rgba(var(--accent-rgb),.48);overflow:hidden}.cfg-proto-icon img{width:100%;height:100%;object-fit:contain}.cfg-main{min-width:0}.cfg-name-row{display:flex;align-items:center;gap:7px;min-width:0}.cfg-name-row b{font-size:13px;color:#f8fbff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cfg-edit-dot{width:28px;height:28px;display:grid;place-items:center;flex:0 0 28px;border:1px solid rgba(var(--accent2-rgb),.18);border-radius:9px;background:rgba(var(--accent-rgb),.08);color:var(--accent2);cursor:pointer;transition:.18s ease}.cfg-edit-dot:hover{background:rgba(var(--accent-rgb),.16);border-color:rgba(var(--accent2-rgb),.45)}.cfg-proto{font-size:10px;color:var(--accent2);margin-top:3px}.cfg-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;color:color-mix(in srgb, rgb(162 162 162) 82%, var(--accent));font-size:9px}.cfg-meta span{display:inline-flex;gap:4px}.cfg-meta i{color:var(--accent2);font-style:normal}.cfg-side{border-right:1px solid rgba(var(--accent2-rgb),.12);padding-right:13px}.cfg-status{display:inline-flex;gap:5px;padding:5px 10px;border-radius:999px;font-size:9px;font-weight:900;background:rgba(16,185,129,.12);border:1px solid rgba(52,211,153,.27);color:#38e0ad}.cfg-status i{width:6px;height:6px;border-radius:50%;background:#34e3b0}.cfg-status.bad{background:rgba(255,31,92,.11);border-color:rgba(255,69,112,.35);color:#ff7198}.cfg-status.bad i{background:#ff5b83}.cfg-usage{display:flex;align-items:center;gap:7px;margin-top:9px}.cfg-usage-ring{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--purple) var(--pct),color-mix(in srgb, rgb(77 77 77 / .32) 82%, var(--accent)) 0);position:relative;flex:0 0 30px}.cfg-usage-ring:after{content:'';position:absolute;inset:5px;border-radius:50%;background:color-mix(in srgb, rgb(20 20 20) 92%, var(--accent))}.cfg-usage-ring span{position:relative;z-index:1;font-size:7px;color:#eaf4ff}.cfg-usage-copy{min-width:0}.cfg-usage-copy b{font-size:10px;color:#f1f6ff;white-space:nowrap}.cfg-usage-track{height:6px;width:110px;border-radius:99px;background:rgba(var(--accent-rgb),.45);overflow:hidden;margin-top:5px}.cfg-usage-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--purple),#ec35b8)}.cfg-menu-btn{width:32px;height:50px;border:1px solid transparent;border-radius:10px;background:rgba(var(--accent-rgb),.04);color:var(--accent2);font-size:24px;cursor:pointer;transition:.18s ease}.cfg-menu-btn:hover,.cfg-menu-btn:focus-visible{background:rgba(var(--accent-rgb),.12);border-color:rgba(var(--accent2-rgb),.2);outline:none}.cfg-menu{position:fixed;z-index:99999;width:236px;max-width:calc(100vw - 16px);padding:8px;border:1px solid rgba(var(--accent2-rgb),.38);border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb, rgb(25 25 25 / .96) 88%, var(--accent)),color-mix(in srgb, rgb(11 11 11 / .97) 92%, var(--accent)));box-shadow:0 24px 70px rgba(0,0,0,.66),0 0 35px rgba(var(--accent-rgb),.12),inset 0 1px rgba(255,255,255,.10);backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%);display:none}.cfg-menu.open{display:block;animation:cfgMenuIn .14s ease-out}.cfg-menu-head{padding:8px 10px 9px;margin-bottom:3px;border-bottom:1px solid rgba(var(--accent2-rgb),.10);display:flex;flex-direction:column;gap:2px}.cfg-menu-head span{font-size:12px;font-weight:900;color:#f7fbff}.cfg-menu-head small{font-size:8px;color:rgba(var(--accent2-rgb),.48)}.cfg-menu button{width:100%;height:43px;border:0;border-radius:11px;background:transparent;color:#e4efff;text-align:right;padding:0 13px;font:800 11px Vazirmatn,sans-serif;cursor:pointer;transition:.15s ease}.cfg-menu button:hover{background:rgba(var(--accent-rgb),.14);transform:translateX(-1px)}.cfg-menu button.danger{color:#ff7898}.cfg-menu button.danger:hover{background:rgba(255,45,95,.10)}.cfg-side-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.cfg-active-toggle{height:31px;min-width:78px;padding:0 10px;border-radius:999px;border:1px solid rgba(var(--accent-rgb),.38);background:linear-gradient(135deg,rgba(var(--accent-rgb),.20),rgba(var(--accent-rgb),.14));color:var(--accent2);display:inline-flex;align-items:center;justify-content:center;gap:6px;font:900 9px Vazirmatn,sans-serif;cursor:pointer;box-shadow:inset 0 1px rgba(255,255,255,.06),0 6px 18px rgba(var(--accent-rgb),.08);transition:.16s ease}.cfg-active-toggle:hover{transform:translateY(-1px);border-color:rgba(var(--accent2-rgb),.68);box-shadow:inset 0 1px rgba(255,255,255,.08),0 9px 24px rgba(var(--accent-rgb),.16)}.cfg-active-toggle.on{background:linear-gradient(135deg,var(--accent),var(--accent));border-color:rgba(var(--accent2-rgb),.78);color:#fff;box-shadow:0 8px 22px rgba(var(--accent-rgb),.22),inset 0 1px rgba(255,255,255,.16)}.cfg-active-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}.cfg-card:not(.expired) .cfg-active-toggle.on .cfg-active-dot{background:#fff;box-shadow:0 0 9px rgba(255,255,255,.8)}@keyframes cfgMenuIn{from{opacity:0;transform:translateY(-4px) scale(.985)}to{opacity:1;transform:none}}.cfg-card-check{position:absolute;left:9px;top:9px;z-index:2}.cfg-card-check input{width:15px;height:15px;accent-color:var(--accent)}.cfg-empty{text-align:center;padding:42px 20px;color:var(--t3);font-size:11px}.cfg-page-hero{padding:14px 16px;border-radius:22px;border:1px solid rgba(var(--accent2-rgb),.20);background:linear-gradient(135deg,color-mix(in srgb, rgb(41 41 41 / .46) 88%, var(--accent)),color-mix(in srgb, rgb(16 16 16 / .34) 92%, var(--accent)));box-shadow:0 16px 38px rgba(0,0,0,.14),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%)}.cfg-page-hero .page-title{font-size:21px;font-weight:950}.cfg-page-hero .page-sub{font-size:11px;line-height:1.8}.cfg-stat-card,.cfg-search-box,.cfg-filter-btn,.cfg-list-shell,.cfg-card{backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%)}.cfg-stat-card{background:linear-gradient(145deg,color-mix(in srgb, rgb(37 37 37 / .64) 88%, var(--accent)),color-mix(in srgb, rgb(14 14 14 / .58) 92%, var(--accent)));border-color:rgba(var(--accent2-rgb),.24);box-shadow:0 14px 34px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.07)}.cfg-search-box{background:linear-gradient(145deg,color-mix(in srgb, rgb(35 35 35 / .64) 88%, var(--accent)),color-mix(in srgb, rgb(12 12 12 / .56) 92%, var(--accent)));min-height:50px}.cfg-search-box input{font-size:13px}.cfg-filter-btn{background:linear-gradient(145deg,color-mix(in srgb, rgb(35 35 35 / .64) 88%, var(--accent)),color-mix(in srgb, rgb(12 12 12 / .56) 92%, var(--accent)))}.cfg-list-shell{background:linear-gradient(145deg,color-mix(in srgb, rgb(28 28 28 / .58) 88%, var(--accent)),color-mix(in srgb, rgb(10 10 10 / .62) 92%, var(--accent)));border-color:rgba(var(--accent2-rgb),.25);box-shadow:0 20px 48px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.08)}.cfg-list-head{padding:15px 17px}.cfg-list-head b{font-size:15px}.cfg-list-head small,.cfg-check-all{font-size:10px}.cfg-card{padding:14px 12px;border-radius:21px;background:linear-gradient(145deg,color-mix(in srgb, rgb(35 35 35 / .66) 88%, var(--accent)),color-mix(in srgb, rgb(13 13 13 / .68) 92%, var(--accent)));border-color:rgba(var(--accent2-rgb),.32);box-shadow:inset 0 1px rgba(255,255,255,.075),0 12px 32px rgba(0,0,0,.20)}.cfg-card:hover{box-shadow:inset 0 1px rgba(255,255,255,.10),0 16px 38px rgba(0,0,0,.24)}.cfg-name-row b{font-size:15px}.cfg-proto{font-size:11px}.cfg-meta{font-size:10px}.cfg-status{font-size:10px}.cfg-usage-copy b{font-size:11px}.cfg-list-head,.cfg-card{font-family:'Vazirmatn',sans-serif}.cfg-card-check input{width:18px;height:18px}.cfg-menu-btn{width:36px;height:54px;font-size:27px}.cfg-edit-dot{width:30px;height:30px;flex-basis:30px;font-size:15px}html.light .cfg-page-hero{background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(236,244,255,.62));border-color:rgba(var(--accent-rgb),.12);box-shadow:0 14px 36px rgba(var(--accent-rgb),.08),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-stat-card,html.light .cfg-search-box,html.light .cfg-filter-btn,html.light .cfg-list-shell{background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(239,246,255,.62));border-color:rgba(var(--accent-rgb),.14);box-shadow:0 12px 30px rgba(var(--accent-rgb),.07),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-card{background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(235,244,255,.72));border-color:rgba(var(--accent-rgb),.16);box-shadow:inset 0 1px rgba(255,255,255,.95),0 12px 28px rgba(var(--accent-rgb),.08)}html.light .cfg-name-row b,html.light .cfg-list-head b,html.light .cfg-stat-card b{color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent))}html.light .cfg-proto{color:var(--accent)}html.light .cfg-meta{color:color-mix(in srgb, rgb(114 114 114) 82%, var(--accent))}html.light .cfg-menu{background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(238,246,255,.96));border-color:rgba(var(--accent-rgb),.20);box-shadow:0 24px 70px color-mix(in srgb, rgb(23 23 23 / .20) 92%, var(--accent)),0 0 30px rgba(var(--accent-rgb),.08),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-menu-head span{color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent))}html.light .cfg-menu-head small{color:color-mix(in srgb, rgb(114 114 114) 82%, var(--accent))}html.light .cfg-menu button{color:var(--accent)}html.light .cfg-menu button:hover{background:rgba(var(--accent-rgb),.08)}@media(max-width:800px){.cfg-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cfg-card{grid-template-columns:50px minmax(0,1fr) 118px 32px;gap:8px}.cfg-proto-icon{width:48px;height:48px}.cfg-side{padding-right:8px}.cfg-usage-track{width:78px}}@media(max-width:560px){.cfg-page-hero{padding:12px 13px}.cfg-page-hero .page-title{font-size:18px}.cfg-page-hero .page-sub{font-size:10px}.cfg-stat-card small{font-size:9px}.cfg-card{padding:12px 10px}.cfg-name-row b{font-size:13px}.cfg-proto{font-size:9px}.cfg-meta{font-size:9px}.cfg-active-toggle{height:30px;min-width:74px;font-size:8px}.cfg-status{font-size:9px}.cfg-menu{width:min(250px,calc(100vw - 14px));padding:8px;border-radius:17px}.cfg-menu button{height:45px;font-size:11px}.cfg-menu-head span{font-size:12px}.cfg-menu-head small{font-size:8px}}@media(max-width:560px){.cfg-page-hero{align-items:flex-start}.cfg-hero-actions .btn{display:none}.cfg-primary-btn{height:38px;padding:0 11px;font-size:9px}.cfg-stat-card{min-height:78px;padding:9px}.cfg-stat-icon{width:32px;height:32px;flex-basis:32px;font-size:16px}.cfg-stat-card b{font-size:16px}.cfg-stat-card small{font-size:8px}.cfg-tools{gap:7px}.cfg-search-box,.cfg-filter-btn{height:43px}.cfg-filter-btn{width:43px;flex-basis:43px}.cfg-filter-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.cfg-filter-row.open{max-height:150px}.cfg-select{height:40px;font-size:8px}.cfg-card{grid-template-columns:43px minmax(0,1fr) 32px;align-items:start;padding:11px 9px;border-radius:17px}.cfg-proto-icon{width:43px;height:43px}.cfg-side{grid-column:2/-1;border-right:0;border-top:1px solid rgba(var(--accent2-rgb),.1);padding:8px 0 0;margin-top:2px}.cfg-menu-btn{grid-column:3;grid-row:1;width:32px;height:43px}.cfg-meta{font-size:8px;gap:8px}.cfg-name-row b{font-size:11px}.cfg-proto{font-size:8px}.cfg-edit-dot{width:26px;height:26px;flex-basis:26px}.cfg-list-head{padding:11px 12px}.cfg-cards{padding:9px}.cfg-menu{width:min(220px,calc(100vw - 16px))}.cfg-menu button{height:40px;font-size:10px}}
+\n.cfg-page-hero{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}.cfg-quick{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.cfg-quick button{height:32px;min-width:36px;padding:0 9px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:inherit;cursor:pointer;font-size:14px}.cfg-quick button.danger{color:#ff829c;border-color:rgba(255,130,156,.4)}.cfg-hero-actions{display:flex;gap:8px}.cfg-hero-actions .btn{height:42px;width:42px;padding:0;display:grid;place-items:center}.cfg-primary-btn{height:42px;padding:0 16px;border-radius:13px;border:1px solid rgba(var(--accent-rgb),.75);background:linear-gradient(135deg,var(--accent),var(--accent));color:#fff;font:900 11px Vazirmatn,sans-serif;box-shadow:0 10px 26px rgba(var(--accent-rgb),.24);cursor:pointer}.cfg-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}.cfg-stat-card{min-height:92px;padding:13px;border-radius:18px;border:1px solid rgba(var(--accent2-rgb),.24);background:linear-gradient(145deg,color-mix(in srgb, rgb(25 25 25 / .9) 88%, var(--accent)),color-mix(in srgb, rgb(11 11 11 / .86) 92%, var(--accent)));box-shadow:0 12px 28px rgba(0,0,0,.2);display:flex;align-items:center;gap:11px}.cfg-stat-icon{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:20px;font-weight:900;background:rgba(var(--accent-rgb),.12);border:1px solid rgba(var(--accent2-rgb),.28);color:var(--accent2)}.cfg-stat-card.purple .cfg-stat-icon{color:var(--purple)}.cfg-stat-card.blue .cfg-stat-icon{color:var(--accent2)}.cfg-stat-card.pink .cfg-stat-icon{color:var(--accent2)}.cfg-stat-card small{display:block;color:var(--t3);font-size:9px;margin-bottom:4px}.cfg-stat-card b{display:block;font-size:20px;color:#f8fbff}.cfg-tools{display:flex;gap:9px;margin-bottom:9px;align-items:stretch}.cfg-search-box{height:48px;flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid rgba(var(--accent-rgb),.3);border-radius:15px;background:linear-gradient(145deg,color-mix(in srgb, rgb(19 19 19 / .82) 92%, var(--accent)),color-mix(in srgb, rgb(9 9 9 / .68) 92%, var(--accent)));box-shadow:inset 0 1px rgba(255,255,255,.035)}.cfg-search-box>span{font-size:23px;color:var(--accent2);flex:0 0 auto}.cfg-search-box input{width:100%;min-width:0;border:0;outline:0;background:none;color:var(--t1);font:600 11px Vazirmatn,sans-serif}.cfg-filter-btn{width:48px;height:48px;flex:0 0 48px;border-radius:15px;border:1px solid rgba(var(--accent-rgb),.3);background:linear-gradient(145deg,color-mix(in srgb, rgb(19 19 19 / .82) 92%, var(--accent)),color-mix(in srgb, rgb(9 9 9 / .68) 92%, var(--accent)));color:var(--accent2);font-size:20px;cursor:pointer;transition:.18s ease}.cfg-filter-btn:hover{border-color:rgba(var(--accent2-rgb),.6);transform:translateY(-1px)}.cfg-filter-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;max-height:100px;opacity:1;overflow:hidden;transform:none;transition:max-height .22s ease,opacity .18s ease,transform .22s ease}.cfg-filter-row.open{max-height:150px}.cfg-select{height:42px;min-width:0;border-radius:13px;border:1px solid rgba(var(--accent-rgb),.25);background:color-mix(in srgb, rgb(15 15 15 / .72) 92%, var(--accent));color:var(--t2);font:700 9px Vazirmatn,sans-serif;cursor:pointer;transition:.18s ease}.cfg-select b{color:#f8fbff;margin:0 5px}.cfg-select.on{border-color:rgba(var(--accent-rgb),.62);background:linear-gradient(135deg,rgba(var(--accent-rgb),.18),color-mix(in srgb, rgb(28 28 28 / .8) 88%, var(--accent)));box-shadow:0 7px 18px rgba(var(--accent-rgb),.08)}.cfg-filter-row .cfg-select:nth-child(n+3){display:none}.cfg-filter-row.open .cfg-select:nth-child(n+3){display:block}.cfg-list-shell{border:1px solid rgba(var(--accent-rgb),.23);border-radius:21px;background:linear-gradient(145deg,color-mix(in srgb, rgb(18 18 18 / .72) 92%, var(--accent)),color-mix(in srgb, rgb(9 9 9 / .76) 92%, var(--accent)));box-shadow:0 18px 42px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.045);overflow:hidden;padding-bottom:10px}.cfg-list-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border-bottom:1px solid rgba(var(--accent2-rgb),.12)}.cfg-list-head b{font-size:13px;color:#f8fbff}.cfg-list-head small{color:var(--t3);font-size:9px;margin-right:8px}.cfg-check-all{display:flex;align-items:center;gap:6px;color:var(--t3);font-size:9px;white-space:nowrap}.cfg-check-all input{width:15px;height:15px;accent-color:var(--accent)}.cfg-cards{padding:11px}.cfg-card{position:relative;display:grid;grid-template-columns:58px minmax(0,1fr) 190px 30px;align-items:center;gap:12px;padding:12px 10px;margin-bottom:9px;border:1px solid rgba(var(--accent-rgb),.38);border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb, rgb(20 20 20 / .92) 92%, var(--accent)),color-mix(in srgb, rgb(11 11 11 / .94) 92%, var(--accent)));box-shadow:inset 0 1px rgba(255,255,255,.035),0 9px 25px rgba(0,0,0,.16);transition:border-color .18s ease,box-shadow .18s ease}.cfg-card:last-child{margin-bottom:0}.cfg-card:hover{border-color:rgba(var(--accent2-rgb),.62);box-shadow:inset 0 1px rgba(255,255,255,.045),0 12px 30px rgba(0,0,0,.2)}.cfg-card.expired{border-color:rgba(255,45,112,.42)}.cfg-proto-icon{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:color-mix(in srgb, rgb(8 8 8 / .78) 92%, var(--accent));border:1px solid rgba(var(--accent-rgb),.48);overflow:hidden}.cfg-proto-icon img{width:100%;height:100%;object-fit:contain}.cfg-main{min-width:0}.cfg-name-row{display:flex;align-items:center;gap:7px;min-width:0}.cfg-name-row b{font-size:13px;color:#f8fbff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cfg-edit-dot{width:28px;height:28px;display:grid;place-items:center;flex:0 0 28px;border:1px solid rgba(var(--accent2-rgb),.18);border-radius:9px;background:rgba(var(--accent-rgb),.08);color:var(--accent2);cursor:pointer;transition:.18s ease}.cfg-edit-dot:hover{background:rgba(var(--accent-rgb),.16);border-color:rgba(var(--accent2-rgb),.45)}.cfg-proto{font-size:10px;color:var(--accent2);margin-top:3px}.cfg-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;color:color-mix(in srgb, rgb(162 162 162) 82%, var(--accent));font-size:9px}.cfg-meta span{display:inline-flex;gap:4px}.cfg-meta i{color:var(--accent2);font-style:normal}.cfg-side{border-right:1px solid rgba(var(--accent2-rgb),.12);padding-right:13px}.cfg-status{display:inline-flex;gap:5px;padding:5px 10px;border-radius:999px;font-size:9px;font-weight:900;background:rgba(16,185,129,.12);border:1px solid rgba(52,211,153,.27);color:#38e0ad}.cfg-status i{width:6px;height:6px;border-radius:50%;background:#34e3b0}.cfg-status.bad{background:rgba(255,31,92,.11);border-color:rgba(255,69,112,.35);color:#ff7198}.cfg-status.bad i{background:#ff5b83}.cfg-usage{display:flex;align-items:center;gap:7px;margin-top:9px}.cfg-usage-ring{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--purple) var(--pct),color-mix(in srgb, rgb(77 77 77 / .32) 82%, var(--accent)) 0);position:relative;flex:0 0 30px}.cfg-usage-ring:after{content:'';position:absolute;inset:5px;border-radius:50%;background:color-mix(in srgb, rgb(20 20 20) 92%, var(--accent))}.cfg-usage-ring span{position:relative;z-index:1;font-size:7px;color:#eaf4ff}.cfg-usage-copy{min-width:0}.cfg-usage-copy b{font-size:10px;color:#f1f6ff;white-space:nowrap}.cfg-usage-track{height:6px;width:110px;border-radius:99px;background:rgba(var(--accent-rgb),.45);overflow:hidden;margin-top:5px}.cfg-usage-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--purple),#ec35b8)}.cfg-menu-btn{width:32px;height:50px;border:1px solid transparent;border-radius:10px;background:rgba(var(--accent-rgb),.04);color:var(--accent2);font-size:24px;cursor:pointer;transition:.18s ease}.cfg-menu-btn:hover,.cfg-menu-btn:focus-visible{background:rgba(var(--accent-rgb),.12);border-color:rgba(var(--accent2-rgb),.2);outline:none}.cfg-menu{position:fixed;z-index:99999;width:236px;max-width:calc(100vw - 16px);padding:8px;border:1px solid rgba(var(--accent2-rgb),.38);border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb, rgb(25 25 25 / .96) 88%, var(--accent)),color-mix(in srgb, rgb(11 11 11 / .97) 92%, var(--accent)));box-shadow:0 24px 70px rgba(0,0,0,.66),0 0 35px rgba(var(--accent-rgb),.12),inset 0 1px rgba(255,255,255,.10);backdrop-filter:blur(24px) saturate(145%);-webkit-backdrop-filter:blur(24px) saturate(145%);display:none}.cfg-menu.open{display:block;animation:cfgMenuIn .14s ease-out}.cfg-menu-head{padding:8px 10px 9px;margin-bottom:3px;border-bottom:1px solid rgba(var(--accent2-rgb),.10);display:flex;flex-direction:column;gap:2px}.cfg-menu-head span{font-size:12px;font-weight:900;color:#f7fbff}.cfg-menu-head small{font-size:8px;color:rgba(var(--accent2-rgb),.48)}.cfg-menu button{width:100%;height:43px;border:0;border-radius:11px;background:transparent;color:#e4efff;text-align:right;padding:0 13px;font:800 11px Vazirmatn,sans-serif;cursor:pointer;transition:.15s ease}.cfg-menu button:hover{background:rgba(var(--accent-rgb),.14);transform:translateX(-1px)}.cfg-menu button.danger{color:#ff7898}.cfg-menu button.danger:hover{background:rgba(255,45,95,.10)}.cfg-side-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.cfg-active-toggle{height:31px;min-width:78px;padding:0 10px;border-radius:999px;border:1px solid rgba(var(--accent-rgb),.38);background:linear-gradient(135deg,rgba(var(--accent-rgb),.20),rgba(var(--accent-rgb),.14));color:var(--accent2);display:inline-flex;align-items:center;justify-content:center;gap:6px;font:900 9px Vazirmatn,sans-serif;cursor:pointer;box-shadow:inset 0 1px rgba(255,255,255,.06),0 6px 18px rgba(var(--accent-rgb),.08);transition:.16s ease}.cfg-active-toggle:hover{transform:translateY(-1px);border-color:rgba(var(--accent2-rgb),.68);box-shadow:inset 0 1px rgba(255,255,255,.08),0 9px 24px rgba(var(--accent-rgb),.16)}.cfg-active-toggle.on{background:linear-gradient(135deg,var(--accent),var(--accent));border-color:rgba(var(--accent2-rgb),.78);color:#fff;box-shadow:0 8px 22px rgba(var(--accent-rgb),.22),inset 0 1px rgba(255,255,255,.16)}.cfg-active-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}.cfg-card:not(.expired) .cfg-active-toggle.on .cfg-active-dot{background:#fff;box-shadow:0 0 9px rgba(255,255,255,.8)}@keyframes cfgMenuIn{from{opacity:0;transform:translateY(-4px) scale(.985)}to{opacity:1;transform:none}}.cfg-card-check{position:absolute;left:9px;top:9px;z-index:2}.cfg-card-check input{width:15px;height:15px;accent-color:var(--accent)}.cfg-empty{text-align:center;padding:42px 20px;color:var(--t3);font-size:11px}.cfg-page-hero{padding:14px 16px;border-radius:22px;border:1px solid rgba(var(--accent2-rgb),.20);background:linear-gradient(135deg,color-mix(in srgb, rgb(41 41 41 / .46) 88%, var(--accent)),color-mix(in srgb, rgb(16 16 16 / .34) 92%, var(--accent)));box-shadow:0 16px 38px rgba(0,0,0,.14),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%)}.cfg-page-hero .page-title{font-size:21px;font-weight:950}.cfg-page-hero .page-sub{font-size:11px;line-height:1.8}.cfg-stat-card,.cfg-search-box,.cfg-filter-btn,.cfg-list-shell,.cfg-card{backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px) saturate(135%)}.cfg-stat-card{background:linear-gradient(145deg,color-mix(in srgb, rgb(37 37 37 / .64) 88%, var(--accent)),color-mix(in srgb, rgb(14 14 14 / .58) 92%, var(--accent)));border-color:rgba(var(--accent2-rgb),.24);box-shadow:0 14px 34px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.07)}.cfg-search-box{background:linear-gradient(145deg,color-mix(in srgb, rgb(35 35 35 / .64) 88%, var(--accent)),color-mix(in srgb, rgb(12 12 12 / .56) 92%, var(--accent)));min-height:50px}.cfg-search-box input{font-size:13px}.cfg-filter-btn{background:linear-gradient(145deg,color-mix(in srgb, rgb(35 35 35 / .64) 88%, var(--accent)),color-mix(in srgb, rgb(12 12 12 / .56) 92%, var(--accent)))}.cfg-list-shell{background:linear-gradient(145deg,color-mix(in srgb, rgb(28 28 28 / .58) 88%, var(--accent)),color-mix(in srgb, rgb(10 10 10 / .62) 92%, var(--accent)));border-color:rgba(var(--accent2-rgb),.25);box-shadow:0 20px 48px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.08)}.cfg-list-head{padding:15px 17px}.cfg-list-head b{font-size:15px}.cfg-list-head small,.cfg-check-all{font-size:10px}.cfg-card{padding:14px 12px;border-radius:21px;background:linear-gradient(145deg,color-mix(in srgb, rgb(35 35 35 / .66) 88%, var(--accent)),color-mix(in srgb, rgb(13 13 13 / .68) 92%, var(--accent)));border-color:rgba(var(--accent2-rgb),.32);box-shadow:inset 0 1px rgba(255,255,255,.075),0 12px 32px rgba(0,0,0,.20)}.cfg-card:hover{box-shadow:inset 0 1px rgba(255,255,255,.10),0 16px 38px rgba(0,0,0,.24)}.cfg-name-row b{font-size:15px}.cfg-proto{font-size:11px}.cfg-meta{font-size:10px}.cfg-status{font-size:10px}.cfg-usage-copy b{font-size:11px}.cfg-list-head,.cfg-card{font-family:'Vazirmatn',sans-serif}.cfg-card-check input{width:18px;height:18px}.cfg-menu-btn{width:36px;height:54px;font-size:27px}.cfg-edit-dot{width:30px;height:30px;flex-basis:30px;font-size:15px}html.light .cfg-page-hero{background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(236,244,255,.62));border-color:rgba(var(--accent-rgb),.12);box-shadow:0 14px 36px rgba(var(--accent-rgb),.08),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-stat-card,html.light .cfg-search-box,html.light .cfg-filter-btn,html.light .cfg-list-shell{background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(239,246,255,.62));border-color:rgba(var(--accent-rgb),.14);box-shadow:0 12px 30px rgba(var(--accent-rgb),.07),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-card{background:linear-gradient(145deg,rgba(255,255,255,.82),rgba(235,244,255,.72));border-color:rgba(var(--accent-rgb),.16);box-shadow:inset 0 1px rgba(255,255,255,.95),0 12px 28px rgba(var(--accent-rgb),.08)}html.light .cfg-name-row b,html.light .cfg-list-head b,html.light .cfg-stat-card b{color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent))}html.light .cfg-proto{color:var(--accent)}html.light .cfg-meta{color:color-mix(in srgb, rgb(114 114 114) 82%, var(--accent))}html.light .cfg-menu{background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(238,246,255,.96));border-color:rgba(var(--accent-rgb),.20);box-shadow:0 24px 70px color-mix(in srgb, rgb(23 23 23 / .20) 92%, var(--accent)),0 0 30px rgba(var(--accent-rgb),.08),inset 0 1px rgba(255,255,255,.95)}html.light .cfg-menu-head span{color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent))}html.light .cfg-menu-head small{color:color-mix(in srgb, rgb(114 114 114) 82%, var(--accent))}html.light .cfg-menu button{color:var(--accent)}html.light .cfg-menu button:hover{background:rgba(var(--accent-rgb),.08)}@media(max-width:800px){.cfg-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cfg-card{grid-template-columns:50px minmax(0,1fr) 118px 32px;gap:8px}.cfg-proto-icon{width:48px;height:48px}.cfg-side{padding-right:8px}.cfg-usage-track{width:78px}}@media(max-width:560px){.cfg-page-hero{padding:12px 13px}.cfg-page-hero .page-title{font-size:18px}.cfg-page-hero .page-sub{font-size:10px}.cfg-stat-card small{font-size:9px}.cfg-card{padding:12px 10px}.cfg-name-row b{font-size:13px}.cfg-proto{font-size:9px}.cfg-meta{font-size:9px}.cfg-active-toggle{height:30px;min-width:74px;font-size:8px}.cfg-status{font-size:9px}.cfg-menu{width:min(250px,calc(100vw - 14px));padding:8px;border-radius:17px}.cfg-menu button{height:45px;font-size:11px}.cfg-menu-head span{font-size:12px}.cfg-menu-head small{font-size:8px}}@media(max-width:560px){.cfg-page-hero{align-items:flex-start}.cfg-hero-actions .btn{display:none}.cfg-primary-btn{height:38px;padding:0 11px;font-size:9px}.cfg-stat-card{min-height:78px;padding:9px}.cfg-stat-icon{width:32px;height:32px;flex-basis:32px;font-size:16px}.cfg-stat-card b{font-size:16px}.cfg-stat-card small{font-size:8px}.cfg-tools{gap:7px}.cfg-search-box,.cfg-filter-btn{height:43px}.cfg-filter-btn{width:43px;flex-basis:43px}.cfg-filter-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.cfg-filter-row.open{max-height:150px}.cfg-select{height:40px;font-size:8px}.cfg-card{grid-template-columns:43px minmax(0,1fr) 32px;align-items:start;padding:11px 9px;border-radius:17px}.cfg-proto-icon{width:43px;height:43px}.cfg-side{grid-column:2/-1;border-right:0;border-top:1px solid rgba(var(--accent2-rgb),.1);padding:8px 0 0;margin-top:2px}.cfg-menu-btn{grid-column:3;grid-row:1;width:32px;height:43px}.cfg-meta{font-size:8px;gap:8px}.cfg-name-row b{font-size:11px}.cfg-proto{font-size:8px}.cfg-edit-dot{width:26px;height:26px;flex-basis:26px}.cfg-list-head{padding:11px 12px}.cfg-cards{padding:9px}.cfg-menu{width:min(220px,calc(100vw - 16px))}.cfg-menu button{height:40px;font-size:10px}}
 /* ============================================================\n   ONEX THEME ENFORCER — SECONDARY PAGES + NESTED COMPONENTS\n   This block intentionally comes last so old hard-coded dashboard\n   colors cannot win over the selected global theme.\n   ============================================================ */\n\n/* DARK: login glass recipe applied to every structural surface. */\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric,\nhtml:not(.light) .page .table-wrap,\nhtml:not(.light) .page .support-tile,\nhtml:not(.light) .page .link-box,\nhtml:not(.light) .page .sub-box,\nhtml:not(.light) .page .quick-item,\nhtml:not(.light) .page .range-tabs,\nhtml:not(.light) .page .range-mini,\nhtml:not(.light) .page .mini-action,\nhtml:not(.light) .page .chart-badge,\nhtml:not(.light) .page .health-track,\nhtml:not(.light) .page .xray-state,\nhtml:not(.light) .page .recent-table,\nhtml:not(.light) .page .recent-table th,\nhtml:not(.light) .page .recent-table td,\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,color-mix(in srgb, rgb(21 21 21 / .78) 92%, var(--accent)),color-mix(in srgb, rgb(8 8 8 / .68) 92%, var(--accent))) !important;\n  border-color:rgba(var(--accent2-rgb),.18) !important;\n  box-shadow:inset 0 1px rgba(255,255,255,.055),inset 0 0 32px rgba(var(--accent-rgb),.035),0 14px 38px rgba(0,0,0,.18) !important;\n  backdrop-filter:blur(25px) saturate(120%) !important;\n  -webkit-backdrop-filter:blur(25px) saturate(120%) !important;\n}\nhtml:not(.light) .page .card,\nhtml:not(.light) .page .metric{\n  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px rgba(255,255,255,.075),inset 0 0 38px rgba(var(--accent-rgb),.045) !important;\n}\nhtml:not(.light) .page .field input,\nhtml:not(.light) .page .field select,\nhtml:not(.light) .page .field textarea{\n  background:linear-gradient(145deg,color-mix(in srgb, rgb(10 10 10 / .68) 92%, var(--accent)),color-mix(in srgb, rgb(13 13 13 / .52) 92%, var(--accent))) !important;\n  color:#f8fbff !important;\n}\nhtml:not(.light) .page .page-title,\nhtml:not(.light) .page .card-title,\nhtml:not(.light) .page .metric-val,\nhtml:not(.light) .page .quick-name{color:#f8fbff !important}\nhtml:not(.light) .page .page-sub,\nhtml:not(.light) .page .field label,\nhtml:not(.light) .page .metric-label,\nhtml:not(.light) .page .quick-desc{color:rgba(248,250,252,.55) !important}\n\n/* Preserve intentional accent controls/badges in dark mode. */\nhtml:not(.light) .page .btn-p,\nhtml:not(.light) .page .btn-d,\nhtml:not(.light) .page .range-tab.on,\nhtml:not(.light) .page .conn-badge,\nhtml:not(.light) .page .support-icon,\nhtml:not(.light) .page .quick-icon,\nhtml:not(.light) .page .metric-icon{\n  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\n\n/* LIGHT: every structural panel becomes pure white, not gray. */\nhtml.light .page,\nhtml.light .page.on{color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent)) !important}\nhtml.light .page .card,\nhtml.light .page .metric,\nhtml.light .page .table-wrap,\nhtml.light .page .support-tile,\nhtml.light .page .link-box,\nhtml.light .page .sub-box,\nhtml.light .page .quick-item,\nhtml.light .page .range-tabs,\nhtml.light .page .range-mini,\nhtml.light .page .mini-action,\nhtml.light .page .chart-badge,\nhtml.light .page .health-track,\nhtml.light .page .xray-state,\nhtml.light .page .recent-table,\nhtml.light .page .recent-table th,\nhtml.light .page .recent-table td,\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea,\nhtml.light .page .onex-topbar,\nhtml.light .page .onex-control-dock,\nhtml.light .page .onex-card,\nhtml.light .page .onex-metric{\n  background:#fff !important;\n  color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent)) !important;\n  border-color:color-mix(in srgb, rgb(23 23 23 / .10) 92%, var(--accent)) !important;\n  box-shadow:0 10px 30px color-mix(in srgb, rgb(23 23 23 / .07) 92%, var(--accent)),inset 0 1px rgba(255,255,255,.98) !important;\n  backdrop-filter:none !important;\n  -webkit-backdrop-filter:none !important;\n}\nhtml.light .page .field input,\nhtml.light .page .field select,\nhtml.light .page .field textarea{\n  background:#fff !important;color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent)) !important;border-color:color-mix(in srgb, rgb(23 23 23 / .14) 92%, var(--accent)) !important;\n}\nhtml.light .page .page-title,\nhtml.light .page .card-title,\nhtml.light .page .metric-val,\nhtml.light .page .quick-name,\nhtml.light .page .support-val{color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent)) !important}\nhtml.light .page .page-sub,\nhtml.light .page .field label,\nhtml.light .page .metric-label,\nhtml.light .page .quick-desc,\nhtml.light .page .support-label,\nhtml.light .page .log-time,\nhtml.light .page .health-name,\nhtml.light .page .health-pct{color:color-mix(in srgb, rgb(114 114 114) 82%, var(--accent)) !important}\nhtml.light .page .log-msg{color:color-mix(in srgb, rgb(63 63 63) 88%, var(--accent)) !important}\nhtml.light .page .onex-card-head,\nhtml.light .page .sb-foot{border-color:color-mix(in srgb, rgb(23 23 23 / .08) 92%, var(--accent)) !important}\nhtml.light .page th{background:#fff !important;color:color-mix(in srgb, rgb(114 114 114) 82%, var(--accent)) !important}\nhtml.light .page td{background:#fff !important;color:color-mix(in srgb, rgb(63 63 63) 88%, var(--accent)) !important;border-color:color-mix(in srgb, rgb(23 23 23 / .08) 92%, var(--accent)) !important}\nhtml.light .page tr:hover td{background:#f8fafc !important}\n\n/* Inline background declarations on secondary pages: normalize containers\n   while leaving action buttons, badges and icons untouched. */\nhtml.light .page div[style*="background:"],\nhtml.light .page section[style*="background:"],\nhtml.light .page article[style*="background:"],\nhtml.light .page aside[style*="background:"]{\n  background:#fff !important;\n  color:inherit;\n}\nhtml:not(.light) .page div[style*="background:"],\nhtml:not(.light) .page section[style*="background:"],\nhtml:not(.light) .page article[style*="background:"],\nhtml:not(.light) .page aside[style*="background:"]{\n  background:linear-gradient(145deg,color-mix(in srgb, rgb(21 21 21 / .78) 92%, var(--accent)),color-mix(in srgb, rgb(8 8 8 / .68) 92%, var(--accent))) !important;\n}\n/* Re-apply accent colors to controls after the broad inline rule. */\nhtml.light .page .btn-p{background:linear-gradient(135deg,var(--accent),var(--purple)) !important;color:#fff !important;border-color:transparent !important}\nhtml.light .page .btn-d{background:rgba(239,68,68,.08) !important;color:#dc2626 !important;border-color:rgba(239,68,68,.20) !important}\nhtml.light .page .range-tab.on{background:var(--accent) !important;color:#fff !important}\nhtml.light .page .switch .slider{background:color-mix(in srgb, rgb(161 161 161 / .35) 82%, var(--accent)) !important}\nhtml.light .page .switch input:checked + .slider{background:#16a34a !important}\nhtml.light .page .quick-icon,\nhtml.light .page .support-icon,\nhtml.light .page .metric-icon{background:#f1f5f9 !important}\n\n/* Drawer and mobile top bar use exactly the same theme surfaces. */\nhtml.light .sidebar,html.light .mob-bar{\n  background:#fff !important;color:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent)) !important;border-color:color-mix(in srgb, rgb(23 23 23 / .10) 92%, var(--accent)) !important;\n  box-shadow:0 18px 50px color-mix(in srgb, rgb(23 23 23 / .12) 92%, var(--accent)) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;\n}\nhtml:not(.light) .sidebar,html:not(.light) .mob-bar{\n  background:linear-gradient(145deg,color-mix(in srgb, rgb(21 21 21 / .78) 92%, var(--accent)),color-mix(in srgb, rgb(8 8 8 / .68) 92%, var(--accent))) !important;\n}\n\n/* Theme switch itself is instant enough that pages never look half-painted. */\nhtml,body,.sidebar,.mob-bar,.main,.page,.page .card,.page .metric,.page .onex-card,.page .onex-metric,\n.page .field input,.page .field select,.page .field textarea,.page .table-wrap,.page .link-box,.page .sub-box{\n  transition:background-color .12s ease,background .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease !important;\n}\n/* ============================================================
    LIGHT STATIC 3D PROTOCOL PICKER
    ============================================================ */
@@ -10072,7 +10457,7 @@ html.light .onex-topbar-brand{background:#fff;border-color:rgba(var(--accent-rgb
 }
 @media(max-width:390px){.onex-mobile-mark{width:35px;height:35px;flex-basis:35px}.onex-mobile-copy .onex-brand-word{font-size:16px}}
 
-/* ONEX 1.3.9 FINAL BRAND LAYOUT — matches approved clean mockup */
+/* ONEX 1.5.0 FINAL BRAND LAYOUT — matches approved clean mockup */
 .onex-brand-sub,.onex-mobile-copy .onex-brand-sub,.onex-sidebar-copy .onex-brand-sub,.onex-topbar-copy .onex-brand-sub{display:none!important}
 
 /* Sidebar: compact glass header with full ONEX wordmark. */
@@ -10140,6 +10525,13 @@ html.light .onex-topbar-brand{background:#fff;border-color:rgba(var(--accent-rgb
 #page-dash{--bg:#070a12;--surface:color-mix(in srgb, rgb(23 23 23) 92%, var(--accent));--surface2:color-mix(in srgb, rgb(34 34 34) 88%, var(--accent));--line:rgba(var(--accent2-rgb),.16);--text:#eff7ff;--muted:color-mix(in srgb, rgb(175 175 175) 82%, var(--accent));--dim:color-mix(in srgb, rgb(125 125 125) 82%, var(--accent));--p:#38d9ff;--s:#8b5cf6;--ok:#48e39d;--warn:#ffc857;--bad:var(--accent2);--sb:272px;--ease:cubic-bezier(.16,1,.3,1)}
 #page-dash button{font:inherit;color:inherit;cursor:pointer}#page-dash canvas{display:block}#page-dash .mono{font-family:"JetBrains Mono",monospace;direction:ltr}#page-dash .glass{background:linear-gradient(145deg,color-mix(in srgb, rgb(37 37 37 / .88) 88%, var(--accent)),color-mix(in srgb, rgb(15 15 15 / .9) 92%, var(--accent)));border:1px solid var(--line);box-shadow:0 18px 50px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.06);backdrop-filter:blur(18px);border-radius:22px}#page-dash .badge{margin-inline-start:auto;color:var(--p);font:700 11px "JetBrains Mono"}#page-dash .bars{position:relative;width:20px;height:20px;display:block;margin:auto}#page-dash .bars i{position:absolute;left:1px;right:1px;height:2.5px;border-radius:4px;background:color-mix(in srgb, rgb(18 18 18) 92%, var(--accent));transition:transform .5s var(--ease),opacity .2s}#page-dash .bars i:nth-child(1){top:4px}#page-dash .bars i:nth-child(2){top:9px}#page-dash .bars i:nth-child(3){top:14px}@keyframes spin{to{transform:rotate(360deg)}}#page-dash .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 12px var(--ok);flex:none}#page-dash .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-areas:"hero hero chart chart" "dock dock chart chart" "metrics metrics metrics metrics" "health telegram recent recent" "info quick recent recent";gap:16px}#page-dash .area{min-width:0}#page-dash .hero{grid-area:hero;padding:24px;display:flex;flex-direction:column;gap:14px}#page-dash .hero h1{font-size:clamp(25px,3vw,37px);line-height:1.35;margin:0}#page-dash .hero h1 span{color:var(--p)}#page-dash .hero p{margin:0;color:var(--muted);font-size:13px}#page-dash .versions{display:flex;gap:9px;flex-wrap:wrap}#page-dash .version{padding:9px 12px;border:1px solid var(--line);background:rgba(0,0,0,.18);border-radius:11px;font-size:11px;color:var(--muted)}#page-dash .version b{color:var(--text);font:700 12px "JetBrains Mono";direction:ltr;margin-inline-start:5px}#page-dash .alert{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,200,87,.35);background:rgba(255,200,87,.08);border-radius:12px;color:var(--muted);font-size:12px}#page-dash .alert b{color:var(--warn)}#page-dash .alert button{margin-inline-start:auto;border:0;background:var(--warn);color:#17120a;border-radius:8px;padding:7px 10px;font-weight:800;font-size:11px}#page-dash .actions{display:flex;gap:9px}#page-dash .primary{border:0!important;background:linear-gradient(135deg,var(--p),var(--s))!important;color:color-mix(in srgb, rgb(18 18 18) 92%, var(--accent))!important;font-weight:900}#page-dash .hero .actions button{padding:11px 15px;border-radius:12px}#page-dash .dock{grid-area:dock;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px}#page-dash .dock button{display:flex;align-items:center;gap:10px;text-align:start;padding:13px;border-radius:15px;border:1px solid var(--line);background:rgba(255,255,255,.035);transition:transform .25s var(--ease),border-color .2s}#page-dash .dock button:hover{transform:translateY(-3px);border-color:rgba(var(--accent2-rgb),.5)}#page-dash .dock strong{display:block;font-size:12.5px}#page-dash .dock small{display:block;color:var(--dim);font:10px "JetBrains Mono";margin-top:3px}#page-dash .icon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:rgba(var(--accent2-rgb),.13);color:var(--p);font-weight:900;flex:none}#page-dash .metrics{grid-area:metrics;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;padding:1px}#page-dash .metric{padding:19px;border-inline-end:1px solid var(--line)}#page-dash .metric:last-child{border:0}#page-dash .metric label{display:block;color:var(--muted);font-size:12px}#page-dash .metric strong{display:block;font:700 25px "JetBrains Mono";direction:ltr;margin-top:8px}#page-dash .metric small{color:var(--dim);font-size:11px}#page-dash .chart{grid-area:chart;padding:20px}#page-dash .head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}#page-dash .head h2{font-size:15px;margin:0}#page-dash .range{display:flex;gap:3px;padding:3px;border-radius:9px;background:rgba(0,0,0,.2)}#page-dash .range button{border:0;background:transparent;color:var(--muted);border-radius:7px;padding:6px 8px;font-size:11px}#page-dash .range button.active{background:rgba(var(--accent2-rgb),.18);color:var(--text)}#page-dash #traffic{width:100%;height:230px}#page-dash .health{grid-area:health;padding:20px}#page-dash .rows{display:grid;gap:13px}#page-dash .healthrow{display:grid;grid-template-columns:38px 1fr 40px;gap:10px;align-items:center}#page-dash .healthrow .tag{height:30px;border-radius:9px;background:rgba(var(--accent2-rgb),.1);border:1px solid rgba(var(--accent2-rgb),.25);display:grid;place-items:center;color:var(--p);font:700 10px "JetBrains Mono"}#page-dash .track{height:6px;background:rgba(255,255,255,.08);border-radius:9px;overflow:hidden}#page-dash .track i{display:block;height:100%;width:var(--w);background:linear-gradient(90deg,var(--p),var(--s));border-radius:inherit}#page-dash .healthrow label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}#page-dash .healthrow b{font:600 11px "JetBrains Mono";direction:ltr}#page-dash .telegram{grid-area:telegram;padding:20px;display:flex;flex-direction:column;justify-content:space-between;background:radial-gradient(circle at 50% 0,rgba(var(--accent2-rgb),.18),transparent 44%),linear-gradient(145deg,color-mix(in srgb, rgb(45 45 45 / .9) 88%, var(--accent)),color-mix(in srgb, rgb(16 16 16 / .95) 92%, var(--accent)))}#page-dash .tgmark{width:82px;height:82px;border-radius:50%;margin:5px auto 16px;display:grid;place-items:center;background:linear-gradient(145deg,var(--accent),var(--accent));box-shadow:0 0 35px rgba(var(--accent-rgb),.5);font-size:35px}#page-dash .telegram h3{text-align:center;font-size:14px;margin:0}#page-dash .telegram p{text-align:center;color:var(--muted);font-size:11px;margin:5px 0 17px}#page-dash .telegram a{display:block;text-align:center;text-decoration:none;color:#fff;background:var(--accent);border-radius:11px;padding:10px;font-size:12px;font-weight:800}#page-dash .recent{grid-area:recent;padding:20px}#page-dash .table{display:grid;gap:0}#page-dash .tr{display:grid;grid-template-columns:1.2fr 1fr 1.2fr 70px 42px;gap:12px;align-items:center;padding:13px 8px;border-bottom:1px solid var(--line);font-size:12px}#page-dash .tr.headrow{color:var(--dim);font-size:10px}#page-dash .tr:last-child{border:0}#page-dash .proto{color:var(--muted);font:11px "JetBrains Mono";direction:ltr}#page-dash .usage .bar{height:5px;background:rgba(255,255,255,.08);border-radius:8px;margin-top:6px;overflow:hidden}#page-dash .usage i{display:block;height:100%;background:var(--p);width:var(--w);border-radius:8px}#page-dash .quick{grid-area:quick;padding:20px}#page-dash .quicklist{display:grid;gap:9px}#page-dash .quickitem{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.03);font-size:12px}#page-dash .quickitem:hover{border-color:rgba(var(--accent2-rgb),.4)}#page-dash .info{grid-area:info;padding:20px}#page-dash .kv{display:grid;grid-template-columns:auto 1fr;gap:11px;font-size:11px}#page-dash .kv dt{color:var(--dim)}#page-dash .kv dd{margin:0;text-align:left;direction:ltr;color:var(--muted);font-family:"JetBrains Mono";overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media(max-width:1150px){#page-dash .grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"hero hero" "dock dock" "metrics metrics" "chart chart" "health telegram" "recent recent" "quick info"}}@media(max-width:800px){#page-dash .open .sidebar{transform:none}#page-dash .grid{grid-template-columns:1fr;grid-template-areas:"hero" "dock" "metrics" "chart" "health" "telegram" "recent" "quick" "info"}#page-dash .metrics{grid-template-columns:1fr 1fr}#page-dash .metric{border-bottom:1px solid var(--line)}#page-dash .dock{grid-template-columns:1fr}#page-dash .picker{display:none}}
 
+
+/* ---- desktop cleanup + fixed IP/ECH boxes ---- */
+@media (min-width:901px){.top-actions{display:none!important}.mob-menu-btn{display:none!important}.onex-control-dock{display:none!important}}
+.onex-control-dock,.onex-3d-control{display:none!important}
+.onex-topbar{position:relative;z-index:50;background:#15182a!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.es-ico{position:relative;z-index:1}
+#esIp,#echDomains,#echDns{height:96px!important;min-height:96px!important;max-height:96px!important;resize:vertical;overflow:auto}
 </style>
 </head>
 <body>
@@ -10194,6 +10586,22 @@ html.light .onex-topbar-brand{background:#fff;border-color:rgba(var(--accent-rgb
       <svg class="nav-ico nav-ico-telegram" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m6.5 12 11-4-3.2 8-2.1-3-3.2-1Z"/><path d="m12.2 13 2.1-2.2"/></svg>
       <span class="nav-label" data-i18n="nav_telegram">ربات ONEX</span>
     </button>
+    <button class="nav-item" data-page="sell" data-perm="telegram">
+      <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18l-1.5 10h-15Z"/><path d="M8 9V6a4 4 0 0 1 8 0v3"/></svg>
+      <span class="nav-label">فروشگاه</span>
+    </button>
+    <div class="nav-cloudflare" data-perm="settings">
+      <button class="nav-item nav-cloudflare-toggle" type="button" aria-expanded="false" aria-controls="cloudflareNavMenu">
+        <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 9a4 4 0 0 1 0 9Z"/></svg>
+        <span class="nav-label">Cloudflare</span><span class="nav-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="nav-cloudflare-menu" id="cloudflareNavMenu" hidden>
+        <button class="nav-item nav-subitem" type="button" data-page="edge-account" data-anchor="" data-perm="settings"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 20c.5-3.7 2.4-5.7 5.5-5.7s5 2 5.5 5.7"/><path d="M17 8v6M14 11h6"/></svg><span class="nav-label">ساخت اکانت کلودفلر</span></button>
+        <button class="nav-item nav-subitem" type="button" data-page="edge-config" data-anchor="" data-perm="settings"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 7v5c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V7l8-4Z"/><path d="M8 12h8M12 8v8"/></svg><span class="nav-label">ساخت کانفیگ کلودفلر</span></button>
+        <button class="nav-item nav-subitem" type="button" data-page="edge-tools" data-anchor="" data-perm="settings"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 5 5M11 8v6M8 11h6"/></svg><span class="nav-label">اسکنر کلودفلر</span></button>
+        <button class="nav-item nav-subitem" type="button" data-page="edge-sni" data-anchor="" data-perm="settings"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12s2.7-5 8-5 8 5 8 5-2.7 5-8 5-8-5-8-5Z"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v2M12 19v2"/></svg><span class="nav-label">اسکنر Sni</span></button>
+      </div>
+    </div>
     <button class="nav-item" data-page="news" data-perm="news">
       <svg class="nav-ico nav-ico-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 8h8M8 12h5M8 16h8"/><path d="m15 12 1.5 1.5L19 11"/></svg>
       <span class="nav-label" data-i18n="nav_news">اخبـار</span>
@@ -10220,6 +10628,13 @@ html.light .onex-topbar-brand{background:#fff;border-color:rgba(var(--accent-rgb
   </div>
 </aside>
 
+<style id="onex-mobile-topbar-final">
+@media (max-width:640px){
+  .onex-topbar{display:flex!important;align-items:center;justify-content:center;height:auto!important;min-height:0!important;width:100%;max-width:100%;box-sizing:border-box;padding:10px!important;margin-bottom:10px;overflow:hidden}
+  .onex-topbar-brand{display:flex!important;justify-content:center;min-width:0!important;margin:0 auto}
+  .top-server,.top-actions,.hexa-swatches,.top-setting-group,.top-chip,.top-avatar,.top-notify,.top-bell{display:none!important}
+}
+</style>
 <main class="main" id="main">
 
 <div class="onex-topbar">
@@ -10508,17 +10923,18 @@ html.light #page-configs .ocx-menu{background:color-mix(in srgb,var(--o-a) 6%,rg
     <div class="cfgx-card">
       <div class="cfgx-head"><span class="cfgx-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg></span><div><b>🚀 انتخاب پروتکل</b><small>پروتکل اصلی کانفیگ - ۶ پروتکل ONEX VIP</small></div><span class="cfgx-badge" id="cfgxProtoBadge">—</span></div>
       <div class="cfgx-proto-grid" id="cfgxProtoGrid"><div class="cfgx-empty">در حال بارگذاری پروتکل‌ها...</div></div>
-      <label class="all-proto-toggle cfgx-all-toggle" style="margin:10px 0 12px">
-        <span><b>ساخت همه پروتکل‌های Railway</b><small>یک کانفیگ بساز و هر ۶ پروتکل ONEX را داخل یک ساب قرار بده</small></span>
-        <input id="cAllProtocols" type="checkbox">
-        <i aria-hidden="true"></i>
-      </label>
+
     </div>
 
     <div class="cfgx-card">
       <div class="cfgx-head"><span class="cfgx-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M17.5 14v7M14 17.5h7"/></svg></span><div><b>🔀 ترکیب پروتکل‌ها</b><small>هر تعداد پروتکل که انتخاب کنی، همه داخل یک ساب ساخته می‌شوند · ۶ پروتکل ONEX VIP</small></div><span class="cfgx-badge" id="cfgxBundleBadge">0</span></div>
       <div id="protocolBundleOptions" class="cfgx-bundle"></div>
       <small class="cfgx-note">پروتکل اصلی خودکار داخل ترکیب قرار می‌گیرد.</small>
+      <label class="all-proto-toggle cfgx-all-toggle cdn-opt-toggle" hidden style="display:none!important;margin:12px 0 0">
+        <span><b>⚡ بهینه‌ساز کانفیگ ONEX VIP</b><small>Cipher Suites (cs) + FinalMask (fm) روی همه‌ی پروتکل‌های VLESS و Trojan این ترکیب اعمال می‌شود</small></span>
+        <input id="cCdnOpt" type="checkbox" onchange="syncCdnOpt(this)">
+        <i aria-hidden="true"></i>
+      </label>
     </div>
 
     <div class="cfgx-card">
@@ -10841,6 +11257,265 @@ Cache-Control: no-cache"></textarea></div>
   </div>
 </section>
 
+<section class="page" id="page-sell">
+  <div class="page-head"><div><div class="page-title"><span>ربات فروش کانفیگ</span></div><div class="page-sub">مدیریت فروش، پرداخت و پلن‌ها در یک‌جا.</div></div></div>
+  <style id="onex-store-ui">
+    #page-sell .store-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}.store-kicker{font:800 10px "JetBrains Mono",monospace;letter-spacing:.14em;color:var(--accent2);direction:ltr}.store-head h2{margin:5px 0;font-size:22px}.store-head p{margin:0;color:var(--t3);font-size:11px}.store-state{padding:8px 11px;border-radius:99px;background:rgba(34,197,94,.1);color:#42e3a5;font-size:10px;white-space:nowrap}.store-state.off{background:rgba(244,63,94,.1);color:#fb7185}.store-tabs{display:flex;gap:6px;padding:5px;margin:14px 0;background:rgba(var(--accent-rgb),.07);border-radius:14px}.store-tabs button{flex:1;border:0;border-radius:10px;padding:10px 6px;background:transparent;color:var(--t3);font:700 11px Vazirmatn;cursor:pointer}.store-tabs button.on{background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;box-shadow:0 8px 18px rgba(var(--accent-rgb),.25)}.store-panel{display:none}.store-panel.on{display:block}.store-hero,.store-checks,.store-stats,.store-box{padding:14px;border:1px solid var(--card-b);border-radius:17px;background:rgba(var(--accent-rgb),.035)}.store-hero{display:flex;justify-content:space-between;align-items:center;gap:12px}.store-hero h3{margin:5px 0;font-size:16px}.store-hero p{margin:0;color:var(--t3);font-size:10px}.store-mini{font:800 10px Vazirmatn;color:var(--accent2)}.store-switch input{display:none}.store-switch i{display:block;width:48px;height:28px;border-radius:99px;background:var(--card-b);padding:3px}.store-switch input:checked+i{background:linear-gradient(135deg,var(--accent),var(--purple))}.store-switch i:after{content:"";display:block;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}.store-switch input:checked+i:after{transform:translateX(-20px)}.store-checks{display:grid;gap:7px;margin-top:10px}.store-check{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid var(--card-b);border-radius:12px;background:rgba(0,0,0,.08)}.store-check b{display:block;font-size:11px}.store-check small{display:block;color:var(--t3);font-size:9px;margin-top:2px}.store-check i{width:25px;height:25px;border-radius:8px;display:grid;place-items:center;background:rgba(34,197,94,.12);color:#42e3a5;font-style:normal}.store-check.warn i{background:rgba(245,158,11,.12);color:#fbbf24}.store-check button{margin-right:auto;border:0;border-radius:8px;padding:6px 9px;background:rgba(var(--accent-rgb),.12);color:var(--accent2);font:700 10px Vazirmatn}.store-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.store-stats div{padding:10px;text-align:center;border:1px solid var(--card-b);border-radius:11px;background:rgba(0,0,0,.07)}.store-stats b,.store-stats small{display:block}.store-stats b{font:800 17px "JetBrains Mono";color:var(--accent2)}.store-stats small{color:var(--t3);font-size:8px;margin-top:3px}.store-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.store-form .field{margin:0}.store-form .wide{grid-column:1/-1}.store-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.store-actions .btn{margin:0}.store-plan-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.store-plan-list{display:grid;gap:8px;margin-top:12px}.store-plan{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--card-b);border-radius:14px;background:rgba(0,0,0,.08)}.store-plan .stripe{width:5px;align-self:stretch;border-radius:5px;background:var(--accent2)}.store-plan b,.store-plan strong,.store-plan small{display:block}.store-plan b{font-size:11px}.store-plan strong{font:800 17px "JetBrains Mono";margin:5px 0}.store-plan strong small{display:inline;font:500 9px Vazirmatn;color:var(--t3)}.store-plan span{color:var(--t3);font-size:9px}.store-plan .plan-actions{margin-right:auto;display:flex;gap:5px}.store-plan .plan-actions button{border:0;border-radius:8px;padding:6px 8px;background:rgba(var(--accent-rgb),.12);color:var(--accent2);font:700 9px Vazirmatn}.store-preview{display:grid;grid-template-columns:285px minmax(0,1fr);gap:20px;align-items:center}.store-phone{border:7px solid #171322;border-radius:26px;overflow:hidden;background:#f7f1fb;box-shadow:0 15px 30px rgba(0,0,0,.22)}.store-phone-head{display:flex;justify-content:space-between;padding:12px;background:#282036;color:#fff;font-size:11px}.store-chat{padding:11px;display:grid;gap:7px;min-height:280px}.store-bubble,.store-buy{border:1px solid #e7d9ef;border-radius:12px;background:#fff;padding:10px;text-align:right;color:#493957;font:11px Vazirmatn}.store-buy{display:flex;justify-content:space-between;align-items:center;cursor:pointer}.store-buy small{display:block;color:#9785a2;font-size:9px}.store-buy strong{font:800 10px "JetBrains Mono";color:#a258d5}.store-support{text-align:center;color:#9988a5;font-size:9px}@media(max-width:650px){#page-sell .store-head{display:block}.store-state{display:inline-block;margin-top:8px}.store-tabs{overflow:auto}.store-tabs button{min-width:76px}.store-form{grid-template-columns:1fr}.store-preview{grid-template-columns:1fr}.store-phone{width:285px;margin:auto}.store-form .wide{grid-column:auto}}
+  </style>
+  <div class="card">
+    <div class="store-head"><div><div class="store-kicker">ONEX CONFIG SALES BOT</div><h2>ربات فروش کانفیگ</h2><p>فروش، پرداخت و پلن‌ها در یک‌جا</p></div><span id="sellStatePill" class="store-state">● فروشگاه فعال</span></div>
+    <div class="store-tabs"><button class="on" type="button" onclick="sellTab('overview')">وضعیت</button><button type="button" onclick="sellTab('payment')">پرداخت</button><button type="button" onclick="sellTab('plans')">پلن‌ها</button><button type="button" onclick="sellTab('messages')">پیام‌ها</button><button type="button" onclick="sellTab('preview')">پیش‌نمایش</button></div>
+    <div id="sellTabOverview" class="store-panel on"><div class="store-hero"><div><span class="store-mini">وضعیت راه‌اندازی</span><h3>فروشگاهت آماده‌ی فروشه؟</h3><p>وضعیت ربات و اطلاعات فروش را یک‌جا ببین.</p></div><label class="store-switch"><input type="checkbox" id="sellEnabled" onchange="sellSaveSettings()"><i></i></label></div><div class="store-checks"><div class="store-check"><i>✓</i><div><b>توکن ربات ثبت شده</b><small id="sellBotNote">در حال بررسی...</small></div></div><div class="store-check"><i>✓</i><div><b>اطلاعات پرداخت</b><small>کارت و لینک پرداخت قابل تنظیم است</small></div></div><div class="store-check warn"><i>!</i><div><b>پیام خوش‌آمدگویی</b><small>اختیاری، اما برای فروش بهتر پیشنهاد می‌شود</small></div><button type="button" onclick="sellTab('messages')">تکمیل</button></div></div><div class="store-stats"><div><b id="sellActivePlanCount">۰</b><small>پلن فعال</small></div><div><b id="sellTodayOrders">۰</b><small>سفارش امروز</small></div><div><b id="sellStartPrice">رایگان</b><small>قیمت شروع</small></div></div></div>
+    <div id="sellTabPayment" class="store-panel"><div class="store-box"><div class="card-title">اطلاعات پرداخت</div><p class="page-sub">این اطلاعات برای مشتری قبل از پرداخت نمایش داده می‌شود.</p><div class="store-form" style="margin-top:12px"><div class="field"><label>شماره کارت</label><input id="sellCard" dir="ltr" placeholder="6037 9918 1234 5678"></div><div class="field"><label>به نام</label><input id="sellHolder"></div><div class="field"><label>بانک</label><input id="sellBank"></div><div class="field"><label>لینک پرداخت <small>(اختیاری)</small></label><input id="sellPayUrl" dir="ltr" placeholder="https://..."></div><div class="field"><label>آیدی پشتیبانی <small>(بدون @)</small></label><input id="sellSupport" dir="ltr" placeholder="support"></div><div class="field"><label>هشدار انقضا <small>(روز قبل)</small></label><input id="sellWarnDays" type="number" min="0" max="30" value="2"></div><div class="field wide"><label>متن راهنمای پرداخت</label><input id="sellPayNote"></div></div><div class="store-actions"><button class="btn btn-p" type="button" onclick="sellSaveSettings(true)">ذخیره اطلاعات پرداخت</button></div></div></div>
+    <div id="sellTabPlans" class="store-panel"><div class="store-box"><div class="store-plan-head"><div><div class="card-title">پلن‌های فروش</div><p class="page-sub">پلن‌ها را ساده و قابل‌فروش نگه دار.</p></div><button class="btn btn-p btn-sm" type="button" onclick="document.getElementById('sellPlanForm').hidden=!document.getElementById('sellPlanForm').hidden">+ افزودن پلن</button></div><div id="sellPlanForm" class="store-form" hidden style="margin-top:12px"><div class="field"><label>نام پلن</label><input id="plName" placeholder="یک ماهه ۳۰ گیگ"></div><div class="field"><label>قیمت (تومان)</label><input id="plPrice" type="number" min="0"></div><div class="field"><label>حجم (گیگ)</label><input id="plGb" type="number" min="0" step="0.1"></div><div class="field"><label>مدت (روز)</label><input id="plDays" type="number" min="0" value="30"></div><div class="field"><label>محدودیت IP</label><input id="plIp" type="number" min="0" value="0"></div><div class="field"><label>پروتکل</label><select id="plProto"></select><div id="plProtoChecks" class="store-checks" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div></div><div class="wide store-actions"><button class="btn btn-p btn-sm" type="button" onclick="sellAddPlan()">ذخیره پلن</button></div></div><div id="sellPlans" class="store-plan-list"></div></div></div>
+    <div id="sellTabMessages" class="store-panel"><div class="store-box"><div class="card-title">پیام‌ها و پشتیبانی</div><p class="page-sub">متن‌هایی که مشتری در ربات می‌بیند.</p><div class="field" style="margin-top:12px"><label>متن خوش‌آمد فروشگاه</label><textarea id="sellWelcome" rows="4" placeholder="به فروشگاه ONEX خوش آمدید. یک پلن مناسب انتخاب کنید:"></textarea></div><div class="store-actions"><button class="btn btn-p" type="button" onclick="sellSaveSettings(true)">ذخیره پیام‌ها</button></div></div></div>
+    <div id="sellTabPreview" class="store-panel"><div class="store-box store-preview"><div class="store-phone"><div class="store-phone-head"><span>‹</span><b>ONEX Bot</b><span>⋮</span></div><div class="store-chat"><div class="store-bubble"><b>سلام 👋</b><br>به فروشگاه ربات فروش کانفیگ خوش آمدید.<br><small>یک پلن مناسب انتخاب کنید:</small></div><div id="sellPreviewPlans"></div><div class="store-support">پشتیبانی: @support</div></div></div><div><span class="store-mini">پیش‌نمایش مشتری</span><h3>همین چیزی است که مشتری می‌بیند</h3><p class="page-sub">قبل از فعال‌سازی، مسیر خرید را چک کن.</p></div></div></div>
+  </div>
+  <div class="card"><div class="card-title">سفارش‌ها <small id="sellSummary" class="page-sub"></small></div><div id="sellOrders"></div></div>
+</section>
+
+<style id="onex-edge-guide">
+#page-edge{width:100%;max-width:1120px;margin-inline:auto;min-width:0;box-sizing:border-box}
+#page-edge *{box-sizing:border-box}
+#page-edge .edge-hero{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 0 16px}
+#page-edge .edge-hero .page-title{font-size:22px;font-weight:900;line-height:1.5}
+#page-edge .edge-hero .page-sub{margin-top:4px;color:var(--t3);font-size:12px;line-height:1.8}
+.edge-mark{flex:none;width:74px;height:74px;display:grid;place-items:center;border-radius:22px;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;box-shadow:0 10px 28px rgba(var(--accent-rgb),.25)}
+.edge-mark svg{width:39px;height:39px}
+.edge-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,.55fr);gap:13px;align-items:start}
+.edge-card{width:100%;padding:16px;border:1px solid var(--card-b);border-radius:18px;background:rgba(var(--accent-rgb),.035);min-width:0}
+.edge-card+.edge-card,.edge-layout+.edge-card{margin-top:13px}
+.edge-card h3{margin:0 0 12px;font-size:16px;font-weight:900;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.edge-card h3 small{color:var(--t3);font-size:10px;font-weight:500}
+.edge-status{padding:11px 12px;border-radius:12px;background:rgba(var(--accent-rgb),.07);border:1px solid rgba(var(--accent-rgb),.18);color:var(--t2);font-size:11px;line-height:1.8;overflow-wrap:anywhere}
+.edge-status.ok{border-color:rgba(34,197,94,.35);color:#6ee7b7;background:rgba(34,197,94,.07)}
+.edge-status.err{border-color:rgba(244,63,94,.35);color:#fda4af;background:rgba(244,63,94,.07)}
+.edge-status.busy{border-color:rgba(245,158,11,.35);color:#fcd34d}
+.edge-token-help{display:flex;gap:9px;align-items:flex-start;padding:11px 12px;margin:10px 0;border-radius:12px;background:rgba(99,102,241,.08);border:1px solid rgba(129,140,248,.22);color:var(--t2);font-size:11px;line-height:1.85}
+.edge-token-help b{color:var(--t1);direction:ltr;unicode-bidi:isolate}
+.edge-token-help a{color:var(--accent2);font-weight:800;text-decoration:none}
+.edge-token-help svg{width:17px;height:17px;flex:none;color:var(--accent2);margin-top:2px}
+.edge-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+#page-edge .field{min-width:0}
+#page-edge .field label{display:block;margin-bottom:6px;color:var(--t2);font-size:11px}
+#page-edge .field label small{color:var(--t3)}
+#page-edge input:not([type=checkbox]):not([type=radio]),#page-edge select,#page-edge textarea{width:100%;max-width:100%;min-width:0}
+.edge-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:11px}
+.edge-actions .btn{width:100%;min-width:0;min-height:42px;white-space:normal;line-height:1.4}
+.edge-actions .edge-del{grid-column:1/-1}
+.edge-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.edge-metric{padding:12px;border-radius:13px;background:var(--bg3);border:1px solid var(--card-b);min-width:0}
+.edge-metric span{display:block;color:var(--t3);font-size:10px}
+.edge-metric b{display:block;margin-top:7px;font-size:21px;color:var(--t1);overflow-wrap:anywhere;direction:ltr;text-align:end}
+.edge-metric b.small{font-size:12px}
+.edge-metric b.good{color:#4ade80}.edge-metric b.bad{color:#fb7185}
+.edge-choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.edge-choice label{position:relative;display:block;padding:12px;border:1px solid var(--card-b);border-radius:13px;cursor:pointer;transition:.2s}
+.edge-choice label.on,.edge-choice label:has(input:checked){border-color:var(--accent);background:rgba(var(--accent-rgb),.1)}
+.edge-choice input{position:absolute;opacity:0;pointer-events:none}
+.edge-choice strong{display:block;font-size:12px;color:var(--t1)}
+.edge-choice small{display:block;color:var(--t3);font-size:10px;line-height:1.7;margin-top:4px}
+.edge-insub{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--t1);cursor:pointer}
+.edge-insub input{width:18px;height:18px;accent-color:var(--accent)}
+.edge-scan-box{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr) auto;gap:8px;align-items:end}
+.edge-scan-box .btn,.edge-manual .btn{min-height:42px;white-space:nowrap}
+.edge-manual{display:flex;gap:8px;align-items:center;margin-top:9px}
+.edge-manual input{flex:1}
+.edge-test-result{margin-top:9px;padding:10px;border-radius:11px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:#86efac;font-size:11px;line-height:1.8;display:none;overflow-wrap:anywhere}
+.edge-test-result.show{display:block}.edge-test-result.err{background:rgba(244,63,94,.08);border-color:rgba(244,63,94,.25);color:#fda4af}
+.edge-res-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.edge-res-head h3{margin:0}
+.edge-res-btns{display:flex;gap:6px;flex-wrap:wrap}
+.edge-filter{display:flex;align-items:center;gap:8px;margin:11px 0}
+.edge-filter input{flex:1}
+.edge-muted{color:var(--t3);font-size:10px;line-height:1.7}
+.edge-table-wrap{max-height:430px;overflow:auto;border:1px solid var(--card-b);border-radius:12px;-webkit-overflow-scrolling:touch}
+.edge-table-head,.edge-ip-row{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,.8fr) minmax(0,.85fr) minmax(0,.7fr) 48px;gap:8px;align-items:center;padding:9px 11px}
+.edge-table-head{position:sticky;top:0;background:var(--bg3);color:var(--t3);font-size:10px;z-index:1}
+.edge-ip-row{border-top:1px solid var(--card-b);font-size:11px;cursor:pointer;transition:background .15s}
+.edge-ip-row:hover{background:rgba(var(--accent-rgb),.05)}
+.edge-ip-row.sel{background:rgba(var(--accent-rgb),.09)}
+.edge-ip-row code{direction:ltr;text-align:left;overflow-wrap:anywhere;color:var(--t1)}
+.edge-ip-row .ms{direction:ltr;color:var(--t2)}
+.edge-ip-row .ms.fast{color:#4ade80}.edge-ip-row .ms.mid{color:#fbbf24}.edge-ip-row .ms.slow{color:#fb7185}
+.edge-ip-row .lbl{display:none}
+.edge-check{width:20px;height:20px;accent-color:var(--accent);justify-self:center}
+.edge-pill{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:4px 8px;font-size:9px;white-space:nowrap;width:max-content}
+.edge-pill.ok{color:#4ade80;background:rgba(34,197,94,.1)}.edge-pill.bad{color:#fb7185;background:rgba(244,63,94,.1)}
+.edge-apply{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;padding:12px;border-radius:13px;border:1px solid rgba(var(--purple-rgb),.22);background:rgba(var(--purple-rgb),.06)}
+.edge-apply p{margin:3px 0 0;color:var(--t3);font-size:11px}.edge-apply b{color:var(--t1)}
+.edge-sni-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.edge-sni-head p{margin:5px 0 0}
+.edge-sni-badge{flex:none;padding:7px 10px;border-radius:99px;color:var(--accent2);background:rgba(var(--accent-rgb),.1);border:1px solid rgba(var(--accent-rgb),.25);font:700 10px "JetBrains Mono",monospace;white-space:nowrap;direction:ltr}
+.edge-sni-grid{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:12px;margin-top:10px}
+.edge-sni-grid textarea{min-height:104px;resize:vertical;direction:ltr;text-align:left}
+.edge-sni-side{display:flex;flex-direction:column;gap:8px}
+.edge-sni-side>label{color:var(--t2);font-size:11px}
+.edge-sni-info{display:flex;justify-content:space-between;gap:8px;padding:10px;border-radius:10px;background:var(--bg3);border:1px solid var(--card-b);font-size:10px}
+.edge-sni-info span{color:var(--t3)}.edge-sni-info b{color:var(--t1);direction:ltr}
+.edge-sni-side .btn{min-height:42px}
+.edge-sni-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px}
+.edge-sni-results{display:grid;gap:7px;margin-top:10px;max-height:360px;overflow:auto}
+.edge-sni-result{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--card-b);border-radius:11px;background:rgba(var(--accent-rgb),.045)}
+.edge-sni-result code{direction:ltr;text-align:left;color:var(--accent2);overflow-wrap:anywhere}
+.edge-sni-result .tags{display:flex;gap:5px;flex-wrap:wrap;font-size:10px}
+.edge-sni-result .tag{padding:3px 7px;border-radius:99px;background:var(--bg3);color:var(--t3);direction:ltr}
+.edge-sni-result .tag.on{color:#4ade80;background:rgba(34,197,94,.1)}
+.edge-sni-result.bad{opacity:.75}
+.edge-sni-result .btn{min-height:30px}
+#page-edge .btn.busy{opacity:.65;pointer-events:none;cursor:wait}
+#page-edge .btn.busy::before{content:"";display:inline-block;width:11px;height:11px;margin-inline-end:6px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:edgeSpin .7s linear infinite;vertical-align:-1px}
+@keyframes edgeSpin{to{transform:rotate(360deg)}}
+@media(max-width:900px){
+ .edge-layout{grid-template-columns:1fr}
+ .edge-sni-grid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+ html,body{max-width:100%;overflow-x:hidden}
+ #page-edge{padding-inline:0}
+ #page-edge .edge-hero{padding:8px 0 12px;align-items:flex-start}
+ #page-edge .edge-hero .page-title{font-size:18px}
+ #page-edge .edge-hero .page-sub{font-size:11px}
+ .edge-mark{width:54px;height:54px;border-radius:16px}.edge-mark svg{width:28px;height:28px}
+ .edge-card{padding:13px;border-radius:16px}
+ .edge-row,.edge-scan-box{grid-template-columns:1fr}
+ .edge-actions{grid-template-columns:1fr 1fr}
+ .edge-actions .btn-p{grid-column:1/-1;order:-1}
+ .edge-manual{flex-direction:column;align-items:stretch}
+ .edge-res-btns{display:grid;grid-template-columns:1fr 1fr;width:100%}
+ .edge-res-btns .btn{width:100%;min-height:38px}
+ .edge-table-wrap{max-height:none;border:0;overflow:visible}
+ .edge-table-head{display:none}
+ #edgeIpRows{display:grid;gap:8px}
+ .edge-ip-row{grid-template-columns:1fr auto;grid-template-areas:"ip chk" "loc st" "ms ms";gap:6px 10px;padding:11px 12px;border:1px solid var(--card-b);border-radius:12px;background:var(--bg3)}
+ .edge-ip-row code{grid-area:ip;font-size:13px}
+ .edge-ip-row .loc{grid-area:loc}
+ .edge-ip-row .st{grid-area:st;justify-self:end}
+ .edge-ip-row .ms{grid-area:ms}
+ .edge-ip-row .edge-check{grid-area:chk}
+ .edge-ip-row .lbl{display:inline;color:var(--t3);font-size:10px;margin-inline-end:4px}
+ .edge-apply{flex-direction:column;align-items:stretch}
+ .edge-apply .btn{width:100%;min-height:44px}
+ .edge-sni-head{flex-direction:column-reverse;gap:8px}
+ .edge-sni-actions .btn{flex:1;min-height:38px}
+ .edge-sni-actions .edge-muted{width:100%}
+ .edge-sni-result{grid-template-columns:1fr auto;}
+ .edge-sni-result .tags{grid-column:1/-1}
+ #page-edge input:not([type=checkbox]):not([type=radio]),#page-edge select,#page-edge textarea{font-size:16px;min-height:44px}
+}
+</style>
+<style id="onex-edge-fix4">
+/* inputs/buttons inherit the panel font (no more system handwriting font) */
+#page-edge input,#page-edge select,#page-edge textarea,#page-edge button{font-family:Vazirmatn,system-ui,sans-serif}
+#page-edge input[dir=ltr],#page-edge textarea[dir=ltr]{font-family:"JetBrains Mono",ui-monospace,monospace}
+#page-edge input:not([type=checkbox]):not([type=radio]),#page-edge select,#page-edge textarea{height:44px;padding:0 12px;border-radius:12px;box-sizing:border-box;line-height:1.4}
+#page-edge textarea{height:auto;padding:10px 12px}
+#page-edge input::placeholder,#page-edge textarea::placeholder{font-family:Vazirmatn,system-ui,sans-serif;font-size:12px;opacity:.6}
+#page-edge input[dir=ltr]::placeholder{text-align:right}
+.edge-filter{flex-wrap:nowrap}
+.edge-filter input{min-width:0}
+.edge-filter #edgeResultCount{white-space:nowrap;flex:none}
+.edge-manual input{min-width:0}
+.edge-actions .btn{height:44px;min-height:44px}
+@media(max-width:640px){
+ .edge-actions{display:flex;flex-direction:column;gap:8px}
+ .edge-actions .btn,.edge-actions .edge-del{width:100%;display:flex;justify-content:center;align-items:center;order:0}
+ .edge-actions .btn-p{order:-1}
+ .edge-actions #edgeBtnTest{order:1}
+ .edge-filter{flex-wrap:wrap}
+ .edge-filter #edgeResultCount{width:100%;text-align:start}
+ .edge-manual{flex-direction:column;align-items:stretch;gap:8px}
+ .edge-manual .btn{width:100%}
+ .edge-scan-box{gap:10px}
+}
+</style>
+<section class="page" id="page-edge">
+  <div class="edge-hero">
+    <div><div class="page-title"><span>ساخت کانفیگ کلودفلر با پنل ONEX</span></div><div class="page-sub">اتصال واقعی به Cloudflare، انتخاب دامنه، اسکن IP و اعمال مستقیم روی اشتراک‌ها.</div></div>
+    <div class="edge-mark" aria-label="Cloudflare Edge"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 35h22a8 8 0 0 0 1-16 13 13 0 0 0-24-2 9 9 0 0 0 1 18Z"/><path d="m18 27 5 5 9-10"/></svg></div>
+  </div>
+  <div class="edge-layout">
+    
+    
+  </div>
+<style id="onex-edge-sub-css">
+.es{margin-top:13px;border:1px solid var(--card-b);border-radius:20px;padding:16px;background:rgba(var(--accent-rgb),.035);min-width:0;box-sizing:border-box}
+.es *{box-sizing:border-box}
+.es-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.es-ico{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;flex:none}
+.es-ico svg{width:19px;height:19px}
+.es-title{font-size:15px;font-weight:800;color:var(--t1)}
+.es-sub{font-size:11px;color:var(--t3);margin-top:3px;line-height:1.7}
+.es-pill{margin-inline-start:auto;font-size:10px;padding:4px 10px;border-radius:99px;background:rgba(34,197,94,.12);color:#4ade80;font-weight:700;white-space:nowrap}
+.es-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.es-kpi{padding:11px 12px;border-radius:14px;background:var(--bg3);border:1px solid var(--card-b);min-width:0}
+.es-kpi span{display:block;font-size:10px;color:var(--t3)}
+.es-kpi b{display:block;margin-top:6px;font-size:17px;color:var(--t1);direction:ltr;text-align:start;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.es-grid{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:14px;margin-top:14px;align-items:start}
+.es-panel{padding:14px;border-radius:16px;border:1px solid var(--card-b);background:var(--bg3);min-width:0}
+.es-panel h4{margin:0 0 4px;font-size:13px;font-weight:800;color:var(--t1)}
+.es-lbl{font-size:11px;color:var(--t3);margin:14px 0 7px;font-weight:600}
+.es-seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;border-radius:13px;background:var(--card)}
+.es-seg button,.es-chips button{min-height:36px;padding:6px 2px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--t2);font:600 11px var(--font-sans,inherit);cursor:pointer;font-family:inherit;transition:.2s}
+.es-seg button.on,.es-chips button.on{background:linear-gradient(90deg,var(--accent),var(--purple));color:#fff;font-weight:800}
+.es-chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.es-chips button{border-color:var(--card-b);background:var(--card)}
+.es-num{display:flex;align-items:center;gap:6px;height:44px;padding:0 6px;border-radius:12px;background:var(--card);border:1px solid var(--card-b)}
+.es-num input{flex:1;min-width:0;height:100%;text-align:center;background:transparent;border:0;color:var(--t1);font-family:var(--mono);font-size:16px;font-weight:700;outline:none;padding:0}
+.es-num button{width:32px;height:32px;flex:none;border-radius:9px;border:1px solid var(--card-b);background:transparent;color:var(--t1);cursor:pointer;font-size:16px;line-height:1}
+.es-build{width:100%;min-height:46px;margin-top:14px;border-radius:14px;border:0;background:linear-gradient(90deg,var(--accent),var(--purple));color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit}
+.es-build:disabled{opacity:.6;cursor:wait}
+.es-lanes{display:grid;gap:9px;min-width:0}
+.es-lane{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border-radius:15px;background:var(--bg3);border:1px solid var(--card-b);min-width:0}
+.es-lane.off{opacity:.55}
+.es-code{width:44px;height:36px;border-radius:11px;display:grid;place-items:center;font:700 10px var(--mono);color:#fff;background:linear-gradient(135deg,var(--accent),var(--purple))}
+.es-name{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;font-weight:800;color:var(--t1);min-width:0}
+.es-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr}
+.es-name small{font-weight:500;color:var(--t3);font-size:11px;white-space:nowrap}
+.es-bar{height:6px;border-radius:9px;background:var(--card-b);margin-top:8px;overflow:hidden}
+.es-bar i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--accent),var(--purple))}
+.es-bar i.hot{background:var(--amber)}
+.es-meta{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:11px;color:var(--t3)}
+.es-meta b{font-family:var(--mono);font-weight:500;color:var(--t2);direction:ltr}
+.es-side{display:flex;flex-direction:column;align-items:center;gap:8px}
+.es-tog{width:42px;height:24px;border-radius:99px;border:0;position:relative;cursor:pointer;background:var(--accent);flex:none}
+.es-tog::after{content:"";position:absolute;top:4px;left:22px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s}
+.es-tog.off{background:var(--card-b)}
+.es-tog.off::after{left:4px}
+.es-del{background:none;border:0;color:var(--red);font-size:11px;cursor:pointer;padding:2px 0;font-family:inherit}
+.es-empty{padding:26px 14px;text-align:center;font-size:12px;color:var(--t3);border:1px dashed var(--card-b);border-radius:14px}
+.es-count{font-size:11px;color:var(--t3)}
+@media(max-width:800px){
+  .es-grid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .es{padding:13px;border-radius:18px}
+  .es-kpis{gap:6px}
+  .es-kpi{padding:9px}
+  .es-kpi b{font-size:14px}
+  .es-kpi span{font-size:9px}
+  .es-chips{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .es-seg{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .es-lane{grid-template-columns:40px minmax(0,1fr) auto;gap:9px;padding:11px}
+  .es-code{width:40px;height:34px}
+  .es-num input{font-size:16px}
+}
+</style>
+
+
+  
+  
+  
+</section>
+<style id="onex-cloudflare-nav-css">
+.nav-cloudflare{position:relative}.nav-cloudflare-toggle{width:100%;position:relative}.nav-chevron{margin-inline-start:auto;font-size:18px;line-height:1;opacity:.75;transition:transform .25s ease}.nav-cloudflare.open .nav-chevron{transform:rotate(180deg);color:var(--accent2)}
+.nav-cloudflare-menu{display:grid;gap:5px;margin:4px 8px 8px 18px;padding:6px;border-inline-start:1px solid rgba(var(--accent-rgb),.32);border-radius:0 12px 12px 0;background:rgba(var(--accent-rgb),.045)}.nav-cloudflare-menu[hidden]{display:none}.nav-cloudflare-menu .nav-subitem{min-height:38px;padding:0 10px 0 12px;border-radius:10px;font-size:11px;background:transparent}.nav-cloudflare-menu .nav-subitem:hover{background:rgba(var(--accent-rgb),.12)}.nav-cloudflare-menu .nav-subitem.on{background:linear-gradient(90deg,rgba(var(--accent-rgb),.2),rgba(var(--accent2-rgb),.12));box-shadow:inset 2px 0 var(--accent)}.nav-subitem .nav-ico{width:17px;height:17px}.sidebar.collapsed .nav-cloudflare-menu{position:absolute;inset-inline-start:calc(100% + 8px);top:0;width:230px;margin:0;padding:8px;border:1px solid var(--card-b);border-inline-start:1px solid var(--accent);border-radius:14px;background:var(--bg2);box-shadow:0 18px 40px rgba(0,0,0,.32);z-index:20}@media(max-width:640px){.nav-cloudflare-menu{margin-inline-start:10px}.nav-cloudflare-menu .nav-subitem{min-height:42px;font-size:12px}}
+</style>
+<style id="onex-cloudflare-section-focus">
+.cf-dedicated-page{width:100%;max-width:1120px;margin-inline:auto}.cf-dedicated-page .cf-block{display:block!important}
+</style>
+<style id="onex-panel-mobile-edge-fix">@media(max-width:640px){html,body{max-width:100%;overflow-x:hidden}.page{width:100%;max-width:100%;box-sizing:border-box}.onex-topbar,.mob-bar{min-height:58px;height:auto;max-height:72px;box-sizing:border-box}.onex-topbar{padding:8px 10px!important}.mob-bar{padding:8px 10px!important}.onex-topbar .top-brand,.mob-bar .mob-brand{max-width:55vw;overflow:hidden}.onex-topbar .top-brand img,.mob-bar img{max-width:145px;height:auto}.onex-topbar .top-actions,.mob-bar .mob-actions{gap:5px}.onex-topbar button,.mob-bar button{min-width:40px;min-height:40px}.page-head{max-width:100%;overflow:hidden}.card{max-width:100%;box-sizing:border-box}.form-row,.g2{grid-template-columns:1fr!important}.field input,.field select,.field textarea{max-width:100%;box-sizing:border-box}.edge-card{overflow:hidden}.edge-table-wrap{max-width:100%;-webkit-overflow-scrolling:touch}.edge-sni-card{margin-bottom:12px!important}}
+</style>
 <section class="page" id="page-theme">
   <div class="page-head">
     <div>
@@ -13207,18 +13882,34 @@ function applyLang(){
 }
 function setLang(l){lang=l;localStorage.setItem('px_lang',l);applyLang();toast(l==='fa'?'زبان فارسی':'English')}
 
+function refreshThemeLabels(){
+  const isL=document.documentElement.classList.contains('light');
+  ['themeLabel','homeThemeLbl'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=isL?t('theme_dark'):t('theme_light')});
+}
+function currentThemeMode(){
+  try{const s=JSON.parse(localStorage.getItem('onex_theme_v2')||'{}');if(s&&s.mode)return s.mode}catch(e){}
+  return document.documentElement.classList.contains('light')?'light':'dark';
+}
 function setTheme(mode){
-  if(mode==='light') document.documentElement.classList.add('light');
+  mode=mode==='light'?'light':'dark';
+  let saved={};try{saved=JSON.parse(localStorage.getItem('onex_theme_v2')||'{}')}catch(e){}
+  if(saved&&saved.p&&typeof setOnexThemeMode==='function'){setOnexThemeMode(mode)}
+  else if(typeof applyOnexTheme==='function'&&typeof ONEX_THEMES!=='undefined'){
+    const key=ONEX_THEMES.aurora?'aurora':'blue';
+    applyOnexTheme(key,{...ONEX_THEMES[key],mode});
+    if(typeof updateThemeModeButtons==='function')updateThemeModeButtons(mode);
+  }
+  else if(mode==='light') document.documentElement.classList.add('light');
   else document.documentElement.classList.remove('light');
   localStorage.setItem('px_theme',mode);
   try{localStorage.setItem('onex_display_mode',mode)}catch(e){}
+  refreshThemeLabels();
   applyLang();
 }
 function toggleTheme(){
-  const isLight=document.documentElement.classList.contains('light');
-  setTheme(isLight?'dark':'light');
+  setTheme(currentThemeMode()==='light'?'dark':'light');
 }
-(function(){const th=localStorage.getItem('px_theme')||'dark';setTheme(th)})();
+(function(){document.documentElement.classList.toggle('light',currentThemeMode()==='light')})();
 
 
 /* Dashboard home chart & live data: see "ONEX HOME" module below (real /stats data, no demo values). */
@@ -13275,7 +13966,13 @@ function goPage(name){
   if(name==='stats'){refreshAll();loadStatsDashboard(false);}
   if(name==='theme'){renderOnexThemePresets();loadOnexTheme();}
 }
-document.querySelectorAll('.nav-item').forEach(el=>el.addEventListener('click',()=>goPage(el.dataset.page)));
+function setCloudflareSection(mode){ return mode; }
+
+document.querySelectorAll('.nav-cloudflare-toggle').forEach(toggle=>toggle.addEventListener('click',e=>{e.preventDefault();const group=toggle.closest('.nav-cloudflare'),menu=group?.querySelector('.nav-cloudflare-menu');if(!group||!menu)return;const open=group.classList.toggle('open');toggle.setAttribute('aria-expanded',open?'true':'false');menu.hidden=!open;}));
+document.querySelectorAll('.nav-item[data-page]').forEach(el=>el.addEventListener('click',()=>{
+  document.querySelectorAll('.nav-cloudflare').forEach(g=>{g.classList.add('open');const m=g.querySelector('.nav-cloudflare-menu'),t=g.querySelector('.nav-cloudflare-toggle');if(m)m.hidden=false;if(t)t.setAttribute('aria-expanded','true')});
+  goPage(el.dataset.page); window.scrollTo({top:0,behavior:'smooth'});
+}));
 
 function toast(msg){
   const el=document.getElementById('toast');
@@ -13558,16 +14255,21 @@ async function openConfigEditor(e,uid){
   const bundleSelected=new Set(Array.isArray(link.bundle_protocols)?link.bundle_protocols:[link.protocol]);
   document.querySelectorAll('#protocolBundleOptions input').forEach(x=>{x.checked=bundleSelected.has(x.value)});
   const adb=document.getElementById('cAdBlockEnabled');if(adb)adb.checked=!!link.ad_block_enabled;
+  setCdnOpt(!!link.cdn_optimizer);
   fillAdvancedForm(link.advanced||{ports:[Number(link.port)||443]});
   document.getElementById('advancedValidationStatus')?.replaceChildren();
   document.getElementById('advancedPreviewBox')?.setAttribute('hidden','');
   window.scrollTo({top:0,behavior:'smooth'});
   toast(lang==='fa'?'فرم ویرایش آماده شد':'Edit form loaded');
 }
+function setCdnOpt(on){
+  ['cCdnOpt'].forEach(id=>{const el=document.getElementById(id);if(el){el.checked=!!on;el.closest('.all-proto-toggle')?.classList.toggle('is-checked',!!on)}});
+}
+function syncCdnOpt(src){setCdnOpt(!!(src&&src.checked));try{typeof syncSummary==='function'&&syncSummary()}catch(e){}}
 function collectConfigFormBody(){
   const advanced=advancedFormObject(),ports=advanced.ports.length?advanced.ports:[Number(configEditValue('cPort'))||443];
   const bundle=[...document.querySelectorAll('#protocolBundleOptions input:checked')].map(x=>x.value);
-  return {label:configEditValue('cName').trim()||undefined,protocol:configEditValue('cProto')||undefined,bundle_protocols:bundle,ad_block_enabled:!!document.getElementById('cAdBlockEnabled')?.checked,category_id:'0',sub_id:configEditValue('cSubGroup')||undefined,limit_value:Number(configEditValue('cLimit'))||0,limit_unit:configEditValue('cUnit')||'GB',expires_days:Number(configEditValue('cDays'))||0,ip_limit:Number(configEditValue('cIp'))||0,speed_limit_value:Number(configEditValue('cSpeed'))||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
+  return {label:configEditValue('cName').trim()||undefined,protocol:configEditValue('cProto')||undefined,bundle_protocols:bundle,ad_block_enabled:!!document.getElementById('cAdBlockEnabled')?.checked,cdn_optimizer:!!document.getElementById('cCdnOpt')?.checked,category_id:'0',sub_id:configEditValue('cSubGroup')||undefined,limit_value:Number(configEditValue('cLimit'))||0,limit_unit:configEditValue('cUnit')||'GB',expires_days:Number(configEditValue('cDays'))||0,ip_limit:Number(configEditValue('cIp'))||0,speed_limit_value:Number(configEditValue('cSpeed'))||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
 }
 async function saveEditedConfig(){
   const uid=__configEditUid;if(!uid)return false;
@@ -13796,7 +14498,7 @@ window.addEventListener('resize',()=>{const p=document.getElementById('topNotify
 window.addEventListener('scroll',()=>{const p=document.getElementById('topNotifyPanel');if(p&&!p.hidden)positionNotifyPanel()},{passive:true});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleNotifications(false)});
 function renderNotifications(){const list=document.getElementById('notifyList'),badge=document.getElementById('notifyBadge');if(!list||!badge)return;if(!__updateInfo||!__updateInfo.update_available){badge.textContent='0';badge.classList.remove('show');list.innerHTML=`<div class="notify-empty">${updateText('اعلان جدیدی وجود ندارد.','No new notifications.')}</div>`;return;}badge.textContent='1';badge.classList.add('show');const r=__updateInfo;const changes=Array.isArray(r.changelog)&&r.changelog.length?`<div class="notify-item-text" style="margin-top:5px">${r.changelog.slice(0,4).map(x=>`• ${esc(String(x))}`).join('<br>')}</div>`:'';list.innerHTML=`<div class="notify-item"><div class="notify-item-title">🔄 ${esc(r.title||updateText('بروزرسانی جدید پنل','New panel update'))}</div><div class="notify-item-text">${esc(r.message||updateText('نسخه جدید پنل منتشر شده است.','A new panel version is available.'))}</div>${changes}<div class="notify-item-meta">${updateText('نسخه فعلی','Current version')}: ${esc(r.current_version||'—')} → ${esc(r.latest_version||'—')}</div><button type="button" class="notify-update-btn" onclick="toggleNotifications(false);panelUpdate()">${updateText('مشاهده و بروزرسانی','View update')}</button></div>`}
-async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.0.1',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&old!==r.latest_version)showUpdatePrompt(r);if(r.update_available&&showToast&&old!==r.latest_version)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}return r}catch(e){return null}finally{__updateCheckBusy=false}}
+async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.5.0',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&old!==r.latest_version)showUpdatePrompt(r);if(r.update_available&&showToast&&old!==r.latest_version)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}return r}catch(e){return null}finally{__updateCheckBusy=false}}
 function showUpdatePrompt(r){const modal=document.getElementById('updatePromptModal');if(!modal||!r||!r.update_available)return;if(modal.parentElement!==document.body)document.body.appendChild(modal);const version=String(r.latest_version||'');if(!version)return;let seen='';let snooze=0;try{seen=localStorage.getItem('onex_update_prompt_seen')||'';snooze=Number(localStorage.getItem('onex_update_prompt_snooze')||0)}catch(e){}if(seen===version&&Date.now()<snooze)return;const title=document.getElementById('updatePromptTitle'),text=document.getElementById('updatePromptText'),ver=document.getElementById('updatePromptVersion'),yes=document.getElementById('updatePromptConfirm'),later=document.getElementById('updatePromptLater');if(title)title.textContent=r.title||updateText('بروزرسانی جدید در دسترس است','New update is available');if(text)text.textContent=r.message||updateText('نسخه جدید پنل آماده است. آیا می‌خواهید پنل را بروزرسانی کنید؟','A new panel version is available. Would you like to update the panel?');if(ver)ver.textContent=updateText(`نسخه فعلی: ${r.current_version||'—'}  →  نسخه جدید: ${version}`,`Current: ${r.current_version||'—'}  →  New: ${version}`);modal.classList.add('open');modal.setAttribute('aria-hidden','false');const close=()=>{modal.classList.remove('open');modal.setAttribute('aria-hidden','true');try{localStorage.setItem('onex_update_prompt_seen',version);localStorage.setItem('onex_update_prompt_snooze',String(Date.now()+6*3600*1000))}catch(e){}};if(later)later.onclick=close;if(yes)yes.onclick=()=>{try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}modal.classList.remove('open');modal.setAttribute('aria-hidden','true');deployPanelUpdate();}}
 function startUpdateNotificationPolling(){if(__updatePollTimer)clearInterval(__updatePollTimer);checkPanelUpdateWithNotify(false);__updatePollTimer=setInterval(()=>checkPanelUpdateWithNotify(false),45000)}
 async function checkPanelUpdate(showToast=true){
@@ -13805,7 +14507,7 @@ async function checkPanelUpdate(showToast=true){
   try{
     const r=await api('/api/update/check');
     if(r&&r.ok){
-      const previousVersion=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.0.1',r.latest_version||r.current_version);renderNotifications();
+      const previousVersion=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.5.0',r.latest_version||r.current_version);renderNotifications();
       if(r.update_available&&showToast&&previousVersion!==r.latest_version){toast(updateText(`نسخه جدید ${r.latest_version} آماده است`, `Version ${r.latest_version} is available`));}
     }
     return r;
@@ -14127,7 +14829,7 @@ function setCfgSort(v,el){cfgSortMode=v;document.querySelectorAll('#cfgFilterRow
 function configExpired(l){return !!l.expired||(l.expires_at&&new Date(l.expires_at).getTime()<=Date.now())||(Number(l.limit_bytes)>0&&Number(l.used_bytes||0)>=Number(l.limit_bytes))}
 function getFilteredConfigs(){const q=(document.getElementById('cfgSearch')?.value||'').trim().toLowerCase();let a=__allLinks.filter(l=>{const dead=configExpired(l),active=l.active!==false&&!dead;if(cfgStatusFilter==='active'&&!active)return false;if(cfgStatusFilter==='expired'&&!dead)return false;if(cfgStatusFilter==='expiring'&&!(window.homeIsExpiring&&homeIsExpiring(l)&&!dead))return false;if(!q)return true;return [l.label,l.name,l.protocol,l.protocol_label,l.uuid,l.id,l.sub,l.sub_url,l.vless,l.vless_full].map(x=>String(x||'').toLowerCase()).some(x=>x.includes(q))});a.sort((x,y)=>cfgSortMode==='name'?String(x.label||x.name||'').localeCompare(String(y.label||y.name||'')):cfgSortMode==='usage'?Number(y.used_bytes||0)-Number(x.used_bytes||0):String(y.created_at||'').localeCompare(String(x.created_at||'')));return a}
 function filterConfigs(){renderConfigCards(getFilteredConfigs())}
-function protocolUi(id){const m={'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png?v=1.3.5'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png?v=1.3.5'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png?v=1.3.5'],'trojan':['Trojan','/api/protocol-icon/trojan.png?v=1.3.5'],'shadowsocks':['Shadowsocks','/api/protocol-icon/shadowsocks.png?v=1.3.5'],'socks5':['SOCKS5','/api/protocol-icon/socks5.png?v=1.3.5'],'http':['HTTP Proxy','/api/protocol-icon/http.png?v=1.3.5'],'hysteria2':['Hysteria2','/api/protocol-icon/hysteria2.png?v=1.3.5'],'vless-reality':['VLESS Reality','/api/protocol-icon/vless-reality.png?v=1.3.5'],'vless-grpc-reality':['VLESS gRPC Reality','/api/protocol-icon/vless-grpc-reality.png?v=1.3.5'],'vmess':['VMess','/api/protocol-icon/vmess.png?v=1.3.5'],'tuic':['TUIC','/api/protocol-icon/tuic.png?v=1.3.5'],'anytls':['AnyTLS','/api/protocol-icon/anytls.png?v=1.3.5'],'naive':['NaiveProxy','/api/protocol-icon/naive.png?v=1.3.5'],'shadowtls':['ShadowTLS','/api/protocol-icon/shadowtls.png?v=1.3.5'],'snell':['Snell','/api/protocol-icon/snell.png?v=1.3.5'],'hysteria':['Hysteria','/api/protocol-icon/hysteria.png?v=1.3.5']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png?v=1.3.5']}
+function protocolUi(id){const m={'trojan-ws':['Trojan WS','/api/protocol-icon/trojan.png?v=1.5.0'],'vmess-ws':['VMess WS','/api/protocol-icon/vmess.png?v=1.5.0'],'vless-httpupgrade':['VLESS HTTPUpgrade','/api/protocol-icon/vless-ws.png?v=1.5.0'],'siderail-vless-xhttp':['VLESS XHTTP','/api/protocol-icon/xhttp-packet-up.png?v=1.5.0'],'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png?v=1.5.0'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png?v=1.5.0'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png?v=1.5.0'],'trojan':['Trojan','/api/protocol-icon/trojan.png?v=1.5.0'],'shadowsocks':['Shadowsocks','/api/protocol-icon/shadowsocks.png?v=1.5.0'],'socks5':['SOCKS5','/api/protocol-icon/socks5.png?v=1.5.0'],'http':['HTTP Proxy','/api/protocol-icon/http.png?v=1.5.0'],'hysteria2':['Hysteria2','/api/protocol-icon/hysteria2.png?v=1.5.0'],'vless-reality':['VLESS Reality','/api/protocol-icon/vless-reality.png?v=1.5.0'],'vless-grpc-reality':['VLESS gRPC Reality','/api/protocol-icon/vless-grpc-reality.png?v=1.5.0'],'vmess':['VMess','/api/protocol-icon/vmess.png?v=1.5.0'],'tuic':['TUIC','/api/protocol-icon/tuic.png?v=1.5.0'],'anytls':['AnyTLS','/api/protocol-icon/anytls.png?v=1.5.0'],'naive':['NaiveProxy','/api/protocol-icon/naive.png?v=1.5.0'],'shadowtls':['ShadowTLS','/api/protocol-icon/shadowtls.png?v=1.5.0'],'snell':['Snell','/api/protocol-icon/snell.png?v=1.5.0'],'hysteria':['Hysteria','/api/protocol-icon/hysteria.png?v=1.5.0']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png?v=1.5.0']}
 function cfgDate(v){if(!v)return 'بدون انقضا';try{return new Date(v).toLocaleDateString('fa-IR',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){return String(v).slice(0,10)}}
 function updateConfigStats(){const total=__allLinks.length,expired=__allLinks.filter(configExpired).length,active=__allLinks.filter(l=>l.active!==false&&!configExpired(l)).length,used=__allLinks.reduce((n,l)=>n+Number(l.used_bytes||0),0),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('cfgStatTotal',total);set('cfgStatUsed',fmtB(used));set('cfgStatActive',active);set('cfgStatExpired',expired);set('cfgVisibleCount',`${getFilteredConfigs().length} مورد`)}
 let __openConfigMenuUid='';
@@ -14145,7 +14847,7 @@ function renderConfigCards(arr){const box=document.getElementById('cfgCards');if
   if(oldMenu)oldMenu.remove();
   updateConfigStats();
   if(!arr.length){box.innerHTML='<div class="cfg-empty">'+(lang==='fa'?'کانفیگی با این فیلتر پیدا نشد':'No configs match the filter')+'</div>';updateBulkBar();__openConfigMenuUid='';return}
-  box.innerHTML=arr.map(l=>{const uid=String(l.uuid||l.id||''),dead=configExpired(l),active=l.active!==false&&!dead,[pl,icon]=protocolUi(l.protocol),used=Number(l.used_bytes||0),lim=Number(l.limit_bytes||0),pct=lim>0?Math.min(100,Math.round(used/lim*100)):0,conn=Number(l.connected_ips||0),safeUid=esc(uid),mid='cfgMenu_'+uid.replace(/[^a-zA-Z0-9_-]/g,'_'),usage=lim>0?`${fmtB(used)} / ${fmtB(lim)}`:fmtB(used),activeState=l.active!==false;return `<article class="cfg-card ${dead?'expired':''}" draggable="true" data-uid="${safeUid}" ondragstart="cfgDragStart(event)" ondragover="cfgDragOver(event)" ondrop="cfgDrop(event)" ondragend="cfgDragEnd(event)"><label class="cfg-card-check"><input type="checkbox" class="cfg-chk" value="${safeUid}" onchange="updateBulkBar()"></label><div class="cfg-proto-icon"><img src="${icon}" alt=""></div><div class="cfg-main"><div class="cfg-name-row"><b>${esc(l.label||l.name||uid.slice(0,8))}</b><button type="button" class="cfg-edit-dot" title="ویرایش کانفیگ" aria-label="ویرایش کانفیگ" onclick="openConfigEditor(event,'${safeUid}')">✎</button></div><div class="cfg-proto">${esc(pl)}</div><div class="cfg-meta"><span><i>♧</i>${conn} اتصال</span><span><i>◷</i>${dead?'منقضی شده':(l.expires_at?'انقضا '+cfgDate(l.expires_at):'بدون انقضا')}</span></div></div><div class="cfg-side"><div class="cfg-side-top"><span class="cfg-status ${active?'':'bad'}"><i></i>${active?'فعال':'غیرفعال'}</span><button type="button" class="cfg-active-toggle ${activeState?'on':''}" onclick="toggleConfigActive(event,'${safeUid}',${activeState?'false':'true'})" aria-pressed="${activeState?'true':'false'}"><span class="cfg-active-dot"></span><span>${activeState?'فعال':'خاموش'}</span></button></div><div class="cfg-usage"><div class="cfg-usage-ring" style="--pct:${pct}%"><span>${pct}%</span></div><div class="cfg-usage-copy"><b>${esc(usage)}</b>${lim>0?`<div class="cfg-usage-track"><div class="cfg-usage-fill" style="width:${pct}%"></div></div>`:''}</div></div></div><button class="cfg-menu-btn" type="button" data-menu-uid="${safeUid}" onclick="toggleConfigMenu(event,'${safeUid}')" aria-label="عملیات">⋮</button><div class="cfg-menu" id="${mid}"><div class="cfg-menu-head"><span>عملیات کانفیگ</span><small>برای بستن بیرون منو بزنید</small></div><button type="button" onclick="configMenuAction('copy','${safeUid}')">کپی VLESS</button><button type="button" onclick="configMenuAction('sub','${safeUid}')">کپی ساب</button><button type="button" onclick="configMenuAction('info','${safeUid}')">صفحه اطلاعات</button><button type="button" onclick="configMenuAction('reset','${safeUid}')">ریست مصرف</button><button type="button" class="danger" onclick="configMenuAction('delete','${safeUid}')">حذف کانفیگ</button></div></article>`}).join('');
+  box.innerHTML=arr.map(l=>{const uid=String(l.uuid||l.id||''),dead=configExpired(l),active=l.active!==false&&!dead,[pl,icon]=protocolUi(l.protocol),used=Number(l.used_bytes||0),lim=Number(l.limit_bytes||0),pct=lim>0?Math.min(100,Math.round(used/lim*100)):0,conn=Number(l.connected_ips||0),safeUid=esc(uid),mid='cfgMenu_'+uid.replace(/[^a-zA-Z0-9_-]/g,'_'),usage=lim>0?`${fmtB(used)} / ${fmtB(lim)}`:fmtB(used),activeState=l.active!==false;return `<article class="cfg-card ${dead?'expired':''}" draggable="true" data-uid="${safeUid}" ondragstart="cfgDragStart(event)" ondragover="cfgDragOver(event)" ondrop="cfgDrop(event)" ondragend="cfgDragEnd(event)"><label class="cfg-card-check"><input type="checkbox" class="cfg-chk" value="${safeUid}" onchange="updateBulkBar()"></label><div class="cfg-proto-icon"><img src="${icon}" alt=""></div><div class="cfg-main"><div class="cfg-name-row"><b>${esc(l.label||l.name||uid.slice(0,8))}</b><button type="button" class="cfg-edit-dot" title="ویرایش کانفیگ" aria-label="ویرایش کانفیگ" onclick="openConfigEditor(event,'${safeUid}')">✎</button></div><div class="cfg-proto">${(Array.isArray(l.bundle_protocols)&&l.bundle_protocols.length>1)?esc(l.bundle_protocols.length.toLocaleString("fa-IR")+" پروتکل داخل ساب"):esc(pl)}</div><div class="cfg-meta"><span><i>♧</i>${conn.toLocaleString("fa-IR")} از ${Number(l.ip_limit||0)>0?Number(l.ip_limit).toLocaleString("fa-IR"):"∞"} کاربر</span><span><i>◷</i>${dead?'منقضی شده':(l.expires_at?'انقضا '+cfgDate(l.expires_at):'بدون انقضا')}</span></div></div><div class="cfg-side"><div class="cfg-side-top"><span class="cfg-status ${active?'':'bad'}"><i></i>${active?'فعال':'غیرفعال'}</span><button type="button" class="cfg-active-toggle ${activeState?'on':''}" onclick="toggleConfigActive(event,'${safeUid}',${activeState?'false':'true'})" aria-pressed="${activeState?'true':'false'}"><span class="cfg-active-dot"></span><span>${activeState?'فعال':'خاموش'}</span></button></div><div class="cfg-usage"><div class="cfg-usage-ring" style="--pct:${pct}%"><span>${pct}%</span></div><div class="cfg-usage-copy"><b>${esc(usage)}</b>${lim>0?`<div class="cfg-usage-track"><div class="cfg-usage-fill" style="width:${pct}%"></div></div>`:''}</div></div></div><div class="cfg-quick"><button type="button" title="کپی کانفیگ" onclick="configMenuAction('copy','${safeUid}')">⧉</button><button type="button" title="کپی ساب" onclick="configMenuAction('sub','${safeUid}')">🔗</button><button type="button" title="نمایش ساب" onclick="window.open('/sub/${safeUid}','_blank','noopener')">👁</button><button type="button" title="ویرایش" onclick="openConfigEditor(event,'${safeUid}')">✎</button><button type="button" class="danger" title="حذف" onclick="configMenuAction('delete','${safeUid}')">🗑</button></div><button class="cfg-menu-btn" type="button" data-menu-uid="${safeUid}" onclick="toggleConfigMenu(event,'${safeUid}')" aria-label="عملیات">⋮</button><div class="cfg-menu" id="${mid}"><div class="cfg-menu-head"><span>عملیات کانفیگ</span><small>برای بستن بیرون منو بزنید</small></div><button type="button" onclick="configMenuAction('copy','${safeUid}')">کپی VLESS</button><button type="button" onclick="configMenuAction('sub','${safeUid}')">کپی ساب</button><button type="button" onclick="configMenuAction('info','${safeUid}')">صفحه اطلاعات</button><button type="button" onclick="configMenuAction('reset','${safeUid}')">ریست مصرف</button><button type="button" class="danger" onclick="configMenuAction('delete','${safeUid}')">حذف کانفیگ</button></div></article>`}).join('');
   document.querySelectorAll('#cfgCards .cfg-chk').forEach(c=>{c.checked=selectedIds.has(String(c.value))});
   updateBulkBar();
   if(openMenuUid){const menu=document.getElementById('cfgMenu_'+openMenuUid);const btn=document.querySelector('.cfg-menu-btn[data-menu-uid="'+CSS.escape(openMenuUid)+'"]');if(menu&&btn){document.body.appendChild(menu);menu.dataset.portal='1';menu.classList.add('open');__openConfigMenuUid=openMenuUid;positionConfigMenu(menu,btn)}else{__openConfigMenuUid=''}}
@@ -14223,7 +14925,7 @@ function groupProtocolLabel(id){
   return labels[id]||id;
 }
 function groupProtocolIcon(id){
-  const map={'vless-ws':'/api/protocol-icon/vless-ws.png?v=1.3.5','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png?v=1.3.5','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png?v=1.3.5','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png?v=1.3.5'};
+  const map={'vless-ws':'/api/protocol-icon/vless-ws.png?v=1.5.0','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png?v=1.5.0','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png?v=1.5.0','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png?v=1.5.0'};
   return map[id]||'';
 }
 function setGroupFilter(f,btn){__groupFilter=f;document.querySelectorAll('.group-filter').forEach(x=>x.classList.toggle('on',x===btn));renderGroupList()}
@@ -14462,7 +15164,7 @@ const PROTOCOL_PICKER_GROUPS=[
 ];
 const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX Base","siderail-vless-xhttp":"ONEX XHTTP","vmess-ws":"ONEX VMess","trojan-ws":"ONEX Trojan","vless-httpupgrade":"ONEX HTTPUpgrade","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gaming","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-reality":"VLESS Reality","vless-grpc-reality":"VLESS gRPC Reality","vmess":"VMess","tuic":"TUIC","anytls":"AnyTLS","naive":"NaiveProxy","shadowtls":"ShadowTLS","snell":"Snell","hysteria":"Hysteria"};
 const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS WebSocket","siderail-vless-xhttp":"VLESS XHTTP","vmess-ws":"VMess WebSocket","trojan-ws":"Trojan WebSocket","vless-httpupgrade":"VLESS HTTPUpgrade","xhttp-packet-up":"VLESS + XHTTP","xhttp-stream-up":"VLESS + XHTTP","xhttp-stream-one":"VLESS + XHTTP stream-one","trojan":"Trojan + TLS","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2 + QUIC","vless-reality":"VLESS + Reality","vless-grpc-reality":"VLESS + gRPC + Reality","vmess":"VMess + TLS","tuic":"TUIC + QUIC","anytls":"AnyTLS + TLS","naive":"NaiveProxy + TLS","shadowtls":"ShadowTLS v3","snell":"Snell v5","hysteria":"Hysteria + QUIC"};
-const PROTOCOL_ICON_DATA={"vless-ws":"/api/protocol-icon/vless-ws.png?v=1.3.5","siderail-vless-xhttp":"/api/protocol-icon/vless-ws.png?v=1.3.5","vmess-ws":"/api/protocol-icon/vmess.png?v=1.3.5","trojan-ws":"/api/protocol-icon/trojan.png?v=1.3.5","vless-httpupgrade":"/api/protocol-icon/vless-ws.png?v=1.3.5","xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png?v=1.3.5","xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png?v=1.3.5","xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png?v=1.3.5","trojan":"/api/protocol-icon/trojan.png?v=1.3.5","shadowsocks":"/api/protocol-icon/shadowsocks.png?v=1.3.5","socks5":"/api/protocol-icon/socks5.png?v=1.3.5","http":"/api/protocol-icon/http.png?v=1.3.5","hysteria2":"/api/protocol-icon/hysteria2.png?v=1.3.5","vless-reality":"/api/protocol-icon/vless-reality.png?v=1.3.5","vless-grpc-reality":"/api/protocol-icon/vless-grpc-reality.png?v=1.3.5","vmess":"/api/protocol-icon/vmess.png?v=1.3.5","tuic":"/api/protocol-icon/tuic.png?v=1.3.5","anytls":"/api/protocol-icon/anytls.png?v=1.3.5","naive":"/api/protocol-icon/naive.png?v=1.3.5","shadowtls":"/api/protocol-icon/shadowtls.png?v=1.3.5","snell":"/api/protocol-icon/snell.png?v=1.3.5","hysteria":"/api/protocol-icon/hysteria.png?v=1.3.5"};
+const PROTOCOL_ICON_DATA={"vless-ws":"/api/protocol-icon/vless-ws.png?v=1.5.0","siderail-vless-xhttp":"/api/protocol-icon/vless-ws.png?v=1.5.0","vmess-ws":"/api/protocol-icon/vmess.png?v=1.5.0","trojan-ws":"/api/protocol-icon/trojan.png?v=1.5.0","vless-httpupgrade":"/api/protocol-icon/vless-ws.png?v=1.5.0","xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png?v=1.5.0","xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png?v=1.5.0","xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png?v=1.5.0","trojan":"/api/protocol-icon/trojan.png?v=1.5.0","shadowsocks":"/api/protocol-icon/shadowsocks.png?v=1.5.0","socks5":"/api/protocol-icon/socks5.png?v=1.5.0","http":"/api/protocol-icon/http.png?v=1.5.0","hysteria2":"/api/protocol-icon/hysteria2.png?v=1.5.0","vless-reality":"/api/protocol-icon/vless-reality.png?v=1.5.0","vless-grpc-reality":"/api/protocol-icon/vless-grpc-reality.png?v=1.5.0","vmess":"/api/protocol-icon/vmess.png?v=1.5.0","tuic":"/api/protocol-icon/tuic.png?v=1.5.0","anytls":"/api/protocol-icon/anytls.png?v=1.5.0","naive":"/api/protocol-icon/naive.png?v=1.5.0","shadowtls":"/api/protocol-icon/shadowtls.png?v=1.5.0","snell":"/api/protocol-icon/snell.png?v=1.5.0","hysteria":"/api/protocol-icon/hysteria.png?v=1.5.0"};
 function protocolPickerLabel(id){const p=__protocolPickerOptions.find(x=>x.id===id);return PROTOCOL_PICKER_NAMES[id]||p?.label||id||'Vortex Link'}
 function protocolPickerShort(id){return PROTOCOL_PICKER_NAMES[id]||id}
 function protocolIconMarkup(id){
@@ -14563,6 +15265,7 @@ function setOnexThemeMode(mode){
   if(mode==='system'){const light=window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches;mode=light?'light':'dark'}
   applyOnexTheme(key,{...saved,mode});
   updateThemeModeButtons(mode);
+  if(typeof refreshThemeLabels==='function')refreshThemeLabels();
 }
 function updateThemeModeButtons(mode){document.querySelectorAll('.theme-mode-buttons button').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode||(b.dataset.mode==='system'&&mode==='system')))}
 function updateOnexThemeUI(key,t){
@@ -15305,7 +16008,7 @@ html.light .sidebar .nav-label{color:inherit!important}
   .main,.main.expanded{padding-top:10px!important}
 }
 </style>
-<style id="onex-notify-fix">/* 1.3.9: panel is moved to <body> by JS and positioned under the bell,
+<style id="onex-notify-fix">/* 1.5.0: panel is moved to <body> by JS and positioned under the bell,
    so parent stacking contexts (backdrop-filter/transform) can't hide it behind the dashboard. */
 .top-notify-panel{position:fixed!important;right:24px;top:70px;width:320px;max-width:calc(100vw - 24px)!important;max-height:min(70vh,520px);overflow:auto;z-index:2147483000!important}
 .top-notify-panel[hidden]{display:none!important}
@@ -15317,6 +16020,810 @@ html.light .sidebar .nav-label{color:inherit!important}
 .update-prompt-version{margin:12px 0;padding:9px 12px;border-radius:11px;background:rgba(37,99,235,.08);border:1px solid rgba(96,165,250,.13);color:var(--t3);font-size:11px;direction:ltr}
 .update-prompt-actions{display:flex;gap:9px;margin-top:16px}.update-prompt-actions .btn{flex:1;height:42px}
 </style>
+<style id="onex-edge-tools-native">
+#page-edge-tools .scan-ports{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:9px;margin:8px 0 2px;direction:ltr}
+#page-edge-tools .scan-ports .chk{position:relative;display:flex;align-items:center;justify-content:center;min-height:48px;padding:0 10px;border:1px solid var(--card-b);border-radius:14px;background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018));font:700 12px "JetBrains Mono",ui-monospace,monospace;color:var(--t2);cursor:pointer;transition:transform .2s ease,border-color .2s ease,background .2s ease,box-shadow .2s ease}
+#page-edge-tools .scan-ports .chk:hover{transform:translateY(-2px);border-color:rgba(var(--accent-rgb),.55);color:var(--t1)}
+#page-edge-tools .scan-ports .chk:has(input:checked){color:#fff;border-color:rgba(var(--accent-rgb),.9);background:linear-gradient(145deg,rgba(var(--accent-rgb),.28),rgba(var(--accent2-rgb),.16));box-shadow:0 8px 20px -12px rgba(var(--accent-rgb),.95),0 0 0 1px rgba(var(--accent-rgb),.18) inset}
+#page-edge-tools .scan-ports .chk input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+#page-edge-tools .scan-ports .chk::after{content:"";position:absolute;top:6px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--t3);opacity:.55}
+#page-edge-tools .scan-ports .chk:has(input:checked)::after{background:#35e8a2;opacity:1;box-shadow:0 0 9px #35e8a2}
+
+#page-edge-tools .scan-ports-tools{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+#page-edge-tools .scan-ports-tools .btn{border-radius:999px;padding-inline:14px}
+#page-edge-tools .scan-port-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+#page-edge-tools .scan-port-toolbar small{color:var(--t3);font-size:11px}
+#page-edge-tools .sni-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+#page-edge-tools .sni-results{display:grid;gap:7px;margin-top:10px}
+#page-edge-tools .sni-result{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--card-b);border-radius:12px;background:rgba(var(--accent-rgb),.045)}
+#page-edge-tools .sni-result code{direction:ltr;color:var(--accent2);overflow-wrap:anywhere}
+#page-edge-tools .sni-result b{color:#35e8a2;white-space:nowrap}
+#page-edge-tools .scan-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+#page-edge-tools .scan-hint{font-size:11px;color:var(--t3);margin-top:6px;line-height:1.8}
+#page-edge-tools .scan-summary{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
+#page-edge-tools .scan-chip{padding:6px 11px;border:1px solid var(--card-b);border-radius:10px;font-size:11px;color:var(--t2);background:rgba(var(--accent-rgb),.06)}
+#page-edge-tools .scan-chip b{color:var(--accent2);margin-inline-start:4px}
+#page-edge-tools .scan-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--card-b);font-size:12px}
+#page-edge-tools .scan-row:last-child{border-bottom:0}
+#page-edge-tools .scan-row code{direction:ltr;color:var(--accent2);font-size:12px;overflow-wrap:anywhere}
+#page-edge-tools .scan-ok{color:#35e8a2;white-space:nowrap}
+#page-edge-tools .scan-bad{color:var(--t3);white-space:nowrap;font-size:11px}
+#page-edge-tools .scan-row.bad code{color:var(--t3)}
+#page-edge-tools #onexPublicEndpoint{padding:12px;border:1px solid var(--card-b);border-radius:12px;margin:10px 0;line-height:1.9;overflow-wrap:anywhere}
+@media (max-width:640px){#page-edge-tools .scan-actions .btn{flex:1 1 100%}}
+</style>
+<section class="page cf-dedicated-page" id="page-edge-account">
+  <div class="edge-card cf-block" id="edgeAccountSection" data-cf-section="account">
+      <h3>اتصال واقعی به Cloudflare <small>توکن شما فقط روی سرور ذخیره می‌شود</small></h3>
+      <div id="edgeStatus" class="edge-status">در حال بررسی اتصال...</div>
+      <div class="edge-token-help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M9 12l2 2 4-4"/></svg><div>یک API Token بساز و اینجا وارد کن. برای دامنه اختصاصی، مجوزهای <b>Workers Scripts: Edit</b>، <b>Workers Subdomain: Edit</b>، <b>Account: Read</b>، <b>Zone: Read</b> و <b>Workers Domains: Edit</b> لازم است.<br><a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener">بازکردن صفحه ساخت Token در Cloudflare ↗</a></div></div>
+      <div class="edge-row">
+        <div class="field"><label for="edgeToken">API Token</label><input id="edgeToken" type="password" autocomplete="off" dir="ltr" placeholder="توکن Cloudflare"></div>
+        <div class="field"><label for="edgeAccount">Account ID <small>(اختیاری)</small></label><input id="edgeAccount" dir="ltr" autocomplete="off" placeholder="خودکار تشخیص داده می‌شود"></div>
+      </div>
+      <div class="edge-actions">
+        <button type="button" class="btn" id="edgeBtnSave" onclick="edgeSave()">ذخیره Token و تنظیمات</button>
+        <button type="button" class="btn btn-p" id="edgeBtnDeploy" onclick="edgeDeploy()">ساخت و Deploy Edge</button>
+        <button type="button" class="btn" id="edgeBtnTest" onclick="edgeTest()">تست اتصال</button>
+        <button type="button" class="btn btn-d edge-del" id="edgeBtnRemove" onclick="edgeRemove()">حذف Edge</button>
+      </div>
+    </div>
+<div class="edge-card cf-block" id="edgeStatusSection" data-cf-section="account">
+      <h3>وضعیت Edge</h3>
+      <div class="edge-metrics">
+        <div class="edge-metric"><span>وضعیت Worker</span><b id="edgeWorkerState">—</b></div>
+        <div class="edge-metric"><span>دامنه فعال</span><b id="edgeHostState" class="small">—</b></div>
+        <div class="edge-metric"><span>IPهای انتخاب‌شده</span><b id="edgeSelectedCount">0</b></div>
+        <div class="edge-metric"><span>اشتراک‌ها</span><b id="edgeSyncedCount">—</b></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>نوع دامنه</label>
+        <div class="edge-choice">
+          <label><input type="radio" name="edgeMode" value="worker" checked onchange="edgeDomainMode()"><strong>دامنه رایگان Worker</strong><small>ساخت خودکار workers.dev</small></label>
+          <label><input type="radio" name="edgeMode" value="custom" onchange="edgeDomainMode()"><strong>دامنه اختصاصی</strong><small>دامنه داخل همین حساب Cloudflare</small></label>
+        </div>
+      </div>
+      <div class="field" id="edgeCustomDomainBox" hidden style="margin-top:9px"><label for="edgeDomain">دامنه اختصاصی</label><input id="edgeDomain" dir="ltr" autocomplete="off" placeholder="edge.example.com"></div>
+      <label class="edge-insub"><input type="checkbox" id="edgeInSub" checked> افزودن کانفیگ Edge به اشتراک‌ها</label>
+    </div>
+</section>
+<section class="page cf-dedicated-page" id="page-edge-config">
+  <section class="es cf-block" id="edgeConfigSection" data-cf-section="config" aria-label="ساخت کانفیگ کلودفلر">
+  <div class="es-head">
+    <div class="es-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.6A4 4 0 0 0 6.5 19Z"/></svg></div>
+    <div>
+      <div class="es-title">ساب اختصاصی Cloudflare Edge</div>
+      <div class="es-sub">فقط کانفیگ‌های Edge این بخش داخل ساب اختصاصی هستن و به بقیه‌ی ساب‌ها اضافه نمی‌شن</div>
+    </div>
+    <span class="es-pill" id="esPill">—</span>
+  </div>
+  <div class="es-kpis">
+    <div class="es-kpi"><span>کانفیگ فعال</span><b id="esKActive">—</b></div>
+    <div class="es-kpi"><span>مصرف کل</span><b id="esKUsed">—</b></div>
+    <div class="es-kpi"><span>مدت</span><b id="esKDays">—</b></div>
+  </div>
+  <div class="es-grid">
+    <div class="es-panel">
+      <h4>ساخت کانفیگ</h4>
+      <div class="es-lbl">پروتکل</div>
+      <div class="es-seg" id="esProto">
+        <button type="button" data-v="all" class="on">همه</button>
+        <button type="button" data-v="trojan">Trojan</button>
+        <button type="button" data-v="vless">VLESS</button>
+        <button type="button" data-v="vmess">VMess</button>
+      </div>
+      <div class="es-lbl">IP برای ساخت کانفیگ‌ها (اختیاری)</div>
+      <div style="display:flex;justify-content:flex-end;margin:4px 0 6px"><button type="button" class="esb" onclick="esVaultOpen()" ><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-5px;margin-inline-end:4px"><defs><linearGradient id="onexVaultG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4b5fd"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><path d="M12 2.5 20 5.5v6.2c0 4.6-3.2 8.6-8 10-4.8-1.4-8-5.4-8-10V5.5z" fill="url(#onexVaultG)"/><path d="M8.4 12.2l2.5 2.5 4.7-4.9" fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg> انبار آی‌پی تمیز ONEX</button></div>
+      <div id="esVault" hidden style="position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(6px)"><div dir="rtl" style="width:100%;max-width:420px;border-radius:28px;border:1px solid rgba(255,255,255,.1);background:oklch(0.2 0.03 280);color:#eef2ff;box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08)"><div style="display:flex;align-items:center;gap:10px"><span style="width:36px;height:36px;border-radius:14px;display:grid;place-items:center;background:transparent;border:0"><span style="width:38px;height:38px;border-radius:14px;display:grid;place-items:center;background:rgba(244,114,182,.12);border:1px solid rgba(196,181,253,.35)"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-5px;margin:0"><defs><linearGradient id="onexVaultG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4b5fd"/><stop offset="1" stop-color="#f472b6"/></linearGradient></defs><path d="M12 2.5 20 5.5v6.2c0 4.6-3.2 8.6-8 10-4.8-1.4-8-5.4-8-10V5.5z" fill="url(#onexVaultG)"/><path d="M8.4 12.2l2.5 2.5 4.7-4.9" fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b style="font-size:15px;white-space:nowrap;flex-shrink:0">انبار آی‌پی تمیز ONEX</b></div><button type="button" onclick="esVaultClose()" aria-label="بستن" style="width:34px;height:34px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:transparent;color:#cbd5e1;cursor:pointer">✕</button></div><div style="padding:20px;display:grid;gap:14px"><div style="display:flex;width:100%;box-sizing:border-box;border-radius:999px;background:rgba(0,0,0,.4);padding:4px"><button type="button" data-vt="ipv4" dir="rtl" onclick="esVaultType('ipv4')" style="flex:1;border:0;border-radius:999px;padding:9px 0;font-weight:700;font-size:12px;line-height:1.4;white-space:nowrap;min-width:0;color:#cbd5e1;background:transparent;cursor:pointer">آی‌پی۴</button><button type="button" data-vt="ipv6" dir="rtl" onclick="esVaultType('ipv6')" style="flex:1;border:0;border-radius:999px;padding:9px 0;font-weight:700;font-size:12px;line-height:1.4;white-space:nowrap;min-width:0;color:#cbd5e1;background:transparent;cursor:pointer">آی‌پی۶</button><button type="button" data-vt="domain" dir="rtl" onclick="esVaultType('domain')" style="flex:1;border:0;border-radius:999px;padding:9px 0;font-weight:700;font-size:12px;line-height:1.4;white-space:nowrap;min-width:0;color:#cbd5e1;background:transparent;cursor:pointer">دامنه</button></div><div style="border-radius:999px;background:rgba(0,0,0,.3);padding:11px 18px;font-size:12px;line-height:1.5;min-height:44px;box-sizing:border-box;white-space:nowrap;color:#cbd5e1">اوپراتور: همه (توصیه شده)</div><div style="display:flex;align-items:center;gap:12px;min-height:52px;box-sizing:border-box;border-radius:999px;background:rgba(0,0,0,.3);padding:8px 16px"><span style="font-size:12px;color:#cbd5e1">تعداد</span><input id="esVaultRange" type="range" min="1" max="500" value="20" dir="ltr" oninput="esVaultSync(this.value)" style="flex:1;accent-color:#ec4899"><span id="esVaultShow" style="width:52px;text-align:center;font-size:14px;font-weight:900;color:#f9a8d4">۲۰</span><input id="esVaultCount" type="hidden" value="20"></div></div><div style="display:flex;gap:10px;padding:0 20px 20px"><button type="button" onclick="esVaultCopy()" style="border-radius:999px;border:1px solid rgba(255,255,255,.2);background:transparent;padding:12px 18px;font-size:12px;font-weight:700;color:#e2e8f0;cursor:pointer">کپی</button><button type="button" onclick="esVaultFetch()" style="flex:1;border:0;border-radius:999px;padding:13px;font-size:14px;font-weight:900;color:#fff;background:linear-gradient(90deg,#8b5cf6,#ec4899);box-shadow:0 12px 30px -10px #ec4899;cursor:pointer">دریافت</button></div></div></div><div style="display:flex;gap:8px"><textarea id="esIp" dir="ltr" rows="3" placeholder="104.16.0.1" autocomplete="off" style="flex:1;min-width:0;border-radius:14px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:10px 14px;font:inherit;box-sizing:border-box;width:100%;resize:vertical"></textarea></div>
+      <div class="es-lbl" style="font-size:11px;opacity:.75;margin-top:6px">هر IP توی یک خط، هر IP یک کانفیگ میشه (حداکثر ۵۰۰). اگه خالی بمونه با دامنه ساخته میشه</div>
+      <div class="es-lbl" style="display:flex;justify-content:space-between;align-items:center;gap:8px">نام کانفیگ‌ها <button type="button" class="esb" onclick="esRandName()">نام رندم</button></div>
+      <input id="esName" dir="ltr" maxlength="32" value="ONEX" placeholder="ONEX" autocomplete="off" style="width:100%;height:46px;border-radius:14px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:0 14px;font:inherit;box-sizing:border-box">
+      <div class="es-lbl" style="font-size:11px;opacity:.75;margin-top:6px">همیشه با ONEX شروع می‌شه و اسمی که بذاری بعدش میاد؛ مثلا ONEX-Ali-01</div>
+      <div class="es-lbl">تعداد کانفیگ داخل این ساب (هر عدد)</div>
+      <div class="es-num" id="esCustomBox" style="margin-top:8px"><button type="button" data-step="-1">−</button><input id="esCustom" inputmode="numeric" value="3"><button type="button" data-step="1">+</button></div>
+      <div class="es-lbl">حجم هر کانفیگ (GB، ۰ = بی‌نهایت)</div>
+      <div class="es-num"><button type="button" data-field="quota" data-step="-5">−</button><input id="esQuota" inputmode="numeric" value="0"><button type="button" data-field="quota" data-step="5">+</button></div>
+      <div class="es-lbl">تعداد کاربر هر کانفیگ (۰ = بی‌نهایت)</div><div class="es-num"><button type="button" data-field="users" data-step="-1">−</button><input id="esUsers" inputmode="numeric" value="0"><button type="button" data-field="users" data-step="1">+</button></div>
+      <div class="es-lbl">مدت (روز، ۰ = بی‌نهایت)</div>
+      <div class="es-num"><button type="button" data-field="days" data-step="-1">−</button><input id="esDays" inputmode="numeric" value="0"><button type="button" data-field="days" data-step="1">+</button></div>
+      <div style="display:grid;gap:10px;margin:6px 0 14px"><div class="esc-row"><div class="esc-ico">⚡</div><div class="esc-txt"><b>بهینه‌ساز (cs + fm)</b><small>روی VLESS و Trojan اعمال میشه</small></div><button type="button" id="esOptBtn" class="esw off" aria-label="بهینه‌ساز" onclick="esToggleCdn('opt')"><i></i></button></div><div class="esc-row"><div class="esc-ico">🛡</div><div class="esc-txt"><b>ECH کلودفلر</b><small>فقط بخش ECH کلودفلر</small></div><button type="button" id="esEchBtn" class="esw off" aria-label="ECH" onclick="esToggleCdn('ech')"><i></i></button></div><div class="esc-bar" id="esEchBar" hidden><div style="font-size:12px;opacity:.8">مقدار ECH (پیش‌فرض کلودفلر)</div><input id="esEchVal" dir="ltr" value="cloudflare-ech.com+udp://1.1.1.1" autocomplete="off"><button type="button" onclick="esApplyEch()">اعمال روی کانفیگ‌های Edge</button></div><div class="esc-bar" id="esEchBuilder" hidden style="margin-top:8px;display:grid;gap:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:13px">ECH Builder</b><span style="font-size:11px;opacity:.7">ترکیب دامنه و آی‌پی DNS</span></div><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px"><div style="min-width:0"><div class="es-lbl">دامنه‌های ECH</div><textarea id="echDomains" dir="ltr" rows="5" style="width:100%;border-radius:12px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:8px 10px;font:inherit;box-sizing:border-box"></textarea><button type="button" class="esb" onclick="echLoad('dom')" style="margin-top:6px">بارگذاری از مخزن</button></div><div style="min-width:0"><div class="es-lbl">آی‌پی‌های DNS</div><textarea id="echDns" dir="ltr" rows="5" style="width:100%;border-radius:12px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:8px 10px;font:inherit;box-sizing:border-box"></textarea><button type="button" class="esb" onclick="echLoad('dns')" style="margin-top:6px">بارگذاری از مخزن</button></div></div><div id="echProtos" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="esb" data-ep="udp" onclick="echToggleP('udp')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:0;background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff">UDP</button><button type="button" class="esb" data-ep="doh" onclick="echToggleP('doh')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:1px solid rgba(255,255,255,.15);background:transparent;color:inherit">DOH</button><button type="button" class="esb" data-ep="tcp" onclick="echToggleP('tcp')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:1px solid rgba(255,255,255,.15);background:transparent;color:inherit">TCP</button></div><button type="button" class="es-build" onclick="echBuild()">ترکیب و ساخت ECH</button><div class="es-lbl" id="echCount"></div><div id="echOut" dir="ltr" style="max-height:176px;overflow-y:auto;border-radius:12px;background:rgba(0,0,0,.25);padding:6px"></div><div style="border-radius:12px;border:1px solid rgba(168,85,247,.35);background:rgba(168,85,247,.06);padding:10px"><div class="es-lbl" style="margin:0 0 4px">مقدار ECH فعال</div><div id="echSel" dir="ltr" style="font-family:monospace;font-size:12px;word-break:break-all">—</div></div></div></div>
+      <button type="button" class="es-build" id="esBuild">ساخت کانفیگ‌ها</button>
+      <button type="button" class="esb" id="esCancelEdit" hidden style="width:100%;justify-content:center;margin-top:8px">انصراف از ویرایش</button>
+    </div>
+    <div class="es-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px"><h4 style="margin:0">کانفیگ‌های ساب Edge</h4><span class="es-count" id="esTotal">—</span></div>
+      <div id="esBar" style="display:grid;gap:8px;margin:-2px 0 12px"><style>.esb{font:inherit;font-size:12px;padding:6px 11px;border-radius:10px;border:1px solid var(--card-b);background:transparent;color:var(--t2);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}.esb.red{color:#ff829c;border-color:rgba(255,130,156,.4)}</style><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--t2);cursor:pointer"><input type="checkbox" id="esSelAll" style="width:16px;height:16px"> انتخاب همه</label><span id="esSelCount" style="font-size:12px;color:var(--t3)">۰ انتخاب</span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="esb" onclick="esBulk('on')">روشن</button><button type="button" class="esb" onclick="esBulk('off')">خاموش</button><button type="button" class="esb red" onclick="esBulk('del-sel')">حذف انتخاب‌ها</button><button type="button" class="esb red" onclick="esBulk('del-all')">حذف همه</button></div></div>
+      
+    <div class="es-lanes" id="esLanes"><div class="es-empty">هنوز کانفیگی ساخته نشده.</div></div>
+    </div>
+  </div>
+</section>
+</section>
+<section class="page cf-dedicated-page" id="page-edge-sni">
+  <div class="edge-card edge-sni-card cf-block" id="edgeSniSection" data-cf-section="sni">
+    <div class="edge-sni-head"><div><h3 style="margin:0">اسکنر SNI برای Reality</h3><p class="edge-muted">دامنه‌ها را از نظر TLS 1.3، HTTP/2 و سرعت اتصال بررسی کن. نتیجه‌ها برای انتخاب Handshake مناسب قابل کپی هستند.</p></div><span class="edge-sni-badge">TLS / H2</span></div>
+    <div class="edge-sni-grid">
+      <div class="field"><label for="sniHosts">لیست دامنه‌ها</label><textarea id="sniHosts" rows="4" dir="ltr" spellcheck="false" placeholder="www.cloudflare.com
+www.google.com
+cloudflare.com"></textarea></div>
+      <div class="edge-sni-side"><label>تنظیمات تست</label><div class="edge-sni-info"><span>پروتکل</span><b>TLS 1.3 + HTTP/2</b></div><div class="edge-sni-info"><span>هدف</span><b>Reality Handshake</b></div><button type="button" class="btn btn-p" id="sniBtnScan" onclick="sniScan()">شروع اسکن SNI</button></div>
+    </div>
+    <div class="edge-sni-actions"><button type="button" class="btn btn-sm" onclick="sniFillDefaults()">لیست پیشنهادی</button><button type="button" class="btn btn-sm" onclick="sniCopyGood()">کپی دامنه‌های سالم</button><span id="sniResultsSummary" class="edge-muted"></span></div>
+    <div id="sniResults" class="edge-sni-results"><div class="edge-muted" style="padding:14px;text-align:center">هنوز تست SNI انجام نشده است.</div></div>
+  </div>
+</section>
+
+
+
+<section class="page" id="page-edge-tools">
+  <div class="page-head"><div><div class="page-title"><span>اسکنر IP</span></div><div class="page-sub">پیدا کردن IPهای سالم و سریع برای Cloudflare، فایل IPهای خود ONEX، دامنه‌ی دلخواه یا Railway، روی هر پورتی که بخواهی.</div></div></div>
+  <div class="card">
+    <div class="card-title">تنظیمات اسکن</div>
+    <div class="form-row">
+      <div class="field"><label>منبع</label><select id="edgeScanSource">
+        <option value="cloudflare">Cloudflare (رنج‌های کلودفلر)</option>
+        <option value="onex">ONEX IPs + Railway (IPهای آماده پروژه و Railway)</option>
+      </select><div class="scan-hint" id="edgeSourceHint">از رنج‌های رسمی Cloudflare نمونه‌برداری می‌کند.</div></div>
+      <div class="field"><label>SNI / دامنه</label><input id="edgeScanSni" dir="ltr" placeholder="www.cloudflare.com"><div class="scan-hint">برای پیدا کردن IP تمیز دامنه‌ی خودت، همین‌جا دامنه‌ات را بنویس.</div></div>
+      <div class="field"><label>حالت اسکن</label><select id="edgeScanMode"><option value="sample">سریع، نمونه‌برداری</option><option value="full">کامل، همه‌ی رنج‌ها</option></select></div>
+      <div class="field"><label>تعداد IP برای اسکن (بدون محدودیت)</label><input id="edgeScanLimit" type="number" min="1" max="20000" step="1" value="200" dir="ltr"><div class="scan-hint">پیش‌فرض ۲۰۰ تا. هر عددی بدی همون تعداد اسکن میشه.</div></div>
+      <div class="field"><label>تعداد تست برای هر IP</label><select id="edgeScanTests"><option value="1">۱ بار (سریع)</option><option value="3">۳ بار</option><option value="5">۵ بار (دقیق‌تر)</option></select></div>
+      <div class="field"><label>Timeout (ثانیه)</label><input id="edgeScanTimeout" type="number" min="0.4" max="8" step="0.1" value="3" dir="ltr"></div>
+    </div>
+    <div class="field">
+      <div class="scan-port-toolbar"><label>پورت‌ها</label><small id="edgePortCount">۱ پورت انتخاب شده</small></div>
+      <div class="scan-ports" id="edgeScanPorts"><label class="chk"><input type="checkbox" class="scanPortChk" value="80"> 80</label><label class="chk"><input type="checkbox" class="scanPortChk" value="443" checked> 443</label><label class="chk"><input type="checkbox" class="scanPortChk" value="2052"> 2052</label><label class="chk"><input type="checkbox" class="scanPortChk" value="2053"> 2053</label><label class="chk"><input type="checkbox" class="scanPortChk" value="2082"> 2082</label><label class="chk"><input type="checkbox" class="scanPortChk" value="2083"> 2083</label><label class="chk"><input type="checkbox" class="scanPortChk" value="2086"> 2086</label><label class="chk"><input type="checkbox" class="scanPortChk" value="2087"> 2087</label><label class="chk"><input type="checkbox" class="scanPortChk" value="2095"> 2095</label><label class="chk"><input type="checkbox" class="scanPortChk" value="2096"> 2096</label><label class="chk"><input type="checkbox" class="scanPortChk" value="8080"> 8080</label><label class="chk"><input type="checkbox" class="scanPortChk" value="8443"> 8443</label><label class="chk"><input type="checkbox" class="scanPortChk" value="8880"> 8880</label></div>
+      <div class="scan-ports-tools"><button class="btn btn-sm" type="button" onclick="onexScanPorts('tls')">فقط TLS</button><button class="btn btn-sm" type="button" onclick="onexScanPorts('all')">همه</button><button class="btn btn-sm" type="button" onclick="onexScanPorts('http')">HTTP</button><button class="btn btn-sm" type="button" onclick="onexScanPorts('none')">هیچ‌کدام</button></div>
+    </div>
+    <div class="field"><label>پورت دستی (اختیاری، با کاما)</label><input id="edgeScanCustomPorts" dir="ltr" placeholder="10000, 20443"></div>
+    <div class="field"><label>مقصدهای دستی (اختیاری، هر خط یک IP یا IP:Port)</label><textarea id="edgeScanCandidates" rows="3" dir="ltr" placeholder="104.16.0.1&#10;172.67.1.1:2053"></textarea><div class="scan-hint">IP بدون پورت روی همه‌ی پورت‌های انتخابی تست می‌شود.</div></div>
+    <div class="scan-actions"><button class="btn btn-p" type="button" onclick="onexEdgeScan()">شروع اسکن</button><span id="edgeScanStatus" class="page-sub"></span><button class="btn btn-sm" type="button" id="edgeScanCancel" hidden onclick="onexEdgeCancel()">توقف اسکن</button></div>
+    <div id="edgeScanProgress" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">نتایج</div>
+    <div class="scan-summary" id="edgeScanSummary"></div>
+    <div class="scan-actions" style="margin-top:0;margin-bottom:8px">
+      <button class="btn btn-p" type="button" onclick="onexApplyEdge()">اعمال IPهای سالم روی کانفیگ‌ها</button>
+      <button class="btn" type="button" onclick="onexCopyEdge()">کپی IPهای سالم</button>
+      <button class="btn" type="button" onclick="onexExportCsv()">خروجی CSV</button>
+      <button class="btn" type="button" onclick="onexClearEdge()">پاک کردن نتایج</button>
+      <button class="btn" type="button" onclick="onexRetestGood()">تست مجدد سالم‌ها</button>
+      <label class="chk"><input type="checkbox" id="edgeOnlyGood" onchange="onexRerender()"> فقط سالم‌ها</label>
+    </div>
+    <div id="edgePortSummary" class="scan-summary"></div>
+    <div id="edgeScanHistory" class="scan-summary"></div>
+    <div class="card-title" style="margin-top:14px">استخر IP ذخیره‌شده</div>
+    <div class="scan-actions" style="margin:6px 0"><button class="btn btn-sm" type="button" onclick="onexPoolLoad()">نمایش استخر</button></div>
+    <div id="edgePoolBox" class="page-sub"></div>
+    <div id="edgeScanResults" class="page-sub">هنوز اسکن انجام نشده.</div>
+  </div>
+  <div class="card">
+    <div class="card-title">SNI Scanner · Reality</div>
+    <div class="page-sub">SNIهای سریع را با TLS handshake واقعی پیدا کن؛ فقط دامنه‌ها را وارد کن، هر خط یکی.</div>
+    <div class="sni-grid">
+      <div class="field"><label>لیست SNI</label><textarea id="sniScanList" rows="4" dir="ltr" placeholder="www.cloudflare.com&#10;cloudflare.com"></textarea></div>
+      <button class="btn btn-p" type="button" onclick="onexSniScan()">اسکن SNI</button>
+    </div>
+    <div class="scan-actions"><button class="btn" type="button" onclick="onexCopySni()">کپی سریع‌ترین‌ها</button><button class="btn" type="button" onclick="onexClearSni()">پاک کردن</button><span id="sniScanStatus" class="page-sub"></span></div>
+    <div id="sniScanResults" class="sni-results"><span class="page-sub">هنوز اسکن SNI انجام نشده.</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">دامنه عمومی پنل</div>
+    <div class="page-sub">لینک‌های جدید با این دامنه ساخته می‌شوند، نه hostname محلی.</div>
+    <div id="onexPublicEndpoint">در حال بررسی...</div>
+    <button class="btn" type="button" onclick="loadOnexPublicEndpoint()">بروزرسانی دامنه</button>
+  </div>
+</section>
+<script>
+(function(){
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const $=id=>document.getElementById(id);
+  const TLS=[443,2053,2083,2087,2096,8443];
+  const HINTS={cloudflare:'از رنج‌های رسمی Cloudflare نمونه‌برداری می‌کند.',domain:'دامنه را resolve می‌کند و IPهایش را روی پورت‌ها تست می‌کند.',railway:'فقط وقتی پنل روی Railway اجرا شود، یا IP:Port دستی بدهی.',onex:'IPهای آماده‌ی پروژه (onex_repo/ips.txt) و endpointهای Railway (config/endpoint.txt) را تست می‌کند. حالت سریع یک نمونه‌ی تصادفی و حالت کامل نمونه‌ی یکنواخت می‌گیرد.'};
+  let lastGood=[];
+  function selectedPorts(){
+    const out=[...document.querySelectorAll('#edgeScanPorts .scanPortChk:checked')].map(x=>Number(x.value));
+    ($('edgeScanCustomPorts').value||'').split(/[\s,]+/).forEach(v=>{const n=Number(v);if(n>=1&&n<=65535&&!out.includes(n))out.push(n)});
+    const count=$('edgePortCount'); if(count)count.textContent=`${out.length.toLocaleString('fa-IR')} پورت انتخاب شده`;
+    return out;
+  }
+  const HTTP_PORTS=[80,8080,8880,2052,2082,2086,2095];
+  window.onexScanPorts=function(kind){document.querySelectorAll('#edgeScanPorts .scanPortChk').forEach(c=>{const n=Number(c.value);c.checked=kind==='all'||(kind==='tls'&&TLS.includes(n))||(kind==='http'&&HTTP_PORTS.includes(n))});selectedPorts()};
+  let lastRows=[];
+  let scanPage=1;
+  const SCAN_PAGE=50;
+  const scanSel=new Set();
+  const scanKey=x=>x.host+':'+x.port;
+  const scanF={minSucc:0,maxLat:'',colo:'',sort:'latency'};
+  function render(rows,stats){
+    const uniq=new Map();for(const x of (rows||[])){const k=scanKey(x);const p=uniq.get(k);if(!p||(!p.ok&&x.ok))uniq.set(k,x)}
+    rows=[...uniq.values()];
+    lastRows=rows||[];
+    scanPage=1;
+    lastGood=(rows||[]).filter(x=>x.ok);
+    const ps=$('edgePortSummary');
+    if(ps){const per={};lastGood.forEach(x=>{per[x.port]=(per[x.port]||0)+1});ps.innerHTML=Object.keys(per).length?Object.entries(per).sort((a,b)=>b[1]-a[1]).map(([p,c])=>`<span class="scan-chip">${p}<b>${c} ✓</b></span>`).join(''):'';}
+    onexRerender(stats);
+  }
+  function scanFiltered(){
+    const only=$('edgeOnlyGood')&&$('edgeOnlyGood').checked;
+    let rows=only?lastRows.filter(x=>x.ok):lastRows.slice();
+    if(scanF.minSucc>0)rows=rows.filter(x=>(x.success_pct??(x.ok?100:0))>=scanF.minSucc);
+    const ml=Number(scanF.maxLat);if(ml>0)rows=rows.filter(x=>x.latency_ms!=null&&x.latency_ms<=ml);
+    if(scanF.colo)rows=rows.filter(x=>x.colo===scanF.colo);
+    const sorters={latency:(a,b)=>(a.latency_ms??1e9)-(b.latency_ms??1e9),success:(a,b)=>(b.success_pct??0)-(a.success_pct??0),jitter:(a,b)=>(a.jitter_ms??1e9)-(b.jitter_ms??1e9)};
+    const by=sorters[scanF.sort]||sorters.latency;
+    return rows.sort((a,b)=>((b.ok?1:0)-(a.ok?1:0))||by(a,b));
+  }
+  window.onexSetFilter=function(k,v){scanF[k]=v;scanPage=1;onexRerender()};
+  window.onexExport=function(fmt){
+    const rows=scanFiltered();
+    if(!rows.length){toast('نتیجه‌ای برای خروجی نیست');return}
+    const nl=String.fromCharCode(10);let text,type,ext;
+    if(fmt==='json'){text=JSON.stringify(rows,null,2);type='application/json';ext='json'}
+    else if(fmt==='ip'){text=[...new Set(rows.map(x=>x.host))].join(nl);type='text/plain';ext='txt'}
+    else if(fmt==='txt'){text=rows.map(scanKey).join(nl);type='text/plain';ext='txt'}
+    else{const head=['host','port','ok','latency_ms','success_pct','jitter_ms','colo','protocol','error'];const q=v=>'"'+String(v==null?'':v).split('"').join('""')+'"';text=[head.join(',')].concat(rows.map(x=>head.map(k=>q(x[k])).join(','))).join(nl);type='text/csv';ext='csv'}
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=`onex-scan-${Date.now()}.${ext}`;document.body.appendChild(a);a.click();a.remove();
+  };
+  async function scanCopy(text,msg){try{await navigator.clipboard.writeText(text);toast(msg)}catch(e){prompt('کپی کن:',text)}}
+  window.onexCopyOne=function(key){scanCopy(key,'کپی شد')};
+  window.onexCopySelected=function(){const list=[...scanSel];if(!list.length){toast('IPی انتخاب نشده');return}scanCopy(list.join('\n'),`${list.length} IP کپی شد`)};
+  window.onexCopyAllRows=function(){const rows=scanFiltered();if(!rows.length){toast('IPی نیست');return}scanCopy(rows.map(scanKey).join('\n'),`${rows.length} IP کپی شد`)};
+  window.onexSelectAll=function(){const rows=scanFiltered();const all=rows.every(x=>scanSel.has(scanKey(x)));rows.forEach(x=>all?scanSel.delete(scanKey(x)):scanSel.add(scanKey(x)));onexRerender()};
+  window.onexPage=function(n){scanPage=n;onexRerender()};
+  document.addEventListener('change',e=>{const t=e.target;if(t&&t.classList&&t.classList.contains('scanSelChk')){t.checked?scanSel.add(t.dataset.key):scanSel.delete(t.dataset.key);onexRerender()}});
+  window.onexRerender=function(stats){
+    const rows=scanFiltered();
+    const sum=$('edgeScanSummary');
+    if(sum&&stats)sum.innerHTML=`<span class="scan-chip">تست‌شده<b>${stats.tested??lastRows.length}</b></span><span class="scan-chip">سالم<b>${stats.healthy??lastGood.length}</b></span><span class="scan-chip">بهترین<b>${stats.best_latency_ms!=null?stats.best_latency_ms+'ms':'—'}</b></span>`;
+    const box=$('edgeScanResults');
+    if(!rows.length){box.textContent=($('edgeOnlyGood')&&$('edgeOnlyGood').checked)?'سالمی پیدا نشد.':'نتیجه‌ای نیست.';return}
+    const pages=Math.max(1,Math.ceil(rows.length/SCAN_PAGE));
+    scanPage=Math.min(Math.max(1,scanPage),pages);
+    const slice=rows.slice((scanPage-1)*SCAN_PAGE,scanPage*SCAN_PAGE);
+    const list=slice.map(x=>{const k=scanKey(x);return `<div class="scan-row${x.ok?'':' bad'}"><label class="chk"><input type="checkbox" class="scanSelChk" data-key="${esc(k)}" ${scanSel.has(k)?'checked':''}></label><code>${esc(k)}</code><span class="${x.ok?'scan-ok':'scan-bad'}">${x.ok?'✅ '+esc(x.protocol||'')+' · '+esc(x.latency_ms)+'ms'+(x.colo?' · '+esc(x.colo):'')+(x.tests>1?' · '+esc(x.success_pct)+'% ('+esc(x.ok_count)+'/'+esc(x.tests)+') · جیتر '+esc(x.jitter_ms)+'ms':''):'❌ '+esc((x.error||'بدون پاسخ').slice(0,40))}</span><button type="button" class="btn btn-sm" onclick="onexCopyOne(this.dataset.key)" data-key="${esc(k)}">کپی</button></div>`}).join('');
+    const bar=`<div class="scan-actions" style="margin:8px 0"><button class="btn btn-sm" type="button" onclick="onexSelectAll()">انتخاب همه (${rows.length})</button><button class="btn btn-sm" type="button" onclick="onexCopySelected()">کپی انتخاب‌شده‌ها (${scanSel.size})</button><button class="btn btn-sm" type="button" onclick="onexCopyAllRows()">کپی همه‌ی این لیست</button></div>`;
+    const pager=`<div class="scan-actions" style="margin-top:8px"><button class="btn btn-sm" type="button" ${scanPage<=1?'disabled':''} onclick="onexPage(${scanPage-1})">قبلی</button><span class="page-sub">صفحه ${scanPage} از ${pages} · ${rows.length} مورد</span><button class="btn btn-sm" type="button" ${scanPage>=pages?'disabled':''} onclick="onexPage(${scanPage+1})">بعدی</button></div>`;
+    const colos=[...new Set(lastRows.map(x=>x.colo).filter(Boolean))].sort();
+    const filt=`<div class="scan-actions" style="margin:8px 0"><select onchange="onexSetFilter('minSucc',this.value)">${[0,50,80,100].map(v=>`<option value="${v}" ${String(scanF.minSucc)===String(v)?'selected':''}>موفقیت ≥ ${v}%</option>`).join('')}</select><input type="number" min="0" placeholder="حداکثر ms" value="${esc(scanF.maxLat)}" onchange="onexSetFilter('maxLat',this.value)" style="width:120px"><select onchange="onexSetFilter('colo',this.value)"><option value="">همه‌ی کلاس‌ها</option>${colos.map(c=>`<option value="${esc(c)}" ${scanF.colo===c?'selected':''}>${esc(c)}</option>`).join('')}</select><select onchange="onexSetFilter('sort',this.value)">${[['latency','سریع‌ترین'],['success','بیشترین موفقیت'],['jitter','کمترین جیتر']].map(([v,l])=>`<option value="${v}" ${scanF.sort===v?'selected':''}>${l}</option>`).join('')}</select></div>`;
+    const exp=`<div class="scan-actions" style="margin:8px 0"><button class="btn btn-sm" type="button" onclick="onexExport('txt')">خروجی TXT (host:port)</button><button class="btn btn-sm" type="button" onclick="onexExport('ip')">خروجی فقط IP</button><button class="btn btn-sm" type="button" onclick="onexExport('csv')">خروجی CSV</button><button class="btn btn-sm" type="button" onclick="onexExport('json')">خروجی JSON</button></div>`;
+    box.innerHTML=filt+exp+bar+list+pager;
+  }
+  async function loadSaved(){const r=await api('/api/scanner/edge');if(!r)return;renderEdgeHistory(r.history);const src=$('edgeScanSource').value;const rows=r[src]||[];const st=(r.stats||{})[src];if(rows.length)render(rows,st);else{render([],null);$('edgeScanResults').textContent='هنوز اسکن انجام نشده.'}}
+  function renderEdgeHistory(list){const box=$('edgeScanHistory');if(!box)return;const items=(list||[]).slice(0,8);box.innerHTML=items.length?'<span class="page-sub">آخرین اسکن‌ها:</span> '+items.map(h=>'<span class="scan-chip">'+esc(h.source)+' · '+esc(h.healthy)+'/'+esc(h.tested)+(h.best_latency_ms!=null?' · '+esc(h.best_latency_ms)+'ms':'')+'</span>').join(''):''}
+  window.onexExportCsv=function(){const rows=lastRows||[];if(!rows.length){toast('نتیجه‌ای برای خروجی نیست');return}const head=['host','port','ok','latency_ms','protocol','error'];const q=v=>'"'+String(v==null?'':v).split('"').join('""')+'"';const nl=String.fromCharCode(10);const csv=[head.join(',')].concat(rows.map(x=>head.map(k=>q(x[k])).join(','))).join(nl);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([String.fromCharCode(65279)+csv],{type:'text/csv;charset=utf-8'}));a.download='onex-scan-'+Date.now()+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)};
+  window.loadOnexPublicEndpoint=async function(){const r=await api('/api/public-endpoint');const e=$('onexPublicEndpoint');if(e)e.innerHTML=r?`<b dir="ltr">${esc(r.host)}</b><br><small dir="ltr">${esc(r.url)}</small>`:'دریافت دامنه ناموفق بود';};
+  let scanAbort=false;
+  window.onexEdgeCancel=function(){scanAbort=true;toast('در حال توقف…')};
+  window.onexEdgeScan=async function(){
+    const source=$('edgeScanSource').value,ports=selectedPorts(),st=$('edgeScanStatus'),pg=$('edgeScanProgress'),cancelBtn=$('edgeScanCancel');
+    if(!ports.length){toast('حداقل یک پورت انتخاب کن');return}
+    const limit=Math.max(1,Math.min(20000,Number($('edgeScanLimit').value)||200));
+    const common={source,ports,mode:$('edgeScanMode').value,timeout:Number($('edgeScanTimeout').value||3),sni:$('edgeScanSni').value.trim(),limit,tests:Number($('edgeScanTests')?.value)||1};
+    const manual=$('edgeScanCandidates').value.split(/[,\n]+/).map(x=>x.trim()).filter(Boolean);
+    const JH={'Content-Type':'application/json'};
+    scanAbort=false;st.textContent='در حال آماده‌سازی…';
+    const plan=await api('/api/scanner/edge/scan',{method:'POST',headers:JH,body:JSON.stringify({...common,candidates:manual,plan_only:true})});
+    if(!plan||!plan.targets||!plan.targets.length){st.textContent='مقصدی برای اسکن پیدا نشد';return}
+    const targets=plan.targets,CH=100;let done=0,all=[];
+    if(cancelBtn)cancelBtn.hidden=false;
+    try{
+      for(let i=0;i<targets.length;i+=CH){
+        if(scanAbort)break;
+        const chunk=targets.slice(i,i+CH);
+        const r=await api('/api/scanner/edge/scan',{method:'POST',headers:JH,body:JSON.stringify({...common,sni:plan.sni,candidates:chunk,persist:false})});
+        if(!r){st.textContent='اسکن ناموفق بود';break}
+        all=all.concat(r.results||[]);done+=chunk.length;
+        const pct=Math.round(done/targets.length*100);
+        if(pg)pg.innerHTML=`<div class="es-bar"><i style="width:${pct}%"></i></div><span class="page-sub">${done.toLocaleString('fa-IR')} از ${targets.length.toLocaleString('fa-IR')} (${pct}%) · سالم تا الان: ${all.filter(x=>x.ok).length.toLocaleString('fa-IR')}</span>`;
+        st.textContent=scanAbort?'در حال توقف…':'در حال اسکن…';
+      }
+    }finally{if(cancelBtn)cancelBtn.hidden=true}
+    if(!all.length){if(pg)pg.innerHTML='';return}
+    const cm=await api('/api/scanner/edge/commit',{method:'POST',headers:JH,body:JSON.stringify({...common,sni:plan.sni,results:all,stopped:scanAbort})});
+    st.textContent=`${all.filter(x=>x.ok).length} سالم از ${all.length} تست${scanAbort?' (متوقف شد)':''}`;
+    if(pg)pg.innerHTML='';
+    render(all,cm&&cm.stats);
+    api('/api/scanner/edge').then(x=>renderEdgeHistory((x&&x.history)||[]));
+    onexPoolLoad();
+  };
+  window.onexPoolLoad=async function(){
+    const r=await api('/api/scanner/edge/pool');const box=$('edgePoolBox');if(!r||!box)return;
+    const rows=r.items||[];window.__pool=rows;
+    if(!rows.length){box.innerHTML='استخر خالیه.';return}
+    box.innerHTML=`<div class="scan-actions"><span>استخر: ${rows.length.toLocaleString('fa-IR')} IP</span><button class="btn btn-sm" type="button" onclick="onexPoolCopy()">کپی همه</button><button class="btn btn-sm" type="button" onclick="onexPoolRetest()">تست مجدد و حذف مرده‌ها</button><button class="btn btn-sm" type="button" onclick="onexPoolClear()">پاک کردن استخر</button></div>`
+      +`<details class="pool-list"><summary class="page-sub">نمایش IPهای استخر (${rows.length.toLocaleString('fa-IR')})</summary>`+rows.slice(0,50).map(x=>`<div class="scan-row"><code>${esc(x.host)}:${esc(x.port)}</code><span class="scan-ok">${esc(x.latency_ms)}ms · ${esc(x.success_pct)}% · ${esc(x.colo||'-')}</span><button class="btn btn-sm" type="button" onclick="onexPoolRemove('${esc(x.host)}',${Number(x.port)||0})">حذف</button></div>`).join('')
+      +(rows.length>50?`<div class="page-sub">فقط ۵۰ تای اول نمایش داده شد. «کپی همه» همه‌ی IPها رو می‌گیره.</div>`:'')+'</details>';
+  };
+  window.onexPoolCopy=function(){const rows=window.__pool||[];if(!rows.length){toast('استخری نیست');return}scanCopy(rows.map(x=>x.host+':'+x.port).join('\n'),`${rows.length} IP کپی شد`)};
+  window.onexPoolRetest=async function(){
+    const st=$('edgeScanStatus');if(st)st.textContent='در حال تست مجدد استخر…';
+    const r=await api('/api/scanner/edge/pool/retest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sni:$('edgeScanSni').value.trim(),timeout:Number($('edgeScanTimeout').value||3),tests:Number($('edgeScanTests')?.value)||1})});
+    if(st)st.textContent='';
+    if(r){toast(`${r.alive} سالم مونده · ${r.removed} مرده حذف شد`);onexPoolLoad()}
+  };
+  window.onexPoolRemove=async function(host,port){const r=await api('/api/scanner/edge/pool/remove',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host:host,port:port})});if(r){toast('IP از استخر حذف شد');onexPoolLoad()}};
+  window.onexPoolClear=async function(){if(!confirm('کل استخر IP پاک بشه؟'))return;const r=await api('/api/scanner/edge/pool/clear',{method:'POST'});if(r){toast('استخر پاک شد');onexPoolLoad()}};
+  window.onexRetestGood=function(){if(!lastGood.length){toast('IP سالمی برای تست مجدد نیست');return}$('edgeScanCandidates').value=lastGood.map(x=>x.host+':'+x.port).join('\n');onexEdgeScan();};
+  window.onexCopyEdge=async function(){if(!lastGood.length){toast('IP سالمی نیست');return}const t=lastGood.map(x=>x.host+':'+x.port).join('\n');try{await navigator.clipboard.writeText(t);toast(`${lastGood.length} IP کپی شد`)}catch(e){prompt('کپی کن:',t)}};
+  window.onexApplyEdge=async function(){const source=$('edgeScanSource').value;if(!confirm('IPهای سالم داخل Clean IP همه‌ی کانفیگ‌ها قرار بگیرد؟'))return;const r=await api('/api/scanner/edge/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source})});if(r)toast(`${r.updated} کانفیگ بروزرسانی شد`);};
+  window.onexClearEdge=async function(){const source=$('edgeScanSource').value;const r=await api('/api/scanner/edge/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source})});if(r){render([],null);$('edgeScanResults').textContent='نتایج پاک شد';$('edgeScanStatus').textContent='';}};
+  let sniRows=[];
+  function renderSni(rows){sniRows=rows||[];const box=$('sniScanResults');if(!box)return;if(!sniRows.length){box.innerHTML='<span class="page-sub">SNI سالمی پیدا نشد.</span>';return}box.innerHTML=sniRows.map(x=>`<div class="sni-result"><code>${esc(x.sni)}</code><b>${x.latency_ms}ms</b></div>`).join('')}
+  window.onexSniScan=async function(){const raw=$('sniScanList').value.split(/[\s,]+/).map(x=>x.trim()).filter(Boolean);if(!raw.length){toast('حداقل یک SNI وارد کن');return}const st=$('sniScanStatus');st.textContent='در حال تست TLS...';const r=await api('/api/scanner/sni/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({snis:raw,port:443,timeout:3})});if(!r){st.textContent='اسکن ناموفق بود';return}st.textContent=`${r.tested} SNI بررسی شد`;renderSni(r.results)};
+  window.onexCopySni=async function(){if(!sniRows.length){toast('نتیجه‌ای نیست');return}const t=sniRows.map(x=>x.sni).join('\n');try{await navigator.clipboard.writeText(t);toast('SNIهای سریع کپی شد')}catch(e){prompt('کپی کن:',t)}};
+  window.onexClearSni=async function(){const r=await api('/api/scanner/sni/clear',{method:'POST'});if(r){sniRows=[];renderSni([]);$('sniScanStatus').textContent=''}};
+  document.querySelectorAll('#edgeScanPorts .scanPortChk').forEach(x=>x.addEventListener('change',selectedPorts));selectedPorts();
+  const srcEl=$('edgeScanSource');
+  if(srcEl)srcEl.addEventListener('change',()=>{$('edgeSourceHint').textContent=HINTS[srcEl.value]||'';const sni=$('edgeScanSni');sni.placeholder=(srcEl.value==='cloudflare'||srcEl.value==='onex')?'www.cloudflare.com':'onex.shiprr.dev';loadSaved();});
+  const oldGo=window.goPage;window.goPage=function(name){oldGo(name);if(name==='edge-tools'){loadOnexPublicEndpoint();loadSaved();}if(name==='edge'){loadEdge();}};
+})();
+</script>
+<script id="onexSellEdgeJs">
+(function(){
+  const esc2=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtP=n=>Number(n)===0?'رایگان':Number(n||0).toLocaleString('fa-IR')+' تومان';
+  const STAT={awaiting_receipt:'منتظر رسید',pending_review:'در حال بررسی',approved:'تأیید شده',rejected:'رد شده',cancelled:'لغو شده'};
+  const PROTOS=['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one'];
+  const PLABEL={'vless-ws':'ONEX WB','xhttp-packet-up':'ONEX Xhttp','xhttp-stream-up':'ONEX Gaming','xhttp-stream-one':'ONEX Stream'};
+  const j=(u,m,b)=>api(u,{method:m||'GET',headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
+  const v=id=>document.getElementById(id).value.trim();
+  const c=id=>document.getElementById(id).checked;
+
+  window.sellTab=function(name){document.querySelectorAll('#page-sell .store-panel').forEach(x=>x.classList.toggle('on',x.id==='sellTab'+name.charAt(0).toUpperCase()+name.slice(1)));document.querySelectorAll('#page-sell .store-tabs button').forEach((x,i)=>x.classList.toggle('on',['overview','payment','plans','messages','preview'][i]===name));if(name==='preview')renderSellPreview()};
+  function renderSellPreview(){const box=document.getElementById('sellPreviewPlans');if(!box)return;box.innerHTML=(window.__sellPlans||[]).filter(x=>x.enabled!==false).slice(0,3).map(p=>`<div class="store-buy"><span><b>${esc2(p.name)}</b><small>${p.days?p.days+' روز':'بدون انقضا'} · ${p.traffic_gb?p.traffic_gb+' گیگ':'نامحدود'}</small></span><strong>${fmtP(p.price).replace(' تومان',' ت')}</strong></div>`).join('')||'<div class="page-sub">هنوز پلن فعالی ثبت نشده.</div>'}
+  window.sellSaveSettings=async function(){
+    const r=await j('/api/sell/settings','POST',{enabled:c('sellEnabled'),hide_free_create:c('sellHideFree'),
+      card_number:v('sellCard'),card_holder:v('sellHolder'),bank_name:v('sellBank'),payment_url:v('sellPayUrl'),
+      support_username:v('sellSupport'),payment_note:v('sellPayNote'),welcome_text:v('sellWelcome'),expiry_warn_days:v('sellWarnDays')||2});
+    if(r){toast('ذخیره شد');loadSell();}
+  };
+  const CF_PLAN_PROTOS=['vmess-ws','vless-ws','trojan-ws'];
+  function plProtoList(){const mode=document.getElementById('plProto').value;return mode==='cloudflare'?CF_PLAN_PROTOS:PROTOS}
+  window.plRenderProtoChecks=function(){const box=document.getElementById('plProtoChecks');if(!box)return;box.innerHTML=plProtoList().map(p=>`<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--card-b);font-size:12px"><input type="checkbox" class="plProtoChk" value="${p}" checked>${PLABEL[p]||p}</label>`).join('')};
+  window.sellAddPlan=async function(){
+    const chosen=[...document.querySelectorAll('#plProtoChecks .plProtoChk:checked')].map(x=>x.value);
+    const mode=document.getElementById('plProto').value;
+    const body={name:v('plName'),price:v('plPrice')||0,traffic_gb:v('plGb')||0,days:v('plDays')||0,ip_limit:v('plIp')||0,protocol:mode,protocols:chosen};
+    if(!body.name){toast('نام پلن را بنویس');return}
+    if(!chosen.length){toast('حداقل یک پروتکل تیک بزن');return}
+    const r=await j('/api/sell/plans','POST',body);
+    if(r){['plName','plPrice','plGb','plIp'].forEach(i=>document.getElementById(i).value='');toast('پلن اضافه شد');loadSell();}
+  };
+  window.sellTogglePlan=async function(id,on){const p=(window.__sellPlans||[]).find(x=>x.id===id);if(!p)return;
+    const r=await j('/api/sell/plans/'+id,'PUT',Object.assign({},p,{enabled:on}));if(r)loadSell();};
+  window.sellDelPlan=async function(id){if(!confirm('این پلن حذف شود؟'))return;const r=await j('/api/sell/plans/'+id,'DELETE');if(r){toast('حذف شد');loadSell();}};
+  window.sellApprove=async function(id){const r=await j('/api/sell/orders/'+id+'/approve','POST');if(r){toast('تأیید و ارسال شد');loadSell();}};
+  window.sellReject=async function(id){const reason=prompt('دلیل رد (اختیاری)','')||'';const r=await j('/api/sell/orders/'+id+'/reject','POST',{reason});if(r){toast('رد شد');loadSell();}};
+
+  async function loadSell(){
+    const s=await j('/api/sell/settings'); if(!s)return;
+    document.getElementById('sellEnabled').checked=!!s.enabled;const pill=document.getElementById('sellStatePill');if(pill){pill.textContent=s.enabled?'● فروشگاه فعال':'● فروشگاه خاموش';pill.classList.toggle('off',!s.enabled)}
+    document.getElementById('sellHideFree').checked=s.hide_free_create!==false;
+    ['card_number:sellCard','card_holder:sellHolder','bank_name:sellBank','payment_url:sellPayUrl','support_username:sellSupport','payment_note:sellPayNote','welcome_text:sellWelcome','expiry_warn_days:sellWarnDays'].forEach(p=>{const[k,id]=p.split(':');const el=document.getElementById(id);if(el&&document.activeElement!==el)el.value=s[k]??''});
+    const pSel=document.getElementById('plProto');
+    if(!pSel.options.length){pSel.innerHTML='<option value="onex_vip">ONEX VIP (پروتکل‌های عمومی)</option><option value="cloudflare">Cloudflare (VMess / VLESS / Trojan)</option>';pSel.onchange=window.plRenderProtoChecks;window.plRenderProtoChecks();}
+    document.getElementById('sellBotNote').textContent=s.bot_ready?(`ربات فروش کانفیگ متصل است · ${s.admin_count} ادمین تعریف شده`):'توکن ربات هنوز ثبت نشده؛ از تب ربات ONEX ثبتش کن.';
+    const pl=await j('/api/sell/plans'); window.__sellPlans=(pl&&pl.plans)||[];
+    const activePlans=window.__sellPlans.filter(p=>p.enabled!==false);const countEl=document.getElementById('sellActivePlanCount');if(countEl)countEl.textContent=activePlans.length.toLocaleString('fa-IR');const priceEl=document.getElementById('sellStartPrice');if(priceEl)priceEl.textContent=activePlans.length?fmtP(Math.min(...activePlans.map(p=>Number(p.price)||0))).replace(' تومان',''): 'رایگان';
+    document.getElementById('sellPlans').innerHTML=window.__sellPlans.length?window.__sellPlans.map(p=>`<article class="store-plan"><i class="stripe"></i><div><b>${esc2(p.name)}</b><strong>${fmtP(p.price)} <small>${PLABEL[p.protocol]||esc2(p.protocol)}</small></strong><span>${p.days?p.days+' روز':'بدون انقضا'} · ${p.traffic_gb?p.traffic_gb+' گیگ':'نامحدود'} · IP ${p.ip_limit?p.ip_limit:'نامحدود'}</span></div><div class="plan-actions"><button type="button" onclick="sellTogglePlan('${p.id}',${!p.enabled})">${p.enabled?'غیرفعال':'فعال'}</button><button type="button" onclick="sellDelPlan('${p.id}')">حذف</button></div></article>`).join(''):'<div class="page-sub">هنوز پلنی ندارید.</div>';renderSellPreview();
+    const o=await j('/api/sell/orders'); if(!o)return;
+    document.getElementById('sellSummary').textContent=` · در انتظار بررسی: ${o.summary.pending} · تأییدشده: ${o.summary.approved} · درآمد: ${fmtP(o.summary.revenue)}`;
+    const list=o.orders.slice(0,50);
+    document.getElementById('sellOrders').innerHTML=list.length?list.map(x=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--card-b);flex-wrap:wrap">
+        <div><code>${esc2(x.id)}</code> · ${esc2(x.username?'@'+x.username:x.chat_id)} · ${esc2(x.plan.name)} · ${STAT[x.status]||esc2(x.status)}${x.receipt_text?' · '+esc2(x.receipt_text.slice(0,60)):''}</div>
+        <div style="display:flex;gap:6px">${x.receipt_file_id?`<a class="btn btn-sm" target="_blank" href="/api/sell/orders/${x.id}/receipt">رسید</a>`:''}${x.status==='pending_review'||x.status==='awaiting_receipt'?`<button class="btn btn-sm btn-p" onclick="sellApprove('${x.id}')">تأیید</button><button class="btn btn-sm" onclick="sellReject('${x.id}')">رد</button>`:''}</div></div>`).join(''):'<div class="page-sub">سفارشی ثبت نشده.</div>';
+  }
+
+  // ---- Cloudflare Edge: real controls (v2: every control wired to a real API)
+  window.__edgeResults=[];window.__edgeSelected=new Set();window.__edgeHasToken=false;window.__edgeCfg={};window.__sniResults=[];
+  const $e=id=>document.getElementById(id);
+  const ev=id=>{const el=$e(id);return el?String(el.value||'').trim():''};
+  const evSet=(id,val)=>{const el=$e(id);if(el)el.value=val??''};
+  const faN=n=>Number(n||0).toLocaleString('fa-IR');
+  function edgeBusy(id,on){const b=$e(id);if(!b)return;b.classList.toggle('busy',!!on);b.disabled=!!on;}
+  async function edgeRun(id,fn){const b=$e(id);if(b&&b.classList.contains('busy'))return;edgeBusy(id,true);try{return await fn()}finally{edgeBusy(id,false)}}
+  function edgeSetStatus(text,kind=''){const el=$e('edgeStatus');if(el){el.textContent=text;el.className='edge-status '+kind;}}
+  function edgeResultMsg(text,err){const el=$e('edgeScanResult');if(!el)return;el.textContent=text;el.className='edge-test-result show'+(err?' err':'');}
+  function edgeEsc(x){return esc2(String(x??''));}
+  async function edgeCopy(text){try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return true}}catch(e){}
+    const t=document.createElement('textarea');t.value=text;t.setAttribute('readonly','');t.style.cssText='position:fixed;top:-1000px;opacity:0';document.body.appendChild(t);t.select();t.setSelectionRange(0,text.length);let ok=false;try{ok=document.execCommand('copy')}catch(e){}t.remove();return ok;}
+  window.edgeDomainMode=function(){const custom=document.querySelector('input[name="edgeMode"]:checked')?.value==='custom';const box=$e('edgeCustomDomainBox');if(box)box.hidden=!custom;document.querySelectorAll('#page-edge .edge-choice label').forEach(l=>l.classList.toggle('on',!!l.querySelector('input:checked')));};
+  function edgeKey(x){return String(x.host||'')}
+  async function edgeSyncedCount(){const r=await api('/api/links');if(!r)return;const links=Array.isArray(r)?r:(r.links||[]);const hasField=links.some(l=>'clean_ips' in l);const n=hasField?links.filter(l=>(l.clean_ips||[]).length).length:links.length;const el=$e('edgeSyncedCount');if(el)el.textContent=faN(n);}
+  async function loadEdge(){
+    const e=await j('/api/cfedge');if(!e){edgeSetStatus('دریافت وضعیت Edge ممکن نشد','err');return}
+    window.__edgeCfg=e;window.__edgeHasToken=!!e.has_token;
+    const sub=$e('edgeInSub');if(sub)sub.checked=e.include_in_sub!==false;
+    evSet('edgeAccount',e.account_id||'');evSet('edgeDomain',e.custom_domain||'');
+    const tok=$e('edgeToken');if(tok)tok.placeholder=e.has_token?`ذخیره شده (${e.token_masked||'•••'}) · برای تغییر توکن جدید بزن`:'توکن Cloudflare';
+    const mode=document.querySelector(`input[name="edgeMode"][value="${e.custom_domain?'custom':'worker'}"]`);if(mode)mode.checked=true;edgeDomainMode();
+    const st=$e('edgeWorkerState'),host=$e('edgeHostState');
+    if(st){const deployed=!!(e.script_name||e.edge_host);st.textContent=!deployed?'—':(e.enabled===false?'خاموش':'فعال');st.className=!deployed?'':(e.enabled===false?'bad':'good');}
+    if(host)host.textContent=e.edge_host||'—';
+    (e.clean_ips||[]).forEach(ip=>window.__edgeSelected.add(String(ip)));
+    edgeSetStatus(e.edge_host?`Edge فعال است: ${e.edge_host} · Token: ${e.token_masked||'ثبت شده'}`:(e.last_error?`خطای قبلی: ${e.last_error}`:(e.has_token?`Token ذخیره شده (${e.token_masked}) · حالا «ساخت و Deploy Edge» را بزن`:'برای شروع API Token را وارد و ذخیره کن')),e.edge_host?'ok':(e.last_error?'err':''));
+    edgeRender();edgeSyncedCount();
+  }
+  async function loadEdgeSaved(){
+    const r=await j('/api/scanner/edge');if(!r)return;
+    if(!window.__edgeResults.length&&(r.cloudflare||[]).length){window.__edgeResults=r.cloudflare;const s=(r.stats||{}).cloudflare;if(s)edgeResultMsg(`آخرین اسکن ذخیره‌شده · ${faN(s.healthy)} سالم از ${faN(s.tested)} · SNI: ${s.sni||'—'}`);edgeRender();}
+  }
+  async function loadSniSaved(){
+    const r=await j('/api/scanner/sni');if(!r)return;window.__sniDefaults=r.defaults||[];
+    if(!window.__sniResults.length&&(r.results||[]).length){window.__sniResults=r.results;sniRender();}
+  }
+  async function edgeSaveCore(){
+    const mode=document.querySelector('input[name="edgeMode"]:checked')?.value||'worker',token=ev('edgeToken'),domain=mode==='custom'?ev('edgeDomain').toLowerCase():'',acc=ev('edgeAccount');
+    if(!token&&!window.__edgeHasToken){edgeSetStatus('برای اتصال واقعی API Token لازم است','err');$e('edgeToken')?.focus();return false}
+    if(mode==='custom'&&!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)){edgeSetStatus('دامنه اختصاصی معتبر وارد کن (مثل edge.example.com)','err');$e('edgeDomain')?.focus();return false}
+    if(acc&&!/^[0-9a-f]{32}$/i.test(acc)){edgeSetStatus('Account ID باید ۳۲ کاراکتر hex باشد (یا خالی بگذار تا خودکار پیدا شود)','err');return false}
+    const body={include_in_sub:!!$e('edgeInSub')?.checked,account_id:acc.toLowerCase(),custom_domain:domain};
+    if(window.__edgeSelected.size)body.clean_ips=[...window.__edgeSelected];
+    if(token)body.api_token=token;
+    const r=await j('/api/cfedge/settings','POST',body);if(!r)return false;
+    evSet('edgeToken','');window.__edgeHasToken=!!r.has_token;await loadEdge();return true;
+  }
+  window.edgeSave=()=>edgeRun('edgeBtnSave',async()=>{if(await edgeSaveCore())toast('تنظیمات Edge ذخیره شد')});
+  window.edgeDeploy=()=>edgeRun('edgeBtnDeploy',async()=>{
+    if(!await edgeSaveCore())return;edgeSetStatus('در حال ساخت Worker در Cloudflare… (ممکن است تا یک دقیقه طول بکشد)','busy');
+    const r=await j('/api/cfedge/deploy','POST');if(r){toast(`Edge Deploy شد${r.synced_links?` · ${r.synced_links} لینک sync شد`:''}`);}await loadEdge();});
+  window.edgeTest=()=>edgeRun('edgeBtnTest',async()=>{
+    edgeSetStatus('در حال تست اتصال Edge…','busy');const r=await j('/api/cfedge/test','POST');if(!r){await loadEdge();return}
+    const msg=r.ok?`اتصال واقعی موفق است · ${r.ms}ms${r.colo?' · '+r.colo:''}`:(r.error||`اتصال ناموفق (HTTP ${r.status||'?'})`);
+    edgeSetStatus(msg,r.ok?'ok':'err');toast(msg);});
+  window.edgeRemove=()=>edgeRun('edgeBtnRemove',async()=>{
+    if(!window.__edgeCfg.script_name&&!window.__edgeCfg.edge_host){toast('Edge دیپلوی‌شده‌ای وجود ندارد');return}
+    if(!confirm('Worker واقعی Cloudflare حذف شود؟'))return;const r=await j('/api/cfedge/remove','POST');if(r)toast('Worker حذف شد');await loadEdge();});
+  function edgeMsClass(ms){ms=Number(ms);return ms<=250?'fast':ms<=600?'mid':'slow'}
+  window.edgeRender=function(){
+    const all=window.__edgeResults||[],q=ev('edgeIpSearch').toLowerCase();
+    const rows=all.filter(x=>!q||edgeKey(x).toLowerCase().includes(q)||String(x.colo||'').toLowerCase().includes(q)||String(x.port||'').includes(q));
+    const box=$e('edgeIpRows');if(!box)return;
+    const cnt=$e('edgeResultCount');if(cnt)cnt.textContent=all.length?`${faN(rows.length)} نتیجه از ${faN(all.length)} · ${faN(all.filter(x=>x.ok).length)} سالم`:'۰ نتیجه';
+    box.innerHTML=rows.length?rows.slice(0,1000).map(x=>{const key=edgeKey(x),sel=window.__edgeSelected.has(key),ms=x.latency_ms;
+      return `<div class="edge-ip-row${sel?' sel':''}" data-ip="${edgeEsc(key)}"><code>${edgeEsc(key)}${x.port&&x.port!==443?':'+edgeEsc(x.port):''}</code><span class="loc"><i class="lbl">موقعیت:</i>${edgeEsc(x.colo||'—')}</span><span class="st">${x.ok?'<span class="edge-pill ok">● سالم</span>':`<span class="edge-pill bad" title="${edgeEsc(x.error||'')}">● خراب</span>`}</span><span class="ms ${x.ok?edgeMsClass(ms):''}"><i class="lbl">سرعت:</i>${ms!=null&&x.ok?edgeEsc(ms)+'ms':'—'}</span><input class="edge-check" type="checkbox" aria-label="انتخاب ${edgeEsc(key)}" ${sel?'checked':''} ${x.ok?'':'disabled'}></div>`}).join('')
+      :`<div class="edge-muted" style="padding:22px;text-align:center">${all.length?'نتیجه‌ای با این جست‌وجو پیدا نشد.':'هنوز اسکن انجام نشده است.'}</div>`;
+    const n=window.__edgeSelected.size;const sc=$e('edgeSelectedCount');if(sc)sc.textContent=faN(n);const at=$e('edgeApplyText');if(at)at.textContent=`${faN(n)} IP انتخاب شده`;
+  };
+  (function bindRows(){const box=$e('edgeIpRows');if(!box||box.__bound)return;box.__bound=true;box.addEventListener('click',ev2=>{const row=ev2.target.closest('.edge-ip-row');if(!row)return;const chk=row.querySelector('.edge-check');if(!chk||chk.disabled)return;if(ev2.target!==chk)chk.checked=!chk.checked;window.edgeToggle(row.dataset.ip,chk.checked);});})();
+  window.edgeToggle=function(ip,on){if(on){if(window.__edgeSelected.size>=50){toast('حداکثر ۵۰ IP قابل انتخاب است');edgeRender();return}window.__edgeSelected.add(ip)}else window.__edgeSelected.delete(ip);edgeRender()};
+  window.edgeSelectAll=function(on){if(on){const good=(window.__edgeResults||[]).filter(x=>x.ok).slice(0,50);if(!good.length){toast('IP سالمی برای انتخاب نیست');return}good.forEach(x=>window.__edgeSelected.add(edgeKey(x)));}else window.__edgeSelected.clear();edgeRender()};
+  function edgeAfterScan(r,label){
+    window.__edgeResults=r.results||[];const good=window.__edgeResults.filter(x=>x.ok);
+    window.__edgeSelected=new Set(good.slice(0,10).map(edgeKey));
+    edgeResultMsg(`${label} · ${faN(r.good)} سالم از ${faN(r.count)} · SNI: ${r.sni}${good[0]?` · بهترین: ${good[0].host} (${good[0].latency_ms}ms)`:''}`,!good.length);
+    edgeRender();toast(good.length?`${faN(good.length)} IP سالم پیدا شد`:'IP سالمی پیدا نشد');
+  }
+  window.edgeScan=()=>edgeRun('edgeBtnScan',async()=>{
+    const limit=Number(ev('edgeScanLimit')||120),sni=ev('edgeCfSni')||'www.cloudflare.com';
+    edgeResultMsg(`در حال اسکن واقعی ${faN(limit)} IP با SNI ${sni}… لطفاً صبر کن`);
+    const r=await j('/api/scanner/edge/scan','POST',{source:'cloudflare',mode:limit>128?'full':'sample',limit,sni,ports:[443],timeout:3});
+    if(r)edgeAfterScan(r,'اسکن تمام شد');else edgeResultMsg('اسکن ناموفق بود؛ چند دقیقه بعد دوباره امتحان کن',true);});
+  window.edgeScanManual=()=>edgeRun('edgeBtnManual',async()=>{
+    const candidates=[...new Set(ev('edgeManualIps').split(/[\s,،]+/).map(x=>x.trim()).filter(Boolean))].slice(0,256);
+    if(!candidates.length){toast('حداقل یک IP وارد کن');$e('edgeManualIps')?.focus();return}
+    edgeResultMsg(`در حال تست ${faN(candidates.length)} IP دستی…`);
+    const r=await j('/api/scanner/edge/scan','POST',{source:'cloudflare',mode:'sample',limit:candidates.length,candidates,sni:ev('edgeCfSni')||'www.cloudflare.com',ports:[443],timeout:3});
+    if(r)edgeAfterScan(r,'تست دستی تمام شد');else edgeResultMsg('تست دستی ناموفق بود',true);});
+  window.edgeCopyIps=async function(){let ips=[...window.__edgeSelected];if(!ips.length)ips=(window.__edgeResults||[]).filter(x=>x.ok).map(edgeKey);if(!ips.length){toast('IPی برای کپی نیست');return}toast(await edgeCopy(ips.join('\n'))?`${faN(ips.length)} IP کپی شد`:'کپی ممکن نشد')};
+  window.edgeClearResults=async function(){if(!(window.__edgeResults||[]).length&&!window.__edgeSelected.size){toast('نتیجه‌ای برای پاک کردن نیست');return}window.__edgeResults=[];window.__edgeSelected.clear();edgeRender();const el=$e('edgeScanResult');if(el)el.className='edge-test-result';const r=await j('/api/scanner/edge/clear','POST',{source:'cloudflare'});if(r)toast('نتایج پاک شد')};
+  window.edgeApplySelected=()=>edgeRun('edgeBtnApply',async()=>{
+    const ips=[...window.__edgeSelected];if(!ips.length){toast('ابتدا IP انتخاب کن');return}
+    const r=await j('/api/scanner/edge/apply','POST',{source:'cloudflare',ips});if(!r){toast('اعمال IPها ناموفق بود');return}
+    await j('/api/cfedge/settings','POST',{clean_ips:ips});
+    const sc=$e('edgeSyncedCount');if(sc)sc.textContent=faN(r.updated);toast(`${faN(ips.length)} IP روی ${faN(r.updated)} کانفیگ اعمال شد`);});
+
+  // ---- Edge subscription (dedicated): settings, build, lanes
+  const ES={protos:['trojan','vless','vmess'],count:3,custom:false,quota:0,days:0,users:0,opt:false,ech:false,echVal:'cloudflare-ech.com+udp://1.1.1.1'};
+  const esQ=id=>document.getElementById(id);
+  const esNum=(v,d)=>{const n=Number(String(v).replace(/[^\d.]/g,''));return Number.isFinite(n)&&n>0?n:d};
+  const esGB=b=>(Number(b||0)/1073741824);
+  const esFmtGB=n=>(n>=100?Math.round(n):Number(n.toFixed(1))).toLocaleString('fa-IR');
+  function esCode(p){p=String(p||'').toLowerCase();return p.includes('trojan')?'TRJ':p.includes('vless')?'VLS':p.includes('vmess')?'VMS':'EDG'}
+  function esProtoName(p){p=String(p||'');return p.replace(/-/g,' ')}
+  function esSetProto(){document.querySelectorAll('#esProto button').forEach(b=>{const v=b.dataset.v;b.classList.toggle('on',v==='all'?ES.protos.length===3:ES.protos.includes(v))})}
+  function esParseProtos(v){const s=String(v||'').toLowerCase();const all=['trojan','vless','vmess'];if(!s||s==='all')return all;const out=s.split(',').map(x=>x.trim()).filter(x=>all.includes(x));return out.length?out:all}
+  function esSetCount(){document.querySelectorAll('#esCount button').forEach(b=>b.classList.toggle('on',(b.dataset.v==='custom'&&ES.custom)||(!ES.custom&&Number(b.dataset.v)===ES.count)));esQ('esCustomBox').hidden=false;esQ('esCustom').value=ES.count}
+  function esPaint(){esQ('esQuota').value=ES.quota||0;esQ('esDays').value=ES.days||0;esQ('esUsers').value=ES.users;esSetProto();esSetCount();esSetToggles();}
+  function esFillKpis(rows){
+    const act=rows.filter(r=>r.active).length;
+    const used=rows.reduce((s,r)=>s+esGB(r.used_bytes),0);
+    esQ('esKActive').textContent=`${act.toLocaleString('fa-IR')} / ${rows.length.toLocaleString('fa-IR')}`;
+    esQ('esKUsed').textContent=`${esFmtGB(used)} GB`;
+    esQ('esKDays').textContent=ES.days?`${ES.days.toLocaleString('fa-IR')} روز`:'بی‌نهایت';
+    const pill=esQ('esPill');pill.textContent=rows.length?(act?'فعال':'همه خاموش'):'بدون کانفیگ';pill.style.background=act?'':'rgba(148,163,184,.15)';pill.style.color=act?'':'var(--t3)';
+    esQ('esTotal').textContent=`${rows.length.toLocaleString('fa-IR')} مورد`;
+  }
+  function esDate(v){if(!v)return '—';try{const d=new Date(v);if(isNaN(d))return String(v);return d.toLocaleDateString('fa-IR')}catch(e){return String(v)}}
+  function esDaysLeft(v){if(!v)return '∞';const d=new Date(v);if(isNaN(d))return '—';const ms=d-Date.now();if(ms<=0)return 'منقضی';const days=Math.floor(ms/86400000);const h=Math.floor((ms%86400000)/3600000);return days?`${days.toLocaleString('fa-IR')} روز`:`${h.toLocaleString('fa-IR')} ساعت`}
+  async function esEnsureLink(uid){window.__linksMap=window.__linksMap||{};if(window.__linksMap[uid])return;const links=await esListUids();links.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l)}
+  function esRender(rows){
+    esInjectCss();
+    const box=esQ('esLanes');
+    if(!rows.length){box.innerHTML='<div class="es-empty">هنوز کانفیگی ساخته نشده. تنظیمات رو انتخاب کن و «ساخت کانفیگ‌ها» رو بزن.</div>';return}
+    box.innerHTML=rows.map(r=>{
+      const lim=esGB(r.limit_bytes),used=esGB(r.used_bytes),pct=lim>0?Math.min(100,used/lim*100):0,rem=Math.max(0,lim-used);
+      const protos=(Array.isArray(r.bundle_protocols)&&r.bundle_protocols.length)?r.bundle_protocols:[r.protocol];
+      const icons=protos.map(p=>typeof protocolUi==='function'?`<img src="${protocolUi(p)[1]}" alt="" style="width:28px;height:28px;border-radius:9px;object-fit:contain">`:'').join('');
+      const ipl=Number(r.ip_limit||0),uid=edgeEsc(r.uid);
+      return `<div class="es-lane esc-lane${r.active?'':' off'}" data-lane="${uid}">
+        <div class="esc-top">
+          <button type="button" class="esc-arrow" data-act="expand" data-uid="${uid}" aria-label="باز و بسته">▾</button>
+          <div class="esc-icons">${icons}</div>
+          <div class="esc-name"><b>${edgeEsc(r.label)}</b><small>${Number(r.config_count||protos.length).toLocaleString('fa-IR')} کانفیگ داخل این ساب</small></div>
+          <span class="esc-status ${r.active?'on':''}">${r.active?'فعال':'غیرفعال'}</span>
+        </div>
+        <div class="esc-body">
+          <div class="esc-stats">
+            <span>👥 ${Number(r.connected_ips||0).toLocaleString('fa-IR')} از ${ipl>0?ipl.toLocaleString('fa-IR'):'∞'} کاربر</span>
+            <span>⏳ ${esDaysLeft(r.expires_at)}</span>
+            <span>📦 ${lim?esFmtGB(rem)+' GB مونده':'نامحدود'}</span>
+          </div>
+          <div class="es-bar"><i class="${pct>85?'hot':''}" style="width:${pct.toFixed(1)}%"></i></div>
+          <div class="esc-actions">
+            <button type="button" data-act="cfg" data-uid="${uid}">⧉ کپی کانفیگ</button>
+            <button type="button" data-act="copy" data-uid="${uid}">🔗 کپی ساب</button>
+            <button type="button" data-act="open" data-uid="${uid}">👁 نمایش ساب</button>
+            <button type="button" data-act="edit" data-uid="${uid}">✎ ویرایش</button>
+            <button type="button" class="es-del" data-act="del" data-uid="${uid}">🗑 حذف</button>
+          </div>
+        </div>
+      </div>`}).join('');
+  }
+  async function loadEdgeSub(){
+    const r=await api('/api/cfedge/sub');if(!r)return;
+    if(r.settings&&r.settings.count&&!window.__esEditUid){ES.protos=esParseProtos(r.settings.protocol);ES.count=Number(r.settings.count)||10;ES.quota=Number(r.settings.quota)||50;ES.days=Number(r.settings.days)||30;ES.users=Number(r.settings.users)||0;ES.opt=!!r.settings.opt;ES.ech=!!r.settings.ech;ES.echVal=r.settings.echval||ES.echVal;ES.custom=![3,5,8].includes(ES.count);esPaint()}
+    window.__esRows=r.links||[];window.__esSubUrl=r.sub_url||'';const op=esQ('esOpenSub');if(op&&r.sub_url)op.href=r.sub_url;window.__esSel=new Set([...(window.__esSel||[])].filter(u=>(r.links||[]).some(x=>x.uid===u)));esFillKpis(r.links||[]);esRender(r.links||[]);esSetSelCount();
+  }
+  function esSyncInputs(){ES.quota=esNum0(esQ('esQuota').value);ES.days=esNum0(esQ('esDays').value);ES.users=Math.max(0,Math.min(100000,Number(String(esQ('esUsers')?.value||'0').replace(/[^\d]/g,''))||0));ES.count=Math.min(500,Math.max(1,esNum(esQ('esCustom').value,ES.count)))}
+  async function esSaveSettings(){esSyncInputs();return api('/api/cfedge/sub/settings','POST',{protocol:ES.protos.join(','),count:ES.count,quota:ES.quota,days:ES.days,users:ES.users,opt:ES.opt,ech:ES.ech,echval:ES.echVal})}
+  async function esListUids(){const r=await api('/api/links');const links=Array.isArray(r)?r:(r&&r.links)||[];return links}
+  function esUidOf(l){const m=String(l.sub_url||'').match(/\/sub\/([^/?#]+)/);return m?m[1]:(l.uid||'')}
+  function esPickProtocols(list){
+    const ids=(list||[]).map(p=>p.id||p);
+    const pick=re=>ids.find(x=>re.test(String(x)));
+    const out=ES.protos.map(k=>pick(new RegExp(k,'i'))).filter(Boolean);
+    return out.length?[...new Set(out)]:[ids[0]];
+  }
+  document.addEventListener('click',async e=>{
+    const t=e.target.closest('#esProto button,#esCount button,#esCustomBox button,#esLanes [data-act],#esBuild,#esCancelEdit,[data-field]');
+    if(!t)return;
+    if(t.closest('#esProto')){const v=t.dataset.v;const all=['trojan','vless','vmess'];if(v==='all'){ES.protos=all}else{const set=new Set(ES.protos);set.has(v)?set.delete(v):set.add(v);if(set.size)ES.protos=all.filter(x=>set.has(x))}esSetProto();return}
+    if(t.closest('#esCount')){const v=t.dataset.v;if(v==='custom'){ES.custom=true}else{ES.custom=false;ES.count=Number(v)}esSetCount();return}
+    if(t.closest('#esCustomBox')){ES.count=Math.max(1,Math.min(500,esNum(esQ('esCustom').value,ES.count)+Number(t.dataset.step)));esSetCount();return}
+    if(t.hasAttribute('data-field')){const f=t.dataset.field;if(f==='users'){ES.users=Math.max(0,Math.min(100000,ES.users+Number(t.dataset.step)));esPaint();return}const v=Math.max(0,(f==='days'?ES.days:ES.quota)+Number(t.dataset.step));if(f==='days')ES.days=Math.min(365,v);else ES.quota=Math.min(2000,v);esPaint();return}
+    if(t.id==='esCancelEdit'){return esSetEditMode(false)}
+    if(t.id==='esBuild'){return window.__esEditUid?esSaveVolume(t):esBuild(t)}
+    if(t.dataset.act==='expand'){t.closest('.esc-lane')?.classList.toggle('collapsed');return}
+    if(t.dataset.act==='cfg'){await esEnsureLink(t.dataset.uid);await copyLinkById(t.dataset.uid);return}
+    if(t.dataset.act==='edit'){return esOpenEdit(t.dataset.uid)}
+    if(t.dataset.act==='copy'){const u=location.origin+'/sub/'+t.dataset.uid;toast(await edgeCopy(u)?'لینک ساب کپی شد':'کپی ممکن نشد');return}
+    if(t.dataset.act==='open'){window.open('/sub/'+t.dataset.uid,'_blank','noopener');return}
+    if(t.dataset.act==='toggle'){const on=t.dataset.on==='1';const r=await fetch(`/api/links/${encodeURIComponent(t.dataset.uid)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:!on})});if(r.ok){toast(on?'کانفیگ خاموش شد':'کانفیگ روشن شد')}else toast('تغییر وضعیت ناموفق بود');loadEdgeSub();return}
+    if(t.dataset.act==='del'){if(!confirm('این کانفیگ حذف شود؟'))return;const r=await fetch(`/api/links/${encodeURIComponent(t.dataset.uid)}`,{method:'DELETE'});if(r.ok)toast('کانفیگ حذف شد');else toast('حذف ناموفق بود');loadEdgeSub();return}
+  });
+  function esNum0(v){const n=Number(String(v).replace(/[^\d.]/g,''));return Number.isFinite(n)&&n>0?n:0}
+  function esNameBase(){
+    let s=String(esQ('esName')?.value||'').trim().replace(/[^A-Za-z0-9_-]/g,'').replace(/^-+|-+$/g,'');
+    if(!s)s='ONEX';
+    if(!/^ONEX/i.test(s))s='ONEX-'+s;
+    return s.slice(0,32);
+  }
+  window.__esSel=window.__esSel||new Set();
+  function esIpVal(){return String(esQ('esIp')?.value||'').trim()}
+  function esIpList(){return [...new Set(String(esQ('esIp')?.value||'').split(/[\s,،;]+/).map(x=>x.trim()).filter(Boolean))]}
+  function esSetSelCount(){const el=esQ('esSelCount');if(el)el.textContent=window.__esSel.size.toLocaleString('fa-IR')+' انتخاب'}
+  window.esApplyIp=async function(){const ip=esIpVal();if(!ip){toast('IP رو وارد کن');return}const r=await api('/api/cfedge/settings','POST',{clean_ips:[ip]});if(r){toast('IP روی همه‌ی کانفیگ‌های Edge اعمال شد');loadEdgeSub()}};
+  function esInjectCss(){if(document.getElementById('esCss')||!document.head)return;const st=document.createElement('style');st.id='esCss';st.textContent=`
+  .esw{position:relative;width:76px;height:38px;border-radius:999px;border:0;cursor:pointer;direction:ltr;transition:background .3s;flex:none;padding:0;box-shadow:inset 0 1px 3px rgba(0,0,0,.3)}
+  .esw i{position:absolute;top:4px;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.35);transition:left .3s}
+  .esw.on{background:linear-gradient(135deg,#34f5a0,#16c784);box-shadow:0 0 18px rgba(52,245,160,.4)}
+  .esw.on i{left:4px}
+  .esw.off{background:linear-gradient(135deg,#ff5d7a,#e11d48)}
+  .esw.off i{left:42px}
+  .esc-row{display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px;border:1px solid var(--card-b);background:rgba(255,255,255,.03)}
+  .esc-ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:linear-gradient(135deg,rgba(52,245,160,.2),rgba(34,193,238,.2));flex:none}
+  .esc-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+  .esc-txt b{font-size:15px;font-weight:800}
+  .esc-txt small{font-size:12px;opacity:.7}
+  .esc-bar{padding:14px;border-radius:18px;border:1px dashed rgba(52,245,160,.55);display:grid;gap:10px}
+  .esc-bar input{height:44px;border-radius:12px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:0 12px;font:inherit;direction:ltr;box-sizing:border-box;width:100%}
+  .esc-bar button{height:44px;border-radius:12px;border:0;background:linear-gradient(135deg,#34f5a0,#22c1ee);color:#04111a;font-weight:800;font-size:14px;cursor:pointer}
+  .esc-lane{display:block!important;padding:16px!important}
+  .esc-top{display:flex;align-items:center;gap:10px}
+  .esc-arrow{width:34px;height:34px;border-radius:11px;border:1px solid var(--card-b);background:transparent;color:var(--t2);cursor:pointer;transition:transform .3s;flex:none}
+  .esc-lane.collapsed .esc-arrow{transform:rotate(-90deg)}
+  .esc-lane.collapsed .esc-body{display:none}
+  .esc-icons{display:flex;gap:4px;flex:none}
+  .esc-name{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .esc-name b{font-size:15px;font-weight:800;direction:ltr;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .esc-name small{font-size:11.5px;opacity:.7}
+  .esc-status{font-size:11px;font-weight:800;padding:5px 11px;border-radius:99px;background:rgba(255,93,122,.15);color:#ff829c;flex:none}
+  .esc-status.on{background:rgba(52,245,160,.15);color:#34f5a0}
+  .esc-body{display:grid;gap:10px;margin-top:14px}
+  .esc-stats{display:flex;flex-wrap:wrap;gap:8px;font-size:12px}
+  .esc-stats span{padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--card-b)}
+  .esc-actions{display:flex;flex-wrap:wrap;gap:6px}
+  .esc-actions button{font-size:12px;padding:7px 11px;border-radius:11px;border:1px solid var(--card-b);background:transparent;color:var(--t2);cursor:pointer}
+  .esc-actions .es-del{color:#ff829c;border-color:rgba(255,130,156,.4)}
+  .esc-ico,.esc-icons img{box-shadow:0 8px 18px -8px rgba(34,193,238,.6),inset 0 1px 0 rgba(255,255,255,.25)}
+  .esc-lane{box-shadow:0 14px 30px -18px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.06)}
+  .esc-actions button{box-shadow:0 4px 10px -4px rgba(0,0,0,.35);transition:transform .15s}
+  .esc-actions button:active,.esc-bar button:active{transform:translateY(1px) scale(.98)}
+  @media (max-width:640px){.esc-lane{padding:12px!important}.esc-row{padding:12px}.esc-ico{width:40px;height:40px;font-size:19px}.esw{width:68px;height:34px}.esw i{width:26px;height:26px;top:4px}.esw.off i{left:38px}.esc-name b{font-size:14px}.esc-stats span{font-size:11px}.esc-actions button{flex:1 1 calc(50% - 6px);text-align:center;font-size:12px}}
+  `;document.head.appendChild(st)}
+  function esSetToggles(){esInjectCss();[['esOptBtn',ES.opt],['esEchBtn',ES.ech]].forEach(([id,on])=>{const b=esQ(id);if(!b)return;b.classList.toggle('on',!!on);b.classList.toggle('off',!on);b.setAttribute('aria-pressed',on?'true':'false')});const bar=esQ('esEchBar');if(bar)bar.hidden=!ES.ech;const eb=esQ('esEchBuilder');if(eb)eb.hidden=!ES.ech;const inp=esQ('esEchVal');if(inp&&document.activeElement!==inp)inp.value=ES.echVal}
+  async function esPushCdn(kind,val){const key=kind==='opt'?'cdn_optimizer':'cdn_ech';const rows=window.__esRows||[];let n=0;for(const x of rows){const res=await fetch(`/api/links/${encodeURIComponent(x.uid)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[key]:val})});if(res.ok)n++}await esSaveSettings();toast(rows.length?`${n.toLocaleString('fa-IR')} کانفیگ به‌روز شد`:'روی کانفیگ‌های بعدی اعمال میشه');loadEdgeSub()}
+  window.esToggleCdn=async function(kind){
+    if(kind==='opt'){ES.opt=!ES.opt;esSetToggles();return esPushCdn('opt',ES.opt)}
+    ES.ech=!ES.ech;esSetToggles();
+    return esPushCdn('ech',ES.ech?ES.echVal:'');
+  };
+  window.esApplyEch=async function(){const v=String(esQ('esEchVal')?.value||'').trim();if(!v){toast('مقدار ECH خالیه');return}ES.echVal=v;ES.ech=true;esSetToggles();return esPushCdn('ech',v)};
+  function esSetEditMode(on,name){
+    const b=esQ('esBuild'),c=esQ('esCancelEdit');if(!b)return;
+    b.textContent=on?('ذخیره تغییرات'+(name?' · '+name:'')):'ساخت کانفیگ‌ها';
+    if(c)c.hidden=!on;
+    if(!on){window.__esEditUid=null;esPaint()}
+  }
+  window.esOpenEdit=async function(uid){
+    const row=(window.__esRows||[]).find(x=>x.uid===uid);
+    await esRefreshLinks();
+    const l=(window.__linksMap||{})[row?(row.uuid||row.uid):uid]||(window.__linksMap||{})[uid];
+    if(!l){toast('کانفیگ پیدا نشد');return}
+    window.__esEditUid=uid;
+    esQ('esQuota').value=Math.round((Number(l.limit_bytes||0)/1073741824)*10)/10;
+    esQ('esUsers').value=Number(l.ip_limit||0);
+    esQ('esDays').value=0;
+    esSetEditMode(true,l.label||l.name||'');
+    esQ('esQuota').scrollIntoView({behavior:'smooth',block:'center'});
+  };
+  async function esSaveVolume(btn){
+    const uid=window.__esEditUid;if(!uid)return;
+    const quota=Math.max(0,Number(esQ('esQuota').value)||0);
+    const users=Math.max(0,Math.min(100000,Number(String(esQ('esUsers').value||'0').replace(/[^\d]/g,''))||0));
+    const days=Math.max(0,Math.min(365,Number(String(esQ('esDays').value||'0').replace(/[^\d]/g,''))||0));
+    const body={limit_value:quota,limit_unit:'GB',ip_limit:users};
+    if(days>0)body.expires_days=days;
+    btn.disabled=true;
+    try{
+      const r=await j('/api/links/'+encodeURIComponent(uid),'PATCH',body);
+      if(r){toast('کانفیگ ذخیره شد');esSetEditMode(false);loadEdgeSub()}
+    }finally{btn.disabled=false}
+  }
+  async function esRefreshLinks(){window.__linksMap=window.__linksMap||{};const links=await esListUids();links.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l)}
+  window.esVaultOpen=function(){const v=esQ('esVault');v.hidden=false;v.style.display='flex';esVaultType(window.__vaultType||'ipv4')};
+  window.esVaultClose=function(){const v=esQ('esVault');v.hidden=true;v.style.display='none'};
+  window.esVaultType=function(t){window.__vaultType=t;document.querySelectorAll('#esVault [data-vt]').forEach(b=>{const on=b.dataset.vt===t;b.style.background=on?'linear-gradient(90deg,#8b5cf6,#ec4899)':'transparent';b.style.color=on?'#fff':'#cbd5e1';b.style.boxShadow=on?'0 6px 18px -6px #ec4899':'none'})};
+  window.esVaultSync=function(v){const n=Math.max(1,Math.min(500,Number(v)||1));esQ('esVaultCount').value=n;esQ('esVaultShow').textContent=n.toLocaleString('fa-IR')};
+  window.esVaultCopy=async function(){const t=(window.__vaultLast||[]).join('\n');if(!t){toast('هنوز چیزی دریافت نشده');return}try{await navigator.clipboard.writeText(t);toast('کپی شد')}catch(e){prompt('کپی کن:',t)}};
+  window.esVaultFetch=async function(){
+    const t=window.__vaultType||'ipv4';
+    const n=Math.max(1,Math.min(500,Number(esQ('esVaultCount').value)||20));
+    const path={ipv4:'/api/scanner/repository/ips',domain:'/api/scanner/repository/domains',ipv6:'/api/scanner/repository/ipv6'}[t];
+    const r=await api(path);
+    const list=(r&&(r.ips||[]))||[];
+    if(!list.length){toast('این نوع آدرس توی مخزن پیدا نشد');return}
+    const pool=[...list],picked=[];window.__vaultLast=[];
+    while(pool.length&&picked.length<n)picked.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+    window.__vaultLast=picked;
+    const ta=esQ('esIp');
+    const old=String(ta.value||'').split(/[\s,،;]+/).map(x=>x.trim()).filter(Boolean);
+    ta.value=[...new Set([...old,...picked])].join('\n');
+    toast(`${picked.length.toLocaleString('fa-IR')} مورد به لیست IP اضافه شد`);
+    esVaultClose();
+  };
+  (function(){const st=document.createElement('style');st.textContent=`
+html.light #page-edge-config .es,html.light #page-edge-config .es-panel,html.light #page-edge-config .es-lane,html.light #page-edge-config .esc-lane,html.light #page-edge-config .esc-bar,html.light #page-edge-config .es-kpi,html.light #page-edge-config .es-kpis>div{background:#ffffff !important;color:#0f172a !important;border-color:rgba(15,23,42,.14) !important}
+html.light #page-edge-config input,html.light #page-edge-config textarea,html.light #page-edge-config select{background:#f1f5f9 !important;color:#0f172a !important;border-color:rgba(15,23,42,.2) !important}
+html.light #page-edge-config h4,html.light #page-edge-config b,html.light #page-edge-config .es-title,html.light #page-edge-config .esc-name b{color:#0f172a !important}
+html.light #page-edge-config .es-lbl,html.light #page-edge-config .es-sub,html.light #page-edge-config small,html.light #page-edge-config .esc-stats span,html.light #page-edge-config .esc-txt small,html.light #page-edge-config .es-kpi span{color:#334155 !important}
+html.light #page-edge-config button{color:#0f172a !important}
+html.light #page-edge-config .es-build,html.light #page-edge-config .es-build *{color:#ffffff !important}
+html.light #page-edge-config .es-lane .es-bar{background:#e2e8f0 !important}
+html.light #esVault{background:rgba(0,0,0,.6) !important}
+html.light #esVault div[dir="rtl"]{background:#171a2e !important;color:#eef2ff !important}
+html.light #esVault div[dir="rtl"] *{color:#eef2ff !important;border-color:rgba(255,255,255,.12) !important}
+html.light #esVault div[dir="rtl"] span{color:#eef2ff !important}
+html.light #esVault div[dir="rtl"] button[data-vt]:not([style*="gradient"]){color:#cbd5e1 !important}
+html.light #esVault div[dir="rtl"] input,html.light #esVault div[dir="rtl"] select{background:rgba(0,0,0,.3) !important;color:#ffffff !important}
+html.light #esVault div[dir="rtl"] div{background:rgba(0,0,0,.35) !important}
+`;document.head.appendChild(st)})();
+  window.echLoad=async function(kind){const r=await api('/api/scanner/repository/ech/'+kind);if(!r)return;esQ(kind==='dom'?'echDomains':'echDns').value=(r.ips||[]).join('\n');toast(`${Number(r.count||0).toLocaleString('fa-IR')} مورد بارگذاری شد`)};
+  window.__echP={udp:true,doh:false,tcp:false};
+  window.echToggleP=function(p){window.__echP[p]=!window.__echP[p];document.querySelectorAll('#echProtos [data-ep]').forEach(b=>{const on=!!window.__echP[b.dataset.ep];b.style.border=on?'0':'1px solid rgba(255,255,255,.15)';b.style.background=on?'linear-gradient(90deg,#8b5cf6,#ec4899)':'transparent';b.style.color=on?'#fff':'inherit'})};
+  window.echBuild=function(){
+    const doms=[...new Set(String(esQ('echDomains').value||'').split(/[\s,،;]+/).map(x=>x.trim()).filter(Boolean))];
+    const ips=[...new Set(String(esQ('echDns').value||'').split(/[\s,،;]+/).map(x=>x.trim()).filter(Boolean))];
+    const protos=['udp','doh','tcp'].filter(p=>window.__echP[p]);
+    if(!doms.length||!ips.length||!protos.length){toast('دامنه، آی‌پی DNS و حداقل یک پروتکل لازمه');return}
+    const box=esQ('echOut');box.textContent='';let n=0;
+    for(const d of doms)for(const ip of ips)for(const p of protos){
+      const line=p==='doh'?`${d}+https://${ip}/dns-query`:`${d}+${p}://${ip}`;
+      const b=document.createElement('button');b.type='button';b.className='echLine';b.dataset.v=line;b.textContent=line;
+      b.style.cssText='display:block;width:100%;text-align:left;font-family:monospace;font-size:11px;padding:4px 8px;border:0;border-radius:8px;background:transparent;color:inherit;cursor:pointer';
+      box.appendChild(b);n++;
+    }
+    esQ('echCount').textContent=`${n.toLocaleString('fa-IR')} ترکیب ساخته شد`;
+  };
+  document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.echLine');if(!b)return;const line=b.dataset.v;ES.echVal=line;esQ('esEchVal').value=line;esQ('echSel').textContent=line;document.querySelectorAll('.echLine').forEach(x=>x.style.background=x===b?'rgba(236,72,153,.22)':'transparent');toast('ECH انتخاب شد؛ دکمه‌ی اعمال رو بزن')});
+  window.esRandName=function(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let x='';for(let i=0;i<4;i++)x+=c[Math.floor(Math.random()*c.length)];const el=esQ('esName');if(el)el.value='ONEX-'+x;};
+  window.esBulk=async function(kind){
+    const rows=window.__esRows||[];if(!rows.length){toast('کانفیگی نیست');return}
+    if(kind==='del-all'||kind==='del-sel'){
+      const ids=kind==='del-all'?rows.map(x=>x.uid):[...window.__esSel].filter(u=>rows.some(x=>x.uid===u));
+      if(!ids.length){toast('کانفیگی انتخاب نشده');return}
+      if(!confirm(`${ids.length.toLocaleString('fa-IR')} کانفیگ Edge حذف شود؟`))return;
+      const r=await j('/api/links/bulk-delete','POST',{ids});if(r){toast('حذف شد');window.__esSel.clear()}loadEdgeSub();return;
+    }
+    const on=kind==='on';const targets=window.__esSel.size?rows.filter(x=>window.__esSel.has(x.uid)):rows;
+    let n=0;for(const x of targets){if(!!x.active===on)continue;const res=await fetch(`/api/links/${encodeURIComponent(x.uid)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:on})});if(res.ok)n++}
+    toast(`${n.toLocaleString('fa-IR')} کانفیگ ${on?'روشن':'خاموش'} شد`);loadEdgeSub();
+  };
+  window.esCopyAllConfigs=async function(){const url=window.__esSubUrl;if(!url){toast('لینک ساب هنوز آماده نیست');return}
+    const r=await fetch(url+'?format=plain',{cache:'no-store',credentials:'same-origin'});if(!r.ok){toast('دریافت کانفیگ‌ها ناموفق بود');return}
+    const txt=(await r.text()).trim();if(!txt){toast('کانفیگی نیست');return}
+    toast(await edgeCopy(txt)?'همه‌ی کانفیگ‌ها کپی شد':'کپی ممکن نشد')};
+  window.esCopySub=async function(){const url=window.__esSubUrl;if(!url){toast('لینک ساب هنوز آماده نیست');return}toast(await edgeCopy(url)?'لینک ساب کپی شد':'کپی ممکن نشد')};
+  document.addEventListener('change',e=>{const t=e.target;
+    if(t&&t.classList&&t.classList.contains('esChk')){t.checked?window.__esSel.add(t.dataset.uid):window.__esSel.delete(t.dataset.uid);esSetSelCount();return}
+    if(t&&t.id==='esSelAll'){const rows=window.__esRows||[];window.__esSel=t.checked?new Set(rows.map(x=>x.uid)):new Set();esRender(rows);esSetSelCount()}});
+  const ES_BUNDLE=['trojan-ws','vless-ws','vmess-ws','vless-httpupgrade','siderail-vless-xhttp','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one'];
+  async function esBuild(btn){
+    esSyncInputs();
+    const ips=esIpList();
+    if(ips.length>500)toast('بیشتر از ۵۰۰ آی‌پی انتخاب شده؛ فقط ۵۰۰ تای اول استفاده میشه');
+    const total=ips.length?Math.min(500,ips.length):Math.max(1,ES.count);
+    const base=esNameBase();
+    if(!confirm(`${total.toLocaleString('fa-IR')} کانفیگ داخل یک ساب با نام ${base} ساخته بشه؟`))return;
+    ES.building=true;const old=btn.textContent;
+    try{
+      const pr=await api('/api/protocols');if(!pr)return;
+      const ids=(pr.protocols||[]).map(p=>p.id||p);
+      const chosen=[];
+      for(const id of esPickProtocols(pr.protocols||[])){if(ES_BUNDLE.includes(id)&&ids.includes(id)&&!chosen.includes(id))chosen.push(id)}
+      if(!chosen.length)chosen.push(ids[0]);
+      const pairs=Array.from({length:total},(_,i)=>[ips.length?ips[i%ips.length]:'',chosen[i%chosen.length]]);
+      await esSaveSettings();
+      btn.textContent='در حال ساخت…';
+      const r=await j('/api/links','POST',{label:base,protocol:chosen[0],bundle_protocols:chosen,clean_ips:ips,limit_value:ES.quota,limit_unit:'GB',expires_days:ES.days,cdn_optimizer:!!ES.opt,cdn_ech:ES.ech?ES.echVal:'',ip_limit:ES.users});
+      if(!r||!r.uuid){toast('ساخت ناموفق بود');return}
+      await j('/api/links/'+encodeURIComponent(r.uuid),'PATCH',{ip_proto_pairs:pairs});
+      await j('/api/cfedge/sub/mark','POST',{uids:[r.uuid]});
+      toast(`ساب ${base} با ${total.toLocaleString('fa-IR')} کانفیگ ساخته شد`);
+    }finally{ES.building=false;btn.textContent=old;loadEdgeSub()}
+  }
+
+  // ---- SNI scanner (TLS 1.3 + HTTP/2)
+  const SNI_FALLBACK=['www.cloudflare.com','www.google.com','cloudflare.com','www.microsoft.com','www.apple.com','www.speedtest.net','dl.google.com','www.yahoo.com','www.amazon.com','www.icloud.com'];
+  window.sniFillDefaults=async function(){if(!window.__sniDefaults)await loadSniSaved();const list=(window.__sniDefaults&&window.__sniDefaults.length?window.__sniDefaults:SNI_FALLBACK).slice(0,40);evSet('sniHosts',list.join('\n'));toast(`${faN(list.length)} دامنه پیشنهادی اضافه شد`)};
+  function sniRender(){
+    const rows=window.__sniResults||[],box=$e('sniResults'),sum=$e('sniResultsSummary');if(!box)return;
+    const good=rows.filter(x=>x.ok);if(sum)sum.textContent=rows.length?`${faN(good.length)} سالم از ${faN(rows.length)} دامنه`:'';
+    box.innerHTML=rows.length?rows.map(x=>{const h=x.host||x.sni,ms=x.ms??x.latency_ms;return `<div class="edge-sni-result ${x.ok?'ok':'bad'}"><code>${edgeEsc(h)}</code><span class="tags"><span class="tag ${x.ok?'on':''}">${x.ok?'✓ مناسب':'✕ نامناسب'}</span>${ms!=null?`<span class="tag">${edgeEsc(ms)}ms</span>`:''}<span class="tag ${x.tls13?'on':''}">TLS 1.3</span><span class="tag ${x.h2?'on':''}">H2</span>${x.error?`<span class="tag" title="${edgeEsc(x.error)}">خطا</span>`:''}</span><button type="button" class="btn btn-sm" data-copy="${edgeEsc(h)}">کپی</button></div>`}).join('')
+      :'<div class="edge-muted" style="padding:14px;text-align:center">هنوز تست SNI انجام نشده است.</div>';
+  }
+  (function bindSni(){const box=$e('sniResults');if(!box||box.__bound)return;box.__bound=true;box.addEventListener('click',async e2=>{const b=e2.target.closest('[data-copy]');if(b)toast(await edgeCopy(b.dataset.copy)?'کپی شد':'کپی ممکن نشد')});})();
+  window.sniCopyGood=async function(){const good=(window.__sniResults||[]).filter(x=>x.ok).map(x=>x.host||x.sni);if(!good.length){toast('دامنه سالمی برای کپی وجود ندارد');return}toast(await edgeCopy(good.join('\n'))?`${faN(good.length)} دامنه سالم کپی شد`:'کپی ممکن نشد')};
+  window.sniScan=()=>edgeRun('sniBtnScan',async()=>{
+    let hosts=[...new Set(ev('sniHosts').split(/[\s,،]+/).map(x=>x.trim().toLowerCase()).filter(Boolean))];
+    if(!hosts.length){await window.sniFillDefaults();hosts=ev('sniHosts').split(/\s+/).filter(Boolean)}
+    hosts=hosts.slice(0,64);const sum=$e('sniResultsSummary');if(sum)sum.textContent=`در حال تست ${faN(hosts.length)} دامنه…`;
+    const r=await j('/api/scanner/sni','POST',{hosts,timeout:4});if(!r){if(sum)sum.textContent='اسکن SNI ناموفق بود';return}
+    window.__sniResults=r.results||[];sniRender();toast(`اسکن SNI تمام شد · ${faN(r.good)} سالم از ${faN(r.count)}`);});
+
+  const prevGo=window.goPage;
+  window.goPage=function(name){
+    prevGo(name);
+    if(name==='sell')loadSell();
+    if(name==='edge'){loadEdge();loadEdgeSaved();loadEdgeSub();loadSniSaved();}
+  };
+})();
+</script>
+
 </body>
 </html>
 """
@@ -15353,6 +16860,448 @@ async def dashboard(
             "Expires": "0",
         },
     )
+
+
+# ============================================================
+# EDGE SCANNER + PUBLIC ENDPOINT
+# ============================================================
+
+EDGE_SCAN_STATE = {"cloudflare": [], "railway": [], "domain": [], "onex": [], "history": [], "updated_at": None, "stats": {}}
+RAILWAY_ENDPOINTS = []  # Railway candidates come only from the active Railway deployment.
+
+
+@app.get("/api/scanner/edge")
+async def edge_scan_state(_=Depends(require_auth)):
+    return {"ok": True, **{k: v for k, v in EDGE_SCAN_STATE.items() if k != "pool"}}
+
+
+async def _scan_railway_tcp(candidates: list[tuple[str, int]], timeout: float, concurrency: int = 32) -> list[dict]:
+    """Railway endpoint.txt contains raw TCP proxy endpoints, not TLS hosts."""
+    sem = asyncio.Semaphore(max(1, min(48, concurrency)))
+
+    async def probe(host: str, port: int) -> dict:
+        started = time.perf_counter()
+        async with sem:
+            writer = None
+            try:
+                _, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=timeout)
+                return {"host": host, "port": port, "ok": True,
+                        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                        "protocol": "tcp", "attempt": 1}
+            except Exception as exc:
+                return {"host": host, "port": port, "ok": False,
+                        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+                        "protocol": "tcp", "error": str(exc)[:160]}
+            finally:
+                if writer is not None:
+                    writer.close()
+                    try:
+                        await writer.wait_closed()
+                    except Exception:
+                        pass
+
+    results = await asyncio.gather(*(probe(host, port) for host, port in list(dict.fromkeys(candidates))[:2048]))
+    return sorted(results, key=lambda item: (not item["ok"], item["latency_ms"]))
+
+
+def _parse_scan_ports(raw, default=None) -> list[int]:
+    if isinstance(raw, (list, tuple)):
+        items = raw
+    else:
+        items = str(raw or "").replace(" ", ",").split(",")
+    out = []
+    for value in items:
+        try:
+            port = int(str(value).strip())
+        except ValueError:
+            continue
+        if 1 <= port <= 65535 and port not in out:
+            out.append(port)
+    return out[:32] or list(default or [443])
+
+
+def _clean_scan_host(raw: str) -> str:
+    host = str(raw or "").strip().lower().split("://", 1)[-1].split("/", 1)[0]
+    if host.count(":") == 1:
+        host = host.rsplit(":", 1)[0]
+    return host.strip("[]")
+
+
+def _pool_upsert(rows: list, sni: str) -> None:
+    pool = EDGE_SCAN_STATE.setdefault("pool", {})
+    now = datetime.now().isoformat()
+    for r in rows:
+        if not r.get("ok"):
+            continue
+        k = f"{r['host']}:{r['port']}"
+        old = pool.get(k, {})
+        pool[k] = {"host": r["host"], "port": r["port"], "latency_ms": r.get("latency_ms"),
+                   "success_pct": r.get("success_pct", 100), "jitter_ms": r.get("jitter_ms", 0),
+                   "colo": r.get("colo") or old.get("colo", ""), "sni": sni,
+                   "first_seen": old.get("first_seen", now), "last_ok": now}
+
+
+async def _store_scan(source: str, mode: str, sni: str, ports: list, results: list, stopped: bool = False) -> dict:
+    good = [r for r in results if r.get("ok")]
+    EDGE_SCAN_STATE[source] = good
+    EDGE_SCAN_STATE["updated_at"] = datetime.now().isoformat()
+    EDGE_SCAN_STATE.setdefault("stats", {})[source] = {
+        "mode": mode, "sni": sni, "ports": ports, "tested": len(results),
+        "healthy": len(good), "stopped": stopped,
+        "best_latency_ms": good[0].get("latency_ms") if good else None,
+        "updated_at": EDGE_SCAN_STATE["updated_at"],
+    }
+    history = EDGE_SCAN_STATE.setdefault("history", [])
+    history.insert(0, {"source": source, "mode": mode, "sni": sni, "tested": len(results), "healthy": len(good),
+                       "best_latency_ms": good[0].get("latency_ms") if good else None, "at": EDGE_SCAN_STATE["updated_at"]})
+    del history[30:]
+    _pool_upsert(good, sni)
+    await save_state()
+    log_activity("scanner", f"اسکن {source} ({sni}): {len(good)} سالم از {len(results)}", "ok" if good else "warn")
+    return EDGE_SCAN_STATE["stats"][source]
+
+
+@app.post("/api/scanner/edge/commit")
+async def edge_scan_commit(request: Request, _=Depends(require_auth)):
+    body = await request.json()
+    src = str(body.get("source") or "").lower()
+    source = src if src in {"cloudflare", "railway", "domain", "onex"} else "cloudflare"
+    results = [r for r in (body.get("results") or []) if isinstance(r, dict) and r.get("host")][:20000]
+    mode = "full" if str(body.get("mode") or "sample").lower() == "full" else "sample"
+    sni = _clean_scan_host(body.get("sni")) or "www.cloudflare.com"
+    ports = _parse_scan_ports(body.get("ports"), default=[443])
+    stats = await _store_scan(source, mode, sni, ports, results, stopped=bool(body.get("stopped")))
+    return {"ok": True, "source": source, "stats": stats}
+
+
+@app.get("/api/scanner/edge/pool")
+async def edge_pool_list(_=Depends(require_auth)):
+    items = sorted((EDGE_SCAN_STATE.get("pool") or {}).values(), key=lambda x: (x.get("latency_ms") or 1e9))
+    return {"ok": True, "count": len(items), "items": items}
+
+
+@app.post("/api/scanner/edge/pool/retest")
+async def edge_pool_retest(request: Request, _=Depends(require_auth)):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    pool = EDGE_SCAN_STATE.setdefault("pool", {})
+    sni = _clean_scan_host(body.get("sni")) or "www.cloudflare.com"
+    timeout = max(0.4, min(8.0, safe_float(body.get("timeout"), 3.0, 0.4)))
+    tests = safe_int(body.get("tests"), 1, 1, 5)
+    keys = list(pool.keys())[:2000]
+    targets = [(pool[k]["host"], pool[k]["port"]) for k in keys]
+    if not targets:
+        return {"ok": True, "alive": 0, "removed": 0}
+    from onex.core.edge_scanner import aggregate_runs
+    first = await _scan_public_targets(targets, sni=sni, timeout=timeout, concurrency=32, trace=False)
+    extra_runs: dict = {}
+    for _ in range(tests - 1):
+        alive_now = [(r["host"], r["port"]) for r in first if r.get("ok")]
+        if not alive_now:
+            break
+        for r in await _scan_public_targets(alive_now, sni=sni, timeout=timeout, concurrency=32, trace=False):
+            extra_runs.setdefault((r["host"], r["port"]), []).append(r)
+    agg = [aggregate_runs(r, extra_runs.get((r["host"], r["port"]), [])) for r in first]
+    removed = 0
+    for r in agg:
+        k = f"{r['host']}:{r['port']}"
+        if not r.get("ok"):
+            if pool.pop(k, None) is not None:
+                removed += 1
+            continue
+        old = pool.get(k, {})
+        pool[k] = {"host": r["host"], "port": r["port"], "latency_ms": r.get("latency_ms"),
+                   "success_pct": r.get("success_pct", 100), "jitter_ms": r.get("jitter_ms", 0),
+                   "colo": r.get("colo") or old.get("colo", ""), "sni": sni,
+                   "first_seen": old.get("first_seen", datetime.now().isoformat()), "last_ok": datetime.now().isoformat()}
+    await save_state()
+    log_activity("scanner", f"تست مجدد استخر: {len(agg) - removed} سالم، {removed} مرده حذف شد", "ok")
+    return {"ok": True, "alive": len(agg) - removed, "removed": removed}
+
+
+@app.post("/api/scanner/edge/pool/clear")
+async def edge_pool_clear(_=Depends(require_auth)):
+    EDGE_SCAN_STATE["pool"] = {}
+    await save_state()
+    return {"ok": True}
+
+
+@app.post("/api/scanner/edge/pool/remove")
+async def edge_pool_remove(request: Request, _=Depends(require_auth)):
+    body = await request.json()
+    key = f"{str(body.get('host', '')).strip()}:{body.get('port', '')}"
+    pool = EDGE_SCAN_STATE.setdefault("pool", {})
+    removed = pool.pop(key, None) is not None
+    await save_state()
+    return {"ok": True, "removed": removed}
+
+
+@app.post("/api/scanner/edge/scan")
+async def edge_scan(request: Request, _=Depends(require_auth)):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    src = str(body.get("source") or "").lower()
+    if src == "railway":
+        src = "onex"
+    source = src if src in {"cloudflare", "railway", "domain", "onex"} else "cloudflare"
+    mode = "full" if str(body.get("mode") or "sample").lower() == "full" else "sample"
+    limit = safe_int(body.get("limit"), 200, 1, 20000)
+    timeout = max(0.4, min(8.0, safe_float(body.get("timeout"), 3.0, 0.4)))
+    ports = _parse_scan_ports(body.get("ports") or body.get("port"), default=[443])
+    sni = _clean_scan_host(body.get("sni"))
+    if not sni:
+        sni = "www.cloudflare.com" if source in {"cloudflare", "onex"} else _clean_scan_host(get_host(request))
+    if not sni or len(sni) > 253 or sni in {"localhost", "127.0.0.1", "0.0.0.0"}:
+        raise HTTPException(400, "SNI یا دامنه معتبر نیست")
+
+    from onex.core.edge_scanner import _parse_endpoint, load_onex_repo_ips
+    targets: list[tuple[str, int]] = []
+
+    def add_host(host: str, explicit_port: int = 0) -> None:
+        for port in ([explicit_port] if explicit_port else ports):
+            item = (host, port)
+            if item not in targets:
+                targets.append(item)
+
+    raw = body.get("candidates")
+    if isinstance(raw, str):
+        raw = [x.strip() for x in raw.replace(",", "\n").splitlines() if x.strip()]
+    if isinstance(raw, list):
+        for item in raw[:256]:
+            parsed = _parse_endpoint(str(item), 0)
+            if parsed:
+                add_host(parsed[0], parsed[1])
+    manual_count = len(targets)
+
+    if source == "domain":
+        for host, _p in await _resolve_public_hosts(sni, 443):
+            add_host(host)
+        if not targets:
+            raise HTTPException(400, f"برای {sni} هیچ IP پیدا نشد")
+    elif source == "cloudflare" and not manual_count:
+        per_port = max(4, limit // max(1, len(ports)))
+        for host, _p in load_candidates(BASE_DIR, "cloudflare", per_port, mode=mode):
+            add_host(host)
+    elif source == "onex" and not manual_count:
+        per_port = max(4, limit // max(1, len(ports)))
+        for host, _p in load_onex_repo_ips(BASE_DIR, per_port, mode=mode):
+            add_host(host)
+        for host, port in load_candidates(BASE_DIR, "railway", per_port, mode=mode):
+            add_host(host, port)
+
+    targets = targets[:20000]
+    if not targets:
+        raise HTTPException(400, "مقصدی برای اسکن پیدا نشد")
+    if body.get("plan_only"):
+        return {"ok": True, "source": source, "sni": sni, "count": len(targets),
+                "targets": [f"{h}:{p}" for h, p in targets]}
+
+    results = await _scan_public_targets(targets, sni=sni, timeout=timeout, concurrency=32, trace=(source in {"cloudflare", "onex"}))
+    from onex.core.edge_scanner import aggregate_runs
+    tests = safe_int(body.get("tests"), 1, 1, 5)
+    extra_runs: dict = {}
+    for _ in range(tests - 1):
+        alive = [(r["host"], r["port"]) for r in results if r.get("ok")]
+        if not alive:
+            break
+        for r in await _scan_public_targets(alive, sni=sni, timeout=timeout, concurrency=32, trace=False):
+            extra_runs.setdefault((r["host"], r["port"]), []).append(r)
+    results = [aggregate_runs(r, extra_runs.get((r["host"], r["port"]), [])) for r in results]
+
+    if body.get("persist") is False:
+        good_n = len([r for r in results if r.get("ok")])
+        return {"ok": True, "source": source, "results": results, "count": len(results), "good": good_n}
+    stats = await _store_scan(source, mode, sni, ports, results)
+    return {"ok": True, "source": source, "mode": mode, "sni": sni, "ports": ports, "timeout": timeout,
+            "count": len(results), "good": len([r for r in results if r.get("ok")]), "results": results,
+            "stats": stats}
+
+
+@app.post("/api/scanner/edge/clear")
+async def edge_scan_clear(request: Request, _=Depends(require_auth)):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    src = str(body.get("source") or "").lower()
+    source = src if src in {"cloudflare", "railway", "domain", "onex"} else "cloudflare"
+    EDGE_SCAN_STATE[source] = []
+    EDGE_SCAN_STATE.setdefault("stats", {}).pop(source, None)
+    EDGE_SCAN_STATE["updated_at"] = datetime.now().isoformat()
+    await save_state()
+    return {"ok": True, "source": source}
+
+
+@app.post("/api/scanner/edge/apply")
+async def edge_scan_apply(request: Request, _=Depends(require_perm("configs"))):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    src = str(body.get("source") or "").lower()
+    source = src if src in {"cloudflare", "railway", "domain", "onex"} else "cloudflare"
+    chosen = body.get("ips") or [x.get("host") for x in EDGE_SCAN_STATE.get(source, []) if x.get("ok")]
+    chosen = list(dict.fromkeys(str(x).strip() for x in chosen if str(x).strip()))[:50]
+    link_ids = body.get("link_ids") or []
+    if not chosen:
+        raise HTTPException(400, "ابتدا یک اسکن موفق انجام دهید")
+    async with LINKS_LOCK:
+        targets = list(LINKS.keys()) if not link_ids else [str(x) for x in link_ids if str(x) in LINKS]
+        for lid in targets:
+            current = LINKS[lid].get("clean_ips") or []
+            LINKS[lid]["clean_ips"] = list(dict.fromkeys(chosen + [str(x) for x in current if str(x) not in chosen]))[:50]
+    await save_state()
+    log_activity("scanner", f"{len(chosen)} IP از {source} روی {len(targets)} کانفیگ اعمال شد", "ok")
+    return {"ok": True, "source": source, "ips": chosen, "updated": len(targets)}
+
+
+@app.get("/api/scanner/edge/best")
+async def edge_scan_best(source: str = "cloudflare", _=Depends(require_auth)):
+    source = source if source in {"cloudflare", "railway", "domain", "onex"} else "cloudflare"
+    return {"ok": True, "source": source, "best": (EDGE_SCAN_STATE.get(source) or [])[:50], "stats": EDGE_SCAN_STATE.get("stats", {}).get(source, {})}
+
+
+async def _resolve_public_hosts(host: str, port: int = 443) -> list[tuple[str, int]]:
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except Exception:
+        return []
+    out = []
+    seen = set()
+    for info in infos:
+        ip = str(info[4][0])
+        item = (ip, port)
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out[:16]
+
+
+async def _scan_public_targets(targets: list[tuple[str, int]], sni: str, timeout: float, concurrency: int = 24, trace: bool = False) -> list[dict]:
+    """Probe the same resolved host list across HTTP/TCP/TLS ports."""
+    secure_ports = {443, 2053, 2083, 2087, 2096, 8443}
+    sem = asyncio.Semaphore(max(1, min(48, concurrency)))
+
+    async def probe(host: str, port: int) -> dict:
+        started = time.perf_counter()
+        async with sem:
+            writer = None
+            try:
+                if port in secure_ports:
+                    ctx = __import__("ssl").create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = __import__("ssl").CERT_NONE
+                    reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port, ssl=ctx, server_hostname=sni), timeout=timeout)
+                    protocol = "tls"
+                else:
+                    reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=timeout)
+                    protocol = "tcp"
+                latency = round((time.perf_counter()-started)*1000, 1)
+                row = {"host": host, "port": port, "ok": True, "protocol": protocol, "sni": sni, "latency_ms": latency}
+                if trace:
+                    try:
+                        writer.write(f"GET /cdn-cgi/trace HTTP/1.1\r\nHost: {sni}\r\nUser-Agent: ONEX-Scanner\r\nConnection: close\r\n\r\n".encode())
+                        await writer.drain()
+                        raw = await asyncio.wait_for(reader.read(4096), timeout=min(2.0, timeout))
+                        m = re.search(rb"\ncolo=([A-Z]{3})", raw)
+                        if m:
+                            row["colo"] = m.group(1).decode()
+                    except Exception:
+                        pass
+                return row
+            except Exception as exc:
+                return {"host": host, "port": port, "ok": False, "protocol": "tls" if port in secure_ports else "tcp", "sni": sni, "latency_ms": round((time.perf_counter()-started)*1000, 1), "error": str(exc)[:160]}
+            finally:
+                if writer is not None:
+                    writer.close()
+                    try:
+                        await writer.wait_closed()
+                    except Exception:
+                        pass
+
+    results = await asyncio.gather(*(probe(h, port) for h, port in list(dict.fromkeys(targets))[:2048]))
+    return sorted(results, key=lambda x: (not x["ok"], x["latency_ms"]))
+
+
+SNI_SCAN_STATE = {"results": [], "updated_at": None}
+
+
+def _read_onex_sni_list() -> list[str]:
+    candidates = [BASE_DIR / "config" / "sni_reality.txt", BASE_DIR / "data" / "sni_reality.txt"]
+    for path in candidates:
+        if path.is_file():
+            out = []
+            for line in path.read_text(errors="ignore").splitlines():
+                value = line.strip().lower()
+                if value and not value.startswith("#") and len(value) <= 253 and "/" not in value and " " not in value:
+                    out.append(value)
+            return list(dict.fromkeys(out))[:512]
+    return []
+
+
+@app.get("/api/scanner/sni")
+async def sni_scan_state(_=Depends(require_auth)):
+    return {"ok": True, **SNI_SCAN_STATE, "defaults": _read_onex_sni_list()}
+
+
+@app.post("/api/scanner/sni/scan")
+async def sni_scan(request: Request, _=Depends(require_auth)):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    raw = body.get("snis") or _read_onex_sni_list()
+    if isinstance(raw, str):
+        raw = re.split(r"[\s,]+", raw)
+    snis = []
+    for item in raw[:128]:
+        host = _clean_scan_host(str(item))
+        if host and len(host) <= 253 and host not in {"localhost", "127.0.0.1", "0.0.0.0"} and host not in snis:
+            snis.append(host)
+    port = safe_int(body.get("port"), 443, 1, 65535)
+    timeout = max(0.5, min(8.0, safe_float(body.get("timeout"), 3.0, 0.5)))
+    sem = asyncio.Semaphore(24)
+    import ssl
+
+    async def probe(host: str) -> dict:
+        started = time.perf_counter()
+        async with sem:
+            writer = None
+            try:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                _, writer = await asyncio.wait_for(asyncio.open_connection(host, port, ssl=ctx, server_hostname=host), timeout=timeout)
+                return {"sni": host, "port": port, "ok": True, "latency_ms": round((time.perf_counter() - started) * 1000, 1)}
+            except Exception as exc:
+                return {"sni": host, "port": port, "ok": False, "latency_ms": round((time.perf_counter() - started) * 1000, 1), "error": str(exc)[:120]}
+            finally:
+                if writer is not None:
+                    writer.close()
+                    try:
+                        await writer.wait_closed()
+                    except Exception:
+                        pass
+
+    rows = await asyncio.gather(*(probe(host) for host in snis))
+    good = sorted((row for row in rows if row.get("ok")), key=lambda row: row["latency_ms"])[:10]
+    SNI_SCAN_STATE.update({"results": good, "updated_at": datetime.now().isoformat()})
+    return {"ok": True, "tested": len(rows), "good": len(good), "results": good, "updated_at": SNI_SCAN_STATE["updated_at"]}
+
+
+@app.post("/api/scanner/sni/clear")
+async def sni_scan_clear(_=Depends(require_auth)):
+    SNI_SCAN_STATE.update({"results": [], "updated_at": datetime.now().isoformat()})
+    return {"ok": True}
+
+
+@app.get("/api/public-endpoint")
+async def public_endpoint(request: Request, _=Depends(require_auth)):
+    return {"ok": True, "host": get_host(request), "source": "deployment-or-request", "url": f"https://{get_host(request)}"}
 
 
 # ============================================================
@@ -15464,23 +17413,7 @@ def _front_proxy_ctx(internal_port: int) -> dict:
         async with LINKS_LOCK:
             return LINKS.get(uuid)
 
-    # Safety ceilings for long-lived relay transports.  These are hard
-    # process-local limits and do not change any protocol/config fields.
-    GLOBAL_CONNECTION_LIMIT = 128
-    PER_LINK_CONNECTION_LIMIT = 64
-
     def register_connection(uuid: str, ip: str, transport: str) -> str:
-        current_total = len(connections)
-        current_link = sum(
-            1 for conn in connections.values()
-            if conn.get("uuid") == uuid
-        )
-        if current_total >= GLOBAL_CONNECTION_LIMIT or current_link >= PER_LINK_CONNECTION_LIMIT:
-            logger.warning(
-                "connection limit reached uuid=%s transport=%s total=%s link=%s",
-                uuid[:8], transport, current_total, current_link,
-            )
-            return ""
         conn_id = secrets.token_urlsafe(6)
         connections[conn_id] = {
             "uuid": uuid,

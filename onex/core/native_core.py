@@ -187,6 +187,7 @@ class NativeCore:
         self._certificate_pair: tuple[str, str] | None = None
         self.last_status: dict[str, Any] = {"running": False, "applied": False, "listeners": 0}
         self.sync_lock = asyncio.Lock()
+        self.ad_blocker: dict[str, Any] = {"enabled": False, "domains": []}
 
     @property
     def enabled(self) -> bool:
@@ -565,7 +566,17 @@ class NativeCore:
         if final == "block":
             outbounds.append({"type": "block", "tag": "block"})
         config["outbounds"] = outbounds
-        config["route"] = {"final": final}
+        rules = []
+        blocker = self.ad_blocker or {}
+        domains = [str(x).strip().lower() for x in (blocker.get("domains") or []) if str(x).strip()]
+        if blocker.get("enabled") and domains:
+            if not any(x.get("tag") == "block" for x in outbounds):
+                outbounds.append({"type": "block", "tag": "block"})
+            rules.append({
+                "domain_suffix": domains,
+                "outbound": "block",
+            })
+        config["route"] = {"rules": rules, "final": final}
 
     async def build_config(self, links: dict[str, dict[str, Any]] | dict[str, Any], domain: str) -> dict[str, Any]:
         binary = await self.ensure_binary()

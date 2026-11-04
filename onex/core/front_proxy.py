@@ -127,13 +127,6 @@ async def _httpupgrade_relay(path: str, upgrade_value: str, head: bytes, client_
         client_w.close()
         return
     conn_id = ctx["register_connection"](uuid, ip, "vless-httpupgrade")
-    if not conn_id:
-        client_w.close()
-        try:
-            await client_w.wait_closed()
-        except Exception:
-            pass
-        return
     up_w = None
     pending = 0
     ok = True

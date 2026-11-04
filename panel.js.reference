@@ -30,109 +30,109 @@ document.getElementById('loginForm').addEventListener('submit',async e=>{
 
 
 
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: { vazir: ['Vazirmatn','system-ui','sans-serif'] }
-      }
-    }
-  }
+  tailwind.config = {{
+    theme: {{
+      extend: {{
+        fontFamily: {{ vazir: ['Vazirmatn','system-ui','sans-serif'] }}
+      }}
+    }}
+  }}
 
 
 const vlessUrlData = "{vless_url}";
 
 // Theme toggle logic with localStorage support (2 themes total)
-function toggleTheme() {
+function toggleTheme() {{
   const body = document.body;
   body.classList.toggle('theme-lighter');
   const isLighter = body.classList.contains('theme-lighter');
   localStorage.setItem('px_theme', isLighter ? 'lighter' : 'dark');
-}
+}}
 
 // Initialize saved theme on load
-(function() {
-  if (localStorage.getItem('px_theme') === 'lighter') {
+(function() {{
+  if (localStorage.getItem('px_theme') === 'lighter') {{
     document.body.classList.add('theme-lighter');
-  }
-})();
+  }}
+}})();
 
-function openQrModal() {
+function openQrModal() {{
   var modal = document.getElementById('qrModal');
   var container = document.getElementById('qrcodeContainer');
   var txtEl = document.getElementById('qrModalText');
   container.innerHTML = "";
   txtEl.textContent = vlessUrlData;
   modal.classList.remove('hidden');
-  try {
+  try {{
     var typeNumber = 0;
     var errorCorrectionLevel = 'L';
     var qr = qrcode(typeNumber, errorCorrectionLevel);
     qr.addData(vlessUrlData);
     qr.make();
     container.innerHTML = qr.createImgTag(5, 8);
-  } catch (e) {
+  }} catch (e) {{
     container.innerHTML = "<p class='text-xs text-black'>خطا در تولید QR Code</p>";
-  }
-}
+  }}
+}}
 
-function closeQrModal() {
+function closeQrModal() {{
   document.getElementById('qrModal').classList.add('hidden');
-}
+}}
 
-document.getElementById('qrModal').addEventListener('click', function(e) {
+document.getElementById('qrModal').addEventListener('click', function(e) {{
   if (e.target === this) closeQrModal();
-});
+}});
 
 const subUrlData = "{sub_url}";
-function openQrFor(value,label) {
+function openQrFor(value,label) {{
   var modal=document.getElementById('qrModal'), container=document.getElementById('qrcodeContainer'), txt=document.getElementById('qrModalText');
   if(!modal||!container) return;
   container.innerHTML=''; txt.textContent=value;
   var title=modal.querySelector('p'); if(title) title.textContent=label||'QR Code';
   modal.classList.remove('hidden');
-  try { var qr=qrcode(0,'L'); qr.addData(value); qr.make(); container.innerHTML=qr.createImgTag(5,8); } catch(e) { container.innerHTML='<p class="text-xs text-black">خطا در تولید QR Code</p>'; }
-}
-function copySubLink() {
+  try {{ var qr=qrcode(0,'L'); qr.addData(value); qr.make(); container.innerHTML=qr.createImgTag(5,8); }} catch(e) {{ container.innerHTML='<p class="text-xs text-black">خطا در تولید QR Code</p>'; }}
+}}
+function copySubLink() {{
   var text=subUrlData, btn=document.getElementById('subCopyBtn');
-  var done=function(){ if(!btn)return; var old=btn.innerHTML; btn.innerHTML='<span>✓ کپی شد</span>'; setTimeout(function(){btn.innerHTML=old;},1600); };
-  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(function(){fallbackCopy(text,done);}); else fallbackCopy(text,done);
-}
+  var done=function(){{ if(!btn)return; var old=btn.innerHTML; btn.innerHTML='<span>✓ کپی شد</span>'; setTimeout(function(){{btn.innerHTML=old;}},1600); }};
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(function(){{fallbackCopy(text,done);}}); else fallbackCopy(text,done);
+}}
 
-function pxCopy(textId, btnId) {
+function pxCopy(textId, btnId) {{
   var el = document.getElementById(textId);
   var btn = document.getElementById(btnId);
   if (!el || !btn) return;
   var text = el.textContent.textContext || el.textContent.trim();
-  var done = function() {
+  var done = function() {{
     var original = btn.getAttribute('data-original');
-    if (!original) {
+    if (!original) {{
       original = btn.innerHTML;
       btn.setAttribute('data-original', original);
-    }
+    }}
     btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>کپی شد</span>';
     btn.classList.add('text-emerald-300','border-emerald-400/30','bg-emerald-400/10');
-    setTimeout(function() {
+    setTimeout(function() {{
       btn.innerHTML = original;
       btn.classList.remove('text-emerald-300','border-emerald-400/30','bg-emerald-400/10');
-    }, 1700);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done).catch(function() { fallbackCopy(text, done); });
-  } else {
+    }}, 1700);
+  }};
+  if (navigator.clipboard && navigator.clipboard.writeText) {{
+    navigator.clipboard.writeText(text).then(done).catch(function() {{ fallbackCopy(text, done); }});
+  }} else {{
     fallbackCopy(text, done);
-  }
-}
-function fallbackCopy(text, cb) {
+  }}
+}}
+function fallbackCopy(text, cb) {{
   var ta = document.createElement('textarea');
   ta.value = text;
   ta.style.position = 'fixed';
   ta.style.opacity = '0';
   document.body.appendChild(ta);
   ta.select();
-  try { document.execCommand('copy'); } catch (e) {}
+  try {{ document.execCommand('copy'); }} catch (e) {{}}
   document.body.removeChild(ta);
   if (cb) cb();
-}
+}}
 
 
 const url = location.origin + location.pathname.replace("/p/","/sub-group/");
@@ -153,8 +153,8 @@ async function copySubUrl(){
 
 
 const I18N={
-fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات تلگرام',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
-en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Manage admin users and their access levels',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'Telegram bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
+fa:{sec_panel:'پنل',sec_sys:'سیستم',nav_dash:'داشبورد',nav_configs:'کانفیگ‌ها',nav_groups:'گروه‌ها',nav_create:'ساخت کانفیگ',nav_stats:'آمار',nav_logs:'لاگ فعالیت',nav_settings:'تنظیمات',nav_support:'پشتیبانی',nav_donate:'حمایت مالی',nav_news:'تلگرام',nav_admins:'ادمین‌ها',refresh_news:'بروزرسانی اطلاعیه',admins_sub:'مدیریت کاربران مدیریتی و سطح دسترسی آن‌ها',admin_create:'ساخت اکانت ادمین',admin_user:'نام کاربری',admin_pw:'رمز عبور',admin_pw2:'تکرار رمز',admin_perms:'دسترسی‌ها',admin_btn:'ساخت اکانت',admin_list:'لیست ادمین‌ها',refresh:'بروزرسانی',refresh_stats:'بروزرسانی آمار',refresh_panel:'بروزرسانی پنل',panel_version:'نسخه پنل',current_version:'ورژن فعلی',nav_telegram:'ربات ONEX',tg_sub:'توکن ربات و آیدی عددی ادمین · فعال‌سازی خودکار و وب‌هوک',tg_config:'پیکربندی ربات',tg_token:'توکن ربات (BotFather)',tg_admin:'آیدی عددی ادمین',tg_webhook:'فعال‌سازی Webhook (پیشنهادی روی Railway)',tg_activate:'ذخیره و فعال‌سازی ربات',tg_help:'راهنما',tg_h1:'از @BotFather یک ربات بساز و توکن را کپی کن',tg_h2:'آیدی عددی خودت را از @userinfobot بگیر',tg_h3:'ذخیره کن — وب‌هوک خودکار روی دامنه Railway ست می‌شود',logout:'خروج',loading:'در حال بارگذاری...',m_conns:'اتصالات فعال',m_traffic:'ترافیک کل',m_links:'کانفیگ‌ها',m_uptime:'آپتایم سرور',quick_create:'ساخت کانفیگ',quick_create_desc:'ساخت دستی با محدودیت ترافیک، سرعت و انقضا',configs_sub:'مدیریت لینک‌ها · VLESS و ساب',th_name:'نام',th_proto:'پروتکل',th_status:'وضعیت',th_usage:'مصرف',th_ops:'عملیات',manual_create:'ساخت دستی',label_name:'نام',label_proto:'پروتکل',label_limit:'محدودیت حجم',label_unit:'واحد',label_days:'انقضا (روز)',label_ip:'محدودیت IP',label_speed:'سرعت (Mbps)',btn_create:'ساخت',stats_sub:'ترافیک و اتصالات · فیلتر زمانی',r_day:'روز',r_week:'هفته',r_month:'ماه',r_all:'کل',panel_info:'اطلاعات کل پنل',lang_label:'زبان',change_pw:'تغییر رمز عبور',pw_cur:'رمز فعلی',pw_new:'رمز جدید',pw_cf:'تکرار رمز',btn_save:'ذخیره',github:'گیت‌هاب',telegram:'تلگرام',channel:'کانال پشتیبان',theme:'تم',theme_dark:'تم تیره',theme_light:'تم روشن',created_title:'کانفیگ ساخته شد',copy_vless:'کپی VLESS',copy_sub:'کپی ساب',sub_label:'سابسکریپشن'},
+en:{sec_panel:'PANEL',sec_sys:'SYSTEM',nav_dash:'Dashboard',nav_configs:'Configs',nav_groups:'Groups',nav_create:'Create Config',nav_stats:'Statistics',nav_logs:'Activity Log',nav_settings:'Settings',nav_support:'Support',nav_donate:'Donate',nav_news:'Telegram',nav_admins:'Admins',refresh_news:'Refresh news',admins_sub:'Manage admin users and their access levels',admin_create:'Create admin account',admin_user:'Username',admin_pw:'Password',admin_pw2:'Confirm password',admin_perms:'Permissions',admin_btn:'Create account',admin_list:'Admin list',refresh:'Refresh',refresh_stats:'Refresh stats',refresh_panel:'Update panel',panel_version:'Panel version',current_version:'Current version',nav_telegram:'ONEX Bot',tg_sub:'Bot token and numeric admin ID · auto activate and webhook',tg_config:'Bot configuration',tg_token:'Bot token (BotFather)',tg_admin:'Admin numeric ID',tg_webhook:'Enable Webhook (recommended on Railway)',tg_activate:'Save and activate bot',tg_help:'Guide',tg_h1:'Create a bot with @BotFather and copy the token',tg_h2:'Get your numeric ID from @userinfobot',tg_h3:'Save — webhook is set automatically on Railway domain',logout:'Logout',loading:'Loading...',m_conns:'Active connections',m_traffic:'Total traffic',m_links:'Configs',m_uptime:'Server uptime',quick_create:'Create Config',quick_create_desc:'Manual create with traffic, speed and expiry',configs_sub:'Manage links · VLESS and Sub',th_name:'Name',th_proto:'Protocol',th_status:'Status',th_usage:'Usage',th_ops:'Actions',manual_create:'Manual create',label_name:'Name',label_proto:'Protocol',label_limit:'Traffic limit',label_unit:'Unit',label_days:'Expiry (days)',label_ip:'IP limit',label_speed:'Speed (Mbps)',btn_create:'Create',stats_sub:'Traffic and connections · time filter',r_day:'Day',r_week:'Week',r_month:'Month',r_all:'All',panel_info:'Panel overview',lang_label:'Language',change_pw:'Change password',pw_cur:'Current password',pw_new:'New password',pw_cf:'Confirm password',btn_save:'Save',github:'GitHub',telegram:'Telegram',channel:'Support channel',theme:'Theme',theme_dark:'Dark theme',theme_light:'Light theme',created_title:'Config created',copy_vless:'Copy VLESS',copy_sub:'Copy Sub',sub_label:'Subscription'}
 };
 let lang=localStorage.getItem('px_lang')||'fa';
 let statRange='month';
@@ -247,7 +247,7 @@ async function api(url,opts={}){
   try{
     const r=await fetch(url,{cache:'no-store',credentials:'same-origin',...opts});
     if(r.status===401){location.href='/login';return null}
-    let data=null;try{data=await r.json()}catch{data={ok:false}
+    let data=null;try{data=await r.json()}catch{data={ok:false}}
     if(!r.ok){toast(data.detail||data.error||'Error');return null}
     return data;
   }catch(e){toast(lang==='fa'?'ارتباط برقرار نشد':'Connection failed');return null}
@@ -312,7 +312,7 @@ function linkBadgeClass(l){
   const used=Number(l.used_bytes||0), lim=Number(l.limit_bytes||0);
   let usagePct=lim>0?(used/lim)*100:0;
   let expWarn=false, expDead=false;
-  if(l.expires_at){try{const ms=new Date(l.expires_at)-Date.now();if(ms<=0)expDead=true;else if(ms<3*864e5)expWarn=true}catch(e){}
+  if(l.expires_at){try{const ms=new Date(l.expires_at)-Date.now();if(ms<=0)expDead=true;else if(ms<3*864e5)expWarn=true}catch(e){}}
   if(expDead||usagePct>=90) return 'conn-badge red';
   if(expWarn||usagePct>=70) return 'conn-badge orange';
   if(conn>0) return 'conn-badge green';
@@ -437,7 +437,7 @@ function removeAdvancedPort(port){const chip=[...document.querySelectorAll('#adv
 function toggleAdvancedConfig(force){const panel=document.getElementById('advancedConfigPanel'),card=document.querySelector('.advanced-config-card');if(!panel||!card)return;const open=force===undefined?!card.classList.contains('open'):!!force;card.classList.toggle('open',open);panel.hidden=!open;document.getElementById('advancedToggleState').textContent=open?'بستن':'باز کردن';if(open)loadAdvancedDraft()}
 function advancedFormObject(){
   const g=id=>document.getElementById(id); const val=id=>(g(id)?.value??'').trim(); const num=id=>Number(g(id)?.value)||0; const chk=id=>!!g(id)?.checked;
-  return {tls:{enabled:val('advTlsMode')!=='none',mode:val('advTlsMode'),sni:val('advSni'),server_name:val('advSni'),alpn:val('advAlpn'),certificate_path:val('advCertPath'),key_path:val('advKeyPath'),allow_insecure:chk('advAllowInsecure'),min_version:val('advTlsMin'),max_version:val('advTlsMax'),reality:{public_key:val('advRealityPk'),private_key:val('advRealitySk'),short_id:val('advRealitySid'),spider_x:val('advRealitySpider'),fingerprint:val('advRealityFp'),handshake_server:val('advRealityHandshake'),handshake_port:num('advRealityHandshakePort'),max_time_difference:val('advRealityMaxDiff')},host:{address:val('advAddress'),host:val('advHost'),path:val('advPath'),service_name:val('advServiceName'),authority:val('advAuthority')},fingerprint:{enabled:chk('advFpEnabled'),value:val('advFp'),randomize:chk('advFpRandom')},network:{type:val('advNetwork'),mode:val('advNetworkMode'),path:val('advPath'),service_name:val('advServiceName'),http_version:val('advHttpVersion')},headers:{host:val('advHost'),user_agent:val('advUserAgent'),extra:(g('advExtraHeaders')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)},routing:{domain_strategy:val('advDomainStrategy'),route:val('advRoute'),proxy_protocol:chk('advProxyProtocol'),sniff:chk('advSniff'),sniff_override:chk('advSniffOverride'),sniff_timeout:val('advSniffTimeout')},transport:{packet_encoding:val('advPacketEncoding'),early_data:num('advEarlyData'),max_early_data:num('advEarlyData'),early_data_header_name:val('advEarlyDataHeader'),padding:chk('advPadding')},listener:{listen:val('advListen')||'0.0.0.0',bind_interface:val('advBindInterface'),routing_mark:num('advRoutingMark'),netns:val('advNetns'),reuse_addr:chk('advReuseAddr'),tcp_fast_open:chk('advTfo'),tcp_multi_path:chk('advMptcp'),disable_tcp_keep_alive:chk('advDisableKeepAlive'),tcp_keep_alive:val('advTcpKeepAlive'),tcp_keep_alive_interval:val('advTcpKeepAliveInterval'),udp_fragment:chk('advUdpFragment'),udp_timeout:val('advUdpTimeout')},shadowsocks:{method:val('advSsMethod')||'aes-256-gcm'},hysteria2:{up_mbps:num('advHyUp'),down_mbps:num('advHyDown'),obfs_type:val('advHyObfsType'),obfs_password:val('advHyObfsPassword'),masquerade:val('advHyMasquerade')},ports:getAdvancedPorts()};
+  return {tls:{enabled:val('advTlsMode')!=='none',mode:val('advTlsMode'),sni:val('advSni'),server_name:val('advSni'),alpn:val('advAlpn'),certificate_path:val('advCertPath'),key_path:val('advKeyPath'),allow_insecure:chk('advAllowInsecure'),min_version:val('advTlsMin'),max_version:val('advTlsMax'),reality:{public_key:val('advRealityPk'),private_key:val('advRealitySk'),short_id:val('advRealitySid'),spider_x:val('advRealitySpider'),fingerprint:val('advRealityFp'),handshake_server:val('advRealityHandshake'),handshake_port:num('advRealityHandshakePort'),max_time_difference:val('advRealityMaxDiff')}},host:{address:val('advAddress'),host:val('advHost'),path:val('advPath'),service_name:val('advServiceName'),authority:val('advAuthority')},fingerprint:{enabled:chk('advFpEnabled'),value:val('advFp'),randomize:chk('advFpRandom')},network:{type:val('advNetwork'),mode:val('advNetworkMode'),path:val('advPath'),service_name:val('advServiceName'),http_version:val('advHttpVersion')},headers:{host:val('advHost'),user_agent:val('advUserAgent'),extra:(g('advExtraHeaders')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)},routing:{domain_strategy:val('advDomainStrategy'),route:val('advRoute'),proxy_protocol:chk('advProxyProtocol'),sniff:chk('advSniff'),sniff_override:chk('advSniffOverride'),sniff_timeout:val('advSniffTimeout')},transport:{packet_encoding:val('advPacketEncoding'),early_data:num('advEarlyData'),max_early_data:num('advEarlyData'),early_data_header_name:val('advEarlyDataHeader'),padding:chk('advPadding')},listener:{listen:val('advListen')||'0.0.0.0',bind_interface:val('advBindInterface'),routing_mark:num('advRoutingMark'),netns:val('advNetns'),reuse_addr:chk('advReuseAddr'),tcp_fast_open:chk('advTfo'),tcp_multi_path:chk('advMptcp'),disable_tcp_keep_alive:chk('advDisableKeepAlive'),tcp_keep_alive:val('advTcpKeepAlive'),tcp_keep_alive_interval:val('advTcpKeepAliveInterval'),udp_fragment:chk('advUdpFragment'),udp_timeout:val('advUdpTimeout')},shadowsocks:{method:val('advSsMethod')||'aes-256-gcm'},hysteria2:{up_mbps:num('advHyUp'),down_mbps:num('advHyDown'),obfs_type:val('advHyObfsType'),obfs_password:val('advHyObfsPassword'),masquerade:val('advHyMasquerade')},ports:getAdvancedPorts()};
 }
 function fillAdvancedForm(a){
   a=a||{}; const tls=a.tls||{},host=a.host||{},fp=a.fingerprint||{},net=a.network||{},routing=a.routing||{},transport=a.transport||{},listener=a.listener||{},reality=tls.reality||{},headers=a.headers||{},ss=a.shadowsocks||{},hy=a.hysteria2||{};
@@ -451,8 +451,8 @@ function fillAdvancedForm(a){
 }
 function updateRealityVisibility(){const box=document.getElementById('advRealityBox'),mode=document.getElementById('advTlsMode');if(box&&mode)box.style.display=mode.value==='reality'?'block':'none'}
 function resetAdvancedConfig(){fillAdvancedForm({ports:[Number(document.getElementById('cPort')?.value)||443]});localStorage.removeItem('onex_advanced_draft');toast(lang==='fa'?'تنظیمات پیشرفته بازنشانی شد':'Advanced settings reset')}
-function saveAdvancedDraft(){try{localStorage.setItem('onex_advanced_draft',JSON.stringify(advancedFormObject()));toast(lang==='fa'?'تنظیمات ذخیره شد':'Settings saved')}catch(e){toast(lang==='fa'?'ذخیره انجام نشد':'Save failed')}
-function loadAdvancedDraft(){try{const raw=localStorage.getItem('onex_advanced_draft');if(raw)fillAdvancedForm(JSON.parse(raw));else if(!getAdvancedPorts().length)fillAdvancedForm({ports:[Number(document.getElementById('cPort')?.value)||443]})}catch(e){fillAdvancedForm({ports:[443]})}
+function saveAdvancedDraft(){try{localStorage.setItem('onex_advanced_draft',JSON.stringify(advancedFormObject()));toast(lang==='fa'?'تنظیمات ذخیره شد':'Settings saved')}catch(e){toast(lang==='fa'?'ذخیره انجام نشد':'Save failed')}}
+function loadAdvancedDraft(){try{const raw=localStorage.getItem('onex_advanced_draft');if(raw)fillAdvancedForm(JSON.parse(raw));else if(!getAdvancedPorts().length)fillAdvancedForm({ports:[Number(document.getElementById('cPort')?.value)||443]})}catch(e){fillAdvancedForm({ports:[443]})}}
 function copyAdvancedJson(){copyText(JSON.stringify(advancedFormObject(),null,2))}
 let __advancedPreview = null;
 function setAdvancedValidation(kind, html){const el=document.getElementById('advancedValidationStatus');if(!el)return;el.className='advanced-validation-status '+kind;el.innerHTML=html;}
@@ -486,13 +486,14 @@ async function openConfigEditor(e,uid){
   setConfigEditValue('cGroup',link.category_id||'0');
   setConfigEditValue('cSubGroup',link.sub_id||'');
   const limitBytes=Number(link.limit_bytes||0);let limitUnit='GB',limitValue=0;
-  if(limitBytes){if(limitBytes%(1024**3)===0){limitUnit='GB';limitValue=limitBytes/(1024**3)}else if(limitBytes%(1024**2)===0){limitUnit='MB';limitValue=limitBytes/(1024**2)}else{limitUnit='KB';limitValue=limitBytes/1024}
+  if(limitBytes){if(limitBytes%(1024**3)===0){limitUnit='GB';limitValue=limitBytes/(1024**3)}else if(limitBytes%(1024**2)===0){limitUnit='MB';limitValue=limitBytes/(1024**2)}else{limitUnit='KB';limitValue=limitBytes/1024}}
   setConfigEditValue('cLimit',limitValue);setConfigEditValue('cUnit',limitUnit);
   let days=0;if(link.expires_at){const ms=new Date(link.expires_at).getTime()-Date.now();days=Math.max(0,Math.ceil(ms/86400000))}
   __configEditOriginalExpiresAt=link.expires_at||null;__configEditOriginalDays=days;setConfigEditValue('cDays',days);
   setConfigEditValue('cIp',link.ip_limit||0);
   const speedBytes=Number(link.speed_limit_bytes||0);setConfigEditValue('cSpeed',speedBytes?Math.round((speedBytes*8/(1024*1024))*100)/100:0);
   const all=document.getElementById('cAllProtocols');if(all)all.checked=!!link.all_protocols;
+  const bundleSelected=new Set(Array.isArray(link.bundle_protocols)?link.bundle_protocols:[link.protocol]);document.querySelectorAll('#protocolBundleOptions input').forEach(x=>x.checked=bundleSelected.has(x.value));renderBundleProtocolCards();syncAllProtocolToggle();
   fillAdvancedForm(link.advanced||{ports:[Number(link.port)||443]});
   document.getElementById('advancedValidationStatus')?.replaceChildren();
   document.getElementById('advancedPreviewBox')?.setAttribute('hidden','');
@@ -501,7 +502,7 @@ async function openConfigEditor(e,uid){
 }
 function collectConfigFormBody(){
   const advanced=advancedFormObject(),ports=advanced.ports.length?advanced.ports:[Number(configEditValue('cPort'))||443];
-  return {label:configEditValue('cName').trim()||undefined,protocol:configEditValue('cProto')||undefined,category_id:configEditValue('cGroup')||'0',sub_id:configEditValue('cSubGroup')||undefined,limit_value:Number(configEditValue('cLimit'))||0,limit_unit:configEditValue('cUnit')||'GB',expires_days:Number(configEditValue('cDays'))||0,ip_limit:Number(configEditValue('cIp'))||0,speed_limit_value:Number(configEditValue('cSpeed'))||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
+  const bundle=[...document.querySelectorAll('#protocolBundleOptions input:checked')].map(x=>x.value);return {label:configEditValue('cName').trim()||undefined,protocol:configEditValue('cProto')||undefined,bundle_protocols:bundle,ad_block_enabled:!!document.getElementById('cAdBlockEnabled')?.checked,category_id:configEditValue('cGroup')||'0',sub_id:configEditValue('cSubGroup')||undefined,limit_value:Number(configEditValue('cLimit'))||0,limit_unit:configEditValue('cUnit')||'GB',expires_days:Number(configEditValue('cDays'))||0,ip_limit:Number(configEditValue('cIp'))||0,speed_limit_value:Number(configEditValue('cSpeed'))||0,speed_limit_unit:'MBIT',all_protocols:!!document.getElementById('cAllProtocols')?.checked,port:ports[0],fingerprint:advanced.fingerprint.value,alpn:advanced.tls.alpn,advanced};
 }
 async function saveEditedConfig(){
   const uid=__configEditUid;if(!uid)return false;
@@ -591,7 +592,10 @@ let __updatePollTimer=null;
 function updateText(fa,en){return lang==='fa'?fa:en}
 function toggleNotifications(force){const panel=document.getElementById('topNotifyPanel'),btn=document.getElementById('topNotifyBtn');if(!panel||!btn)return;const open=typeof force==='boolean'?force:panel.hidden;panel.hidden=!open;btn.setAttribute('aria-expanded',open?'true':'false')}
 function renderNotifications(){const list=document.getElementById('notifyList'),badge=document.getElementById('notifyBadge');if(!list||!badge)return;if(!__updateInfo||!__updateInfo.update_available){badge.textContent='0';badge.classList.remove('show');list.innerHTML=`<div class="notify-empty">${updateText('اعلان جدیدی وجود ندارد.','No new notifications.')}</div>`;return;}badge.textContent='1';badge.classList.add('show');const r=__updateInfo;const changes=Array.isArray(r.changelog)&&r.changelog.length?`<div class="notify-item-text" style="margin-top:5px">${r.changelog.slice(0,4).map(x=>`• ${esc(String(x))}`).join('<br>')}</div>`:'';list.innerHTML=`<div class="notify-item"><div class="notify-item-title">🔄 ${esc(r.title||updateText('بروزرسانی جدید پنل','New panel update'))}</div><div class="notify-item-text">${esc(r.message||updateText('نسخه جدید پنل منتشر شده است.','A new panel version is available.'))}</div>${changes}<div class="notify-item-meta">${updateText('نسخه فعلی','Current version')}: ${esc(r.current_version||'—')} → ${esc(r.latest_version||'—')}</div><button type="button" class="notify-update-btn" onclick="toggleNotifications(false);panelUpdate()">${updateText('مشاهده و بروزرسانی','View update')}</button></div>`}
-async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.0.1',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&showToast&&old!==r.latest_version)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}return r}catch(e){return null}finally{__updateCheckBusy=false}
+async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.4.2',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&old!==r.latest_version)showUpdatePrompt(r);if(r.update_available&&showToast&&old!==r.latest_version)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}return r}catch(e){return null}finally{__updateCheckBusy=false}}
+function showUpdatePrompt(r){const modal=document.getElementById('updatePromptModal');if(!modal||!r||!r.update_available)return;const version=String(r.latest_version||'');if(!version)return;let seen='';try{seen=localStorage.getItem('onex_update_prompt_seen')||''}catch(e){}if(seen===version)return;const title=document.getElementById('updatePromptTitle'),text=document.getElementById('updatePromptText'),ver=document.getElementById('updatePromptVersion'),yes=document.getElementById('updatePromptConfirm'),later=document.getElementById('updatePromptLater');if(title)title.textContent=r.title||updateText('بروزرسانی جدید در دسترس است','New update is available');if(text)text.textContent=r.message||updateText('نسخه جدید پنل آماده است. آیا می‌خواهید پنل را بروزرسانی کنید؟','A new panel version is available. Would you like to update the panel?');if(ver)ver.textContent=updateText(`نسخه فعلی: ${r.current_version||'—'}  →  نسخه جدید: ${version}`,`Current: ${r.current_version||'—'}  →  New: ${version}`);modal.classList.add('open');modal.setAttribute('aria-hidden','false');const close=()=>{modal.classList.remove('open');modal.setAttribute('aria-hidden','true');try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}};if(later)later.onclick=close;if(yes)yes.onclick=()=>{try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}modal.classList.remove('open');modal.setAttribute('aria-hidden','true');panelUpdate();}}
+function showUpdatePrompt(r){const modal=document.getElementById('updatePromptModal');if(!modal||!r||!r.update_available)return;const version=String(r.latest_version||'');if(!version)return;let seen='';try{seen=localStorage.getItem('onex_update_prompt_seen')||''}catch(e){}if(seen===version)return;const title=document.getElementById('updatePromptTitle'),text=document.getElementById('updatePromptText'),ver=document.getElementById('updatePromptVersion'),yes=document.getElementById('updatePromptConfirm'),later=document.getElementById('updatePromptLater');if(title)title.textContent=r.title||updateText('بروزرسانی جدید در دسترس است','New update is available');if(text)text.textContent=r.message||updateText('نسخه جدید پنل آماده است. آیا می‌خواهید پنل را بروزرسانی کنید؟','A new panel version is available. Would you like to update the panel?');if(ver)ver.textContent=updateText(`نسخه فعلی: ${r.current_version||'—'}  →  نسخه جدید: ${version}`,`Current: ${r.current_version||'—'}  →  New: ${version}`);modal.classList.add('open');modal.setAttribute('aria-hidden','false');const close=()=>{modal.classList.remove('open');modal.setAttribute('aria-hidden','true');try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}};if(later)later.onclick=close;if(yes)yes.onclick=()=>{try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}modal.classList.remove('open');modal.setAttribute('aria-hidden','true');panelUpdate();}}
+
 function startUpdateNotificationPolling(){if(__updatePollTimer)clearInterval(__updatePollTimer);checkPanelUpdateWithNotify(false);__updatePollTimer=setInterval(()=>checkPanelUpdateWithNotify(false),45000)}
 async function checkPanelUpdate(showToast=true){
   if(__updateCheckBusy)return __updateInfo;
@@ -599,7 +603,7 @@ async function checkPanelUpdate(showToast=true){
   try{
     const r=await api('/api/update/check');
     if(r&&r.ok){
-      const previousVersion=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.0.1',r.latest_version||r.current_version);renderNotifications();
+      const previousVersion=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.4.2',r.latest_version||r.current_version);renderNotifications();
       if(r.update_available&&showToast&&previousVersion!==r.latest_version){toast(updateText(`نسخه جدید ${r.latest_version} آماده است`, `Version ${r.latest_version} is available`));}
     }
     return r;
@@ -886,7 +890,22 @@ async function loadProtocols(){
       ||'<option value="vless-ws">ONEX WB</option>';
   });
   setupProtocolPickers();
+  const bundle=document.getElementById('protocolBundleOptions');
+  if(bundle){
+    const ids=['vless-ws','siderail-vless-xhttp','vmess-ws','trojan-ws','vless-httpupgrade','xhttp-packet-up','xhttp-stream-up'];
+    const icons=Object.assign({},PROTOCOL_ICON_DATA,{'siderail-vless-xhttp':'/api/protocol-icon/vless-ws.png?v=1.4.2','vmess-ws':'/api/protocol-icon/vmess.png?v=1.4.2','trojan-ws':'/api/protocol-icon/trojan.png?v=1.4.2','vless-httpupgrade':'/api/protocol-icon/vless-ws.png?v=1.4.2'});
+    bundle.innerHTML=ids.filter(id=>list.some(x=>x.id===id)).map(id=>`<label class="protocol-bundle-card" data-proto="${id}"><input type="checkbox" value="${id}"><span class="protocol-bundle-radio"></span><img src="${icons[id]||'/api/protocol-icon/vless-ws.png?v=1.4.2'}" alt=""><b>${esc(protocolPickerShort(id))}</b><small>همان UUID · Subscription مشترک</small></label>`).join('');
+    bundle.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',()=>{if(inp.checked){const all=document.getElementById('cAllProtocols');if(all)all.checked=false}renderBundleProtocolCards();syncAllProtocolToggle();updateCreateLiveSummary()}));
+    bundle.querySelectorAll('.protocol-bundle-card').forEach(card=>card.addEventListener('click',e=>{if(e.target.tagName==='INPUT')return;const input=card.querySelector('input');input.checked=!input.checked;input.dispatchEvent(new Event('change',{bubbles:true}))}));
+  }
+  renderBundleProtocolCards();syncAllProtocolToggle();
 }
+const RAILWAY_SUB_PROTOCOLS=['vless-ws','xhttp-packet-up','xhttp-stream-up'];
+function renderBundleProtocolCards(){const box=document.getElementById('protocolBundleOptions');if(!box)return;const selected=new Set([...box.querySelectorAll('input:checked')].map(x=>x.value));box.querySelectorAll('.protocol-bundle-card').forEach(c=>c.classList.toggle('selected',selected.has(c.dataset.proto)));const b=document.getElementById('bundleCountBadge');if(b)b.textContent=`${selected.size||1} انتخاب`;const all=document.getElementById('cAllProtocols');if(all&&all.checked)box.querySelectorAll('.protocol-bundle-card').forEach(c=>c.classList.remove('selected'))}
+function syncAllProtocolToggle(){const sel=document.getElementById('cProto'),all=document.getElementById('cAllProtocols'),btn=document.getElementById('allRailwayModeBtn');if(!sel||!all)return;const ok=RAILWAY_SUB_PROTOCOLS.includes(sel.value);all.disabled=!ok;if(!ok)all.checked=false;if(btn){btn.classList.toggle('on',!!all.checked);btn.disabled=!ok;btn.style.opacity=ok?'1':'.48';const st=document.getElementById('allRailwayModeState');if(st)st.textContent=all.checked?'فعال':'خاموش'}}
+function toggleAllRailwayMode(){const all=document.getElementById('cAllProtocols'),sel=document.getElementById('cProto');if(!all||!sel||!RAILWAY_SUB_PROTOCOLS.includes(sel.value))return;all.checked=!all.checked;if(all.checked)document.querySelectorAll('#protocolBundleOptions input').forEach(x=>x.checked=false);renderBundleProtocolCards();syncAllProtocolToggle();updateCreateLiveSummary()}
+function clearBundleProtocols(){const all=document.getElementById('cAllProtocols');if(all)all.checked=false;document.querySelectorAll('#protocolBundleOptions input').forEach(x=>x.checked=false);renderBundleProtocolCards();syncAllProtocolToggle();updateCreateLiveSummary()}
+function updateCreateLiveSummary(){const name=document.getElementById('cName')?.value?.trim()||'ONEX PANEL',all=document.getElementById('cAllProtocols')?.checked,sel=[...document.querySelectorAll('#protocolBundleOptions input:checked')],limit=Number(document.getElementById('cLimit')?.value||0),days=Number(document.getElementById('cDays')?.value||0);const count=all?3:(sel.length||1),summary=document.getElementById('createSummaryText');if(summary)summary.textContent=`${name} · ${count} پروتکل · ${limit>0?limit+' '+(document.getElementById('cUnit')?.value||'GB'):'بدون محدودیت'} · ${days>0?days+' روز':'بدون انقضا'}`;const st=document.getElementById('createBuilderStatus');if(st)st.textContent=all?'اشتراک کامل Railway':(sel.length?'ترکیبی · آماده ساخت':'آماده ساخت')}
 let __allLinks=[];
 let cfgStatusFilter='all',cfgSortMode='newest';
 function toggleConfigFilters(){document.getElementById('cfgFilterRow')?.classList.toggle('open')}
@@ -895,8 +914,8 @@ function setCfgSort(v,el){cfgSortMode=v;document.querySelectorAll('#cfgFilterRow
 function configExpired(l){return !!l.expired||(l.expires_at&&new Date(l.expires_at).getTime()<=Date.now())||(Number(l.limit_bytes)>0&&Number(l.used_bytes||0)>=Number(l.limit_bytes))}
 function getFilteredConfigs(){const q=(document.getElementById('cfgSearch')?.value||'').trim().toLowerCase();let a=__allLinks.filter(l=>{const dead=configExpired(l),active=l.active!==false&&!dead;if(cfgStatusFilter==='active'&&!active)return false;if(cfgStatusFilter==='expired'&&!dead)return false;if(!q)return true;return [l.label,l.name,l.protocol,l.protocol_label,l.uuid,l.id,l.sub,l.sub_url,l.vless,l.vless_full].map(x=>String(x||'').toLowerCase()).some(x=>x.includes(q))});a.sort((x,y)=>cfgSortMode==='name'?String(x.label||x.name||'').localeCompare(String(y.label||y.name||'')):cfgSortMode==='usage'?Number(y.used_bytes||0)-Number(x.used_bytes||0):String(y.created_at||'').localeCompare(String(x.created_at||'')));return a}
 function filterConfigs(){renderConfigCards(getFilteredConfigs())}
-function protocolUi(id){const m={'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png'],'xhttp-stream-one':['ONEX Stream','/api/protocol-icon/xhttp-stream-one.png']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png']}
-function cfgDate(v){if(!v)return 'بدون انقضا';try{return new Date(v).toLocaleDateString('fa-IR',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){return String(v).slice(0,10)}
+function protocolUi(id){const m={'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png?v=1.4.2'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png?v=1.4.2'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png?v=1.4.2'],'xhttp-stream-one':['ONEX Stream','/api/protocol-icon/xhttp-stream-one.png?v=1.4.2']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png?v=1.4.2']}
+function cfgDate(v){if(!v)return 'بدون انقضا';try{return new Date(v).toLocaleDateString('fa-IR',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){return String(v).slice(0,10)}}
 function updateConfigStats(){const total=__allLinks.length,expired=__allLinks.filter(configExpired).length,active=__allLinks.filter(l=>l.active!==false&&!configExpired(l)).length,used=__allLinks.reduce((n,l)=>n+Number(l.used_bytes||0),0),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('cfgStatTotal',total);set('cfgStatUsed',fmtB(used));set('cfgStatActive',active);set('cfgStatExpired',expired);set('cfgVisibleCount',`${getFilteredConfigs().length} مورد`)}
 let __openConfigMenuUid='';
 function closeConfigMenus(){__openConfigMenuUid='';document.querySelectorAll('.cfg-menu.open').forEach(m=>m.classList.remove('open'));document.querySelectorAll('.cfg-menu[data-portal="1"]').forEach(m=>{const hostId=m.dataset.hostId;const host=hostId?document.getElementById(hostId):null;if(host&&m.parentElement===document.body)host.appendChild(m);m.style.left='';m.style.top='';m.style.right='';m.style.bottom='';m.style.display='';m.dataset.portal='';delete m.dataset.hostId})}
@@ -916,7 +935,7 @@ function renderConfigCards(arr){const box=document.getElementById('cfgCards');if
   box.innerHTML=arr.map(l=>{const uid=String(l.uuid||l.id||''),dead=configExpired(l),active=l.active!==false&&!dead,[pl,icon]=protocolUi(l.protocol),used=Number(l.used_bytes||0),lim=Number(l.limit_bytes||0),pct=lim>0?Math.min(100,Math.round(used/lim*100)):0,conn=Number(l.connected_ips||0),safeUid=esc(uid),mid='cfgMenu_'+uid.replace(/[^a-zA-Z0-9_-]/g,'_'),usage=lim>0?`${fmtB(used)} / ${fmtB(lim)}`:fmtB(used),activeState=l.active!==false;return `<article class="cfg-card ${dead?'expired':''}" draggable="true" data-uid="${safeUid}" ondragstart="cfgDragStart(event)" ondragover="cfgDragOver(event)" ondrop="cfgDrop(event)" ondragend="cfgDragEnd(event)"><label class="cfg-card-check"><input type="checkbox" class="cfg-chk" value="${safeUid}" onchange="updateBulkBar()"></label><div class="cfg-proto-icon"><img src="${icon}" alt=""></div><div class="cfg-main"><div class="cfg-name-row"><b>${esc(l.label||l.name||uid.slice(0,8))}</b><button type="button" class="cfg-edit-dot" title="ویرایش کانفیگ" aria-label="ویرایش کانفیگ" onclick="openConfigEditor(event,'${safeUid}')">✎</button></div><div class="cfg-proto">${esc(pl)}</div><div class="cfg-meta"><span><i>♧</i>${conn} اتصال</span><span><i>◷</i>${dead?'منقضی شده':(l.expires_at?'انقضا '+cfgDate(l.expires_at):'بدون انقضا')}</span></div></div><div class="cfg-side"><div class="cfg-side-top"><span class="cfg-status ${active?'':'bad'}"><i></i>${active?'فعال':'غیرفعال'}</span><button type="button" class="cfg-active-toggle ${activeState?'on':''}" onclick="toggleConfigActive(event,'${safeUid}',${activeState?'false':'true'})" aria-pressed="${activeState?'true':'false'}"><span class="cfg-active-dot"></span><span>${activeState?'فعال':'خاموش'}</span></button></div><div class="cfg-usage"><div class="cfg-usage-ring" style="--pct:${pct}%"><span>${pct}%</span></div><div class="cfg-usage-copy"><b>${esc(usage)}</b>${lim>0?`<div class="cfg-usage-track"><div class="cfg-usage-fill" style="width:${pct}%"></div></div>`:''}</div></div></div><button class="cfg-menu-btn" type="button" data-menu-uid="${safeUid}" onclick="toggleConfigMenu(event,'${safeUid}')" aria-label="عملیات">⋮</button><div class="cfg-menu" id="${mid}"><div class="cfg-menu-head"><span>عملیات کانفیگ</span><small>برای بستن بیرون منو بزنید</small></div><button type="button" onclick="configMenuAction('copy','${safeUid}')">کپی VLESS</button><button type="button" onclick="configMenuAction('sub','${safeUid}')">کپی ساب</button><button type="button" onclick="configMenuAction('info','${safeUid}')">صفحه اطلاعات</button><button type="button" onclick="configMenuAction('reset','${safeUid}')">ریست مصرف</button><button type="button" class="danger" onclick="configMenuAction('delete','${safeUid}')">حذف کانفیگ</button></div></article>`}).join('');
   document.querySelectorAll('#cfgCards .cfg-chk').forEach(c=>{c.checked=selectedIds.has(String(c.value))});
   updateBulkBar();
-  if(openMenuUid){const menu=document.getElementById('cfgMenu_'+openMenuUid);const btn=document.querySelector('.cfg-menu-btn[data-menu-uid="'+CSS.escape(openMenuUid)+'"]');if(menu&&btn){document.body.appendChild(menu);menu.dataset.portal='1';menu.classList.add('open');__openConfigMenuUid=openMenuUid;positionConfigMenu(menu,btn)}else{__openConfigMenuUid=''}
+  if(openMenuUid){const menu=document.getElementById('cfgMenu_'+openMenuUid);const btn=document.querySelector('.cfg-menu-btn[data-menu-uid="'+CSS.escape(openMenuUid)+'"]');if(menu&&btn){document.body.appendChild(menu);menu.dataset.portal='1';menu.classList.add('open');__openConfigMenuUid=openMenuUid;positionConfigMenu(menu,btn)}else{__openConfigMenuUid=''}}
 }
 function renderLinks(arr){window.__linksMap={};arr.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l);renderConfigCards(getFilteredConfigs())}
 function softUpdateLinks(arr){window.__linksMap={};arr.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l);renderConfigCards(getFilteredConfigs())}
@@ -991,7 +1010,7 @@ function groupProtocolLabel(id){
   return labels[id]||id;
 }
 function groupProtocolIcon(id){
-  const map={'vless-ws':'/api/protocol-icon/vless-ws.png','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png'};
+  const map={'vless-ws':'/api/protocol-icon/vless-ws.png?v=1.4.2','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png?v=1.4.2','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png?v=1.4.2','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png?v=1.4.2'};
   return map[id]||'';
 }
 function setGroupFilter(f,btn){__groupFilter=f;document.querySelectorAll('.group-filter').forEach(x=>x.classList.toggle('on',x===btn));renderGroupList()}
@@ -1034,7 +1053,7 @@ async function loadGroupDetail(id){
   const g=__subGroups.find(x=>String(x.sub_id)===String(id)); if(!g){renderGroupDetail(null);return}
   let links=window.__allLinks;
   if(!Array.isArray(links)||!links.length){const r=await api('/api/links');links=(r&&r.links)||[];window.__allLinks=links}
-  if(!Array.isArray(window.__protocolList)||!window.__protocolList.length){try{await loadProtocols()}catch(e){}
+  if(!Array.isArray(window.__protocolList)||!window.__protocolList.length){try{await loadProtocols()}catch(e){}}
   __groupProtocols=Array.isArray(g.protocols)?g.protocols.slice():((window.__protocolList||[]).map(x=>x.id));
   renderGroupDetail(g,links||[]);
 }
@@ -1088,16 +1107,16 @@ function openGroupModal(subId=''){
   document.getElementById('groupFormName').value=g?.name||'';document.getElementById('groupFormDesc').value=g?.desc||'';document.getElementById('groupFormPassword').value='';
   modal.dataset.subId=g?.sub_id||'';
 }
-function closeGroupModal(){const m=document.getElementById('groupModal');if(m){m.hidden=true;m.classList.remove('open')}
+function closeGroupModal(){const m=document.getElementById('groupModal');if(m){m.hidden=true;m.classList.remove('open')}}
 async function saveGroupForm(){
   const m=document.getElementById('groupModal');const name=document.getElementById('groupFormName').value.trim();if(!name){toast('نام گروه لازم است');return}
   const subId=m?.dataset.subId||'';const body={name,desc:document.getElementById('groupFormDesc').value.trim()};const pw=document.getElementById('groupFormPassword').value.trim();if(pw)body.password=pw;
   const r=await api(subId?'/api/subs/'+encodeURIComponent(subId):'/api/subs',{method:subId?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(r){closeGroupModal();toast(subId?'گروه ویرایش شد':'گروه ساخته شد');await loadGroups()}
 }
-async function deleteSubGroup(id){if(!confirm('این گروه حذف شود؟ کانفیگ‌ها حذف نمی‌شوند و فقط از گروه خارج می‌شوند.'))return;const r=await api('/api/subs/'+encodeURIComponent(id),{method:'DELETE'});if(r){toast('گروه حذف شد');__selectedSubId='';await loadGroups()}
-function openGroupQr(url,label){const m=document.getElementById('groupQrModal'),box=document.getElementById('groupQrBox'),txt=document.getElementById('groupQrText');if(!m||!box||!url)return;txt.textContent=url;document.getElementById('groupQrTitle').textContent=label||'لینک اشتراک';box.innerHTML='';try{if(typeof qrcode==='function'){const qr=qrcode(0,'M');qr.addData(url);qr.make();box.innerHTML=qr.createImgTag(6,8)}else{box.innerHTML='<div style="color:#111;font:12px sans-serif;padding:30px">QR آماده نشد</div>'}catch(e){box.innerHTML='<div style="color:#111;font:12px sans-serif;padding:30px">خطا در تولید QR</div>'}m.hidden=false;m.classList.add('open')}
-function closeGroupQr(){const m=document.getElementById('groupQrModal');if(m){m.hidden=true;m.classList.remove('open')}
+async function deleteSubGroup(id){if(!confirm('این گروه حذف شود؟ کانفیگ‌ها حذف نمی‌شوند و فقط از گروه خارج می‌شوند.'))return;const r=await api('/api/subs/'+encodeURIComponent(id),{method:'DELETE'});if(r){toast('گروه حذف شد');__selectedSubId='';await loadGroups()}}
+function openGroupQr(url,label){const m=document.getElementById('groupQrModal'),box=document.getElementById('groupQrBox'),txt=document.getElementById('groupQrText');if(!m||!box||!url)return;txt.textContent=url;document.getElementById('groupQrTitle').textContent=label||'لینک اشتراک';box.innerHTML='';try{if(typeof qrcode==='function'){const qr=qrcode(0,'M');qr.addData(url);qr.make();box.innerHTML=qr.createImgTag(6,8)}else{box.innerHTML='<div style="color:#111;font:12px sans-serif;padding:30px">QR آماده نشد</div>'}}catch(e){box.innerHTML='<div style="color:#111;font:12px sans-serif;padding:30px">خطا در تولید QR</div>'}m.hidden=false;m.classList.add('open')}
+function closeGroupQr(){const m=document.getElementById('groupQrModal');if(m){m.hidden=true;m.classList.remove('open')}}
 
 
 async function loadSecurity(){
@@ -1116,7 +1135,7 @@ async function unlockAllIps(){
 
 async function downloadBackup(kind){
   try{
-    const url = kind==='bot' ? '/api/backup/bot' : '/api/backup/users';
+    const url = kind==='full' ? '/api/backup/full' : (kind==='bot' ? '/api/backup/bot' : '/api/backup/users');
     const r = await fetch(url, {credentials:'same-origin', cache:'no-store'});
     if(r.status===401){ location.href='/login'; return; }
     if(!r.ok){
@@ -1131,12 +1150,21 @@ async function downloadBackup(kind){
     const a = document.createElement('a');
     const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
     a.href = URL.createObjectURL(blob);
-    a.download = kind==='bot' ? ('pxpanel-bot-'+stamp+'.json') : ('pxpanel-users-'+stamp+'.json');
+    a.download = kind==='full' ? ('ONEX-backup-'+stamp+'.json') : (kind==='bot' ? ('ONEX-bot-'+stamp+'.json') : ('ONEX-users-'+stamp+'.json'));
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
     toast(lang==='fa'?'دانلود شد':'Downloaded');
   }catch(e){ toast(String(e.message||e)); }
+}
+async function restoreFull(){
+  try{
+    const data = await readJsonFile('restoreFullFile');
+    if(data.type!=='onex_full_backup'){ toast(lang==='fa'?'این فایل بک‌آپ کامل ONEX نیست':'This is not a full ONEX backup'); return; }
+    if(!confirm(lang==='fa'?'تمام اطلاعات فعلی پنل و تنظیمات ربات با بک‌آپ جایگزین می‌شود. مطمئنی؟':'All current panel and bot data will be replaced. Continue?')) return;
+    const r = await api('/api/restore/full',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if(r){ toast(r.warning||r.message||(lang==='fa'?'بک‌آپ کامل بازیابی شد':'Full backup restored')); setTimeout(()=>location.reload(),900); }
+  }catch(e){ toast(e.message||String(e)); }
 }
 function readJsonFile(inputId){
   return new Promise((resolve,reject)=>{
@@ -1170,10 +1198,11 @@ async function restoreBot(){
    LIGHT STATIC 3D PROTOCOL PICKER
    ============================================================ */
 const PROTOCOL_PICKER_GROUPS=[
-  {title:'',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up','xhttp-stream-one']}
+  {title:'Railway',ids:['vless-ws','xhttp-packet-up','xhttp-stream-up']},
+  {title:'SideRail',ids:['vless-ws','siderail-vless-xhttp','vmess-ws','trojan-ws','vless-httpupgrade']}
 ];
-const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX WB","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gaming","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
-const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","xhttp-packet-up":"VLESS + XHTTP","xhttp-stream-up":"VLESS + XHTTP","xhttp-stream-one":"VLESS + XHTTP","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
+const PROTOCOL_PICKER_NAMES={"vless-ws":"SideRail VLESS WS","siderail-vless-xhttp":"SideRail VLESS XHTTP","vmess-ws":"SideRail VMess WS","trojan-ws":"SideRail Trojan WS","vless-httpupgrade":"SideRail VLESS HTTPUpgrade","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gaming","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS gRPC Reality"};
+const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS + WebSocket","siderail-vless-xhttp":"VLESS + XHTTP","vmess-ws":"VMess + WebSocket","trojan-ws":"Trojan + WebSocket","vless-httpupgrade":"VLESS + HTTPUpgrade","xhttp-packet-up":"VLESS + XHTTP","xhttp-stream-up":"VLESS + XHTTP","xhttp-stream-one":"VLESS + XHTTP stream-one","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-grpc-reality":"VLESS + gRPC + Reality"};
 const PROTOCOL_3D_ICONS={
   "vless-ws":{c1:"#24a9ff",c2:"#1264ff",c3:"#6d3cff",mark:"V",glow:"#168cff"},
   "xhttp-packet-up":{c1:"#35c8ff",c2:"#0877d8",c3:"#3155ff",mark:"XP",glow:"#21b8ff"},
@@ -1191,7 +1220,7 @@ let __protocolPickerTarget='' ;
 let __protocolPickerOptions=[];
 function protocolPickerLabel(id){const p=__protocolPickerOptions.find(x=>x.id===id);return PROTOCOL_PICKER_NAMES[id]||p?.label||id||'Vortex Link'}
 function protocolPickerShort(id){return PROTOCOL_PICKER_NAMES[id]||id}
-const PROTOCOL_ICON_DATA={"vless-ws":"/api/protocol-icon/vless-ws.png","xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png","xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png","xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png"};
+const PROTOCOL_ICON_DATA={"vless-ws":"/api/protocol-icon/vless-ws.png?v=1.4.2","xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png?v=1.4.2","xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png?v=1.4.2","xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png?v=1.4.2"};
 function protocolIconMarkup(id){
   const srcMap=PROTOCOL_ICON_DATA;
   const src=srcMap[id]||srcMap["vless-ws"];

@@ -22,6 +22,7 @@ from main import (
     is_link_allowed,
     is_ip_allowed,
     save_state,
+    is_destination_blocked,
 )
 from onex.core.vless_relay import parse_vless_header, check_and_use
 from onex.core.traffic_limiter import throttle
@@ -191,6 +192,8 @@ async def _open_tcp_from_header(first_chunk: bytes):
     # confusing client-side latency failures.
     if command != 1:
         raise ValueError(f"unsupported VLESS command: {command}")
+    if is_destination_blocked(address):
+        raise HTTPException(status_code=403, detail="blocked destination")
     reader, writer = await asyncio.wait_for(
         asyncio.open_connection(address, port), timeout=TCP_CONNECT_TIMEOUT
     )
@@ -220,20 +223,6 @@ async def _get_or_create_session(uuid: str, mode: str, session_id: str, ip: str 
         if not is_ip_allowed(link, uuid, ip):
             logger.warning(f"🚫 XHTTP[{mode}] rejected uuid={uuid[:8]} ip={ip} (ip limit reached)")
             raise HTTPException(status_code=403, detail="ip limit reached")
-
-        # Keep XHTTP within the same conservative process-wide/per-link
-        # connection ceilings as the other relay transports.
-        total_connections = len(connections)
-        link_connections = sum(
-            1 for conn in connections.values()
-            if conn.get("uuid") == uuid
-        )
-        if total_connections >= 128 or link_connections >= 64:
-            logger.warning(
-                f"🚫 XHTTP[{mode}] rejected uuid={uuid[:8]} "
-                f"(connection limit total={total_connections} link={link_connections})"
-            )
-            raise HTTPException(status_code=429, detail="connection limit reached")
 
         conn_id = secrets.token_urlsafe(6)
         connections[conn_id] = {
@@ -295,17 +284,8 @@ async def _reaper():
         await asyncio.sleep(REAPER_INTERVAL)
         now = time.time()
         async with XHTTP_LOCK:
-            stale = [
-                sid for sid, s in xhttp_sessions.items()
-                if now - s["last_seen"] > SESSION_IDLE_TIMEOUT
-                and (
-                    not s.get("tcp_open")
-                    or (
-                        s.get("downlink_task") is not None
-                        and s["downlink_task"].done()
-                    )
-                )
-            ]
+            stale = [sid for sid, s in xhttp_sessions.items()
+                     if now - s["last_seen"] > SESSION_IDLE_TIMEOUT and not s.get("tcp_open")]
         for sid in stale:
             await _teardown(sid)
 

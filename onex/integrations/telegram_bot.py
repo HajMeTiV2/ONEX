@@ -39,6 +39,8 @@ from main import (
     save_state,
 )
 
+from onex.integrations import sell as _sell
+
 BOT_NAME = "ربات ONEX"
 BOT_NAME_EN = "ONEX Bot"
 
@@ -347,17 +349,22 @@ def _force_join_kb():
 def _main_menu_kb(viewer_id: int | None = None):
     is_admin = viewer_id is None or _is_admin(int(viewer_id))
     if not is_admin:
-        return {"inline_keyboard":[
-            [{"text":"📦 کانفیگ‌های من","callback_data":"list:0"},{"text":"📊 وضعیت مصرف","callback_data":"stats"}],
-            [{"text":"➕ ساخت کانفیگ","callback_data":"newcfg","style":"success"}],
-            [{"text":"🔗 دریافت لینک‌ها","callback_data":"list:0"}],
-            [{"text":"🔄 بروزرسانی","callback_data":"menu"}],
-        ]}
+        rows = []
+        if _sell.is_enabled():
+            rows.append([{"text":"🛒 خرید اشتراک","callback_data":"shop","style":"success"}])
+        rows.append([{"text":"📦 کانفیگ‌های من","callback_data":"list:0"},{"text":"📊 وضعیت مصرف","callback_data":"stats"}])
+        if not _sell.hide_free_create():
+            rows.append([{"text":"➕ ساخت کانفیگ","callback_data":"newcfg","style":"success"}])
+        if _sell.is_enabled():
+            rows.append([{"text":"🧾 سفارش‌های من","callback_data":"myorders"}])
+        rows.append([{"text":"🔗 دریافت لینک‌ها","callback_data":"list:0"}])
+        rows.append([{"text":"🔄 بروزرسانی","callback_data":"menu"}])
+        return {"inline_keyboard": rows}
     return {"inline_keyboard":[
         [{"text":"📊 داشبورد و آمار زنده","callback_data":"stats"}],
         [{"text":"🟢 لیست کانفیگ‌ها","callback_data":"list:0"},{"text":"➕ ساخت کانفیگ","callback_data":"newcfg","style":"success"}],
         [{"text":"🗂 گروه‌های ساب","callback_data":"subs:0"},{"text":"🔌 اتصالات زنده","callback_data":"conns"}],
-        [{"text":"📜 لاگ فعالیت","callback_data":"logs"}],
+        [{"text":"📜 لاگ فعالیت","callback_data":"logs"},{"text":"🛒 فروشگاه","callback_data":"shop"}],
         [{"text":"⚙️ تنظیمات پنل ربات","callback_data":"settings"}],
         [{"text":"🔄 بروزرسانی منو","callback_data":"menu"}],
     ]}
@@ -871,6 +878,14 @@ async def _handle_message(msg: dict):
             await _wizard_finish(chat_id, data)
             return
 
+    # sell bot: receipt uploads and /shop
+    if not st.get("action"):
+        try:
+            if await _sell.handle_message(msg):
+                return
+        except Exception as e:
+            logger.warning(f"sell message: {e}")
+
     if text.startswith("/start") or text in ("/menu", "منو"):
         if not await _check_membership(user_id):
             await _send(chat_id, f"📢 برای استفاده باید در کانال عضو شوید.", _force_join_kb()); return
@@ -914,7 +929,18 @@ async def _handle_callback(cb: dict):
             await _answer_cb(cb_id, "هنوز عضو نیستید", alert=True)
         return
 
+    if _sell.owns_callback(data):
+        if FORCE_JOIN.get("enabled") and not data.startswith("ord:") and not await _check_membership(user_id):
+            await _answer_cb(cb_id, "عضویت اجباری", alert=True)
+            await _edit(chat_id, mid, f"📢 عضویت اجباری فعال است.\nکانال: <code>{FORCE_JOIN.get('channel')}</code>", _force_join_kb())
+            return
+        await _sell.handle_callback(cb)
+        return
+
     is_admin = _is_admin(chat_id)
+    if not is_admin and data == "newcfg" and _sell.hide_free_create():
+        await _answer_cb(cb_id, "برای دریافت سرویس از «🛒 خرید اشتراک» استفاده کنید", alert=True)
+        return
     user_allowed = {"menu","stats","list:0","newcfg"}
     if not is_admin and not (data in ("menu","stats","newcfg") or data.startswith("list:") or data.startswith("view:") or data.startswith("link:") or data.startswith("sublink:") or data.startswith("info:") or data.startswith("toggle:") or data.startswith("w:")):
         await _answer_cb(cb_id, "⛔️ این بخش مخصوص ادمین است", alert=True)

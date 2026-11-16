@@ -229,7 +229,22 @@ async def test(cfg: dict) -> dict:
 _TAG = " ☁️Edge"
 
 
-def _rewrite_uri(uri: str, host: str, address: str, tag: str = _TAG) -> str | None:
+CF_EDGE_PORTS = (443, 2053, 2083, 2087, 2096, 8443, 80, 8080, 8880, 2052, 2082, 2086, 2095)
+
+
+def _norm_ports(ports) -> list[int]:
+    out: list[int] = []
+    for p in ports or []:
+        try:
+            v = int(p)
+        except Exception:
+            continue
+        if v in CF_EDGE_PORTS and v not in out:
+            out.append(v)
+    return out or [443]
+
+
+def _rewrite_uri(uri: str, host: str, address: str, tag: str = _TAG, port: int = 443) -> str | None:
     if uri.startswith("vmess://"):
         try:
             raw = uri[8:]
@@ -238,7 +253,7 @@ def _rewrite_uri(uri: str, host: str, address: str, tag: str = _TAG) -> str | No
             return None
         if str(obj.get("net")) != "ws":
             return None
-        obj.update(add=address, port="443", host=host, sni=host, tls="tls", alpn="http/1.1",
+        obj.update(add=address, port=str(port), host=host, sni=host, tls="tls", alpn="http/1.1",
                    ps=str(obj.get("ps") or "ONEX") + tag)
         return "vmess://" + base64.b64encode(json.dumps(obj, ensure_ascii=False).encode()).decode()
     if not (uri.startswith("vless://") or uri.startswith("trojan://")):
@@ -254,7 +269,7 @@ def _rewrite_uri(uri: str, host: str, address: str, tag: str = _TAG) -> str | No
     q.update(security="tls", sni=host, host=host, alpn="http/1.1")
     q.pop("pbk", None); q.pop("sid", None); q.pop("spx", None)
     name = unquote(parts.fragment or "ONEX") + tag
-    return urlunsplit((parts.scheme, f"{user}@{addr}:443", parts.path, urlencode(q, safe="/,"), quote(name, safe="")))
+    return urlunsplit((parts.scheme, f"{user}@{addr}:{port}", parts.path, urlencode(q, safe="/,"), quote(name, safe="")))
 
 
 def edge_uids(cfg: dict | None = None) -> set[str]:
@@ -267,24 +282,29 @@ def is_edge_only(*keys) -> bool:
     return any(str(k) in ids for k in keys if k)
 
 
-def edge_only_uris(uris: list[str]) -> list[str]:
+def edge_only_uris(uris: list[str], ports=None) -> list[str]:
     """Edge variants for the dedicated Edge subscription (ignores include_in_sub)."""
     cfg = load()
     host = edge_host(cfg)
     if not host:
         return []
-    return _expand_edge(uris, cfg, host)
+    return _expand_edge(uris, cfg, host, ports)
 
 
-def _expand_edge(uris: list[str], cfg: dict, host: str) -> list[str]:
+def _expand_edge(uris: list[str], cfg: dict, host: str, ports=None) -> list[str]:
     limit = max(1, min(50, int(cfg.get("edge_ip_limit") or 5)))
     addresses = [a for a in (cfg.get("clean_ips") or []) if a][:limit] or [host]
+    plist = _norm_ports(ports)
     out: list[str] = []
     for uri in uris:
         for i, addr in enumerate(addresses):
-            new = _rewrite_uri(uri, host, addr, _TAG if len(addresses) == 1 else f"{_TAG}{i + 1}")
-            if new:
-                out.append(new)
+            for port in plist:
+                tag = _TAG if len(addresses) == 1 else f"{_TAG}{i + 1}"
+                if len(plist) > 1:
+                    tag += f":{port}"
+                new = _rewrite_uri(uri, host, addr, tag, port)
+                if new:
+                    out.append(new)
     return out
 
 
@@ -505,17 +525,49 @@ def valid_sub_token(value) -> bool:
     return bool(expected) and hmac.compare_digest(str(value or ""), expected)
 
 
-def edge_variants(uris: list[str], addresses=None) -> list[str]:
+def edge_variants(uris: list[str], addresses=None, ports=None) -> list[str]:
     """Edge (Cloudflare relay) variants of normal URIs, one per address (link IPs or global IPs)."""
     cfg = load()
     host = edge_host(cfg)
     if not host:
         return []
     addrs = [a for a in (addresses or cfg.get("clean_ips") or []) if a] or [host]
+    plist = _norm_ports(ports)
     out: list[str] = []
     for uri in uris:
         for i, addr in enumerate(addrs):
-            new = _rewrite_uri(uri, host, addr, _TAG if len(addrs) == 1 else f"{_TAG}{i + 1}")
-            if new:
-                out.append(new)
+            for port in plist:
+                tag = _TAG if len(addrs) == 1 else f"{_TAG}{i + 1}"
+                if len(plist) > 1:
+                    tag += f":{port}"
+                new = _rewrite_uri(uri, host, addr, tag, port)
+                if new:
+                    out.append(new)
+    return out
+
+
+def edge_variants_own(uris: list[str], pairs=None, ports=None) -> list[str]:
+    """Edge variants for a link's own ip_proto_pairs: each protocol uses the IPs paired with it."""
+    cfg = load()
+    host = edge_host(cfg)
+    if not host:
+        return []
+    pairs = [(str(x[0]).strip(), str(x[1]).lower()) for x in (pairs or []) if isinstance(x, (list, tuple)) and len(x) == 2 and str(x[0]).strip()]
+    all_ips = list(dict.fromkeys(ip for ip, _ in pairs)) or [a for a in (cfg.get("clean_ips") or []) if a] or [host]
+    plist = _norm_ports(ports)
+    out: list[str] = []
+    for uri in uris:
+        scheme = urlsplit(uri).scheme if "://" in uri else ""
+        if uri.startswith("vmess://"):
+            scheme = "vmess"
+        own = [ip for ip, pr in pairs if scheme and scheme in pr]
+        addrs = list(dict.fromkeys(own)) or all_ips
+        for i, addr in enumerate(addrs):
+            for port in plist:
+                tag = _TAG if len(addrs) == 1 else f"{_TAG}{i + 1}"
+                if len(plist) > 1:
+                    tag += f":{port}"
+                new = _rewrite_uri(uri, host, addr, tag, port)
+                if new:
+                    out.append(new)
     return out

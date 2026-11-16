@@ -1,5 +1,5 @@
 # ============================================================
-# ONEX SELF-UPDATE BOOTLOADER (1.5.0)
+# ONEX SELF-UPDATE BOOTLOADER (1.7.0)
 # Zero-config in-panel updates: the panel downloads the newest public release
 # into the data dir and re-executes itself from there. No Railway/GitHub
 # tokens are needed. A bundled build that is newer (manual redeploy) always
@@ -113,7 +113,7 @@ from onex.deploy import public_endpoint_candidates
 # ============================================================
 
 APP_NAME = "ONEX"
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.7.0"
 
 SUPPORT_USERNAME = "@V2rayTun0"
 SUPPORT_URL = "https://t.me/V2rayTun0"
@@ -3041,6 +3041,20 @@ table th:first-child, table td:first-child{overflow:visible}
 .update-prompt-version{margin:12px 0;padding:9px 12px;border-radius:11px;background:rgba(37,99,235,.08);border:1px solid rgba(96,165,250,.13);color:var(--t3);font-size:10px}
 .update-prompt-actions{display:flex;gap:9px;margin-top:16px}.update-prompt-actions .btn{flex:1;height:42px}.update-prompt-confirm{background:linear-gradient(135deg,#2563eb,#6366f1)!important;color:#fff!important}.update-prompt-later{background:rgba(255,255,255,.04)}
 html.light .update-prompt-modal{background:#fff;border-color:rgba(37,99,235,.16);box-shadow:0 28px 80px rgba(15,23,42,.22)}
+.update-prompt-bg{align-items:flex-end!important;justify-content:center!important;padding:0!important}
+.update-prompt-modal.ups-sheet{width:100%!important;max-width:560px!important;margin:0 auto!important;border-radius:24px 24px 0 0!important;padding:30px 22px calc(22px + env(safe-area-inset-bottom))!important;position:relative;overflow:hidden;animation:upsUp .38s cubic-bezier(.2,.8,.2,1)}
+.update-prompt-modal.ups-sheet::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#22d3ee,#8b5cf6,#ec4899)}
+.ups-x{position:absolute;top:12px;left:12px;width:34px;height:34px;border-radius:50%;border:1px solid var(--card-b);background:rgba(255,255,255,.04);color:var(--t2);font-size:20px;line-height:1;cursor:pointer}
+.ups-badge{margin:4px auto 12px;display:inline-block;padding:10px 26px;border-radius:16px;font-size:26px;font-weight:900;color:#fff;direction:ltr;background:linear-gradient(90deg,#22d3ee,#8b5cf6);box-shadow:0 10px 24px -10px rgba(139,92,246,.7)}
+.ups-badge,.update-prompt-title{text-align:center;display:block;width:100%}
+.ups-list{margin:14px 0 4px;display:grid;gap:8px;padding:12px 14px;border-radius:14px;border:1px solid var(--card-b);background:rgba(0,0,0,.18)}
+.ups-li{font-size:13px;line-height:1.8;color:var(--t1);position:relative;padding-right:14px}
+.ups-li::before{content:"";position:absolute;right:0;top:9px;width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#22d3ee,#8b5cf6)}
+.update-prompt-version{text-align:center}
+.update-prompt-actions{margin-top:16px}
+.update-prompt-actions .update-prompt-later{background:transparent!important;border:1px solid rgba(96,165,250,.35)!important;color:var(--t1)!important}
+.update-prompt-actions .update-prompt-confirm{background:linear-gradient(90deg,#22d3ee,#8b5cf6)!important;border:0!important;color:#fff!important}
+@keyframes upsUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes updatePromptIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 </style>
 
@@ -3080,7 +3094,7 @@ html.light .update-prompt-modal{background:#fff;border-color:rgba(37,99,235,.16)
 </style>
 
 <style>
-/* ONEX 1.5.0 — single 3D wordmark in the top chrome.
+/* ONEX 1.7.0 — single 3D wordmark in the top chrome.
    The navigation drawer intentionally has no logo block. */
 #sidebar > .sb-logo{display:none!important;}
 #sidebar .sb-logo-icon{display:none!important;}
@@ -4565,6 +4579,17 @@ async def update_link(
                         pairs_in.append([ip_v, pr_v])
             link["ip_proto_pairs"] = pairs_in
 
+        if "edge_ports" in body:
+            _ports_in = []
+            for _pv in (body.get("edge_ports") or [])[:20]:
+                try:
+                    _pi = int(_pv)
+                except Exception:
+                    continue
+                if _pi in (443, 2053, 2083, 2087, 2096, 8443, 80, 8080, 8880, 2052, 2082, 2086, 2095) and _pi not in _ports_in:
+                    _ports_in.append(_pi)
+            link["edge_ports"] = _ports_in or [443]
+
         if "bundle_protocols" in body:
             raw_bundle = body.get("bundle_protocols") or []
             if not isinstance(raw_bundle, list):
@@ -5120,7 +5145,7 @@ def _edge_group_uris(entries, host):
         except Exception:
             base = [vless_link_for_link(link, uid, host)]
         if link.get("ip_proto_pairs"):
-            edge = _cf.edge_variants_own(base)
+            edge = _cf.edge_variants_own(base, link.get("ip_proto_pairs"), link.get("edge_ports"))
         else:
             edge = _cf.edge_variants(base, list(link.get("clean_ips") or []) or None)
         out.extend(edge or base)
@@ -5232,7 +5257,7 @@ async def subscription_single(
     try:
         from onex.integrations.cf_edge import is_edge_only, edge_only_uris as _edge_only, edge_variants_own as _edge_own
         if is_edge_only(uuid, link.get("uuid")):
-            _edge_lines = _edge_own(_uris) if link.get("ip_proto_pairs") else _edge_only(_uris)
+            _edge_lines = _edge_own(_uris, link.get("ip_proto_pairs"), link.get("edge_ports")) if link.get("ip_proto_pairs") else _edge_only(_uris, link.get("edge_ports"))
             lines.extend(_edge_lines or _uris)
         else:
             lines.extend(_uris)
@@ -10457,7 +10482,7 @@ html.light .onex-topbar-brand{background:#fff;border-color:rgba(var(--accent-rgb
 }
 @media(max-width:390px){.onex-mobile-mark{width:35px;height:35px;flex-basis:35px}.onex-mobile-copy .onex-brand-word{font-size:16px}}
 
-/* ONEX 1.5.0 FINAL BRAND LAYOUT — matches approved clean mockup */
+/* ONEX 1.7.0 FINAL BRAND LAYOUT — matches approved clean mockup */
 .onex-brand-sub,.onex-mobile-copy .onex-brand-sub,.onex-sidebar-copy .onex-brand-sub,.onex-topbar-copy .onex-brand-sub{display:none!important}
 
 /* Sidebar: compact glass header with full ONEX wordmark. */
@@ -13813,9 +13838,11 @@ html.light #page-dash .metric strong{-webkit-text-fill-color:color-mix(in srgb, 
 </div>
 
 <div class="modal-bg update-prompt-bg" id="updatePromptModal" aria-hidden="true">
-  <div class="update-prompt-modal" role="dialog" aria-modal="true" aria-labelledby="updatePromptTitle">
-    <div class="update-prompt-icon">↻</div>
+  <div class="update-prompt-modal ups-sheet" role="dialog" aria-modal="true" aria-labelledby="updatePromptTitle">
+    <button type="button" class="ups-x" id="updatePromptX" aria-label="بستن">×</button>
+    <div class="ups-badge" id="updatePromptBadge">—</div>
     <div class="update-prompt-title" id="updatePromptTitle">بروزرسانی جدید در دسترس است</div>
+    <div class="ups-list" id="updatePromptList"></div>
     <div class="update-prompt-text" id="updatePromptText">نسخه جدید پنل آماده است. آیا می‌خواهید پنل را بروزرسانی کنید؟</div>
     <div class="update-prompt-version" id="updatePromptVersion"></div>
     <div class="update-prompt-actions">
@@ -14498,8 +14525,8 @@ window.addEventListener('resize',()=>{const p=document.getElementById('topNotify
 window.addEventListener('scroll',()=>{const p=document.getElementById('topNotifyPanel');if(p&&!p.hidden)positionNotifyPanel()},{passive:true});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleNotifications(false)});
 function renderNotifications(){const list=document.getElementById('notifyList'),badge=document.getElementById('notifyBadge');if(!list||!badge)return;if(!__updateInfo||!__updateInfo.update_available){badge.textContent='0';badge.classList.remove('show');list.innerHTML=`<div class="notify-empty">${updateText('اعلان جدیدی وجود ندارد.','No new notifications.')}</div>`;return;}badge.textContent='1';badge.classList.add('show');const r=__updateInfo;const changes=Array.isArray(r.changelog)&&r.changelog.length?`<div class="notify-item-text" style="margin-top:5px">${r.changelog.slice(0,4).map(x=>`• ${esc(String(x))}`).join('<br>')}</div>`:'';list.innerHTML=`<div class="notify-item"><div class="notify-item-title">🔄 ${esc(r.title||updateText('بروزرسانی جدید پنل','New panel update'))}</div><div class="notify-item-text">${esc(r.message||updateText('نسخه جدید پنل منتشر شده است.','A new panel version is available.'))}</div>${changes}<div class="notify-item-meta">${updateText('نسخه فعلی','Current version')}: ${esc(r.current_version||'—')} → ${esc(r.latest_version||'—')}</div><button type="button" class="notify-update-btn" onclick="toggleNotifications(false);panelUpdate()">${updateText('مشاهده و بروزرسانی','View update')}</button></div>`}
-async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.5.0',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&old!==r.latest_version)showUpdatePrompt(r);if(r.update_available&&showToast&&old!==r.latest_version)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}return r}catch(e){return null}finally{__updateCheckBusy=false}}
-function showUpdatePrompt(r){const modal=document.getElementById('updatePromptModal');if(!modal||!r||!r.update_available)return;if(modal.parentElement!==document.body)document.body.appendChild(modal);const version=String(r.latest_version||'');if(!version)return;let seen='';let snooze=0;try{seen=localStorage.getItem('onex_update_prompt_seen')||'';snooze=Number(localStorage.getItem('onex_update_prompt_snooze')||0)}catch(e){}if(seen===version&&Date.now()<snooze)return;const title=document.getElementById('updatePromptTitle'),text=document.getElementById('updatePromptText'),ver=document.getElementById('updatePromptVersion'),yes=document.getElementById('updatePromptConfirm'),later=document.getElementById('updatePromptLater');if(title)title.textContent=r.title||updateText('بروزرسانی جدید در دسترس است','New update is available');if(text)text.textContent=r.message||updateText('نسخه جدید پنل آماده است. آیا می‌خواهید پنل را بروزرسانی کنید؟','A new panel version is available. Would you like to update the panel?');if(ver)ver.textContent=updateText(`نسخه فعلی: ${r.current_version||'—'}  →  نسخه جدید: ${version}`,`Current: ${r.current_version||'—'}  →  New: ${version}`);modal.classList.add('open');modal.setAttribute('aria-hidden','false');const close=()=>{modal.classList.remove('open');modal.setAttribute('aria-hidden','true');try{localStorage.setItem('onex_update_prompt_seen',version);localStorage.setItem('onex_update_prompt_snooze',String(Date.now()+6*3600*1000))}catch(e){}};if(later)later.onclick=close;if(yes)yes.onclick=()=>{try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}modal.classList.remove('open');modal.setAttribute('aria-hidden','true');deployPanelUpdate();}}
+async function checkPanelUpdateWithNotify(showToast=false){if(__updateCheckBusy)return __updateInfo;__updateCheckBusy=true;try{const r=await api('/api/update/check');if(r&&r.ok){const old=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.7.0',r.latest_version||r.current_version);renderNotifications();if(r.update_available&&old!==r.latest_version)showUpdatePrompt(r);if(r.update_available&&showToast&&old!==r.latest_version)toast(updateText(`نسخه جدید ${r.latest_version} آماده است`,`Version ${r.latest_version} is available`));}return r}catch(e){return null}finally{__updateCheckBusy=false}}
+function showUpdatePrompt(r){const modal=document.getElementById('updatePromptModal');if(!modal||!r||!r.update_available)return;if(modal.parentElement!==document.body)document.body.appendChild(modal);const version=String(r.latest_version||'');if(!version)return;let seen='';let snooze=0;try{seen=localStorage.getItem('onex_update_prompt_seen')||'';snooze=Number(localStorage.getItem('onex_update_prompt_snooze')||0)}catch(e){}if(seen===version&&Date.now()<snooze)return;const title=document.getElementById('updatePromptTitle'),text=document.getElementById('updatePromptText'),ver=document.getElementById('updatePromptVersion'),yes=document.getElementById('updatePromptConfirm'),later=document.getElementById('updatePromptLater');if(title)title.textContent=r.title||updateText('بروزرسانی جدید در دسترس است','New update is available');if(text)text.textContent=r.message||updateText('نسخه جدید پنل آماده است. آیا می‌خواهید پنل را بروزرسانی کنید؟','A new panel version is available. Would you like to update the panel?');if(ver)ver.textContent=updateText(`نسخه فعلی: ${r.current_version||'—'}  →  نسخه جدید: ${version}`,`Current: ${r.current_version||'—'}  →  New: ${version}`);const bd=document.getElementById('updatePromptBadge');if(bd)bd.textContent=version;const ls=document.getElementById('updatePromptList');if(ls)ls.innerHTML=(Array.isArray(r.changelog)?r.changelog.slice(0,4):[]).map(x=>`<div class="ups-li">${esc(String(x))}</div>`).join('');const xb=document.getElementById('updatePromptX');if(xb)xb.onclick=()=>{if(later)later.click()};modal.classList.add('open');modal.setAttribute('aria-hidden','false');const close=()=>{modal.classList.remove('open');modal.setAttribute('aria-hidden','true');try{localStorage.setItem('onex_update_prompt_seen',version);localStorage.setItem('onex_update_prompt_snooze',String(Date.now()+6*3600*1000))}catch(e){}};if(later)later.onclick=close;if(yes)yes.onclick=()=>{try{localStorage.setItem('onex_update_prompt_seen',version)}catch(e){}modal.classList.remove('open');modal.setAttribute('aria-hidden','true');deployPanelUpdate();}}
 function startUpdateNotificationPolling(){if(__updatePollTimer)clearInterval(__updatePollTimer);checkPanelUpdateWithNotify(false);__updatePollTimer=setInterval(()=>checkPanelUpdateWithNotify(false),45000)}
 async function checkPanelUpdate(showToast=true){
   if(__updateCheckBusy)return __updateInfo;
@@ -14507,7 +14534,7 @@ async function checkPanelUpdate(showToast=true){
   try{
     const r=await api('/api/update/check');
     if(r&&r.ok){
-      const previousVersion=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.5.0',r.latest_version||r.current_version);renderNotifications();
+      const previousVersion=__updateInfo&&__updateInfo.latest_version;__updateInfo=r;setVersionLabels(r.current_version||'1.7.0',r.latest_version||r.current_version);renderNotifications();
       if(r.update_available&&showToast&&previousVersion!==r.latest_version){toast(updateText(`نسخه جدید ${r.latest_version} آماده است`, `Version ${r.latest_version} is available`));}
     }
     return r;
@@ -14829,7 +14856,7 @@ function setCfgSort(v,el){cfgSortMode=v;document.querySelectorAll('#cfgFilterRow
 function configExpired(l){return !!l.expired||(l.expires_at&&new Date(l.expires_at).getTime()<=Date.now())||(Number(l.limit_bytes)>0&&Number(l.used_bytes||0)>=Number(l.limit_bytes))}
 function getFilteredConfigs(){const q=(document.getElementById('cfgSearch')?.value||'').trim().toLowerCase();let a=__allLinks.filter(l=>{const dead=configExpired(l),active=l.active!==false&&!dead;if(cfgStatusFilter==='active'&&!active)return false;if(cfgStatusFilter==='expired'&&!dead)return false;if(cfgStatusFilter==='expiring'&&!(window.homeIsExpiring&&homeIsExpiring(l)&&!dead))return false;if(!q)return true;return [l.label,l.name,l.protocol,l.protocol_label,l.uuid,l.id,l.sub,l.sub_url,l.vless,l.vless_full].map(x=>String(x||'').toLowerCase()).some(x=>x.includes(q))});a.sort((x,y)=>cfgSortMode==='name'?String(x.label||x.name||'').localeCompare(String(y.label||y.name||'')):cfgSortMode==='usage'?Number(y.used_bytes||0)-Number(x.used_bytes||0):String(y.created_at||'').localeCompare(String(x.created_at||'')));return a}
 function filterConfigs(){renderConfigCards(getFilteredConfigs())}
-function protocolUi(id){const m={'trojan-ws':['Trojan WS','/api/protocol-icon/trojan.png?v=1.5.0'],'vmess-ws':['VMess WS','/api/protocol-icon/vmess.png?v=1.5.0'],'vless-httpupgrade':['VLESS HTTPUpgrade','/api/protocol-icon/vless-ws.png?v=1.5.0'],'siderail-vless-xhttp':['VLESS XHTTP','/api/protocol-icon/xhttp-packet-up.png?v=1.5.0'],'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png?v=1.5.0'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png?v=1.5.0'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png?v=1.5.0'],'trojan':['Trojan','/api/protocol-icon/trojan.png?v=1.5.0'],'shadowsocks':['Shadowsocks','/api/protocol-icon/shadowsocks.png?v=1.5.0'],'socks5':['SOCKS5','/api/protocol-icon/socks5.png?v=1.5.0'],'http':['HTTP Proxy','/api/protocol-icon/http.png?v=1.5.0'],'hysteria2':['Hysteria2','/api/protocol-icon/hysteria2.png?v=1.5.0'],'vless-reality':['VLESS Reality','/api/protocol-icon/vless-reality.png?v=1.5.0'],'vless-grpc-reality':['VLESS gRPC Reality','/api/protocol-icon/vless-grpc-reality.png?v=1.5.0'],'vmess':['VMess','/api/protocol-icon/vmess.png?v=1.5.0'],'tuic':['TUIC','/api/protocol-icon/tuic.png?v=1.5.0'],'anytls':['AnyTLS','/api/protocol-icon/anytls.png?v=1.5.0'],'naive':['NaiveProxy','/api/protocol-icon/naive.png?v=1.5.0'],'shadowtls':['ShadowTLS','/api/protocol-icon/shadowtls.png?v=1.5.0'],'snell':['Snell','/api/protocol-icon/snell.png?v=1.5.0'],'hysteria':['Hysteria','/api/protocol-icon/hysteria.png?v=1.5.0']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png?v=1.5.0']}
+function protocolUi(id){const m={'trojan-ws':['Trojan WS','/api/protocol-icon/trojan.png?v=1.7.0'],'vmess-ws':['VMess WS','/api/protocol-icon/vmess.png?v=1.7.0'],'vless-httpupgrade':['VLESS HTTPUpgrade','/api/protocol-icon/vless-ws.png?v=1.7.0'],'siderail-vless-xhttp':['VLESS XHTTP','/api/protocol-icon/xhttp-packet-up.png?v=1.7.0'],'vless-ws':['ONEX WB','/api/protocol-icon/vless-ws.png?v=1.7.0'],'xhttp-packet-up':['ONEX Xhttp','/api/protocol-icon/xhttp-packet-up.png?v=1.7.0'],'xhttp-stream-up':['ONEX GAMING','/api/protocol-icon/xhttp-stream-up.png?v=1.7.0'],'trojan':['Trojan','/api/protocol-icon/trojan.png?v=1.7.0'],'shadowsocks':['Shadowsocks','/api/protocol-icon/shadowsocks.png?v=1.7.0'],'socks5':['SOCKS5','/api/protocol-icon/socks5.png?v=1.7.0'],'http':['HTTP Proxy','/api/protocol-icon/http.png?v=1.7.0'],'hysteria2':['Hysteria2','/api/protocol-icon/hysteria2.png?v=1.7.0'],'vless-reality':['VLESS Reality','/api/protocol-icon/vless-reality.png?v=1.7.0'],'vless-grpc-reality':['VLESS gRPC Reality','/api/protocol-icon/vless-grpc-reality.png?v=1.7.0'],'vmess':['VMess','/api/protocol-icon/vmess.png?v=1.7.0'],'tuic':['TUIC','/api/protocol-icon/tuic.png?v=1.7.0'],'anytls':['AnyTLS','/api/protocol-icon/anytls.png?v=1.7.0'],'naive':['NaiveProxy','/api/protocol-icon/naive.png?v=1.7.0'],'shadowtls':['ShadowTLS','/api/protocol-icon/shadowtls.png?v=1.7.0'],'snell':['Snell','/api/protocol-icon/snell.png?v=1.7.0'],'hysteria':['Hysteria','/api/protocol-icon/hysteria.png?v=1.7.0']};return m[id]||[String(id||'').toUpperCase(),'/api/protocol-icon/vless-ws.png?v=1.7.0']}
 function cfgDate(v){if(!v)return 'بدون انقضا';try{return new Date(v).toLocaleDateString('fa-IR',{year:'numeric',month:'2-digit',day:'2-digit'})}catch(e){return String(v).slice(0,10)}}
 function updateConfigStats(){const total=__allLinks.length,expired=__allLinks.filter(configExpired).length,active=__allLinks.filter(l=>l.active!==false&&!configExpired(l)).length,used=__allLinks.reduce((n,l)=>n+Number(l.used_bytes||0),0),set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('cfgStatTotal',total);set('cfgStatUsed',fmtB(used));set('cfgStatActive',active);set('cfgStatExpired',expired);set('cfgVisibleCount',`${getFilteredConfigs().length} مورد`)}
 let __openConfigMenuUid='';
@@ -14925,7 +14952,7 @@ function groupProtocolLabel(id){
   return labels[id]||id;
 }
 function groupProtocolIcon(id){
-  const map={'vless-ws':'/api/protocol-icon/vless-ws.png?v=1.5.0','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png?v=1.5.0','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png?v=1.5.0','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png?v=1.5.0'};
+  const map={'vless-ws':'/api/protocol-icon/vless-ws.png?v=1.7.0','xhttp-packet-up':'/api/protocol-icon/xhttp-packet-up.png?v=1.7.0','xhttp-stream-up':'/api/protocol-icon/xhttp-stream-up.png?v=1.7.0','xhttp-stream-one':'/api/protocol-icon/xhttp-stream-one.png?v=1.7.0'};
   return map[id]||'';
 }
 function setGroupFilter(f,btn){__groupFilter=f;document.querySelectorAll('.group-filter').forEach(x=>x.classList.toggle('on',x===btn));renderGroupList()}
@@ -15164,7 +15191,7 @@ const PROTOCOL_PICKER_GROUPS=[
 ];
 const PROTOCOL_PICKER_NAMES={"vless-ws":"ONEX Base","siderail-vless-xhttp":"ONEX XHTTP","vmess-ws":"ONEX VMess","trojan-ws":"ONEX Trojan","vless-httpupgrade":"ONEX HTTPUpgrade","xhttp-packet-up":"ONEX Xhttp","xhttp-stream-up":"ONEX Gaming","xhttp-stream-one":"ONEX Stream","trojan":"Trojan","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2","vless-reality":"VLESS Reality","vless-grpc-reality":"VLESS gRPC Reality","vmess":"VMess","tuic":"TUIC","anytls":"AnyTLS","naive":"NaiveProxy","shadowtls":"ShadowTLS","snell":"Snell","hysteria":"Hysteria"};
 const PROTOCOL_PICKER_DESCS={"vless-ws":"VLESS WebSocket","siderail-vless-xhttp":"VLESS XHTTP","vmess-ws":"VMess WebSocket","trojan-ws":"Trojan WebSocket","vless-httpupgrade":"VLESS HTTPUpgrade","xhttp-packet-up":"VLESS + XHTTP","xhttp-stream-up":"VLESS + XHTTP","xhttp-stream-one":"VLESS + XHTTP stream-one","trojan":"Trojan + TLS","shadowsocks":"Shadowsocks","socks5":"SOCKS5","http":"HTTP Proxy","hysteria2":"Hysteria2 + QUIC","vless-reality":"VLESS + Reality","vless-grpc-reality":"VLESS + gRPC + Reality","vmess":"VMess + TLS","tuic":"TUIC + QUIC","anytls":"AnyTLS + TLS","naive":"NaiveProxy + TLS","shadowtls":"ShadowTLS v3","snell":"Snell v5","hysteria":"Hysteria + QUIC"};
-const PROTOCOL_ICON_DATA={"vless-ws":"/api/protocol-icon/vless-ws.png?v=1.5.0","siderail-vless-xhttp":"/api/protocol-icon/vless-ws.png?v=1.5.0","vmess-ws":"/api/protocol-icon/vmess.png?v=1.5.0","trojan-ws":"/api/protocol-icon/trojan.png?v=1.5.0","vless-httpupgrade":"/api/protocol-icon/vless-ws.png?v=1.5.0","xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png?v=1.5.0","xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png?v=1.5.0","xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png?v=1.5.0","trojan":"/api/protocol-icon/trojan.png?v=1.5.0","shadowsocks":"/api/protocol-icon/shadowsocks.png?v=1.5.0","socks5":"/api/protocol-icon/socks5.png?v=1.5.0","http":"/api/protocol-icon/http.png?v=1.5.0","hysteria2":"/api/protocol-icon/hysteria2.png?v=1.5.0","vless-reality":"/api/protocol-icon/vless-reality.png?v=1.5.0","vless-grpc-reality":"/api/protocol-icon/vless-grpc-reality.png?v=1.5.0","vmess":"/api/protocol-icon/vmess.png?v=1.5.0","tuic":"/api/protocol-icon/tuic.png?v=1.5.0","anytls":"/api/protocol-icon/anytls.png?v=1.5.0","naive":"/api/protocol-icon/naive.png?v=1.5.0","shadowtls":"/api/protocol-icon/shadowtls.png?v=1.5.0","snell":"/api/protocol-icon/snell.png?v=1.5.0","hysteria":"/api/protocol-icon/hysteria.png?v=1.5.0"};
+const PROTOCOL_ICON_DATA={"vless-ws":"/api/protocol-icon/vless-ws.png?v=1.7.0","siderail-vless-xhttp":"/api/protocol-icon/vless-ws.png?v=1.7.0","vmess-ws":"/api/protocol-icon/vmess.png?v=1.7.0","trojan-ws":"/api/protocol-icon/trojan.png?v=1.7.0","vless-httpupgrade":"/api/protocol-icon/vless-ws.png?v=1.7.0","xhttp-packet-up":"/api/protocol-icon/xhttp-packet-up.png?v=1.7.0","xhttp-stream-up":"/api/protocol-icon/xhttp-stream-up.png?v=1.7.0","xhttp-stream-one":"/api/protocol-icon/xhttp-stream-one.png?v=1.7.0","trojan":"/api/protocol-icon/trojan.png?v=1.7.0","shadowsocks":"/api/protocol-icon/shadowsocks.png?v=1.7.0","socks5":"/api/protocol-icon/socks5.png?v=1.7.0","http":"/api/protocol-icon/http.png?v=1.7.0","hysteria2":"/api/protocol-icon/hysteria2.png?v=1.7.0","vless-reality":"/api/protocol-icon/vless-reality.png?v=1.7.0","vless-grpc-reality":"/api/protocol-icon/vless-grpc-reality.png?v=1.7.0","vmess":"/api/protocol-icon/vmess.png?v=1.7.0","tuic":"/api/protocol-icon/tuic.png?v=1.7.0","anytls":"/api/protocol-icon/anytls.png?v=1.7.0","naive":"/api/protocol-icon/naive.png?v=1.7.0","shadowtls":"/api/protocol-icon/shadowtls.png?v=1.7.0","snell":"/api/protocol-icon/snell.png?v=1.7.0","hysteria":"/api/protocol-icon/hysteria.png?v=1.7.0"};
 function protocolPickerLabel(id){const p=__protocolPickerOptions.find(x=>x.id===id);return PROTOCOL_PICKER_NAMES[id]||p?.label||id||'Vortex Link'}
 function protocolPickerShort(id){return PROTOCOL_PICKER_NAMES[id]||id}
 function protocolIconMarkup(id){
@@ -16008,7 +16035,7 @@ html.light .sidebar .nav-label{color:inherit!important}
   .main,.main.expanded{padding-top:10px!important}
 }
 </style>
-<style id="onex-notify-fix">/* 1.5.0: panel is moved to <body> by JS and positioned under the bell,
+<style id="onex-notify-fix">/* 1.7.0: panel is moved to <body> by JS and positioned under the bell,
    so parent stacking contexts (backdrop-filter/transform) can't hide it behind the dashboard. */
 .top-notify-panel{position:fixed!important;right:24px;top:70px;width:320px;max-width:calc(100vw - 24px)!important;max-height:min(70vh,520px);overflow:auto;z-index:2147483000!important}
 .top-notify-panel[hidden]{display:none!important}
@@ -16125,7 +16152,8 @@ html.light .sidebar .nav-label{color:inherit!important}
       <div class="es-lbl">تعداد کاربر هر کانفیگ (۰ = بی‌نهایت)</div><div class="es-num"><button type="button" data-field="users" data-step="-1">−</button><input id="esUsers" inputmode="numeric" value="0"><button type="button" data-field="users" data-step="1">+</button></div>
       <div class="es-lbl">مدت (روز، ۰ = بی‌نهایت)</div>
       <div class="es-num"><button type="button" data-field="days" data-step="-1">−</button><input id="esDays" inputmode="numeric" value="0"><button type="button" data-field="days" data-step="1">+</button></div>
-      <div style="display:grid;gap:10px;margin:6px 0 14px"><div class="esc-row"><div class="esc-ico">⚡</div><div class="esc-txt"><b>بهینه‌ساز (cs + fm)</b><small>روی VLESS و Trojan اعمال میشه</small></div><button type="button" id="esOptBtn" class="esw off" aria-label="بهینه‌ساز" onclick="esToggleCdn('opt')"><i></i></button></div><div class="esc-row"><div class="esc-ico">🛡</div><div class="esc-txt"><b>ECH کلودفلر</b><small>فقط بخش ECH کلودفلر</small></div><button type="button" id="esEchBtn" class="esw off" aria-label="ECH" onclick="esToggleCdn('ech')"><i></i></button></div><div class="esc-bar" id="esEchBar" hidden><div style="font-size:12px;opacity:.8">مقدار ECH (پیش‌فرض کلودفلر)</div><input id="esEchVal" dir="ltr" value="cloudflare-ech.com+udp://1.1.1.1" autocomplete="off"><button type="button" onclick="esApplyEch()">اعمال روی کانفیگ‌های Edge</button></div><div class="esc-bar" id="esEchBuilder" hidden style="margin-top:8px;display:grid;gap:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:13px">ECH Builder</b><span style="font-size:11px;opacity:.7">ترکیب دامنه و آی‌پی DNS</span></div><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px"><div style="min-width:0"><div class="es-lbl">دامنه‌های ECH</div><textarea id="echDomains" dir="ltr" rows="5" style="width:100%;border-radius:12px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:8px 10px;font:inherit;box-sizing:border-box"></textarea><button type="button" class="esb" onclick="echLoad('dom')" style="margin-top:6px">بارگذاری از مخزن</button></div><div style="min-width:0"><div class="es-lbl">آی‌پی‌های DNS</div><textarea id="echDns" dir="ltr" rows="5" style="width:100%;border-radius:12px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:8px 10px;font:inherit;box-sizing:border-box"></textarea><button type="button" class="esb" onclick="echLoad('dns')" style="margin-top:6px">بارگذاری از مخزن</button></div></div><div id="echProtos" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="esb" data-ep="udp" onclick="echToggleP('udp')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:0;background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff">UDP</button><button type="button" class="esb" data-ep="doh" onclick="echToggleP('doh')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:1px solid rgba(255,255,255,.15);background:transparent;color:inherit">DOH</button><button type="button" class="esb" data-ep="tcp" onclick="echToggleP('tcp')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:1px solid rgba(255,255,255,.15);background:transparent;color:inherit">TCP</button></div><button type="button" class="es-build" onclick="echBuild()">ترکیب و ساخت ECH</button><div class="es-lbl" id="echCount"></div><div id="echOut" dir="ltr" style="max-height:176px;overflow-y:auto;border-radius:12px;background:rgba(0,0,0,.25);padding:6px"></div><div style="border-radius:12px;border:1px solid rgba(168,85,247,.35);background:rgba(168,85,247,.06);padding:10px"><div class="es-lbl" style="margin:0 0 4px">مقدار ECH فعال</div><div id="echSel" dir="ltr" style="font-family:monospace;font-size:12px;word-break:break-all">—</div></div></div></div>
+      <div style="display:grid;gap:10px;margin:6px 0 14px"><div class="esc-row"><div class="esc-ico">⚡</div><div class="esc-txt"><b>بهینه‌ساز (cs + fm)</b><small>روی VLESS و Trojan اعمال میشه</small></div><button type="button" id="esOptBtn" class="esw off" aria-label="بهینه‌ساز" onclick="esToggleCdn('opt')"><i></i></button></div><div class="esc-row"><div class="esc-ico">🛡</div><div class="esc-txt"><b>ECH کلودفلر</b><small>فقط بخش ECH کلودفلر</small></div><button type="button" id="esEchBtn" class="esw off" aria-label="ECH" onclick="esToggleCdn('ech')"><i></i></button></div><div class="esc-bar" id="esEchBar" hidden><div style="font-size:12px;opacity:.8">مقدار ECH (پیش‌فرض کلودفلر)</div><input id="esEchVal" dir="ltr" value="cloudflare-ech.com+udp://1.1.1.1" autocomplete="off"><button type="button" onclick="esApplyEch()">اعمال روی کانفیگ‌های Edge</button></div><div class="esc-bar esc-builder" id="esEchBuilder" hidden style="margin-top:8px;display:grid;gap:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="font-size:13px">ECH Builder</b><span style="font-size:11px;opacity:.7">ترکیب دامنه و آی‌پی DNS</span></div><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px"><div style="min-width:0"><div class="es-lbl">دامنه‌های ECH</div><textarea id="echDomains" dir="ltr" rows="5" style="width:100%;border-radius:12px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:8px 10px;font:inherit;box-sizing:border-box"></textarea><button type="button" class="esb" onclick="echLoad('dom')" style="margin-top:6px">بارگذاری از مخزن</button></div><div style="min-width:0"><div class="es-lbl">آی‌پی‌های DNS</div><textarea id="echDns" dir="ltr" rows="5" style="width:100%;border-radius:12px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:8px 10px;font:inherit;box-sizing:border-box"></textarea><button type="button" class="esb" onclick="echLoad('dns')" style="margin-top:6px">بارگذاری از مخزن</button></div></div><div id="echProtos" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="esb" data-ep="udp" onclick="echToggleP('udp')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:0;background:linear-gradient(90deg,#8b5cf6,#ec4899);color:#fff">UDP</button><button type="button" class="esb" data-ep="doh" onclick="echToggleP('doh')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:1px solid rgba(255,255,255,.15);background:transparent;color:inherit">DOH</button><button type="button" class="esb" data-ep="tcp" onclick="echToggleP('tcp')" style="border-radius:999px;padding:6px 16px;font-weight:700;border:1px solid rgba(255,255,255,.15);background:transparent;color:inherit">TCP</button></div><button type="button" class="es-build" onclick="echBuild()">ترکیب و ساخت ECH</button><div class="es-lbl" id="echCount"></div><div id="echOut" dir="ltr" style="max-height:176px;overflow-y:auto;border-radius:12px;background:rgba(0,0,0,.25);padding:6px"></div><div style="border-radius:12px;border:1px solid rgba(168,85,247,.35);background:rgba(168,85,247,.06);padding:10px"><div class="es-lbl" style="margin:0 0 4px">مقدار ECH فعال</div><div id="echSel" dir="ltr" style="font-family:monospace;font-size:12px;word-break:break-all">—</div></div></div></div>
+      <div id="espWrap" class="esp-wrap"><div class="esp-head"><b>پورت‌های کلودفلر</b><small>انتخاب پورت برای ساب‌ها</small></div><div class="esp-tabs"><button type="button" class="esp-tab" data-tab="http" onclick="espTab('http')">HTTP</button><button type="button" class="esp-tab on" data-tab="https" onclick="espTab('https')">HTTPS</button></div><div class="esp-grid" id="espGrid"></div><div class="esp-count" id="espCount"></div></div>
       <button type="button" class="es-build" id="esBuild">ساخت کانفیگ‌ها</button>
       <button type="button" class="esb" id="esCancelEdit" hidden style="width:100%;justify-content:center;margin-top:8px">انصراف از ویرایش</button>
     </div>
@@ -16541,7 +16569,7 @@ cloudflare.com"></textarea></div>
   function esDaysLeft(v){if(!v)return '∞';const d=new Date(v);if(isNaN(d))return '—';const ms=d-Date.now();if(ms<=0)return 'منقضی';const days=Math.floor(ms/86400000);const h=Math.floor((ms%86400000)/3600000);return days?`${days.toLocaleString('fa-IR')} روز`:`${h.toLocaleString('fa-IR')} ساعت`}
   async function esEnsureLink(uid){window.__linksMap=window.__linksMap||{};if(window.__linksMap[uid])return;const links=await esListUids();links.forEach(l=>window.__linksMap[String(l.uuid||l.id||'')]=l)}
   function esRender(rows){
-    esInjectCss();
+    esInjectCss();espRender();
     const box=esQ('esLanes');
     if(!rows.length){box.innerHTML='<div class="es-empty">هنوز کانفیگی ساخته نشده. تنظیمات رو انتخاب کن و «ساخت کانفیگ‌ها» رو بزن.</div>';return}
     box.innerHTML=rows.map(r=>{
@@ -16630,6 +16658,19 @@ cloudflare.com"></textarea></div>
   .esc-txt b{font-size:15px;font-weight:800}
   .esc-txt small{font-size:12px;opacity:.7}
   .esc-bar{padding:14px;border-radius:18px;border:1px dashed rgba(52,245,160,.55);display:grid;gap:10px}
+  .esc-bar[hidden],.esc-builder[hidden]{display:none!important}
+  .esp-wrap{display:grid;gap:12px;padding:14px;border-radius:18px;border:1px solid var(--card-b);background:rgba(255,255,255,.03)}
+  .esp-head{display:flex;flex-direction:column;gap:4px}
+  .esp-head b{font-size:15px;font-weight:800}
+  .esp-head small{font-size:12px;opacity:.7}
+  .esp-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid var(--card-b)}
+  .esp-tab{height:38px;border-radius:11px;border:0;background:transparent;color:var(--t2);font-weight:800;font-size:14px;cursor:pointer}
+  .esp-tab.on{background:linear-gradient(90deg,#22d3ee,#8b5cf6);color:#fff}
+  .esp-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .esp-tile{height:52px;border-radius:14px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);font-weight:800;font-size:15px;cursor:pointer;direction:ltr;font-family:inherit;transition:transform .15s}
+  .esp-tile:active{transform:scale(.97)}
+  .esp-tile.on{border:1.5px solid transparent;background:linear-gradient(#141b26,#141b26) padding-box,linear-gradient(90deg,#8b5cf6,#ec4899) border-box;color:#fff;box-shadow:0 0 16px -4px rgba(139,92,246,.6)}
+  .esp-count{font-size:12px;opacity:.8;text-align:center}
   .esc-bar input{height:44px;border-radius:12px;border:1px solid var(--card-b);background:rgba(0,0,0,.22);color:var(--t1);padding:0 12px;font:inherit;direction:ltr;box-sizing:border-box;width:100%}
   .esc-bar button{height:44px;border-radius:12px;border:0;background:linear-gradient(135deg,#34f5a0,#22c1ee);color:#04111a;font-weight:800;font-size:14px;cursor:pointer}
   .esc-lane{display:block!important;padding:16px!important}
@@ -16655,7 +16696,13 @@ cloudflare.com"></textarea></div>
   .esc-actions button:active,.esc-bar button:active{transform:translateY(1px) scale(.98)}
   @media (max-width:640px){.esc-lane{padding:12px!important}.esc-row{padding:12px}.esc-ico{width:40px;height:40px;font-size:19px}.esw{width:68px;height:34px}.esw i{width:26px;height:26px;top:4px}.esw.off i{left:38px}.esc-name b{font-size:14px}.esc-stats span{font-size:11px}.esc-actions button{flex:1 1 calc(50% - 6px);text-align:center;font-size:12px}}
   `;document.head.appendChild(st)}
-  function esSetToggles(){esInjectCss();[['esOptBtn',ES.opt],['esEchBtn',ES.ech]].forEach(([id,on])=>{const b=esQ(id);if(!b)return;b.classList.toggle('on',!!on);b.classList.toggle('off',!on);b.setAttribute('aria-pressed',on?'true':'false')});const bar=esQ('esEchBar');if(bar)bar.hidden=!ES.ech;const eb=esQ('esEchBuilder');if(eb)eb.hidden=!ES.ech;const inp=esQ('esEchVal');if(inp&&document.activeElement!==inp)inp.value=ES.echVal}
+  const ESP_HTTPS=[443,2053,2083,2087,2096,8443],ESP_HTTP=[80,8080,8880,2052,2082,2086,2095];
+  ES.ports=(()=>{try{const v=JSON.parse(localStorage.getItem('esPorts')||'null');if(Array.isArray(v)&&v.length)return v.map(Number).filter(x=>ESP_HTTPS.includes(x)||ESP_HTTP.includes(x))}catch(e){}return [443]})();
+  ES.portTab='https';
+  function espRender(){const g=esQ('espGrid');if(!g)return;const list=ES.portTab==='http'?ESP_HTTP:ESP_HTTPS;g.innerHTML=list.map(p=>`<button type="button" class="esp-tile${ES.ports.includes(p)?' on':''}" onclick="espTogglePort(${p})">${p}</button>`).join('');document.querySelectorAll('#espWrap .esp-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===ES.portTab));const c=esQ('espCount');if(c)c.textContent=`${ES.ports.length.toLocaleString('fa-IR')} پورت انتخاب شده`}
+  window.espTab=function(t){ES.portTab=t;espRender()};
+  window.espTogglePort=function(p){let next=ES.ports.includes(p)?ES.ports.filter(x=>x!==p):[...ES.ports,p];if(!next.length){toast('حداقل یک پورت لازمه');return}ES.ports=next;try{localStorage.setItem('esPorts',JSON.stringify(ES.ports))}catch(e){}espRender()};
+  function esSetToggles(){esInjectCss();espRender();[['esOptBtn',ES.opt],['esEchBtn',ES.ech]].forEach(([id,on])=>{const b=esQ(id);if(!b)return;b.classList.toggle('on',!!on);b.classList.toggle('off',!on);b.setAttribute('aria-pressed',on?'true':'false')});const bar=esQ('esEchBar');if(bar)bar.hidden=!ES.ech;const eb=esQ('esEchBuilder');if(eb)eb.hidden=!ES.ech;const inp=esQ('esEchVal');if(inp&&document.activeElement!==inp)inp.value=ES.echVal}
   async function esPushCdn(kind,val){const key=kind==='opt'?'cdn_optimizer':'cdn_ech';const rows=window.__esRows||[];let n=0;for(const x of rows){const res=await fetch(`/api/links/${encodeURIComponent(x.uid)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({[key]:val})});if(res.ok)n++}await esSaveSettings();toast(rows.length?`${n.toLocaleString('fa-IR')} کانفیگ به‌روز شد`:'روی کانفیگ‌های بعدی اعمال میشه');loadEdgeSub()}
   window.esToggleCdn=async function(kind){
     if(kind==='opt'){ES.opt=!ES.opt;esSetToggles();return esPushCdn('opt',ES.opt)}
@@ -16791,7 +16838,7 @@ html.light #esVault div[dir="rtl"] div{background:rgba(0,0,0,.35) !important}
       btn.textContent='در حال ساخت…';
       const r=await j('/api/links','POST',{label:base,protocol:chosen[0],bundle_protocols:chosen,clean_ips:ips,limit_value:ES.quota,limit_unit:'GB',expires_days:ES.days,cdn_optimizer:!!ES.opt,cdn_ech:ES.ech?ES.echVal:'',ip_limit:ES.users});
       if(!r||!r.uuid){toast('ساخت ناموفق بود');return}
-      await j('/api/links/'+encodeURIComponent(r.uuid),'PATCH',{ip_proto_pairs:pairs});
+      await j('/api/links/'+encodeURIComponent(r.uuid),'PATCH',{ip_proto_pairs:pairs,edge_ports:ES.ports});
       await j('/api/cfedge/sub/mark','POST',{uids:[r.uuid]});
       toast(`ساب ${base} با ${total.toLocaleString('fa-IR')} کانفیگ ساخته شد`);
     }finally{ES.building=false;btn.textContent=old;loadEdgeSub()}
@@ -16820,6 +16867,7 @@ html.light #esVault div[dir="rtl"] div{background:rgba(0,0,0,.35) !important}
     prevGo(name);
     if(name==='sell')loadSell();
     if(name==='edge'){loadEdge();loadEdgeSaved();loadEdgeSub();loadSniSaved();}
+    if(name==='edge-config'){loadEdgeSub();}
   };
 })();
 </script>

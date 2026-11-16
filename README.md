@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚀 ONEX Panel 1.5.0
+# 🚀 ONEX Panel 1.7.0
 
 ### ⚡ پنل حرفه‌ای مدیریت V2Ray / Xray
 
